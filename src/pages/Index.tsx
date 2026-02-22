@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { LogOut, Plus, Palette } from "lucide-react";
+import { LogOut, Plus, Palette, CreditCard } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -30,6 +30,10 @@ const Index = () => {
       <header className="flex items-center justify-between px-8 py-6 border-b border-border">
         <h1 className="text-2xl font-serif tracking-tight">Brandie</h1>
         <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" className="gap-1.5 rounded-xl" onClick={() => navigate("/plans")}>
+            <CreditCard className="h-4 w-4" />
+            Plans
+          </Button>
           <span className="text-sm text-muted-foreground">{user?.email}</span>
           <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
             <LogOut className="h-4 w-4" />
