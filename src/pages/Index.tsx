@@ -3,10 +3,26 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { LogOut, Plus, Palette } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const { data: designs } = useQuery({
+    queryKey: ["recent-designs", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("designs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -51,14 +67,30 @@ const Index = () => {
           <section className="space-y-4">
             <h3 className="text-lg font-medium text-foreground">Recent designs</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-xl bg-secondary/60 border border-border flex items-center justify-center"
-                >
-                  <span className="text-sm text-muted-foreground">No designs yet</span>
-                </div>
-              ))}
+              {(!designs || designs.length === 0) ? (
+                [1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="aspect-square rounded-xl bg-secondary/60 border border-border flex items-center justify-center"
+                  >
+                    <span className="text-sm text-muted-foreground">No designs yet</span>
+                  </div>
+                ))
+              ) : (
+                designs.map((design) => (
+                  <div
+                    key={design.id}
+                    className="aspect-square rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
+                    onClick={() => navigate("/studio")}
+                  >
+                    <img
+                      src={design.image_url}
+                      alt={design.title || design.prompt}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))
+              )}
             </div>
           </section>
         </motion.div>
