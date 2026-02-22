@@ -31,11 +31,48 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action } = await req.json();
+    const { messages, brand, action, canvas_size } = await req.json();
 
-    // Action: generate image
     if (action === "generate") {
-      // Build the creative director system prompt with brand context
+      // Check and increment generation count
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("generations_count, generations_reset_at")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        const resetAt = new Date(profile.generations_reset_at);
+        const now = new Date();
+        const needsReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+
+        if (needsReset) {
+          await adminClient
+            .from("profiles")
+            .update({ generations_count: 1, generations_reset_at: now.toISOString() })
+            .eq("user_id", user.id);
+        } else {
+          if (profile.generations_count >= 10) {
+            return new Response(JSON.stringify({ error: "Monthly generation limit reached. Please upgrade your plan." }), {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          await adminClient
+            .from("profiles")
+            .update({ generations_count: profile.generations_count + 1 })
+            .eq("user_id", user.id);
+        }
+      }
+
+      // Determine canvas dimensions
+      const size = canvas_size || "1080x1080";
+      const [w, h] = size.split("x");
+      const sizeLabel = size === "1080x1920" ? "portrait story (1080x1920)" : "square (1080x1080)";
+
       const brandContext = brand
         ? `You are Brandie, a senior creative director with 20+ years of experience. You design within the user's brand system.
 
@@ -59,11 +96,11 @@ DESIGN RULES:
 - Modern 2026-level design aesthetic
 - Strong focal point with balanced composition
 - Include the brand name "${brand.name}" in the design when relevant
+- Canvas size: ${sizeLabel}
 
 When generating, describe EXACTLY what the image should look like in detail, including layout, colours (use exact hex values), typography style, spacing, and composition. Be specific and visual.`
         : "You are a helpful design assistant. Create beautiful social media graphics.";
 
-      // Step 1: Use reasoning model to create the design brief
       const briefResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -98,7 +135,6 @@ When generating, describe EXACTLY what the image should look like in detail, inc
       const briefData = await briefResponse.json();
       const briefContent = briefData.choices?.[0]?.message?.content || "";
 
-      // Extract the design prompt from the brief
       const designPrompt = briefContent.includes("DESIGN BRIEF:")
         ? briefContent.split("DESIGN BRIEF:")[1].split("EXPLANATION:")[0].trim()
         : briefContent.split("\n")[0];
@@ -107,7 +143,6 @@ When generating, describe EXACTLY what the image should look like in detail, inc
         ? briefContent.split("EXPLANATION:")[1].trim()
         : "I've crafted this design with your brand identity in mind.";
 
-      // Step 2: Generate image with Nano Banana
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -119,7 +154,7 @@ When generating, describe EXACTLY what the image should look like in detail, inc
           messages: [
             {
               role: "user",
-              content: `Create a professional social media graphic (1080x1080 square format). ${designPrompt}`,
+              content: `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). ${designPrompt}`,
             },
           ],
           modalities: ["image", "text"],
@@ -149,13 +184,9 @@ When generating, describe EXACTLY what the image should look like in detail, inc
         throw new Error("No image was generated. Try a different prompt.");
       }
 
-      // Upload base64 image to storage
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
       const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
       const filePath = `${user.id}/${crypto.randomUUID()}.png`;
-
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
       const { error: uploadError } = await adminClient.storage
         .from("designs")
@@ -178,7 +209,6 @@ When generating, describe EXACTLY what the image should look like in detail, inc
       );
     }
 
-    // Action: chat (non-generating conversation)
     if (action === "chat") {
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",

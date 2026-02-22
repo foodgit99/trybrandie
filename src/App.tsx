@@ -11,6 +11,7 @@ import Onboarding from "./pages/Onboarding";
 import Index from "./pages/Index";
 import BrandCentre from "./pages/BrandCentre";
 import DesignStudio from "./pages/DesignStudio";
+import Plans from "./pages/Plans";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,7 @@ const App = () => (
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/brand" element={<ProtectedRoute><BrandCentre /></ProtectedRoute>} />
           <Route path="/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
+          <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

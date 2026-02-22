@@ -6,6 +6,27 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
@@ -17,6 +38,7 @@ import {
   Save,
   Copy,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 
 type Message = {
@@ -24,6 +46,13 @@ type Message = {
   content: string;
   imageUrl?: string;
 };
+
+const CANVAS_SIZES = [
+  { label: "Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
+  { label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
+];
+
+const FREE_TIER_LIMIT = 10;
 
 const DesignStudio = () => {
   const { brand } = useBrand();
@@ -37,15 +66,43 @@ const DesignStudio = () => {
   const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
   const [vote, setVote] = useState<-1 | 0 | 1>(0);
   const [saved, setSaved] = useState(false);
+  const [canvasSize, setCanvasSize] = useState("1080x1080");
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const currentAspect = CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const checkGenerationLimit = async (): Promise<boolean> => {
+    if (!user) return false;
+    const { data } = await supabase
+      .from("profiles")
+      .select("generations_count, generations_reset_at")
+      .eq("user_id", user.id)
+      .single();
+    if (!data) return true;
+    // Reset monthly counter if needed
+    const resetAt = new Date(data.generations_reset_at);
+    const now = new Date();
+    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
+      return true; // will be reset server-side
+    }
+    if (data.generations_count >= FREE_TIER_LIMIT) {
+      setShowLimitModal(true);
+      return false;
+    }
+    return true;
+  };
+
   const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
+
+    const canGenerate = await checkGenerationLimit();
+    if (!canGenerate) return;
 
     const userMsg: Message = { role: "user", content: trimmed };
     const newMessages = [...messages, userMsg];
@@ -59,6 +116,7 @@ const DesignStudio = () => {
       const { data, error } = await supabase.functions.invoke("design-studio", {
         body: {
           action: "generate",
+          canvas_size: canvasSize,
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
           brand: brand
             ? {
@@ -114,6 +172,7 @@ const DesignStudio = () => {
       title: messages.find((m) => m.role === "user")?.content?.slice(0, 100) || "Untitled",
       prompt: currentPrompt || "",
       image_url: currentImage,
+      canvas_size: canvasSize,
       vote,
     });
     if (error) {
@@ -127,7 +186,6 @@ const DesignStudio = () => {
   const handleVote = async (v: -1 | 1) => {
     const newVote = vote === v ? 0 : v;
     setVote(newVote);
-    // If already saved, update the vote
     if (saved && currentImage) {
       await supabase
         .from("designs")
@@ -137,19 +195,113 @@ const DesignStudio = () => {
     }
   };
 
-  const handleDownload = async () => {
+  const downloadAs = async (format: "png" | "jpg") => {
     if (!currentImage) return;
     try {
       const response = await fetch(currentImage);
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `brandie-design-${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      if (format === "png") {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `brandie-design-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        // Convert to JPG via canvas
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        const objectUrl = URL.createObjectURL(blob);
+        img.src = objectUrl;
+        await new Promise<void>((res, rej) => {
+          img.onload = () => res();
+          img.onerror = rej;
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        // Add watermark for free tier
+        addWatermark(ctx, canvas.width, canvas.height);
+        canvas.toBlob(
+          (jpgBlob) => {
+            if (!jpgBlob) return;
+            const url = URL.createObjectURL(jpgBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `brandie-design-${Date.now()}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          },
+          "image/jpeg",
+          0.92
+        );
+        URL.revokeObjectURL(objectUrl);
+      }
+    } catch {
+      toast({ title: "Download failed", variant: "destructive" });
+    }
+  };
+
+  const addWatermark = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    // Free tier watermark — always applied for now (paid tiers will skip this)
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = "#ffffff";
+    const fontSize = Math.max(14, Math.round(w / 50));
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    // Shadow for readability
+    ctx.shadowColor = "rgba(0,0,0,0.4)";
+    ctx.shadowBlur = 4;
+    ctx.fillText("Made with Brandie", w - 16, h - 12);
+    ctx.restore();
+  };
+
+  const handleDownloadPng = async () => {
+    if (!currentImage) return;
+    try {
+      const response = await fetch(currentImage);
+      const blob = await response.blob();
+      // Re-draw on canvas to add watermark
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const objectUrl = URL.createObjectURL(blob);
+      img.src = objectUrl;
+      await new Promise<void>((res, rej) => {
+        img.onload = () => res();
+        img.onerror = rej;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      addWatermark(ctx, canvas.width, canvas.height);
+      canvas.toBlob(
+        (pngBlob) => {
+          if (!pngBlob) return;
+          const url = URL.createObjectURL(pngBlob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `brandie-design-${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        },
+        "image/png"
+      );
+      URL.revokeObjectURL(objectUrl);
     } catch {
       toast({ title: "Download failed", variant: "destructive" });
     }
@@ -172,7 +324,19 @@ const DesignStudio = () => {
           </Button>
           <h1 className="text-lg font-serif tracking-tight">Design Studio</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Select value={canvasSize} onValueChange={setCanvasSize}>
+            <SelectTrigger className="w-[180px] h-9 rounded-xl text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CANVAS_SIZES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <span className="text-sm text-muted-foreground px-3 py-1 rounded-lg bg-secondary">
             {brand?.name || "Brand"}
           </span>
@@ -283,7 +447,8 @@ const DesignStudio = () => {
                   <img
                     src={currentImage}
                     alt="Design preview"
-                    className="max-w-full max-h-[70vh] rounded-2xl shadow-lg border border-border"
+                    className="max-h-[70vh] rounded-2xl shadow-lg border border-border"
+                    style={{ aspectRatio: currentAspect }}
                   />
                 </motion.div>
               ) : (
@@ -292,7 +457,10 @@ const DesignStudio = () => {
                   animate={{ opacity: 1 }}
                   className="text-center space-y-3"
                 >
-                  <div className="w-64 h-64 rounded-2xl border-2 border-dashed border-border flex items-center justify-center mx-auto">
+                  <div
+                    className="w-64 rounded-2xl border-2 border-dashed border-border flex items-center justify-center mx-auto"
+                    style={{ aspectRatio: currentAspect }}
+                  >
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground">Your design will appear here</p>
                     </div>
@@ -319,15 +487,21 @@ const DesignStudio = () => {
                 <Save className="h-3.5 w-3.5" />
                 {saved ? "Saved" : "Save"}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl gap-1.5"
-                onClick={handleDownload}
-              >
-                <Download className="h-3.5 w-3.5" />
-                Download
-              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
+                    <Download className="h-3.5 w-3.5" />
+                    Download
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  <DropdownMenuItem onClick={handleDownloadPng}>PNG</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => downloadAs("jpg")}>JPG</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
                 variant={vote === 1 ? "default" : "outline"}
                 size="sm"
@@ -359,6 +533,24 @@ const DesignStudio = () => {
           )}
         </div>
       </div>
+
+      {/* Limit reached modal */}
+      <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif">Generation limit reached</DialogTitle>
+            <DialogDescription>
+              You've used all 10 free generations this month. Upgrade your plan to keep creating.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLimitModal(false)}>
+              Close
+            </Button>
+            <Button onClick={() => navigate("/plans")}>View Plans</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
