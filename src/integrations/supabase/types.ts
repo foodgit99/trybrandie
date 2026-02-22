@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_inspiration: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          image_url: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          image_url: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_inspiration_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brands: {
+        Row: {
+          accent_colors: string[] | null
+          created_at: string
+          description: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          onboarding_complete: boolean
+          primary_colors: string[] | null
+          secondary_colors: string[] | null
+          tagline: string | null
+          typography_display: string | null
+          typography_primary: string | null
+          typography_secondary: string | null
+          updated_at: string
+          user_id: string
+          vibe: string | null
+        }
+        Insert: {
+          accent_colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          onboarding_complete?: boolean
+          primary_colors?: string[] | null
+          secondary_colors?: string[] | null
+          tagline?: string | null
+          typography_display?: string | null
+          typography_primary?: string | null
+          typography_secondary?: string | null
+          updated_at?: string
+          user_id: string
+          vibe?: string | null
+        }
+        Update: {
+          accent_colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          onboarding_complete?: boolean
+          primary_colors?: string[] | null
+          secondary_colors?: string[] | null
+          tagline?: string | null
+          typography_display?: string | null
+          typography_primary?: string | null
+          typography_secondary?: string | null
+          updated_at?: string
+          user_id?: string
+          vibe?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
