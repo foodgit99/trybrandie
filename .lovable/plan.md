@@ -1,125 +1,58 @@
 
 
-# Brandie – MVP Implementation Plan
+# Brandie MVP — Remaining Phases
 
-## Overview
-Build the core Brandie experience: a premium, Apple-inspired AI chat interface where users can set up their brand and generate on-brand social media graphics using natural language. MVP focuses on the essential loop: **Sign up → Set up brand → Chat to create designs → Download**.
+## Phase 6: Export System Enhancement
 
----
+### 6.1 Canvas Size Selection
+- Add a size selector in the Design Studio toolbar (Square 1080x1080, Story 1080x1920)
+- Pass the selected size to the edge function so generated images match the chosen dimensions
+- Update the preview canvas aspect ratio dynamically
 
-## Phase 1: Foundation & Auth
-
-### 1.1 Visual Identity & Design System
-- Apply Brandie's premium, minimal visual language across the app
-- Light neutral base, soft shadows, generous white space, 8pt grid
-- Clean sans-serif typography, rounded buttons, gentle micro-transitions
-- Upload and use the Brandie logo throughout the app
-
-### 1.2 Authentication
-- Email/password signup and login
-- Clean, minimal auth pages matching Brandie's premium aesthetic
-- User profiles table to store account data
+### 6.2 Download Options
+- Add a download dropdown with PNG and JPG format options
+- Use canvas/blob conversion for JPG export from the image URL
 
 ---
 
-## Phase 2: Brand Onboarding
+## Phase 7: Subscription UI and Feature Gating
 
-### 2.1 Guided Onboarding Flow
-A beautiful, step-by-step onboarding wizard (one question per screen):
-1. **Brand name** – text input
-2. **Tagline** – text input
-3. **Brand description** – textarea
-4. **Logo upload** – drag & drop upload
-5. **Brand colours** – pick primary, secondary, and accent colours
-6. **Typography** – choose from curated Google Fonts list
-7. **Brand vibe** – select one: Minimal / Bold / Luxury / Playful / Corporate / Cinematic
-8. **Inspiration uploads** – upload example designs they love (optional)
+### 7.1 Database Changes
+- Add a `generations_count` and `generations_reset_at` columns to the `profiles` table to track monthly usage
+- Increment the count each time a design is generated in the edge function
 
-Ends with a confirmation: *"Your brand system is ready."*
+### 7.2 Plans Page
+- Create `/plans` route with a new `src/pages/Plans.tsx`
+- Display four tiers in a clean comparison grid:
+  - **Free** ($0) — 10 generations/month, 1 brand, watermark, 1080x1080 only
+  - **Creator** ($16/mo) — 50 credits, 1 brand, no watermark, PNG + JPG
+  - **Business** ($29/mo) — 150 credits, multiple brands, team access, all formats
+  - **Agency** ($75/mo) — 400 credits, unlimited brands, white-label, priority queue
+- "Upgrade" buttons show a toast: "Payments coming soon"
+- Add a link to the Plans page from the home dashboard header
 
-### 2.2 Brand Data Storage
-- Database tables for brands, brand visuals, and brand inspiration
-- Secure file storage for logos and inspiration images
-- One brand per user for MVP
+### 7.3 Generation Gating
+- Before generating a design, check `generations_count` against the free tier limit (10)
+- If limit reached, show a modal prompting upgrade
+- Increment count on successful generation
 
----
-
-## Phase 3: Home Screen
-
-### 3.1 Home Dashboard
-Minimal layout with:
-- **"Create New Design"** – large, prominent primary CTA
-- **Recent Designs** – grid of previously generated designs
-- **Brand Centre** – quick access to view/edit brand settings
-- **Account Settings** – profile and plan info
+### 7.4 Watermark Badge (Free Tier)
+- Overlay a small "Made with Brandie" badge on exported images for free-tier users
+- Paid tiers skip the watermark
 
 ---
 
-## Phase 4: Brand Centre
+## Technical Details
 
-### 4.1 Brand Centre Page
-A clean, organized view of all stored brand data:
-- Brand info (name, tagline, description, vibe)
-- Visual identity (colours, typography, logo)
-- Inspiration gallery
-- All fields editable inline
+**Files to create:**
+- `src/pages/Plans.tsx` — pricing comparison page
 
----
+**Files to modify:**
+- `src/pages/DesignStudio.tsx` — canvas size selector, download format dropdown, generation limit check
+- `src/pages/Index.tsx` — add Plans link in header
+- `src/App.tsx` — add `/plans` route
+- `supabase/functions/design-studio/index.ts` — accept canvas size param, increment generation count
 
-## Phase 5: Design Creation (Core Experience)
-
-### 5.1 Two-Panel Design Studio
-- **Left panel**: Chat interface with the AI creative director
-- **Right panel**: Live design preview canvas (1080×1080 default)
-- **Top**: Brand selector (for future multi-brand support, shows current brand for now)
-- **Bottom toolbar**: Save, Download, Upvote 👍, Downvote 👎, Duplicate
-
-### 5.2 AI Chat & Image Generation
-- Chat input: *"What would you like to design?"*
-- AI parses the user's request, retrieves brand data (colours, fonts, logo, vibe)
-- AI generates a structured design brief/reasoning message (acting as a creative director)
-- Sends prompt to Nano Banana (Gemini Flash Image) for image generation
-- Renders the generated image in the preview canvas
-- AI explains its design choices in a calm, professional tone
-
-### 5.3 Chat-Based Editing
-- User can refine via follow-up messages: *"Make it more premium"*, *"Bigger headline"*, *"Less text"*
-- AI adjusts the prompt based on conversation history (session memory)
-- Regenerates with modifications while maintaining brand consistency
-
-### 5.4 Design History
-- Save generated designs to the database
-- Upvote/downvote designs (stored for future preference learning)
-- View all past designs from the home screen
-
----
-
-## Phase 6: Export
-
-### 6.1 Download System
-- Download generated images as **PNG** or **JPG**
-- Option to select canvas size: Square (1080×1080), Story (1080×1920)
-
----
-
-## Phase 7: Subscription UI & Gating
-
-### 7.1 Plans Page
-- Display four tiers: Free, Creator, Business, Agency with feature comparison
-- Track generation count per user
-- Free tier: 10 generations/month with watermark badge
-- Gate features behind plan tiers (UI only, no real payments)
-- "Upgrade" buttons that show a coming-soon state
-
----
-
-## What's Deferred (Post-MVP)
-- RAG system with vector embeddings for hyper-personalisation
-- Preference learning engine (auto-adjusting from upvotes/downvotes)
-- Multi-brand support
-- Team/collaboration features
-- PDF and carousel export
-- Stripe payment integration
-- White-label export
-- Client folders (Agency tier)
+**Database migration:**
+- Add `generations_count` (integer, default 0) and `generations_reset_at` (timestamptz, default now()) to `profiles` table
 
