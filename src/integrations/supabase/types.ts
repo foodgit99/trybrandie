@@ -100,6 +100,50 @@ export type Database = {
         }
         Relationships: []
       }
+      designs: {
+        Row: {
+          brand_id: string
+          canvas_size: string
+          created_at: string
+          id: string
+          image_url: string
+          prompt: string
+          title: string | null
+          user_id: string
+          vote: number | null
+        }
+        Insert: {
+          brand_id: string
+          canvas_size?: string
+          created_at?: string
+          id?: string
+          image_url: string
+          prompt: string
+          title?: string | null
+          user_id: string
+          vote?: number | null
+        }
+        Update: {
+          brand_id?: string
+          canvas_size?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          prompt?: string
+          title?: string | null
+          user_id?: string
+          vote?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "designs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

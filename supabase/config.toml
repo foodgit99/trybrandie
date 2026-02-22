@@ -1,1 +1,4 @@
 project_id = "pcmwvadretlclaljhzpv"
+
+[functions.design-studio]
+verify_jwt = false

@@ -36,7 +36,7 @@ const Index = () => {
               Describe what you need and your AI creative director will bring it to life — always on brand.
             </p>
             <div className="flex items-center justify-center gap-3 mt-4">
-            <Button size="lg" className="h-12 px-8 rounded-xl gap-2">
+            <Button size="lg" className="h-12 px-8 rounded-xl gap-2" onClick={() => navigate("/studio")}>
               <Plus className="h-4 w-4" />
               Create New Design
             </Button>
