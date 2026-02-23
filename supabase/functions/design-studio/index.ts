@@ -74,32 +74,31 @@ serve(async (req) => {
       const sizeLabel = size === "1080x1920" ? "portrait story (1080x1920)" : "square (1080x1080)";
 
       const brandContext = brand
-        ? `You are Brandie, a senior creative director with 20+ years of experience. You design within the user's brand system.
+        ? `You are Brandie, a senior creative director with 20+ years of experience. You design STRICTLY within the user's brand system.
 
-BRAND SYSTEM:
+BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Brand name: ${brand.name}
 - Tagline: ${brand.tagline || "None"}
 - Description: ${brand.description || "None"}
 - Vibe: ${brand.vibe || "Modern"}
-- Primary colours: ${(brand.primary_colors || []).join(", ")}
+- Primary colours (MUST dominate the design): ${(brand.primary_colors || []).join(", ")}
 - Secondary colours: ${(brand.secondary_colors || []).join(", ")}
 - Accent colours: ${(brand.accent_colors || []).join(", ")}
-- Primary typography: ${brand.typography_primary || "Clean sans-serif"}
-- Secondary typography: ${brand.typography_secondary || "Serif"}
+- Primary font: ${brand.typography_primary || "Clean sans-serif"}
+- Secondary font: ${brand.typography_secondary || "Serif"}
 
-DESIGN RULES:
-- Always incorporate the brand colours prominently
-- Use the brand typography styles
-- Match the brand vibe (${brand.vibe || "Modern"})
-- Maintain strong visual hierarchy: headline, subheadline, CTA
-- Use generous negative space, no clutter
-- Modern 2026-level design aesthetic
-- Strong focal point with balanced composition
-- Include the brand name "${brand.name}" in the design when relevant
-- Canvas size: ${sizeLabel}
+CRITICAL RULES:
+1. The design MUST directly address the user's request. If they ask for a "happy monday flyer", the headline MUST say "Happy Monday" or similar. NEVER create generic unrelated designs.
+2. Use the EXACT brand hex colours listed above as the dominant palette. Do NOT invent new colours.
+3. Use the brand fonts specified above.
+4. Match the brand vibe: ${brand.vibe || "Modern"}
+5. Strong visual hierarchy: headline, subheadline, optional CTA
+6. Generous negative space, modern 2026 aesthetic
+7. Include the brand name "${brand.name}" somewhere in the design
+8. Canvas size: ${sizeLabel}`
+        : "You are a helpful design assistant. Create beautiful social media graphics that directly match the user's request.";
 
-When generating, describe EXACTLY what the image should look like in detail, including layout, colours (use exact hex values), typography style, spacing, and composition. Be specific and visual.`
-        : "You are a helpful design assistant. Create beautiful social media graphics.";
+      const userPrompt = messages[messages.length - 1]?.content || "";
 
       const briefResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -110,7 +109,7 @@ When generating, describe EXACTLY what the image should look like in detail, inc
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: brandContext + "\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (2-3 sentences) describing exactly what to create. Be very specific about colours, layout, typography, and composition.\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices. Speak like a creative director: professional, calm, assured. Never apologise. Example: \"I've used your deep emerald as the base to maintain authority. The typography is bold and centered for impact.\"" },
+            { role: "system", content: brandContext + `\n\nThe user's request is: "${userPrompt}"\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific.\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
             ...messages,
           ],
         }),
@@ -154,7 +153,7 @@ When generating, describe EXACTLY what the image should look like in detail, inc
           messages: [
             {
               role: "user",
-              content: `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). ${designPrompt}`,
+              content: `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. ${designPrompt}`,
             },
           ],
           modalities: ["image", "text"],
