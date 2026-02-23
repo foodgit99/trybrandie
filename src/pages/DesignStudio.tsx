@@ -129,6 +129,7 @@ const DesignStudio = () => {
                 accent_colors: brand.accent_colors,
                 typography_primary: brand.typography_primary,
                 typography_secondary: brand.typography_secondary,
+                logo_url: brand.logo_url,
               }
             : null,
         },
