@@ -16,8 +16,13 @@ const FONT_OPTIONS = [
   "DM Sans", "Inter", "Poppins", "Playfair Display", "Montserrat", "Lora",
   "Raleway", "Oswald", "Merriweather", "Roboto Slab", "Space Grotesk", "Outfit",
 ];
+const PERSONALITY_OPTIONS = [
+  "Witty", "Warm", "Bold", "Sophisticated", "Approachable",
+  "Energetic", "Calm", "Edgy", "Playful", "Authoritative",
+  "Inspiring", "Trustworthy",
+];
 
-type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo";
+type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality";
 
 const BrandCentre = () => {
   const { brand, refetch } = useBrand();
@@ -32,6 +37,8 @@ const BrandCentre = () => {
   const [tagline, setTagline] = useState("");
   const [description, setDescription] = useState("");
   const [vibe, setVibe] = useState("");
+  const [toneOfVoice, setToneOfVoice] = useState("");
+  const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
   const [primaryColors, setPrimaryColors] = useState<string[]>([]);
   const [secondaryColors, setSecondaryColors] = useState<string[]>([]);
   const [accentColors, setAccentColors] = useState<string[]>([]);
@@ -59,6 +66,8 @@ const BrandCentre = () => {
       setTagline(brand.tagline || "");
       setDescription(brand.description || "");
       setVibe(brand.vibe || "");
+      setToneOfVoice((brand as any).tone_of_voice || "");
+      setPersonalityTraits((brand as any).personality_traits || []);
       setPrimaryColors(brand.primary_colors || []);
       setSecondaryColors(brand.secondary_colors || []);
       setAccentColors(brand.accent_colors || []);
@@ -80,9 +89,13 @@ const BrandCentre = () => {
       updates = { typography_primary: typPrimary, typography_secondary: typSecondary };
     } else if (field === "vibe") {
       updates = { vibe };
+    } else if (field === "tone") {
+      updates = { tone_of_voice: toneOfVoice.trim() };
+    } else if (field === "personality") {
+      updates = { personality_traits: personalityTraits };
     }
 
-    const { error } = await supabase.from("brands").update(updates).eq("id", brand.id);
+    const { error } = await supabase.from("brands").update(updates as any).eq("id", brand.id);
     setSaving(false);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -147,6 +160,14 @@ const BrandCentre = () => {
     if (arr.length < 5) setter([...arr, "#cccccc"]);
   };
 
+  const togglePersonalityTrait = (trait: string) => {
+    if (personalityTraits.includes(trait)) {
+      setPersonalityTraits(personalityTraits.filter((t) => t !== trait));
+    } else {
+      setPersonalityTraits([...personalityTraits, trait]);
+    }
+  };
+
   if (!brand) return null;
 
   const Section = ({
@@ -165,7 +186,7 @@ const BrandCentre = () => {
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{title}</h3>
         {editing === field ? (
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => { setEditing(null); /* reset from brand */ }}>
+            <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>
               Cancel
             </Button>
             <Button size="sm" onClick={() => saveField(field)} disabled={saving} className="gap-1">
@@ -253,6 +274,59 @@ const BrandCentre = () => {
               </div>
             )}
           </div>
+
+          {/* Tone of Voice */}
+          <Section
+            title="Tone of Voice"
+            field="tone"
+            editContent={
+              <Textarea
+                value={toneOfVoice}
+                onChange={(e) => setToneOfVoice(e.target.value)}
+                placeholder="e.g. Friendly and warm, with a touch of humour..."
+                maxLength={500}
+              />
+            }
+          >
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {(brand as any).tone_of_voice || "Not set"}
+            </p>
+          </Section>
+
+          {/* Personality Traits */}
+          <Section
+            title="Personality Traits"
+            field="personality"
+            editContent={
+              <div className="flex flex-wrap gap-2">
+                {PERSONALITY_OPTIONS.map((trait) => (
+                  <button
+                    key={trait}
+                    onClick={() => togglePersonalityTrait(trait)}
+                    className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${
+                      personalityTraits.includes(trait)
+                        ? "border-primary bg-primary/5 font-medium"
+                        : "border-border hover:border-muted-foreground/40"
+                    }`}
+                  >
+                    {trait}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            <div className="flex flex-wrap gap-2">
+              {((brand as any).personality_traits || []).length > 0 ? (
+                ((brand as any).personality_traits as string[]).map((trait) => (
+                  <span key={trait} className="inline-block px-3 py-1.5 rounded-xl bg-secondary text-sm font-medium">
+                    {trait}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">Not set</span>
+              )}
+            </div>
+          </Section>
 
           {/* Vibe */}
           <Section

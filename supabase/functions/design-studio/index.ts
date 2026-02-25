@@ -31,9 +31,9 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action, canvas_size } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url } = await req.json();
 
-    if (action === "generate") {
+    if (action === "generate" || action === "edit") {
       // Check and increment generation count
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -81,6 +81,8 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Tagline: ${brand.tagline || "None"}
 - Description: ${brand.description || "None"}
 - Vibe: ${brand.vibe || "Modern"}
+- Tone of voice: ${brand.tone_of_voice || "Professional"}
+- Personality traits: ${(brand.personality_traits || []).join(", ") || "None specified"}
 - Primary colours (MUST dominate the design): ${(brand.primary_colors || []).join(", ")}
 - Secondary colours: ${(brand.secondary_colors || []).join(", ")}
 - Accent colours: ${(brand.accent_colors || []).join(", ")}
@@ -92,13 +94,20 @@ CRITICAL RULES:
 2. Use the EXACT brand hex colours listed above as the dominant palette. Do NOT invent new colours.
 3. Use the brand fonts specified above.
 4. Match the brand vibe: ${brand.vibe || "Modern"}
-5. Strong visual hierarchy: headline, subheadline, optional CTA
-6. Generous negative space, modern 2026 aesthetic
-7. Include the brand name "${brand.name}" somewhere in the design
-8. Canvas size: ${sizeLabel}`
+5. Match the tone of voice: ${brand.tone_of_voice || "Professional"}
+6. Reflect these personality traits in the design: ${(brand.personality_traits || []).join(", ") || "Professional"}
+7. Strong visual hierarchy: headline, subheadline, optional CTA
+8. Generous negative space, modern 2026 aesthetic
+9. Include the brand name "${brand.name}" somewhere in the design
+10. Canvas size: ${sizeLabel}`
         : "You are a helpful design assistant. Create beautiful social media graphics that directly match the user's request.";
 
       const userPrompt = messages[messages.length - 1]?.content || "";
+
+      // For edits, include context about the previous design
+      const editContext = action === "edit" && previous_prompt
+        ? `\n\nPREVIOUS DESIGN CONTEXT: The user already has a design based on this brief: "${previous_prompt}". They now want to EDIT it. Preserve the overall layout and structure but apply their requested changes. This is a refinement, not a full redesign.`
+        : "";
 
       const briefResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -109,7 +118,7 @@ CRITICAL RULES:
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: brandContext + `\n\nThe user's request is: "${userPrompt}"\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific.\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
+            { role: "system", content: brandContext + editContext + `\n\nThe user's request is: "${userPrompt}"\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific.\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
             ...messages,
           ],
         }),
@@ -142,6 +151,22 @@ CRITICAL RULES:
         ? briefContent.split("EXPLANATION:")[1].trim()
         : "I've crafted this design with your brand identity in mind.";
 
+      // Build image generation content
+      const imagePromptText = `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""} ${designPrompt}`;
+
+      const imageContent = brand?.logo_url
+        ? [
+            { type: "text", text: imagePromptText },
+            { type: "image_url", image_url: { url: brand.logo_url } },
+            ...(action === "edit" && previous_image_url ? [{ type: "image_url", image_url: { url: previous_image_url } }] : []),
+          ]
+        : action === "edit" && previous_image_url
+          ? [
+              { type: "text", text: imagePromptText + " EDIT: Keep the overall layout similar to the attached previous design but apply the user's changes." },
+              { type: "image_url", image_url: { url: previous_image_url } },
+            ]
+          : imagePromptText;
+
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -153,18 +178,7 @@ CRITICAL RULES:
           messages: [
             {
               role: "user",
-              content: brand?.logo_url
-                ? [
-                    {
-                      type: "text",
-                      text: `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner. ${designPrompt}`,
-                    },
-                    {
-                      type: "image_url",
-                      image_url: { url: brand.logo_url },
-                    },
-                  ]
-                : `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. ${designPrompt}`,
+              content: imageContent,
             },
           ],
           modalities: ["image", "text"],
