@@ -1,58 +1,71 @@
 
 
-# Brandie MVP — Remaining Phases
+# Brandie MVP — Remaining Gaps vs PRD
 
-## Phase 6: Export System Enhancement
+After auditing every page, the edge function, and the database schema against the PRD and Definition of Done, here is what is already complete and what still needs to be built.
 
-### 6.1 Canvas Size Selection
-- Add a size selector in the Design Studio toolbar (Square 1080x1080, Story 1080x1920)
-- Pass the selected size to the edge function so generated images match the chosen dimensions
-- Update the preview canvas aspect ratio dynamically
+## Already Complete
 
-### 6.2 Download Options
-- Add a download dropdown with PNG and JPG format options
-- Use canvas/blob conversion for JPG export from the image URL
+- Brand creation via onboarding (name, tagline, description, logo, colours, typography, vibe, inspiration)
+- Brand Centre for viewing and editing brand data
+- Design generation via chat with brand context + logo injection
+- Canvas size selection (Square / Story)
+- Download in PNG and JPG with free-tier watermark
+- Upvote / Downvote feedback on designs
+- Save designs to database
+- Recent designs on home dashboard
+- Plans page with four tiers
+- Generation limit gating (10/month for free tier)
+- Authentication (email/password)
 
----
+## Remaining Gaps (3 items)
 
-## Phase 7: Subscription UI and Feature Gating
+### 1. Missing Brand Fields: Tone of Voice and Personality Traits
 
-### 7.1 Database Changes
-- Add a `generations_count` and `generations_reset_at` columns to the `profiles` table to track monthly usage
-- Increment the count each time a design is generated in the edge function
+The PRD specifies `tone_of_voice` and `personality_traits[]` as core Brand Centre fields used by the Copywriter Agent. The current database only has `vibe`. Without these, the AI cannot accurately match the brand's voice.
 
-### 7.2 Plans Page
-- Create `/plans` route with a new `src/pages/Plans.tsx`
-- Display four tiers in a clean comparison grid:
-  - **Free** ($0) — 10 generations/month, 1 brand, watermark, 1080x1080 only
-  - **Creator** ($16/mo) — 50 credits, 1 brand, no watermark, PNG + JPG
-  - **Business** ($29/mo) — 150 credits, multiple brands, team access, all formats
-  - **Agency** ($75/mo) — 400 credits, unlimited brands, white-label, priority queue
-- "Upgrade" buttons show a toast: "Payments coming soon"
-- Add a link to the Plans page from the home dashboard header
+**Changes:**
+- Database migration: add `tone_of_voice` (text, nullable) and `personality_traits` (text[], default '{}') columns to `brands`
+- Onboarding: add step for tone of voice (text input, e.g. "Friendly and warm" / "Professional and authoritative") and personality traits (multi-select chips like "Witty", "Warm", "Bold", "Sophisticated", "Approachable", "Energetic")
+- Brand Centre: add editable sections for both new fields
+- Edge function: include `tone_of_voice` and `personality_traits` in the brand context prompt sent to the AI
 
-### 7.3 Generation Gating
-- Before generating a design, check `generations_count` against the free tier limit (10)
-- If limit reached, show a modal prompting upgrade
-- Increment count on successful generation
+### 2. Conversational Edit Flow (Partial Regeneration)
 
-### 7.4 Watermark Badge (Free Tier)
-- Overlay a small "Made with Brandie" badge on exported images for free-tier users
-- Paid tiers skip the watermark
+Currently every user message triggers a full new design generation (1 credit). The PRD requires an edit flow where minor changes (headline tweak, colour adjustment, tone shift) do not trigger a full regeneration.
+
+**Changes:**
+- Edge function: add an `"edit"` action alongside `"generate"` and `"chat"`
+- The orchestrator logic uses the LLM to classify the user's intent (new design vs edit)
+- For edits, the previous design's prompt and image are passed back to the image model with modification instructions — this still calls the renderer but preserves the core layout
+- Frontend: track the current `designPrompt` in session state and send it with edit requests
+- Minor text-only edits (handled by chat action) remain free; layout/visual edits cost 1 credit
+
+### 3. Credit Counter Display
+
+The PRD mentions a "clear credit meter" as risk mitigation. Users currently have no visibility into how many generations they have left.
+
+**Changes:**
+- Home dashboard header: show "X / 10 generations used" badge
+- Design Studio header: show remaining credits
+- Fetch from `profiles.generations_count` and `profiles.generations_reset_at`
 
 ---
 
 ## Technical Details
 
-**Files to create:**
-- `src/pages/Plans.tsx` — pricing comparison page
+**Database migration:**
+```sql
+ALTER TABLE brands ADD COLUMN tone_of_voice text;
+ALTER TABLE brands ADD COLUMN personality_traits text[] DEFAULT '{}';
+```
 
 **Files to modify:**
-- `src/pages/DesignStudio.tsx` — canvas size selector, download format dropdown, generation limit check
-- `src/pages/Index.tsx` — add Plans link in header
-- `src/App.tsx` — add `/plans` route
-- `supabase/functions/design-studio/index.ts` — accept canvas size param, increment generation count
+- `supabase/functions/design-studio/index.ts` — add edit action, include tone_of_voice and personality_traits in brand context
+- `src/pages/Onboarding.tsx` — add 2 new steps (tone of voice + personality traits), adjust step count from 8 to 10
+- `src/pages/BrandCentre.tsx` — add editable sections for tone_of_voice and personality_traits
+- `src/pages/DesignStudio.tsx` — send tone_of_voice and personality_traits with brand payload, add edit flow logic, show credit counter
+- `src/pages/Index.tsx` — show credit counter in header
 
-**Database migration:**
-- Add `generations_count` (integer, default 0) and `generations_reset_at` (timestamptz, default now()) to `profiles` table
+**No new files needed.** All changes extend existing components and the existing edge function.
 
