@@ -52,9 +52,11 @@ export type Database = {
           logo_url: string | null
           name: string
           onboarding_complete: boolean
+          personality_traits: string[] | null
           primary_colors: string[] | null
           secondary_colors: string[] | null
           tagline: string | null
+          tone_of_voice: string | null
           typography_display: string | null
           typography_primary: string | null
           typography_secondary: string | null
@@ -70,9 +72,11 @@ export type Database = {
           logo_url?: string | null
           name: string
           onboarding_complete?: boolean
+          personality_traits?: string[] | null
           primary_colors?: string[] | null
           secondary_colors?: string[] | null
           tagline?: string | null
+          tone_of_voice?: string | null
           typography_display?: string | null
           typography_primary?: string | null
           typography_secondary?: string | null
@@ -88,9 +92,11 @@ export type Database = {
           logo_url?: string | null
           name?: string
           onboarding_complete?: boolean
+          personality_traits?: string[] | null
           primary_colors?: string[] | null
           secondary_colors?: string[] | null
           tagline?: string | null
+          tone_of_voice?: string | null
           typography_display?: string | null
           typography_primary?: string | null
           typography_secondary?: string | null

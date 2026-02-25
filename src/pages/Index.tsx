@@ -2,9 +2,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { LogOut, Plus, Palette, CreditCard } from "lucide-react";
+import { LogOut, Plus, Palette, CreditCard, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+const FREE_TIER_LIMIT = 10;
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -24,12 +26,44 @@ const Index = () => {
     enabled: !!user,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("generations_count, generations_reset_at")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const getCreditsUsed = () => {
+    if (!profile) return 0;
+    const resetAt = new Date(profile.generations_reset_at);
+    const now = new Date();
+    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
+      return 0;
+    }
+    return profile.generations_count;
+  };
+
+  const creditsUsed = getCreditsUsed();
+  const creditsRemaining = FREE_TIER_LIMIT - creditsUsed;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="flex items-center justify-between px-8 py-6 border-b border-border">
         <h1 className="text-2xl font-serif tracking-tight">Brandie</h1>
         <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-sm">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <span className="font-medium">{creditsRemaining}</span>
+            <span className="text-muted-foreground">/ {FREE_TIER_LIMIT} left</span>
+          </div>
           <Button variant="ghost" size="sm" className="gap-1.5 rounded-xl" onClick={() => navigate("/plans")}>
             <CreditCard className="h-4 w-4" />
             Plans
@@ -67,7 +101,7 @@ const Index = () => {
             </div>
           </section>
 
-          {/* Recent Designs placeholder */}
+          {/* Recent Designs */}
           <section className="space-y-4">
             <h3 className="text-lg font-medium text-foreground">Recent designs</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

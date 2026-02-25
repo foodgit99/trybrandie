@@ -11,10 +11,18 @@ import { ArrowLeft, ArrowRight, Upload, X, Check } from "lucide-react";
 
 const VIBES = ["Minimal", "Bold", "Luxury", "Playful", "Corporate", "Cinematic"] as const;
 
+const PERSONALITY_OPTIONS = [
+  "Witty", "Warm", "Bold", "Sophisticated", "Approachable",
+  "Energetic", "Calm", "Edgy", "Playful", "Authoritative",
+  "Inspiring", "Trustworthy",
+];
+
 const FONT_OPTIONS = [
   "DM Sans", "Inter", "Poppins", "Playfair Display", "Montserrat", "Lora",
   "Raleway", "Oswald", "Merriweather", "Roboto Slab", "Space Grotesk", "Outfit",
 ];
+
+const TOTAL_STEPS = 10;
 
 const STEP_TITLES = [
   "What's your brand called?",
@@ -24,6 +32,8 @@ const STEP_TITLES = [
   "Pick your brand colours",
   "Choose your typography",
   "What's your brand vibe?",
+  "Describe your tone of voice",
+  "Pick your personality traits",
   "Upload some inspiration",
 ];
 
@@ -35,6 +45,8 @@ const STEP_SUBTITLES = [
   "Choose primary, secondary, and accent colours for your brand.",
   "Pick fonts that represent your brand's personality.",
   "Select the overall aesthetic direction for your designs.",
+  "How should your brand sound? e.g. 'Friendly and warm' or 'Professional and direct'.",
+  "Select traits that best describe your brand's personality.",
   "Upload examples of designs you love. We'll learn from them. Optional.",
 ];
 
@@ -50,6 +62,8 @@ type BrandData = {
   typographyPrimary: string;
   typographySecondary: string;
   vibe: string;
+  toneOfVoice: string;
+  personalityTraits: string[];
   inspirationFiles: File[];
   inspirationPreviews: string[];
 };
@@ -73,6 +87,8 @@ const Onboarding = () => {
     typographyPrimary: "DM Sans",
     typographySecondary: "Playfair Display",
     vibe: "",
+    toneOfVoice: "",
+    personalityTraits: [],
     inspirationFiles: [],
     inspirationPreviews: [],
   });
@@ -86,7 +102,8 @@ const Onboarding = () => {
     return true;
   };
 
-  const next = () => step < 7 && canAdvance() && setStep(step + 1);
+  const lastStep = TOTAL_STEPS - 1;
+  const next = () => step < lastStep && canAdvance() && setStep(step + 1);
   const prev = () => step > 0 && setStep(step - 1);
 
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,6 +139,14 @@ const Onboarding = () => {
     if (data[field].length < 5) update(field, [...data[field], "#cccccc"]);
   };
 
+  const togglePersonalityTrait = (trait: string) => {
+    if (data.personalityTraits.includes(trait)) {
+      update("personalityTraits", data.personalityTraits.filter((t) => t !== trait));
+    } else {
+      update("personalityTraits", [...data.personalityTraits, trait]);
+    }
+  };
+
   const handleFinish = useCallback(async () => {
     if (!user) return;
     setSaving(true);
@@ -155,8 +180,10 @@ const Onboarding = () => {
           typography_primary: data.typographyPrimary,
           typography_secondary: data.typographySecondary,
           logo_url: logoUrl,
+          tone_of_voice: data.toneOfVoice.trim() || null,
+          personality_traits: data.personalityTraits,
           onboarding_complete: true,
-        })
+        } as any)
         .select()
         .single();
       if (brandErr) throw brandErr;
@@ -171,7 +198,7 @@ const Onboarding = () => {
         if (upErr) continue;
         const { data: urlData } = supabase.storage.from("brand-inspiration").getPublicUrl(path);
         await supabase.from("brand_inspiration").insert({
-          brand_id: brand.id,
+          brand_id: (brand as any).id,
           image_url: urlData.publicUrl,
         });
       }
@@ -322,6 +349,35 @@ const Onboarding = () => {
         );
       case 7:
         return (
+          <Textarea
+            value={data.toneOfVoice}
+            onChange={(e) => update("toneOfVoice", e.target.value)}
+            placeholder="e.g. Friendly and warm, with a touch of humour. We speak like a trusted friend, never corporate or stiff."
+            className="min-h-[120px] text-base"
+            maxLength={500}
+            autoFocus
+          />
+        );
+      case 8:
+        return (
+          <div className="flex flex-wrap gap-2">
+            {PERSONALITY_OPTIONS.map((trait) => (
+              <button
+                key={trait}
+                onClick={() => togglePersonalityTrait(trait)}
+                className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${
+                  data.personalityTraits.includes(trait)
+                    ? "border-primary bg-primary/5 font-medium"
+                    : "border-border hover:border-muted-foreground/40"
+                }`}
+              >
+                {trait}
+              </button>
+            ))}
+          </div>
+        );
+      case 9:
+        return (
           <div className="space-y-4">
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-muted-foreground/40 transition-colors">
               <Upload className="h-6 w-6 text-muted-foreground mb-1" />
@@ -350,7 +406,7 @@ const Onboarding = () => {
     }
   };
 
-  const isLast = step === 7;
+  const isLast = step === lastStep;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -359,7 +415,7 @@ const Onboarding = () => {
         <motion.div
           className="h-full bg-primary"
           initial={false}
-          animate={{ width: `${((step + 1) / 8) * 100}%` }}
+          animate={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
           transition={{ duration: 0.3 }}
         />
       </div>
@@ -383,7 +439,7 @@ const Onboarding = () => {
             >
               <div>
                 <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">
-                  Step {step + 1} of 8
+                  Step {step + 1} of {TOTAL_STEPS}
                 </p>
                 <h2 className="text-3xl font-serif tracking-tight">{STEP_TITLES[step]}</h2>
                 <p className="text-muted-foreground text-sm mt-1">{STEP_SUBTITLES[step]}</p>
