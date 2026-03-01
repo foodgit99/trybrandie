@@ -73,14 +73,14 @@ const Plans = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center gap-3 px-8 py-6 border-b border-border">
+      <header className="flex items-center gap-3 px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-serif tracking-tight">Plans</h1>
+        <h1 className="text-xl sm:text-2xl font-serif tracking-tight">Plans</h1>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-16">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -88,7 +88,7 @@ const Plans = () => {
           className="space-y-10"
         >
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-serif tracking-tight">Choose your plan</h2>
+            <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Choose your plan</h2>
             <p className="text-muted-foreground">Scale your brand as you grow.</p>
           </div>
 

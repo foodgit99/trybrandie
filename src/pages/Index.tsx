@@ -56,19 +56,22 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="flex items-center justify-between px-8 py-6 border-b border-border">
-        <h1 className="text-2xl font-serif tracking-tight">Brandie</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-sm">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
+      <header className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
+        <h1 className="text-xl sm:text-2xl font-serif tracking-tight">Brandie</h1>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
+            <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
             <span className="font-medium">{creditsRemaining}</span>
-            <span className="text-muted-foreground">/ {FREE_TIER_LIMIT} left</span>
+            <span className="text-muted-foreground hidden sm:inline">/ {FREE_TIER_LIMIT} left</span>
           </div>
-          <Button variant="ghost" size="sm" className="gap-1.5 rounded-xl" onClick={() => navigate("/plans")}>
+          <Button variant="ghost" size="sm" className="gap-1.5 rounded-xl hidden sm:flex" onClick={() => navigate("/plans")}>
             <CreditCard className="h-4 w-4" />
             Plans
           </Button>
-          <span className="text-sm text-muted-foreground">{user?.email}</span>
+          <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => navigate("/plans")}>
+            <CreditCard className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>
           <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
             <LogOut className="h-4 w-4" />
           </Button>
@@ -76,25 +79,25 @@ const Index = () => {
       </header>
 
       {/* Main */}
-      <main className="max-w-5xl mx-auto px-8 py-16">
+      <main className="max-w-5xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="space-y-12"
+          className="space-y-10 sm:space-y-12"
         >
           {/* Hero CTA */}
           <section className="text-center space-y-4">
-            <h2 className="text-4xl font-serif tracking-tight">What will you design today?</h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">What will you design today?</h2>
+            <p className="text-muted-foreground max-w-md mx-auto text-sm sm:text-base">
               Describe what you need and your AI creative director will bring it to life — always on brand.
             </p>
-            <div className="flex items-center justify-center gap-3 mt-4">
-            <Button size="lg" className="h-12 px-8 rounded-xl gap-2" onClick={() => navigate("/studio")}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+            <Button size="lg" className="h-12 px-8 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/studio")}>
               <Plus className="h-4 w-4" />
               Create New Design
             </Button>
-            <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2" onClick={() => navigate("/brand")}>
+            <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/brand")}>
               <Palette className="h-4 w-4" />
               Brand Centre
             </Button>

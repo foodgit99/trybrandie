@@ -181,7 +181,7 @@ const BrandCentre = () => {
     children: React.ReactNode;
     editContent: React.ReactNode;
   }) => (
-    <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{title}</h3>
         {editing === field ? (
@@ -205,22 +205,22 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-8 py-6 border-b border-border">
-        <div className="flex items-center gap-4">
+      <header className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/")} aria-label="Back">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-serif tracking-tight">Brand Centre</h1>
+          <h1 className="text-xl sm:text-2xl font-serif tracking-tight">Brand Centre</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">{user?.email}</span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
           <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-8 py-12">
+      <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -333,7 +333,7 @@ const BrandCentre = () => {
             title="Brand Vibe"
             field="vibe"
             editContent={
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {VIBES.map((v) => (
                   <button
                     key={v}
@@ -470,7 +470,7 @@ const BrandCentre = () => {
               </label>
             </div>
             {inspiration && inspiration.length > 0 ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {inspiration.map((item) => (
                   <div key={item.id} className="relative aspect-square group">
                     <img src={item.image_url} alt="" className="w-full h-full object-cover rounded-xl border border-border" />
