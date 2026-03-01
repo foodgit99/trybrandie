@@ -421,12 +421,12 @@ const Onboarding = () => {
       </div>
 
       {/* Header */}
-      <header className="px-8 py-6">
+      <header className="px-4 sm:px-8 py-4 sm:py-6">
         <span className="text-lg font-serif tracking-tight">Brandie</span>
       </header>
 
       {/* Content */}
-      <main className="flex-1 flex items-center justify-center px-6">
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6">
         <div className="w-full max-w-lg">
           <AnimatePresence mode="wait">
             <motion.div
@@ -441,7 +441,7 @@ const Onboarding = () => {
                 <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">
                   Step {step + 1} of {TOTAL_STEPS}
                 </p>
-                <h2 className="text-3xl font-serif tracking-tight">{STEP_TITLES[step]}</h2>
+                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">{STEP_TITLES[step]}</h2>
                 <p className="text-muted-foreground text-sm mt-1">{STEP_SUBTITLES[step]}</p>
               </div>
 
@@ -452,7 +452,7 @@ const Onboarding = () => {
       </main>
 
       {/* Navigation */}
-      <footer className="px-8 py-6 flex items-center justify-between">
+      <footer className="px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between">
         <Button
           variant="ghost"
           onClick={prev}

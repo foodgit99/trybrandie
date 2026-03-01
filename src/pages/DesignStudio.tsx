@@ -352,21 +352,21 @@ const DesignStudio = () => {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-lg font-serif tracking-tight">Design Studio</h1>
+          <h1 className="text-base sm:text-lg font-serif tracking-tight">Studio</h1>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-sm">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
+            <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
             <span className="font-medium">{getCreditsRemaining()}</span>
-            <span className="text-muted-foreground">left</span>
+            <span className="text-muted-foreground hidden sm:inline">left</span>
           </div>
           <Select value={canvasSize} onValueChange={setCanvasSize}>
-            <SelectTrigger className="w-[180px] h-9 rounded-xl text-sm">
+            <SelectTrigger className="w-[120px] sm:w-[180px] h-8 sm:h-9 rounded-xl text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -377,16 +377,16 @@ const DesignStudio = () => {
               ))}
             </SelectContent>
           </Select>
-          <span className="text-sm text-muted-foreground px-3 py-1 rounded-lg bg-secondary">
+          <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}
           </span>
         </div>
       </header>
 
       {/* Two-panel layout */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
         {/* Left — Chat */}
-        <div className="w-full md:w-[420px] flex flex-col border-r border-border">
+        <div className="w-full md:w-[420px] flex flex-col md:border-r border-border min-h-0 flex-1 md:flex-initial">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
             {messages.length === 0 && (
@@ -455,7 +455,7 @@ const DesignStudio = () => {
           </div>
 
           {/* Input */}
-          <div className="px-4 py-4 border-t border-border">
+          <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-border">
             {/* Attached image preview */}
             <AnimatePresence>
               {attachedImage && (
@@ -563,7 +563,7 @@ const DesignStudio = () => {
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center justify-center gap-2 px-6 py-4 border-t border-border"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 sm:py-4 border-t border-border flex-wrap"
             >
               <Button
                 variant="outline"
