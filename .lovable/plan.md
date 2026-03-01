@@ -1,71 +1,41 @@
 
 
-# Brandie MVP — Remaining Gaps vs PRD
+# Chat Image Upload and Design Priority
 
-After auditing every page, the edge function, and the database schema against the PRD and Definition of Done, here is what is already complete and what still needs to be built.
+## Overview
+Add the ability for users to attach images through the Design Studio chat. The AI will prioritize these attached images and follow user instructions strictly when generating designs.
 
-## Already Complete
+## Changes
 
-- Brand creation via onboarding (name, tagline, description, logo, colours, typography, vibe, inspiration)
-- Brand Centre for viewing and editing brand data
-- Design generation via chat with brand context + logo injection
-- Canvas size selection (Square / Story)
-- Download in PNG and JPG with free-tier watermark
-- Upvote / Downvote feedback on designs
-- Save designs to database
-- Recent designs on home dashboard
-- Plans page with four tiers
-- Generation limit gating (10/month for free tier)
-- Authentication (email/password)
+### 1. Frontend: Image Upload in Chat Input
+- Add a paperclip/image button next to the text input in `src/pages/DesignStudio.tsx`
+- When clicked, open a file picker (accept images: PNG, JPG, WEBP)
+- Upload the selected file to the existing `brand-inspiration` storage bucket under the user's folder
+- Show a thumbnail preview of the attached image above the input bar before sending
+- Allow removing the attachment before sending
+- When sent, include the image URL in the message payload and display it in the chat bubble
 
-## Remaining Gaps (3 items)
+### 2. Message Type Update
+- Extend the `Message` type to include an optional `attachedImageUrl` field for user-uploaded images (separate from the AI-generated `imageUrl`)
+- User messages with attachments render a small thumbnail in the chat bubble
 
-### 1. Missing Brand Fields: Tone of Voice and Personality Traits
+### 3. Edge Function: Accept and Prioritize User Images
+- Accept an optional `user_image_url` field in the request body
+- When present, pass the user's image as an `image_url` content part to both the Copywriter (brief generation) and the Renderer (image generation) calls
+- Update the system prompt to include a critical rule: "The user has attached a reference image. You MUST incorporate this image into the design exactly as instructed. Follow the user's instructions about this image strictly and precisely."
+- The user image takes priority alongside the logo -- both are passed as image references
 
-The PRD specifies `tone_of_voice` and `personality_traits[]` as core Brand Centre fields used by the Copywriter Agent. The current database only has `vibe`. Without these, the AI cannot accurately match the brand's voice.
-
-**Changes:**
-- Database migration: add `tone_of_voice` (text, nullable) and `personality_traits` (text[], default '{}') columns to `brands`
-- Onboarding: add step for tone of voice (text input, e.g. "Friendly and warm" / "Professional and authoritative") and personality traits (multi-select chips like "Witty", "Warm", "Bold", "Sophisticated", "Approachable", "Energetic")
-- Brand Centre: add editable sections for both new fields
-- Edge function: include `tone_of_voice` and `personality_traits` in the brand context prompt sent to the AI
-
-### 2. Conversational Edit Flow (Partial Regeneration)
-
-Currently every user message triggers a full new design generation (1 credit). The PRD requires an edit flow where minor changes (headline tweak, colour adjustment, tone shift) do not trigger a full regeneration.
-
-**Changes:**
-- Edge function: add an `"edit"` action alongside `"generate"` and `"chat"`
-- The orchestrator logic uses the LLM to classify the user's intent (new design vs edit)
-- For edits, the previous design's prompt and image are passed back to the image model with modification instructions — this still calls the renderer but preserves the core layout
-- Frontend: track the current `designPrompt` in session state and send it with edit requests
-- Minor text-only edits (handled by chat action) remain free; layout/visual edits cost 1 credit
-
-### 3. Credit Counter Display
-
-The PRD mentions a "clear credit meter" as risk mitigation. Users currently have no visibility into how many generations they have left.
-
-**Changes:**
-- Home dashboard header: show "X / 10 generations used" badge
-- Design Studio header: show remaining credits
-- Fetch from `profiles.generations_count` and `profiles.generations_reset_at`
-
----
+### 4. Prompt Engineering Update
+- Add to the CRITICAL RULES in the brand context: "If the user attaches an image, treat it as the primary visual reference. Follow their instructions about it literally."
+- In the image generation prompt, explicitly state: "The user has provided a reference image (attached). Incorporate it into the design as the user describes."
 
 ## Technical Details
 
-**Database migration:**
-```sql
-ALTER TABLE brands ADD COLUMN tone_of_voice text;
-ALTER TABLE brands ADD COLUMN personality_traits text[] DEFAULT '{}';
-```
-
 **Files to modify:**
-- `supabase/functions/design-studio/index.ts` — add edit action, include tone_of_voice and personality_traits in brand context
-- `src/pages/Onboarding.tsx` — add 2 new steps (tone of voice + personality traits), adjust step count from 8 to 10
-- `src/pages/BrandCentre.tsx` — add editable sections for tone_of_voice and personality_traits
-- `src/pages/DesignStudio.tsx` — send tone_of_voice and personality_traits with brand payload, add edit flow logic, show credit counter
-- `src/pages/Index.tsx` — show credit counter in header
+- `src/pages/DesignStudio.tsx` -- add upload button, preview state, send image URL with request
+- `supabase/functions/design-studio/index.ts` -- accept `user_image_url`, pass to AI models with priority instructions
 
-**No new files needed.** All changes extend existing components and the existing edge function.
+**Storage:** Uses existing `brand-inspiration` bucket (public, already configured)
+
+**No database changes needed.**
 
