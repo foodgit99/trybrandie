@@ -31,7 +31,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url } = await req.json();
 
     if (action === "generate" || action === "edit") {
       // Check and increment generation count
@@ -99,7 +99,8 @@ CRITICAL RULES:
 7. Strong visual hierarchy: headline, subheadline, optional CTA
 8. Generous negative space, modern 2026 aesthetic
 9. Include the brand name "${brand.name}" somewhere in the design
-10. Canvas size: ${sizeLabel}`
+10. Canvas size: ${sizeLabel}
+11. If the user attaches an image, treat it as the PRIMARY visual reference. Follow their instructions about it LITERALLY. The attached image takes priority over all other visual considerations.`
         : "You are a helpful design assistant. Create beautiful social media graphics that directly match the user's request.";
 
       const userPrompt = messages[messages.length - 1]?.content || "";
@@ -108,6 +109,18 @@ CRITICAL RULES:
       const editContext = action === "edit" && previous_prompt
         ? `\n\nPREVIOUS DESIGN CONTEXT: The user already has a design based on this brief: "${previous_prompt}". They now want to EDIT it. Preserve the overall layout and structure but apply their requested changes. This is a refinement, not a full redesign.`
         : "";
+
+      // Build user image context for the brief
+      const userImageContext = user_image_url
+        ? `\n\nCRITICAL: The user has attached a reference image. You MUST incorporate this image into the design exactly as instructed. Follow the user's instructions about this image strictly and precisely. The attached image is the PRIMARY visual element.`
+        : "";
+
+      const briefUserContent = user_image_url
+        ? [
+            { type: "text", text: userPrompt },
+            { type: "image_url", image_url: { url: user_image_url } },
+          ]
+        : userPrompt;
 
       const briefResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -118,8 +131,9 @@ CRITICAL RULES:
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: brandContext + editContext + `\n\nThe user's request is: "${userPrompt}"\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific.\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
-            ...messages,
+            { role: "system", content: brandContext + editContext + userImageContext + `\n\nThe user's request is below.\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific.${user_image_url ? " CRITICAL: The user provided a reference image — describe how to incorporate it prominently into the design as the user instructs." : ""}\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
+            ...messages.slice(0, -1),
+            { role: "user", content: briefUserContent },
           ],
         }),
       });
@@ -152,20 +166,23 @@ CRITICAL RULES:
         : "I've crafted this design with your brand identity in mind.";
 
       // Build image generation content
-      const imagePromptText = `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""} ${designPrompt}`;
+      const userImageInstruction = user_image_url
+        ? ` CRITICAL: The user has provided a reference image (attached). Incorporate it into the design EXACTLY as the user describes. This image is the PRIMARY visual reference and must be used prominently.`
+        : "";
+      const imagePromptText = `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction} ${designPrompt}`;
 
-      const imageContent = brand?.logo_url
+      // Collect all image references
+      const imageRefs: { type: string; image_url: { url: string } }[] = [];
+      if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
+      if (user_image_url) imageRefs.push({ type: "image_url", image_url: { url: user_image_url } });
+      if (action === "edit" && previous_image_url) imageRefs.push({ type: "image_url", image_url: { url: previous_image_url } });
+
+      const imageContent = imageRefs.length > 0
         ? [
-            { type: "text", text: imagePromptText },
-            { type: "image_url", image_url: { url: brand.logo_url } },
-            ...(action === "edit" && previous_image_url ? [{ type: "image_url", image_url: { url: previous_image_url } }] : []),
+            { type: "text", text: imagePromptText + (action === "edit" && previous_image_url ? " EDIT: Keep the overall layout similar to the previous design but apply the user's changes." : "") },
+            ...imageRefs,
           ]
-        : action === "edit" && previous_image_url
-          ? [
-              { type: "text", text: imagePromptText + " EDIT: Keep the overall layout similar to the attached previous design but apply the user's changes." },
-              { type: "image_url", image_url: { url: previous_image_url } },
-            ]
-          : imagePromptText;
+        : imagePromptText;
 
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",

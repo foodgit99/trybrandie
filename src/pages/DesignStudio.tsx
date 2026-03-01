@@ -41,12 +41,15 @@ import {
   Loader2,
   ChevronDown,
   Sparkles,
+  Paperclip,
+  X,
 } from "lucide-react";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
   imageUrl?: string;
+  attachedImageUrl?: string;
 };
 
 const CANVAS_SIZES = [
@@ -70,6 +73,9 @@ const DesignStudio = () => {
   const [saved, setSaved] = useState(false);
   const [canvasSize, setCanvasSize] = useState("1080x1080");
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const currentAspect = CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
@@ -123,21 +129,43 @@ const DesignStudio = () => {
     return true;
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const filePath = `${user.id}/chat-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("brand-inspiration")
+        .upload(filePath, file, { contentType: file.type });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage
+        .from("brand-inspiration")
+        .getPublicUrl(filePath);
+      setAttachedImage(urlData.publicUrl);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
 
-    // Determine if this is an edit (we have a current design) or a new generation
     const isEdit = !!currentImage && !!currentPrompt;
 
-    // Edits that modify the design still cost a credit
     const canGenerate = await checkGenerationLimit();
     if (!canGenerate) return;
 
-    const userMsg: Message = { role: "user", content: trimmed };
+    const userMsg: Message = { role: "user", content: trimmed, attachedImageUrl: attachedImage || undefined };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
+    setAttachedImage(null);
     setLoading(true);
     setSaved(false);
     setVote(0);
@@ -166,7 +194,7 @@ const DesignStudio = () => {
           canvas_size: canvasSize,
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
           brand: brandPayload,
-          // For edits, send the previous design context
+          ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
           ...(isEdit && {
             previous_prompt: currentPrompt,
             previous_image_url: currentImage,
@@ -387,6 +415,13 @@ const DesignStudio = () => {
                       : "bg-secondary text-secondary-foreground"
                   }`}
                 >
+                  {msg.attachedImageUrl && (
+                    <img
+                      src={msg.attachedImageUrl}
+                      alt="Attached reference"
+                      className="mb-2 rounded-lg w-20 h-20 object-cover border border-border"
+                    />
+                  )}
                   <ReactMarkdown
                     components={{
                       p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
@@ -421,7 +456,48 @@ const DesignStudio = () => {
 
           {/* Input */}
           <div className="px-4 py-4 border-t border-border">
+            {/* Attached image preview */}
+            <AnimatePresence>
+              {attachedImage && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-2"
+                >
+                  <div className="relative inline-block">
+                    <img
+                      src={attachedImage}
+                      alt="Attached"
+                      className="w-16 h-16 object-cover rounded-xl border border-border"
+                    />
+                    <button
+                      onClick={() => setAttachedImage(null)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 rounded-xl shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading || uploadingImage}
+              >
+                {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </Button>
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
