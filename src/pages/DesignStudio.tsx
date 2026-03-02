@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
 import { useAuth } from "@/hooks/useAuth";
@@ -64,6 +64,7 @@ const DesignStudio = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -109,6 +110,31 @@ const DesignStudio = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Load existing design from query param
+  useEffect(() => {
+    const designId = searchParams.get("design");
+    if (!designId || !user) return;
+    const loadDesign = async () => {
+      const { data, error } = await supabase
+        .from("designs")
+        .select("*")
+        .eq("id", designId)
+        .eq("user_id", user.id)
+        .single();
+      if (error || !data) return;
+      setCurrentImage(data.image_url);
+      setCurrentPrompt(data.prompt);
+      setCanvasSize(data.canvas_size || "1080x1080");
+      setVote((data.vote as -1 | 0 | 1) || 0);
+      setSaved(true);
+      setMessages([
+        { role: "user", content: data.prompt },
+        { role: "assistant", content: "Here's your design.", imageUrl: data.image_url },
+      ]);
+    };
+    loadDesign();
+  }, [searchParams, user]);
 
   const checkGenerationLimit = async (): Promise<boolean> => {
     if (!user) return false;
