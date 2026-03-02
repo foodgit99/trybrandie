@@ -75,6 +75,7 @@ const DesignStudio = () => {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"chat" | "preview">("chat");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -383,10 +384,38 @@ const DesignStudio = () => {
         </div>
       </header>
 
+      {/* Mobile tab switcher */}
+      {currentImage && (
+        <div className="flex md:hidden border-b border-border">
+          <button
+            onClick={() => setMobileTab("chat")}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mobileTab === "chat"
+                ? "text-foreground border-b-2 border-primary"
+                : "text-muted-foreground"
+            }`}
+          >
+            Chat
+          </button>
+          <button
+            onClick={() => setMobileTab("preview")}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mobileTab === "preview"
+                ? "text-foreground border-b-2 border-primary"
+                : "text-muted-foreground"
+            }`}
+          >
+            Preview
+          </button>
+        </div>
+      )}
+
       {/* Two-panel layout */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
         {/* Left — Chat */}
-        <div className="w-full md:w-[420px] flex flex-col md:border-r border-border min-h-0 flex-1 md:flex-initial">
+        <div className={`w-full md:w-[420px] flex flex-col md:border-r border-border min-h-0 flex-1 md:flex-initial ${
+          currentImage && mobileTab === "preview" ? "hidden md:flex" : "flex"
+        }`}>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
             {messages.length === 0 && (
@@ -520,7 +549,9 @@ const DesignStudio = () => {
         </div>
 
         {/* Right — Canvas */}
-        <div className="hidden md:flex flex-1 flex-col">
+        <div className={`flex-1 flex-col ${
+          currentImage && mobileTab === "preview" ? "flex" : "hidden md:flex"
+        }`}>
           <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
             <AnimatePresence mode="wait">
               {currentImage ? (
