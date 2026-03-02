@@ -122,7 +122,7 @@ const Index = () => {
                   <div
                     key={design.id}
                     className="aspect-square rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
-                    onClick={() => navigate("/studio")}
+                    onClick={() => navigate(`/studio?design=${design.id}`)}
                   >
                     <img
                       src={design.image_url}
