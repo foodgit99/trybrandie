@@ -18,7 +18,7 @@ const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const { brand, isLoading: brandLoading } = useBrand();
+  const { brand, isLoading: brandLoading } = useBrand(user);
 
   if (loading || brandLoading) {
     return (
@@ -34,7 +34,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const { brand, isLoading: brandLoading } = useBrand();
+  const { brand, isLoading: brandLoading } = useBrand(user);
 
   if (loading || brandLoading) {
     return (
