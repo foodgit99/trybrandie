@@ -37,6 +37,47 @@ serve(async (req) => {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+      // Fetch audience intelligence for the brand
+      let audienceContext = "";
+      if (brand?.id) {
+        try {
+          const { data: audienceData } = await adminClient
+            .from("target_audiences")
+            .select("jtbd_profile")
+            .eq("brand_id", brand.id)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          
+          const profile = audienceData?.jtbd_profile;
+          if (profile && typeof profile === "object" && Object.keys(profile).length > 0) {
+            const p = profile as any;
+            audienceContext = `
+
+AUDIENCE INTELLIGENCE (use to sharpen copy and visual strategy):
+- Target persona: ${p.persona_summary || "N/A"}
+- Core job: ${p.core_job_statement || "N/A"}
+- Key struggles: ${(p.struggling_moments || []).join("; ")}
+- Emotional drivers: ${(p.emotional_outcomes || []).slice(0, 3).join("; ")}
+- Buying triggers: ${(p.buying_triggers || []).join("; ")}
+- Hesitation factors: ${(p.hesitation_factors || []).join("; ")}
+- Top messaging angles: ${(p.messaging_angles || []).slice(0, 3).join("; ")}
+- Conversion levers: ${(p.conversion_levers_ranked || []).slice(0, 3).join("; ")}
+
+CONVERSION RULES:
+1. Select top 1-2 emotional drivers and weave them into the headline/copy
+2. Reference a struggling moment the audience relates to
+3. Amplify the desired outcome
+4. Neutralise the top anxiety/hesitation factor
+5. Visual strategy should match emotional driver (Status→bold/luxury, Security→calm/soft, Growth→energetic)`;
+          }
+        } catch (e) {
+          console.log("No audience data found, proceeding without:", e);
+        }
+      }
+
+
+
       // --- Intent classification for edits ---
       let isFreeEdit = false;
       const userPrompt = messages[messages.length - 1]?.content || "";
@@ -147,6 +188,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? `- Brand inspiration/style references: The brand has ${inspirationUrls.length} inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.` : ""}
 ${brand.image_style_preferences?.length ? `- Image style preferences: ${brand.image_style_preferences.join(", ")}` : ""}
+${audienceContext}
 
 DESIGN PHILOSOPHY (ALWAYS APPLY):
 1. ALWAYS use PHOTOREALISTIC imagery and real photography. Use natural textures, real environments, and lifelike visuals. NEVER use cartoons, clip art, flat illustrations, or AI-looking abstract art — UNLESS the user EXPLICITLY requests illustrations, cartoons, or abstract styles.

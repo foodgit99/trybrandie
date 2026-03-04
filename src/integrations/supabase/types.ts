@@ -224,6 +224,44 @@ export type Database = {
         }
         Relationships: []
       }
+      target_audiences: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          jtbd_profile: Json
+          label: string
+          raw_inputs: Json
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          jtbd_profile?: Json
+          label?: string
+          raw_inputs?: Json
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          jtbd_profile?: Json
+          label?: string
+          raw_inputs?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_audiences_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

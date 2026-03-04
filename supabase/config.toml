@@ -2,3 +2,6 @@ project_id = "pcmwvadretlclaljhzpv"
 
 [functions.design-studio]
 verify_jwt = false
+
+[functions.audience-intelligence]
+verify_jwt = false
