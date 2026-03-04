@@ -1,41 +1,47 @@
 
 
-# Chat Image Upload and Design Priority
+## Plan: Elevate AI Agent System Prompts for Design Quality
 
-## Overview
-Add the ability for users to attach images through the Design Studio chat. The AI will prioritize these attached images and follow user instructions strictly when generating designs.
+### What Changes
 
-## Changes
+Update the system prompts for all three agents (Copywriter/Brief Generator, Renderer, and Chat agent) in `supabase/functions/design-studio/index.ts` to enforce:
 
-### 1. Frontend: Image Upload in Chat Input
-- Add a paperclip/image button next to the text input in `src/pages/DesignStudio.tsx`
-- When clicked, open a file picker (accept images: PNG, JPG, WEBP)
-- Upload the selected file to the existing `brand-inspiration` storage bucket under the user's folder
-- Show a thumbnail preview of the attached image above the input bar before sending
-- Allow removing the attachment before sending
-- When sent, include the image URL in the message payload and display it in the chat bubble
+1. **Realistic imagery** by default (photographic, not illustrated/cartoon) unless user asks otherwise
+2. **Clean, modern, visually appealing** design principles (whitespace, hierarchy, balance)
+3. **Strict brand compliance** — brand colours, fonts, tone, and inspiration are weighted heavily
+4. **User intent has highest priority** — the user's specific request always overrides defaults
+5. **Inspiration images from Brand Centre** passed as visual context to the renderer
 
-### 2. Message Type Update
-- Extend the `Message` type to include an optional `attachedImageUrl` field for user-uploaded images (separate from the AI-generated `imageUrl`)
-- User messages with attachments render a small thumbnail in the chat bubble
+### Technical Details
 
-### 3. Edge Function: Accept and Prioritize User Images
-- Accept an optional `user_image_url` field in the request body
-- When present, pass the user's image as an `image_url` content part to both the Copywriter (brief generation) and the Renderer (image generation) calls
-- Update the system prompt to include a critical rule: "The user has attached a reference image. You MUST incorporate this image into the design exactly as instructed. Follow the user's instructions about this image strictly and precisely."
-- The user image takes priority alongside the logo -- both are passed as image references
+**File:** `supabase/functions/design-studio/index.ts`
 
-### 4. Prompt Engineering Update
-- Add to the CRITICAL RULES in the brand context: "If the user attaches an image, treat it as the primary visual reference. Follow their instructions about it literally."
-- In the image generation prompt, explicitly state: "The user has provided a reference image (attached). Incorporate it into the design as the user describes."
+#### A. Copywriter/Brief Agent (brandContext + system prompt, ~line 77–103)
 
-## Technical Details
+Add to the brand context block:
+- "ALWAYS use photorealistic imagery and photography unless the user explicitly requests illustrations, cartoons, or abstract art."
+- "Designs must follow modern design principles: strong visual hierarchy, balanced composition, generous whitespace, clean typography, and visual appeal."
+- "User intent and Brand Centre data (colours, fonts, tone, personality, inspiration) carry the HIGHEST weight. Never override what the user asks for."
+- Reference inspiration examples from brand data: pass `brand.image_style_preferences` and `brand.inspiration_examples` into the context so the brief agent knows the brand's visual style.
 
-**Files to modify:**
-- `src/pages/DesignStudio.tsx` -- add upload button, preview state, send image URL with request
-- `supabase/functions/design-studio/index.ts` -- accept `user_image_url`, pass to AI models with priority instructions
+#### B. Renderer / Image Generation Prompt (~line 169–185)
 
-**Storage:** Uses existing `brand-inspiration` bucket (public, already configured)
+Update `imagePromptText` to prepend:
+- "Create a PHOTOREALISTIC, clean, modern design. Use real photography and natural textures — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise."
+- "The design must be visually stunning, professionally composed, with balanced layout, clear hierarchy, and generous breathing room."
+- Pass brand inspiration images (if any exist in `brand.inspiration_examples`) as additional image references alongside logo and user-attached images, so the renderer can match the brand's established visual style.
 
-**No database changes needed.**
+#### C. Chat Agent (~line 261–267)
+
+Update system prompt to include:
+- "When advising on designs, always recommend photorealistic imagery and clean modern aesthetics unless the user wants something different."
+- "Prioritise the user's intent and their Brand Centre settings above all else."
+
+#### D. Inspiration Image Passthrough
+
+In the image generation section, if `brand.inspiration_examples` array has entries, include up to 2 inspiration images as `image_url` references alongside the logo — giving the renderer direct visual context of the brand's preferred aesthetic.
+
+### No Database Changes
+
+All changes are prompt-level updates within the existing edge function.
 
