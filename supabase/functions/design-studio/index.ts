@@ -73,6 +73,9 @@ serve(async (req) => {
       const [w, h] = size.split("x");
       const sizeLabel = size === "1080x1920" ? "portrait story (1080x1920)" : "square (1080x1080)";
 
+      // Collect inspiration examples for context
+      const inspirationUrls: string[] = brand?.inspiration_examples || [];
+
       const brandContext = brand
         ? `You are Brandie, a senior creative director with 20+ years of experience. You design STRICTLY within the user's brand system.
 
@@ -88,6 +91,14 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Accent colours: ${(brand.accent_colors || []).join(", ")}
 - Primary font: ${brand.typography_primary || "Clean sans-serif"}
 - Secondary font: ${brand.typography_secondary || "Serif"}
+${inspirationUrls.length > 0 ? `- Brand inspiration/style references: The brand has ${inspirationUrls.length} inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.` : ""}
+${brand.image_style_preferences?.length ? `- Image style preferences: ${brand.image_style_preferences.join(", ")}` : ""}
+
+DESIGN PHILOSOPHY (ALWAYS APPLY):
+1. ALWAYS use PHOTOREALISTIC imagery and real photography. Use natural textures, real environments, and lifelike visuals. NEVER use cartoons, clip art, flat illustrations, or AI-looking abstract art — UNLESS the user EXPLICITLY requests illustrations, cartoons, or abstract styles.
+2. Designs MUST follow modern design principles: strong visual hierarchy, balanced composition, generous whitespace, clean typography, and overall visual appeal. Every design should look like it was crafted by a top-tier design agency.
+3. The USER'S INTENT carries the HIGHEST weight. Whatever the user asks for, deliver EXACTLY that. Never override, reinterpret, or ignore the user's specific request.
+4. Brand Centre data (colours, fonts, tone, personality, vibe, inspiration) carries the SECOND HIGHEST weight. Always stay on-brand.
 
 CRITICAL RULES:
 1. The design MUST directly address the user's request. If they ask for a "happy monday flyer", the headline MUST say "Happy Monday" or similar. NEVER create generic unrelated designs.
@@ -100,8 +111,9 @@ CRITICAL RULES:
 8. Generous negative space, modern 2026 aesthetic
 9. Include the brand name "${brand.name}" somewhere in the design
 10. Canvas size: ${sizeLabel}
-11. If the user attaches an image, treat it as the PRIMARY visual reference. Follow their instructions about it LITERALLY. The attached image takes priority over all other visual considerations.`
-        : "You are a helpful design assistant. Create beautiful social media graphics that directly match the user's request.";
+11. If the user attaches an image, treat it as the PRIMARY visual reference. Follow their instructions about it LITERALLY. The attached image takes priority over all other visual considerations.
+12. Photorealistic by default. Clean, modern, and visually stunning. No cartoon or clip art unless user asks.`
+        : "You are a helpful design assistant. Create beautiful, photorealistic social media graphics that directly match the user's request. Use real photography and modern design principles: clean layout, strong hierarchy, generous whitespace, and visual appeal.";
 
       const userPrompt = messages[messages.length - 1]?.content || "";
 
@@ -169,13 +181,17 @@ CRITICAL RULES:
       const userImageInstruction = user_image_url
         ? ` CRITICAL: The user has provided a reference image (attached). Incorporate it into the design EXACTLY as the user describes. This image is the PRIMARY visual reference and must be used prominently.`
         : "";
-      const imagePromptText = `Create a professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction} ${designPrompt}`;
+      const imagePromptText = `Create a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction} ${designPrompt}`;
 
       // Collect all image references
       const imageRefs: { type: string; image_url: { url: string } }[] = [];
       if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
       if (user_image_url) imageRefs.push({ type: "image_url", image_url: { url: user_image_url } });
       if (action === "edit" && previous_image_url) imageRefs.push({ type: "image_url", image_url: { url: previous_image_url } });
+      // Pass brand inspiration images as visual references (up to 2)
+      for (const inspUrl of inspirationUrls.slice(0, 2)) {
+        imageRefs.push({ type: "image_url", image_url: { url: inspUrl } });
+      }
 
       const imageContent = imageRefs.length > 0
         ? [
@@ -262,7 +278,7 @@ CRITICAL RULES:
           messages: [
             {
               role: "system",
-              content: `You are Brandie, a senior creative director. You help users refine their design ideas before generating. Be confident, professional, calm. Never apologise excessively. Suggest improvements. Keep responses concise (2-3 sentences max).`,
+              content: `You are Brandie, a senior creative director. You help users refine their design ideas before generating. Be confident, professional, calm. Never apologise excessively. Suggest improvements. Keep responses concise (2-3 sentences max). When advising on designs, always recommend photorealistic imagery and clean, modern aesthetics unless the user explicitly wants something different. Prioritise the user's intent and their Brand Centre settings (colours, fonts, tone, personality, inspiration) above all else.`,
             },
             ...messages,
           ],
