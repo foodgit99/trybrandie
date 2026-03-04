@@ -43,6 +43,7 @@ import {
   Sparkles,
   Paperclip,
   X,
+  Users,
 } from "lucide-react";
 
 type Message = {
@@ -457,19 +458,7 @@ const DesignStudio = () => {
               ))}
             </SelectContent>
           </Select>
-          {audiences.length > 0 && (
-            <Select value={selectedAudienceId} onValueChange={setSelectedAudienceId}>
-              <SelectTrigger className="w-[100px] sm:w-[160px] h-8 sm:h-9 rounded-xl text-xs sm:text-sm">
-                <SelectValue placeholder="Audience" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No audience</SelectItem>
-                {audiences.map((a: any) => (
-                  <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Audience selector removed from header — now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}
           </span>
@@ -576,7 +565,54 @@ const DesignStudio = () => {
           </div>
 
           {/* Input */}
-          <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-border">
+          <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-border space-y-2">
+            {/* Audience context indicator */}
+            {(() => {
+              const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
+              const coreJob = activeAudience?.jtbd_profile?.core_job_statement;
+              return (
+                <div className="flex items-start gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+                          activeAudience
+                            ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                            : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
+                        }`}
+                      >
+                        <Users className="h-3 w-3" />
+                        <span className="max-w-[100px] truncate">{activeAudience?.label || "No audience"}</span>
+                        <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[180px]">
+                      <DropdownMenuItem
+                        onClick={() => setSelectedAudienceId("none")}
+                        className={selectedAudienceId === "none" ? "bg-accent" : ""}
+                      >
+                        <span className="text-muted-foreground">No audience</span>
+                      </DropdownMenuItem>
+                      {audiences.map((a: any) => (
+                        <DropdownMenuItem
+                          key={a.id}
+                          onClick={() => setSelectedAudienceId(a.id)}
+                          className={selectedAudienceId === a.id ? "bg-accent" : ""}
+                        >
+                          {a.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {coreJob && (
+                    <p className="text-[11px] leading-tight text-muted-foreground/70 italic line-clamp-2 pt-0.5">
+                      {coreJob}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Attached image preview */}
             <AnimatePresence>
               {attachedImage && (
@@ -584,7 +620,6 @@ const DesignStudio = () => {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mb-2"
                 >
                   <div className="relative inline-block">
                     <img
