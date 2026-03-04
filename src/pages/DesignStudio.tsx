@@ -128,10 +128,30 @@ const DesignStudio = () => {
       setCanvasSize(data.canvas_size || "1080x1080");
       setVote((data.vote as -1 | 0 | 1) || 0);
       setSaved(true);
-      setMessages([
-        { role: "user", content: data.prompt },
-        { role: "assistant", content: "Here's your design.", imageUrl: data.image_url },
-      ]);
+
+      // Load full chat history
+      const { data: msgData } = await supabase
+        .from("design_messages")
+        .select("role, content, image_url, attached_image_url")
+        .eq("design_id", designId)
+        .order("created_at", { ascending: true });
+
+      if (msgData && msgData.length > 0) {
+        setMessages(
+          msgData.map((m: any) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            imageUrl: m.image_url || undefined,
+            attachedImageUrl: m.attached_image_url || undefined,
+          }))
+        );
+      } else {
+        // Fallback for designs saved before chat history was stored
+        setMessages([
+          { role: "user", content: data.prompt },
+          { role: "assistant", content: "Here's your design.", imageUrl: data.image_url },
+        ]);
+      }
     };
     loadDesign();
   }, [searchParams, user]);
@@ -264,7 +284,7 @@ const DesignStudio = () => {
 
   const handleSave = async () => {
     if (!currentImage || !user || !brand || saved) return;
-    const { error } = await supabase.from("designs").insert({
+    const { data: designData, error } = await supabase.from("designs").insert({
       user_id: user.id,
       brand_id: brand.id,
       title: messages.find((m) => m.role === "user")?.content?.slice(0, 100) || "Untitled",
@@ -272,10 +292,22 @@ const DesignStudio = () => {
       image_url: currentImage,
       canvas_size: canvasSize,
       vote,
-    });
+    }).select("id").single();
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } else {
+      // Persist full chat history
+      if (designData?.id && messages.length > 0) {
+        const rows = messages.map((m) => ({
+          design_id: designData.id,
+          user_id: user.id,
+          role: m.role,
+          content: m.content,
+          image_url: m.imageUrl || null,
+          attached_image_url: m.attachedImageUrl || null,
+        }));
+        await supabase.from("design_messages").insert(rows);
+      }
       setSaved(true);
       toast({ title: "Design saved" });
     }
