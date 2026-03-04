@@ -205,8 +205,11 @@ const DesignStudio = () => {
 
     const isEdit = !!currentImage && !!currentPrompt;
 
-    const canGenerate = await checkGenerationLimit();
-    if (!canGenerate) return;
+    // Only check credit limit for new generations (edits may be free — server decides)
+    if (!isEdit) {
+      const canGenerate = await checkGenerationLimit();
+      if (!canGenerate) return;
+    }
 
     const userMsg: Message = { role: "user", content: trimmed, attachedImageUrl: attachedImage || undefined };
     const newMessages = [...messages, userMsg];
@@ -258,9 +261,10 @@ const DesignStudio = () => {
           { role: "assistant", content: data.error },
         ]);
       } else {
+        const freeLabel = data.free_edit ? " (free edit — no credit used)" : "";
         const assistantMsg: Message = {
           role: "assistant",
-          content: data.explanation || "Here's your design.",
+          content: (data.explanation || "Here's your design.") + freeLabel,
           imageUrl: data.image_url,
         };
         setMessages((prev) => [...prev, assistantMsg]);
