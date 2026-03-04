@@ -31,7 +31,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id } = await req.json();
 
     if (action === "generate" || action === "edit") {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -39,15 +39,15 @@ serve(async (req) => {
 
       // Fetch audience intelligence for the brand
       let audienceContext = "";
-      if (brand?.id) {
+      if (brand?.id || audience_id) {
         try {
-          const { data: audienceData } = await adminClient
-            .from("target_audiences")
-            .select("jtbd_profile")
-            .eq("brand_id", brand.id)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle();
+          let query = adminClient.from("target_audiences").select("jtbd_profile");
+          if (audience_id) {
+            query = query.eq("id", audience_id);
+          } else {
+            query = query.eq("brand_id", brand.id).order("created_at", { ascending: true }).limit(1);
+          }
+          const { data: audienceData } = await query.maybeSingle();
           
           const profile = audienceData?.jtbd_profile;
           if (profile && typeof profile === "object" && Object.keys(profile).length > 0) {
