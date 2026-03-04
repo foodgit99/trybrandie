@@ -106,6 +106,47 @@ export type Database = {
         }
         Relationships: []
       }
+      design_messages: {
+        Row: {
+          attached_image_url: string | null
+          content: string
+          created_at: string
+          design_id: string
+          id: string
+          image_url: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          attached_image_url?: string | null
+          content: string
+          created_at?: string
+          design_id: string
+          id?: string
+          image_url?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          attached_image_url?: string | null
+          content?: string
+          created_at?: string
+          design_id?: string
+          id?: string
+          image_url?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_messages_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       designs: {
         Row: {
           brand_id: string
