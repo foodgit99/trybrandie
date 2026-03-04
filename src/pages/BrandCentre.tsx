@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Pencil, Upload, X, LogOut, ChevronDown, ChevronUp, Target, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Upload, X, LogOut, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const VIBES = ["Minimal", "Bold", "Luxury", "Playful", "Corporate", "Cinematic"] as const;
@@ -22,6 +22,14 @@ const PERSONALITY_OPTIONS = [
   "Inspiring", "Trustworthy",
 ];
 const EMOTIONAL_DRIVERS = ["Status", "Security", "Growth", "Belonging", "Freedom", "Simplicity", "Recognition"] as const;
+
+const EMPTY_INPUTS = {
+  who_buys: "", life_stage: "", improving: "",
+  frustrations: "", not_working: "", tried_before: "",
+  success_looks_like: "", consequences: "",
+  when_buy: "", hesitations: "",
+  emotional_drivers: [] as string[],
+};
 
 type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality";
 
@@ -46,38 +54,40 @@ const BrandCentre = () => {
   const [typPrimary, setTypPrimary] = useState("");
   const [typSecondary, setTypSecondary] = useState("");
 
-  // Audience Intelligence
+  // Audience Intelligence — multiple profiles
   const queryClient = useQueryClient();
   const [audienceOpen, setAudienceOpen] = useState(false);
+  const [selectedAudienceId, setSelectedAudienceId] = useState<string | null>(null);
   const [audienceEditing, setAudienceEditing] = useState(false);
-  const [audienceInputs, setAudienceInputs] = useState({
-    who_buys: "", life_stage: "", improving: "",
-    frustrations: "", not_working: "", tried_before: "",
-    success_looks_like: "", consequences: "",
-    when_buy: "", hesitations: "",
-    emotional_drivers: [] as string[],
-  });
+  const [editingLabel, setEditingLabel] = useState("");
+  const [audienceInputs, setAudienceInputs] = useState({ ...EMPTY_INPUTS });
 
-  const { data: audience } = useQuery({
-    queryKey: ["target_audience", brand?.id],
+  const { data: audiences = [] } = useQuery({
+    queryKey: ["target_audiences", brand?.id],
     queryFn: async () => {
-      if (!brand) return null;
+      if (!brand) return [];
       const { data, error } = await supabase
         .from("target_audiences" as any)
         .select("*")
         .eq("brand_id", brand.id)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as any;
+      return (data || []) as any[];
     },
     enabled: !!brand,
   });
 
+  const selectedAudience = audiences.find((a: any) => a.id === selectedAudienceId) || audiences[0] || null;
+
   useEffect(() => {
-    if (audience?.raw_inputs && typeof audience.raw_inputs === "object") {
-      const ri = audience.raw_inputs as any;
+    if (audiences.length > 0 && !selectedAudienceId) {
+      setSelectedAudienceId(audiences[0].id);
+    }
+  }, [audiences, selectedAudienceId]);
+
+  useEffect(() => {
+    if (selectedAudience?.raw_inputs && typeof selectedAudience.raw_inputs === "object") {
+      const ri = selectedAudience.raw_inputs as any;
       setAudienceInputs({
         who_buys: ri.who_buys || "", life_stage: ri.life_stage || "", improving: ri.improving || "",
         frustrations: ri.frustrations || "", not_working: ri.not_working || "", tried_before: ri.tried_before || "",
@@ -85,38 +95,73 @@ const BrandCentre = () => {
         when_buy: ri.when_buy || "", hesitations: ri.hesitations || "",
         emotional_drivers: ri.emotional_drivers || [],
       });
+      setEditingLabel(selectedAudience.label || "");
+    } else {
+      setAudienceInputs({ ...EMPTY_INPUTS });
+      setEditingLabel("");
     }
-  }, [audience]);
+    setAudienceEditing(false);
+  }, [selectedAudienceId, selectedAudience?.id]);
 
-  const hasJtbdProfile = audience?.jtbd_profile && Object.keys(audience.jtbd_profile as any).length > 0;
+  const hasJtbdProfile = selectedAudience?.jtbd_profile && Object.keys(selectedAudience.jtbd_profile as any).length > 0;
+
+  const addAudienceMutation = useMutation({
+    mutationFn: async () => {
+      const label = `Audience ${audiences.length + 1}`;
+      const { data, error } = await supabase.from("target_audiences" as any).insert({ brand_id: brand!.id, label, raw_inputs: EMPTY_INPUTS } as any).select("id").single();
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["target_audiences", brand?.id] });
+      setSelectedAudienceId(data.id);
+      setAudienceEditing(true);
+      toast({ title: "New audience added" });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteAudienceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("target_audiences" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setSelectedAudienceId(null);
+      queryClient.invalidateQueries({ queryKey: ["target_audiences", brand?.id] });
+      toast({ title: "Audience deleted" });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   const generateProfileMutation = useMutation({
     mutationFn: async () => {
-      if (audience) {
-        await supabase.from("target_audiences" as any).update({ raw_inputs: audienceInputs } as any).eq("id", audience.id);
+      const targetId = selectedAudience?.id;
+      if (targetId) {
+        await supabase.from("target_audiences" as any).update({ raw_inputs: audienceInputs, label: editingLabel || selectedAudience.label } as any).eq("id", targetId);
       } else {
-        const { error } = await supabase.from("target_audiences" as any).insert({ brand_id: brand!.id, raw_inputs: audienceInputs } as any);
+        const { data: inserted, error } = await supabase.from("target_audiences" as any).insert({ brand_id: brand!.id, raw_inputs: audienceInputs, label: editingLabel || "Primary Audience" } as any).select("id").single();
         if (error) throw error;
+        setSelectedAudienceId((inserted as any).id);
       }
       const { data, error } = await supabase.functions.invoke("audience-intelligence", {
         body: { raw_inputs: audienceInputs, brand: { name: brand!.name, description: brand!.description, tagline: brand!.tagline } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const { data: latest } = await supabase.from("target_audiences" as any).select("id").eq("brand_id", brand!.id).order("created_at", { ascending: true }).limit(1).single();
-      if (latest) {
-        await supabase.from("target_audiences" as any).update({ jtbd_profile: data.profile } as any).eq("id", (latest as any).id);
+      // Save profile to the correct audience
+      const id = targetId || selectedAudienceId;
+      if (id) {
+        await supabase.from("target_audiences" as any).update({ jtbd_profile: data.profile } as any).eq("id", id);
       }
       return data.profile;
     },
     onSuccess: () => {
       toast({ title: "Audience profile generated" });
-      queryClient.invalidateQueries({ queryKey: ["target_audience", brand?.id] });
+      queryClient.invalidateQueries({ queryKey: ["target_audiences", brand?.id] });
       setAudienceEditing(false);
     },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const toggleEmotionalDriver = (driver: string) => {
@@ -142,17 +187,12 @@ const BrandCentre = () => {
 
   useEffect(() => {
     if (brand) {
-      setName(brand.name || "");
-      setTagline(brand.tagline || "");
-      setDescription(brand.description || "");
-      setVibe(brand.vibe || "");
-      setToneOfVoice((brand as any).tone_of_voice || "");
+      setName(brand.name || ""); setTagline(brand.tagline || ""); setDescription(brand.description || "");
+      setVibe(brand.vibe || ""); setToneOfVoice((brand as any).tone_of_voice || "");
       setPersonalityTraits((brand as any).personality_traits || []);
-      setPrimaryColors(brand.primary_colors || []);
-      setSecondaryColors(brand.secondary_colors || []);
+      setPrimaryColors(brand.primary_colors || []); setSecondaryColors(brand.secondary_colors || []);
       setAccentColors(brand.accent_colors || []);
-      setTypPrimary(brand.typography_primary || "");
-      setTypSecondary(brand.typography_secondary || "");
+      setTypPrimary(brand.typography_primary || ""); setTypSecondary(brand.typography_secondary || "");
     }
   }, [brand]);
 
@@ -183,8 +223,7 @@ const BrandCentre = () => {
     const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(path);
     await supabase.from("brands").update({ logo_url: urlData.publicUrl }).eq("id", brand.id);
     setSaving(false);
-    toast({ title: "Logo updated" });
-    refetch();
+    toast({ title: "Logo updated" }); refetch();
   };
 
   const handleInspirationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,13 +237,11 @@ const BrandCentre = () => {
       const { data: urlData } = supabase.storage.from("brand-inspiration").getPublicUrl(path);
       await supabase.from("brand_inspiration").insert({ brand_id: brand.id, image_url: urlData.publicUrl });
     }
-    toast({ title: "Inspiration added" });
-    refetchInspiration();
+    toast({ title: "Inspiration added" }); refetchInspiration();
   };
 
   const deleteInspiration = async (id: string) => {
-    await supabase.from("brand_inspiration").delete().eq("id", id);
-    refetchInspiration();
+    await supabase.from("brand_inspiration").delete().eq("id", id); refetchInspiration();
   };
 
   const handleColorChange = (setter: React.Dispatch<React.SetStateAction<string[]>>, arr: string[], index: number, value: string) => {
@@ -236,6 +273,105 @@ const BrandCentre = () => {
         )}
       </div>
       {editing === field ? editContent : children}
+    </div>
+  );
+
+  // Audience questionnaire form (reusable)
+  const AudienceForm = () => (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Audience Label</label>
+        <Input value={editingLabel} onChange={(e) => setEditingLabel(e.target.value)} placeholder="e.g. Busy Executives, Beginners..." maxLength={100} />
+      </div>
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Who Are They?</h4>
+        <div className="space-y-2">
+          <Textarea placeholder="Who typically buys from you?" value={audienceInputs.who_buys} onChange={(e) => setAudienceInputs((p) => ({ ...p, who_buys: e.target.value }))} className="min-h-[60px]" />
+          <Textarea placeholder="What stage of life or business are they in?" value={audienceInputs.life_stage} onChange={(e) => setAudienceInputs((p) => ({ ...p, life_stage: e.target.value }))} className="min-h-[60px]" />
+          <Textarea placeholder="What are they trying to improve?" value={audienceInputs.improving} onChange={(e) => setAudienceInputs((p) => ({ ...p, improving: e.target.value }))} className="min-h-[60px]" />
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Their Struggle</h4>
+        <div className="space-y-2">
+          <Textarea placeholder="What frustrates them right now?" value={audienceInputs.frustrations} onChange={(e) => setAudienceInputs((p) => ({ ...p, frustrations: e.target.value }))} className="min-h-[60px]" />
+          <Textarea placeholder="What is not working for them?" value={audienceInputs.not_working} onChange={(e) => setAudienceInputs((p) => ({ ...p, not_working: e.target.value }))} className="min-h-[60px]" />
+          <Textarea placeholder="What have they tried before?" value={audienceInputs.tried_before} onChange={(e) => setAudienceInputs((p) => ({ ...p, tried_before: e.target.value }))} className="min-h-[60px]" />
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Motivation</h4>
+        <div className="space-y-2">
+          <Textarea placeholder="What would success look like for them?" value={audienceInputs.success_looks_like} onChange={(e) => setAudienceInputs((p) => ({ ...p, success_looks_like: e.target.value }))} className="min-h-[60px]" />
+          <Textarea placeholder="What happens if they don't solve this?" value={audienceInputs.consequences} onChange={(e) => setAudienceInputs((p) => ({ ...p, consequences: e.target.value }))} className="min-h-[60px]" />
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Buying Context</h4>
+        <div className="space-y-2">
+          <Textarea placeholder="When do they usually decide to buy?" value={audienceInputs.when_buy} onChange={(e) => setAudienceInputs((p) => ({ ...p, when_buy: e.target.value }))} className="min-h-[60px]" />
+          <Textarea placeholder="What makes them hesitate? What almost stops them?" value={audienceInputs.hesitations} onChange={(e) => setAudienceInputs((p) => ({ ...p, hesitations: e.target.value }))} className="min-h-[60px]" />
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Emotional Drivers</h4>
+        <div className="flex flex-wrap gap-2">
+          {EMOTIONAL_DRIVERS.map((driver) => (
+            <button key={driver} onClick={() => toggleEmotionalDriver(driver)} className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${audienceInputs.emotional_drivers.includes(driver) ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{driver}</button>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button onClick={() => generateProfileMutation.mutate()} disabled={generateProfileMutation.isPending} className="gap-2">
+          {generateProfileMutation.isPending ? (<><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>) : hasJtbdProfile ? (<><RefreshCw className="h-4 w-4" /> Regenerate Profile</>) : (<><Target className="h-4 w-4" /> Generate Profile</>)}
+        </Button>
+        {hasJtbdProfile && audienceEditing && <Button variant="ghost" onClick={() => setAudienceEditing(false)}>Cancel</Button>}
+      </div>
+    </div>
+  );
+
+  // Audience profile display
+  const AudienceProfileDisplay = ({ profile }: { profile: any }) => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium">{selectedAudience?.label || "Audience"}</span>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setAudienceEditing(true)} className="gap-1 text-muted-foreground"><Pencil className="h-3 w-3" /> Edit</Button>
+          <Button variant="ghost" size="sm" onClick={() => deleteAudienceMutation.mutate(selectedAudience.id)} className="gap-1 text-destructive hover:text-destructive"><Trash2 className="h-3 w-3" /> Delete</Button>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground uppercase tracking-wider">Persona</label>
+        <p className="text-sm">{profile.persona_summary}</p>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground uppercase tracking-wider">Core Job Statement</label>
+        <p className="text-sm italic">{profile.core_job_statement}</p>
+      </div>
+      {([["Struggling Moments", "struggling_moments"], ["Push Forces", "push_forces"], ["Pull Forces", "pull_forces"], ["Anxiety Forces", "anxiety_forces"], ["Buying Triggers", "buying_triggers"], ["Hesitation Factors", "hesitation_factors"], ["Messaging Angles", "messaging_angles"], ["Conversion Levers", "conversion_levers_ranked"]] as const).map(([label, key]) => {
+        const items = profile[key];
+        if (!items?.length) return null;
+        return (
+          <div key={key} className="space-y-1">
+            <label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</label>
+            <ul className="text-sm space-y-0.5">
+              {items.map((item: string, i: number) => (<li key={i} className="flex gap-1.5"><span className="text-muted-foreground">•</span><span>{item}</span></li>))}
+            </ul>
+          </div>
+        );
+      })}
+      {([["Emotional Outcomes", "emotional_outcomes"], ["Functional Outcomes", "functional_outcomes"], ["Social Outcomes", "social_outcomes"], ["Language Patterns", "language_patterns"]] as const).map(([label, key]) => {
+        const items = profile[key];
+        if (!items?.length) return null;
+        return (
+          <div key={key} className="space-y-1">
+            <label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</label>
+            <div className="flex flex-wrap gap-1.5">
+              {items.map((item: string, i: number) => (<span key={i} className="inline-block px-2.5 py-1 rounded-lg bg-secondary text-xs">{item}</span>))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -413,109 +549,68 @@ const BrandCentre = () => {
                 <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Target Audience Intelligence</h3>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${hasJtbdProfile ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
-                  {hasJtbdProfile ? "Profile active" : "Not configured"}
+                <span className={`text-xs px-2 py-0.5 rounded-full ${audiences.length > 0 ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                  {audiences.length > 0 ? `${audiences.length} profile${audiences.length > 1 ? "s" : ""}` : "Not configured"}
                 </span>
                 {audienceOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
               </div>
             </button>
 
-            {!audienceOpen && hasJtbdProfile && (
+            {/* Collapsed summary */}
+            {!audienceOpen && selectedAudience && hasJtbdProfile && (
               <div className="space-y-1 pt-1">
-                <p className="text-sm font-medium">{(audience.jtbd_profile as any).persona_summary}</p>
-                <p className="text-xs text-muted-foreground italic">{(audience.jtbd_profile as any).core_job_statement}</p>
+                <p className="text-xs text-muted-foreground">{selectedAudience.label}</p>
+                <p className="text-sm font-medium">{(selectedAudience.jtbd_profile as any).persona_summary}</p>
+                <p className="text-xs text-muted-foreground italic">{(selectedAudience.jtbd_profile as any).core_job_statement}</p>
               </div>
             )}
 
             {audienceOpen && (
-              <div className="space-y-6 pt-2">
-                {(audienceEditing || !hasJtbdProfile) && (
-                  <div className="space-y-6">
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold">Who Are They?</h4>
-                      <div className="space-y-2">
-                        <Textarea placeholder="Who typically buys from you?" value={audienceInputs.who_buys} onChange={(e) => setAudienceInputs((p) => ({ ...p, who_buys: e.target.value }))} className="min-h-[60px]" />
-                        <Textarea placeholder="What stage of life or business are they in?" value={audienceInputs.life_stage} onChange={(e) => setAudienceInputs((p) => ({ ...p, life_stage: e.target.value }))} className="min-h-[60px]" />
-                        <Textarea placeholder="What are they trying to improve?" value={audienceInputs.improving} onChange={(e) => setAudienceInputs((p) => ({ ...p, improving: e.target.value }))} className="min-h-[60px]" />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold">Their Struggle</h4>
-                      <div className="space-y-2">
-                        <Textarea placeholder="What frustrates them right now?" value={audienceInputs.frustrations} onChange={(e) => setAudienceInputs((p) => ({ ...p, frustrations: e.target.value }))} className="min-h-[60px]" />
-                        <Textarea placeholder="What is not working for them?" value={audienceInputs.not_working} onChange={(e) => setAudienceInputs((p) => ({ ...p, not_working: e.target.value }))} className="min-h-[60px]" />
-                        <Textarea placeholder="What have they tried before?" value={audienceInputs.tried_before} onChange={(e) => setAudienceInputs((p) => ({ ...p, tried_before: e.target.value }))} className="min-h-[60px]" />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold">Motivation</h4>
-                      <div className="space-y-2">
-                        <Textarea placeholder="What would success look like for them?" value={audienceInputs.success_looks_like} onChange={(e) => setAudienceInputs((p) => ({ ...p, success_looks_like: e.target.value }))} className="min-h-[60px]" />
-                        <Textarea placeholder="What happens if they don't solve this?" value={audienceInputs.consequences} onChange={(e) => setAudienceInputs((p) => ({ ...p, consequences: e.target.value }))} className="min-h-[60px]" />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold">Buying Context</h4>
-                      <div className="space-y-2">
-                        <Textarea placeholder="When do they usually decide to buy?" value={audienceInputs.when_buy} onChange={(e) => setAudienceInputs((p) => ({ ...p, when_buy: e.target.value }))} className="min-h-[60px]" />
-                        <Textarea placeholder="What makes them hesitate? What almost stops them?" value={audienceInputs.hesitations} onChange={(e) => setAudienceInputs((p) => ({ ...p, hesitations: e.target.value }))} className="min-h-[60px]" />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold">Emotional Drivers</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {EMOTIONAL_DRIVERS.map((driver) => (
-                          <button key={driver} onClick={() => toggleEmotionalDriver(driver)} className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${audienceInputs.emotional_drivers.includes(driver) ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{driver}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={() => generateProfileMutation.mutate()} disabled={generateProfileMutation.isPending} className="gap-2">
-                        {generateProfileMutation.isPending ? (<><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>) : hasJtbdProfile ? (<><RefreshCw className="h-4 w-4" /> Regenerate Profile</>) : (<><Target className="h-4 w-4" /> Generate Profile</>)}
-                      </Button>
-                      {hasJtbdProfile && audienceEditing && <Button variant="ghost" onClick={() => setAudienceEditing(false)}>Cancel</Button>}
-                    </div>
+              <div className="space-y-4 pt-2">
+                {/* Audience tabs + Add button */}
+                {audiences.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {audiences.map((a: any) => (
+                      <button
+                        key={a.id}
+                        onClick={() => setSelectedAudienceId(a.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm border transition-all ${
+                          selectedAudienceId === a.id ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"
+                        }`}
+                      >
+                        <Users className="h-3 w-3" />
+                        {a.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => addAudienceMutation.mutate()}
+                      disabled={addAudienceMutation.isPending}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm border-2 border-dashed border-border text-muted-foreground hover:border-muted-foreground/40 transition-all"
+                    >
+                      <Plus className="h-3 w-3" /> Add
+                    </button>
                   </div>
                 )}
 
-                {hasJtbdProfile && !audienceEditing && (
-                  <div className="space-y-4">
-                    <div className="flex justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => setAudienceEditing(true)} className="gap-1 text-muted-foreground"><Pencil className="h-3 w-3" /> Edit</Button>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground uppercase tracking-wider">Persona</label>
-                      <p className="text-sm">{(audience.jtbd_profile as any).persona_summary}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground uppercase tracking-wider">Core Job Statement</label>
-                      <p className="text-sm italic">{(audience.jtbd_profile as any).core_job_statement}</p>
-                    </div>
-                    {([["Struggling Moments", "struggling_moments"], ["Push Forces", "push_forces"], ["Pull Forces", "pull_forces"], ["Anxiety Forces", "anxiety_forces"], ["Buying Triggers", "buying_triggers"], ["Hesitation Factors", "hesitation_factors"], ["Messaging Angles", "messaging_angles"], ["Conversion Levers", "conversion_levers_ranked"]] as const).map(([label, key]) => {
-                      const items = (audience.jtbd_profile as any)[key];
-                      if (!items?.length) return null;
-                      return (
-                        <div key={key} className="space-y-1">
-                          <label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</label>
-                          <ul className="text-sm space-y-0.5">
-                            {items.map((item: string, i: number) => (<li key={i} className="flex gap-1.5"><span className="text-muted-foreground">•</span><span>{item}</span></li>))}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                    {([["Emotional Outcomes", "emotional_outcomes"], ["Functional Outcomes", "functional_outcomes"], ["Social Outcomes", "social_outcomes"], ["Language Patterns", "language_patterns"]] as const).map(([label, key]) => {
-                      const items = (audience.jtbd_profile as any)[key];
-                      if (!items?.length) return null;
-                      return (
-                        <div key={key} className="space-y-1">
-                          <label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {items.map((item: string, i: number) => (<span key={i} className="inline-block px-2.5 py-1 rounded-lg bg-secondary text-xs">{item}</span>))}
-                          </div>
-                        </div>
-                      );
-                    })}
+                {/* No audiences yet */}
+                {audiences.length === 0 && !audienceEditing && (
+                  <div className="text-center py-4 space-y-3">
+                    <p className="text-sm text-muted-foreground">No audience profiles yet. Add one to make your designs conversion-aware.</p>
+                    <Button variant="outline" onClick={() => { addAudienceMutation.mutate(); }} className="gap-2">
+                      <Plus className="h-4 w-4" /> Add First Audience
+                    </Button>
                   </div>
+                )}
+
+                {/* Selected audience content */}
+                {selectedAudience && (
+                  <>
+                    {(audienceEditing || !hasJtbdProfile) ? (
+                      <AudienceForm />
+                    ) : (
+                      <AudienceProfileDisplay profile={selectedAudience.jtbd_profile} />
+                    )}
+                  </>
                 )}
               </div>
             )}

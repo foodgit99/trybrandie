@@ -77,6 +77,7 @@ const DesignStudio = () => {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("chat");
+  const [selectedAudienceId, setSelectedAudienceId] = useState<string | "none">("none");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -86,16 +87,31 @@ const DesignStudio = () => {
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-studio", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("generations_count, generations_reset_at")
-        .eq("user_id", user!.id)
-        .single();
+      const { data, error } = await supabase.from("profiles").select("generations_count, generations_reset_at").eq("user_id", user!.id).single();
       if (error) throw error;
       return data;
     },
     enabled: !!user,
   });
+
+  // Audience profiles for the current brand
+  const { data: audiences = [] } = useQuery({
+    queryKey: ["target_audiences_studio", brand?.id],
+    queryFn: async () => {
+      if (!brand) return [];
+      const { data, error } = await supabase.from("target_audiences" as any).select("id, label, jtbd_profile").eq("brand_id", brand.id).order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!brand,
+  });
+
+  // Auto-select first audience
+  useEffect(() => {
+    if (audiences.length > 0 && selectedAudienceId === "none") {
+      setSelectedAudienceId(audiences[0].id);
+    }
+  }, [audiences, selectedAudienceId]);
 
   const getCreditsRemaining = () => {
     if (!profile) return FREE_TIER_LIMIT;
@@ -244,6 +260,7 @@ const DesignStudio = () => {
           canvas_size: canvasSize,
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
           brand: brandPayload,
+          ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
           ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
           ...(isEdit && {
             previous_prompt: currentPrompt,
@@ -440,6 +457,19 @@ const DesignStudio = () => {
               ))}
             </SelectContent>
           </Select>
+          {audiences.length > 0 && (
+            <Select value={selectedAudienceId} onValueChange={setSelectedAudienceId}>
+              <SelectTrigger className="w-[100px] sm:w-[160px] h-8 sm:h-9 rounded-xl text-xs sm:text-sm">
+                <SelectValue placeholder="Audience" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No audience</SelectItem>
+                {audiences.map((a: any) => (
+                  <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}
           </span>
