@@ -34,37 +34,91 @@ serve(async (req) => {
     const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url } = await req.json();
 
     if (action === "generate" || action === "edit") {
-      // Check and increment generation count
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-      const { data: profile } = await adminClient
-        .from("profiles")
-        .select("generations_count, generations_reset_at")
-        .eq("user_id", user.id)
-        .single();
+      // --- Intent classification for edits ---
+      let isFreeEdit = false;
+      const userPrompt = messages[messages.length - 1]?.content || "";
 
-      if (profile) {
-        const resetAt = new Date(profile.generations_reset_at);
-        const now = new Date();
-        const needsReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+      if (action === "edit" && previous_prompt) {
+        // Use a fast LLM call to classify intent
+        const classifyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              {
+                role: "system",
+                content: `You are an intent classifier for a design tool. Classify the user's edit request as either MINOR or MAJOR.
 
-        if (needsReset) {
-          await adminClient
-            .from("profiles")
-            .update({ generations_count: 1, generations_reset_at: now.toISOString() })
-            .eq("user_id", user.id);
-        } else {
-          if (profile.generations_count >= 10) {
-            return new Response(JSON.stringify({ error: "Monthly generation limit reached. Please upgrade your plan." }), {
-              status: 429,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+MINOR edits (free, no credit cost):
+- Changing headline text, CTA text, or subheadline text
+- Fixing a typo
+- Changing the wording of existing text
+- Making text shorter or longer
+- Changing tone of existing copy (e.g. "make it more casual")
+
+MAJOR edits (costs 1 credit):
+- Changing the layout or composition
+- Changing colours or colour scheme
+- Changing the background image or visual style
+- Adding or removing visual elements
+- Changing the overall design direction
+- Requesting a completely different design
+- Adding images or changing imagery
+- Changing font/typography style
+- Resizing or repositioning elements
+
+Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
+              },
+              { role: "user", content: `Previous design brief: "${previous_prompt}"\n\nUser's edit request: "${userPrompt}"` },
+            ],
+          }),
+        });
+
+        if (classifyResponse.ok) {
+          const classifyData = await classifyResponse.json();
+          const classification = (classifyData.choices?.[0]?.message?.content || "").trim().toUpperCase();
+          isFreeEdit = classification === "MINOR";
+          console.log(`Intent classification: ${classification} (isFreeEdit: ${isFreeEdit})`);
+        }
+      }
+
+      // Check and increment generation count — skip for free edits
+      if (!isFreeEdit) {
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("generations_count, generations_reset_at")
+          .eq("user_id", user.id)
+          .single();
+
+        if (profile) {
+          const resetAt = new Date(profile.generations_reset_at);
+          const now = new Date();
+          const needsReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+
+          if (needsReset) {
+            await adminClient
+              .from("profiles")
+              .update({ generations_count: 1, generations_reset_at: now.toISOString() })
+              .eq("user_id", user.id);
+          } else {
+            if (profile.generations_count >= 10) {
+              return new Response(JSON.stringify({ error: "Monthly generation limit reached. Please upgrade your plan." }), {
+                status: 429,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+            await adminClient
+              .from("profiles")
+              .update({ generations_count: profile.generations_count + 1 })
+              .eq("user_id", user.id);
           }
-          await adminClient
-            .from("profiles")
-            .update({ generations_count: profile.generations_count + 1 })
-            .eq("user_id", user.id);
         }
       }
 
@@ -264,6 +318,7 @@ CRITICAL RULES:
           image_url: urlData.publicUrl,
           explanation,
           design_prompt: designPrompt,
+          free_edit: isFreeEdit,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
