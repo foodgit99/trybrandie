@@ -359,6 +359,165 @@ CRITICAL RULES:
         ? briefContent.split("EXPLANATION:")[1].trim()
         : "I've crafted this design with your brand identity in mind.";
 
+      // --- GENOME COMPOSER AGENT ---
+      // Produces a structured Visual Style Genome JSON for precise design control
+      let genomeData: any = null;
+      try {
+        const genomeComposerPrompt = `You are a Visual Style Genome Composer for a brand design system. Your job is to produce a structured Visual Style Genome — the design DNA — that will guide image generation.
+
+CONTEXT:
+- Design brief: ${designPrompt}
+- User's request: "${userPrompt}"
+- Brand name: ${brand?.name || "Unknown"}
+- Brand vibe: ${brand?.vibe || "Modern"}
+- Brand tone: ${brand?.tone_of_voice || "Professional"}
+- Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
+- Primary colours: ${(brand?.primary_colors || []).join(", ")}
+- Primary font: ${brand?.typography_primary || "Clean sans-serif"}
+${trend && trend !== "none" ? `- Active trend: ${trend} (intensity: ${trend_intensity ?? 40}/100)` : "- No trend active"}
+${audienceContext ? audienceContext : ""}
+
+GENE LOCKING RULES:
+- LOCKED (never override): Brand primary colours must inform the palette. Brand fonts must inform font personality.
+- SEMI-FLEXIBLE: Typography weight, text effects, emotion — can shift within brand-compatible range.
+- FREE: Layout, composition, texture, illustration, image style — fully controlled by prompt/trend/context.
+
+${trend && trend !== "none" ? `TREND BLENDING: At intensity ${trend_intensity ?? 40}/100, blend the "${trend}" trend aesthetic into free genes. Higher intensity = more trend influence on free genes.` : ""}
+
+Output a complete genome that precisely captures the visual strategy for this specific design.`;
+
+        const genomeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: genomeComposerPrompt },
+              { role: "user", content: "Generate the Visual Style Genome for this design." },
+            ],
+            tools: [{
+              type: "function",
+              function: {
+                name: "set_genome",
+                description: "Set the Visual Style Genome for the design",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    color: {
+                      type: "object",
+                      properties: {
+                        palette_type: { type: "string", enum: ["monochrome", "complementary", "analogous", "split_complementary", "triadic"] },
+                        temperature: { type: "string", enum: ["warm", "neutral", "cool"] },
+                        contrast: { type: "string", enum: ["low", "medium", "high", "extreme"] },
+                        saturation: { type: "string", enum: ["muted", "balanced", "vibrant", "neon"] },
+                        gradient_logic: { type: "string", enum: ["flat", "soft_gradient", "metallic_gradient", "multi_spectrum"] },
+                      },
+                      required: ["palette_type", "temperature", "contrast", "saturation", "gradient_logic"],
+                      additionalProperties: false,
+                    },
+                    typography: {
+                      type: "object",
+                      properties: {
+                        font_personality: { type: "string", enum: ["corporate", "friendly", "futuristic", "street", "editorial"] },
+                        weight_system: { type: "string", enum: ["light", "regular", "bold", "ultra_bold"] },
+                        hierarchy_logic: { type: "string", enum: ["strong_headline_dominance", "balanced_hierarchy", "text_minimal"] },
+                        typography_layout: { type: "string", enum: ["centered", "left_editorial", "split_text", "overlay"] },
+                        text_effect: { type: "string", enum: ["none", "outline", "drop_shadow", "gradient", "glitch", "neon"] },
+                      },
+                      required: ["font_personality", "weight_system", "hierarchy_logic", "typography_layout", "text_effect"],
+                      additionalProperties: false,
+                    },
+                    layout: {
+                      type: "object",
+                      properties: {
+                        grid_type: { type: "string", enum: ["strict_grid", "modular_grid", "broken_grid", "freeform"] },
+                        balance: { type: "string", enum: ["symmetrical", "asymmetrical", "dynamic"] },
+                        spacing_density: { type: "string", enum: ["minimal", "balanced", "dense"] },
+                        content_ratio: { type: "string", enum: ["image_dominant", "text_dominant", "balanced"] },
+                      },
+                      required: ["grid_type", "balance", "spacing_density", "content_ratio"],
+                      additionalProperties: false,
+                    },
+                    composition: {
+                      type: "object",
+                      properties: {
+                        visual_direction: { type: "string", enum: ["vertical", "horizontal", "diagonal", "radial"] },
+                        focal_strategy: { type: "string", enum: ["single_focal_point", "dual_focal", "distributed"] },
+                        layering_depth: { type: "string", enum: ["flat", "medium", "deep_layered"] },
+                      },
+                      required: ["visual_direction", "focal_strategy", "layering_depth"],
+                      additionalProperties: false,
+                    },
+                    texture: {
+                      type: "object",
+                      properties: {
+                        texture_type: { type: "string", enum: ["none", "grain", "paper", "digital_noise", "plastic", "metallic"] },
+                        intensity: { type: "string", enum: ["subtle", "medium", "heavy"] },
+                        distortion: { type: "string", enum: ["none", "glitch", "warp", "pixel_sort"] },
+                      },
+                      required: ["texture_type", "intensity", "distortion"],
+                      additionalProperties: false,
+                    },
+                    illustration: {
+                      type: "object",
+                      properties: {
+                        style: { type: "string", enum: ["none", "3d", "flat", "hand_drawn", "abstract", "cartoon", "clay"] },
+                        detail_level: { type: "string", enum: ["minimal", "medium", "high"] },
+                        line_weight: { type: "string", enum: ["thin", "medium", "bold"] },
+                      },
+                      required: ["style", "detail_level", "line_weight"],
+                      additionalProperties: false,
+                    },
+                    image_style: {
+                      type: "object",
+                      properties: {
+                        lighting: { type: "string", enum: ["natural", "dramatic", "neon", "soft"] },
+                        color_grading: { type: "string", enum: ["cinematic", "vintage", "vibrant", "monochrome"] },
+                        framing: { type: "string", enum: ["close_crop", "wide", "portrait"] },
+                      },
+                      required: ["lighting", "color_grading", "framing"],
+                      additionalProperties: false,
+                    },
+                    emotion: { type: "string", enum: ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"] },
+                  },
+                  required: ["color", "typography", "layout", "composition", "texture", "illustration", "image_style", "emotion"],
+                  additionalProperties: false,
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "set_genome" } },
+          }),
+        });
+
+        if (genomeResponse.ok) {
+          const gData = await genomeResponse.json();
+          const toolCall = gData.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall?.function?.arguments) {
+            genomeData = JSON.parse(toolCall.function.arguments);
+            console.log("Genome Composer output:", JSON.stringify(genomeData));
+          }
+        } else {
+          console.error("Genome Composer failed, proceeding without genome:", genomeResponse.status);
+        }
+      } catch (e) {
+        console.error("Genome Composer error, proceeding without:", e);
+      }
+
+      // Serialize genome into a human-readable styling block for the image prompt
+      const genomeContext = genomeData ? `
+
+VISUAL STYLE GENOME (follow these precise styling instructions):
+- Color: ${genomeData.color.palette_type.replace(/_/g, " ")} palette, ${genomeData.color.temperature} temperature, ${genomeData.color.contrast} contrast, ${genomeData.color.saturation} saturation, ${genomeData.color.gradient_logic.replace(/_/g, " ")}
+- Typography: ${genomeData.typography.font_personality} personality, ${genomeData.typography.weight_system.replace(/_/g, " ")} weight, ${genomeData.typography.hierarchy_logic.replace(/_/g, " ")}, ${genomeData.typography.typography_layout.replace(/_/g, " ")} layout${genomeData.typography.text_effect !== "none" ? `, ${genomeData.typography.text_effect.replace(/_/g, " ")} effect` : ""}
+- Layout: ${genomeData.layout.grid_type.replace(/_/g, " ")}, ${genomeData.layout.balance} balance, ${genomeData.layout.spacing_density} density, ${genomeData.layout.content_ratio.replace(/_/g, " ")}
+- Composition: ${genomeData.composition.visual_direction} direction, ${genomeData.composition.focal_strategy.replace(/_/g, " ")}, ${genomeData.composition.layering_depth.replace(/_/g, " ")} layering
+- Texture: ${genomeData.texture.texture_type.replace(/_/g, " ")}${genomeData.texture.texture_type !== "none" ? `, ${genomeData.texture.intensity} intensity` : ""}${genomeData.texture.distortion !== "none" ? `, ${genomeData.texture.distortion} distortion` : ""}
+- Image Style: ${genomeData.image_style.lighting} lighting, ${genomeData.image_style.color_grading} grading, ${genomeData.image_style.framing.replace(/_/g, " ")} framing
+- Emotion: ${genomeData.emotion}` : "";
+
       // --- COPYWRITER AGENT ---
       // Produces exact, structured copy that the image renderer must use verbatim
       let copyStructure: { headline: string; subheadline: string; cta: string; supporting_text: string } | null = null;
@@ -382,6 +541,7 @@ CONTEXT:
 - Brand vibe: ${brand?.vibe || "Modern"}
 ${audienceContext ? `\n${audienceContext}` : ""}
 ${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}
+${genomeData ? `\nVISUAL DENSITY CONTEXT: The design uses ${genomeData.layout.content_ratio.replace(/_/g, " ")} content ratio with ${genomeData.typography.hierarchy_logic.replace(/_/g, " ")}. Adjust copy length accordingly — text_minimal means fewer words, text_dominant means richer copy.` : ""}
 
 RULES:
 1. The copy MUST directly address the user's request topic: "${userPrompt}"
@@ -458,7 +618,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be TALL PORTRAIT format — 9:16 aspect ratio (1080x1920 pixels). It must be significantly taller than it is wide. Do NOT create a landscape or square image."
         : "CRITICAL DIMENSION REQUIREMENT: This image MUST be WIDE LANDSCAPE format — 16:9 aspect ratio (1920x1080 pixels). It must be significantly wider than it is tall. Do NOT create a square or portrait image.";
 
-      const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${copyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}`;
+      const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${copyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${genomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}`;
 
       // Collect all image references
       const imageRefs: { type: string; image_url: { url: string } }[] = [];
@@ -556,6 +716,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           design_prompt: designPrompt,
           free_edit: isFreeEdit,
           ...(copyStructure ? { copy_structure: copyStructure } : {}),
+          ...(genomeData ? { genome: genomeData } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

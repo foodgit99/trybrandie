@@ -1,0 +1,1 @@
+ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;

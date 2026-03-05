@@ -193,6 +193,7 @@ export type Database = {
           brand_id: string
           canvas_size: string
           created_at: string
+          genome: Json | null
           id: string
           image_url: string
           prompt: string
@@ -206,6 +207,7 @@ export type Database = {
           brand_id: string
           canvas_size?: string
           created_at?: string
+          genome?: Json | null
           id?: string
           image_url: string
           prompt: string
@@ -219,6 +221,7 @@ export type Database = {
           brand_id?: string
           canvas_size?: string
           created_at?: string
+          genome?: Json | null
           id?: string
           image_url?: string
           prompt?: string
