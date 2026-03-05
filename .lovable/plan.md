@@ -1,62 +1,46 @@
 
 
-## Analysis
+## Problem
 
-The design pipeline currently has a two-step process:
-1. **Brief generation** (gemini-3-flash-preview) — produces a design brief and explanation
-2. **Image rendering** (gemini-2.5-flash-image) — generates the image including all text
+The dimension enforcement currently happens only as a text instruction to the image model at render time. The Brief Agent and Copywriter have no awareness of the canvas shape, so they plan layouts and copy density for an unknown format. The image model then defaults to its preferred landscape ratio because nothing upstream constrained the design direction to a specific shape.
 
-The problem: the image model is responsible for both visuals AND copy. It receives a design brief with general direction but is free to invent its own text. This results in generic, off-brand copy like "DON'T JUST AD-LIBS... DESIGN YOUR FLYER for that weekend thing!" instead of sharp, brand-aligned messaging.
+## Solution: Propagate Canvas Format Upstream
 
-## Solution: Add a Dedicated Copywriter Agent Step
-
-Insert a **Copywriter Agent** between the brief and the renderer. This agent produces exact, structured copy (headline, subheadline, CTA, supporting text) that is then passed verbatim to the image model with strict instructions to render it exactly as written.
-
-### Pipeline Change
+Make the canvas dimensions a first-class input to every stage of the pipeline, not just a last-minute instruction to the renderer. Additionally, add post-processing to guarantee correct output dimensions.
 
 ```text
-Current:  User Prompt → Brief Agent → Image Renderer
-Proposed: User Prompt → Brief Agent → Copywriter Agent → Image Renderer
+Current:  Brief Agent (no size awareness) → Copywriter (no size awareness) → Renderer (size in prompt, ignored)
+Proposed: Brief Agent (size-aware layout) → Copywriter (size-aware density) → Renderer (size-aware) → Post-process crop
 ```
 
-### Implementation (single file: `supabase/functions/design-studio/index.ts`)
+### Changes (single file: `supabase/functions/design-studio/index.ts`)
 
-**Step 1 — Add Copywriter Agent call after brief generation (after line ~342)**
+**1. Inject canvas format into the Brief Agent prompt**
 
-- Call `gemini-3-flash-preview` with a Copywriter system prompt that:
-  - Receives the design brief, brand tone/personality, audience JTBD signals, and trend copy tone hint
-  - Outputs structured JSON: `{ headline, subheadline, cta, supporting_text }`
-  - Enforces 20-30 word max total
-  - Aligns copy with the user's actual request topic
-  - Uses audience emotional drivers and messaging angles
-  - Adapts tone to the active trend's `copy_tone_hint`
+Add explicit format instructions to the Brief Agent system prompt (around line 315) so it plans compositions for the correct shape:
+- Square: "Design for a SQUARE 1:1 canvas. Plan a centered, compact composition."
+- Portrait: "Design for a TALL PORTRAIT 9:16 canvas. Plan a vertically stacked composition."  
+- Landscape: "Design for a WIDE LANDSCAPE 16:9 canvas. Plan a horizontally spread composition."
 
-**Step 2 — Inject exact copy into the image generation prompt (line ~348)**
+This ensures the brief itself describes a layout that fits the selected shape.
 
-- Modify `imagePromptText` to include the exact copy with explicit instructions: "Use these EXACT words on the design. Do NOT modify, rephrase, or add any text beyond what is provided."
-- Structure: `EXACT TEXT TO RENDER: Headline: "..." | Subheadline: "..." | CTA: "..."`
+**2. Inject canvas format into the Copywriter prompt**
 
-**Step 3 — Return the structured copy in the response**
+Add format context to the Copywriter system prompt (around line 361) so it adjusts copy density:
+- Square: shorter copy, fewer elements
+- Landscape: can accommodate more horizontal text
+- Portrait: vertical hierarchy, stacked text blocks
 
-- Include `copy_structure` in the JSON response so the frontend can display/reference it.
+**3. Post-process: crop output to exact target dimensions**
 
-### Copywriter System Prompt (core logic)
+After receiving the generated image (after line 502), decode the base64 PNG, read its actual dimensions from the PNG header, and if it doesn't match the target aspect ratio, use a lightweight pure-JS image library (`imagescript` via esm.sh) to center-crop it to the correct dimensions. This is the safety net that guarantees correct output regardless of what the model produces.
 
-The Copywriter receives:
-- The design brief (what the design is about)
-- Brand tone, personality traits, vibe
-- Audience JTBD signals (struggling moments, emotional drivers, messaging angles)
-- Trend copy tone hint (if active)
-- The user's original prompt
+**4. Keep existing dimension enforcement in the image prompt**
 
-It must produce copy that:
-- Directly addresses the user's request topic
-- Uses the brand's tone of voice
-- Leverages audience psychology for persuasion
-- Stays within 20-30 words total
-- Never adds generic filler or unrelated taglines
+The `dimensionEnforcement` text stays as-is — it works as a strong hint. The post-processing crop is the fallback guarantee.
 
 ### Risk Mitigation
-- Adds one extra LLM call (~1-2s latency) but uses the fast flash model
-- If the copywriter call fails, falls back to the current behavior (image model generates its own copy)
+- `imagescript` is a pure TypeScript/JS library — no native binaries needed, works in Deno edge functions
+- Center-crop preserves the focal content (center of the design)
+- If the image library fails, we fall back to the raw image (no worse than current behavior)
 
