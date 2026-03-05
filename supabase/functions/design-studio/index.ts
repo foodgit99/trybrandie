@@ -341,11 +341,100 @@ CRITICAL RULES:
         ? briefContent.split("EXPLANATION:")[1].trim()
         : "I've crafted this design with your brand identity in mind.";
 
+      // --- COPYWRITER AGENT ---
+      // Produces exact, structured copy that the image renderer must use verbatim
+      let copyStructure: { headline: string; subheadline: string; cta: string; supporting_text: string } | null = null;
+      try {
+        const trendPresetForCopy = trend && trend !== "none" ? (({
+          "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
+          "hyper-chromatic": "High-energy promotional language — bold, punchy, exclamatory, confident",
+          "technical-mono": "Shorter and sharper copy — precise, technical, no-nonsense, data-driven",
+          "neo-naturalism": "Calm and soothing tone — gentle, reassuring, mindful, nurturing",
+          "kinetic-typography": "Energetic and dynamic — action-oriented verbs, short punchy phrases, momentum-building",
+        } as Record<string, string>)[trend] || "") : "";
+
+        const copywriterPrompt = `You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic.
+
+CONTEXT:
+- Design brief: ${designPrompt}
+- User's original request: "${userPrompt}"
+- Brand name: ${brand?.name || "Unknown"}
+- Brand tone of voice: ${brand?.tone_of_voice || "Professional"}
+- Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
+- Brand vibe: ${brand?.vibe || "Modern"}
+${audienceContext ? `\n${audienceContext}` : ""}
+${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}
+
+RULES:
+1. The copy MUST directly address the user's request topic: "${userPrompt}"
+2. Total word count across ALL fields: 15-25 words maximum
+3. Use the brand's tone of voice and personality
+4. If audience intelligence is provided, leverage emotional drivers and messaging angles for persuasion
+5. NEVER use generic filler like "Elevate your brand" or "Take it to the next level" unless that's what the user asked for
+6. The headline is the most important element — make it punchy, specific, and on-topic
+7. Leave fields empty ("") if they are not needed for this design. Not every design needs all fields.
+8. The copy must sound like it was written by the brand, not by a generic AI`;
+
+        const copyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: copywriterPrompt },
+              { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
+            ],
+            tools: [{
+              type: "function",
+              function: {
+                name: "set_copy",
+                description: "Set the exact copy text for the social media graphic",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    headline: { type: "string", description: "Main headline text (required, 3-8 words)" },
+                    subheadline: { type: "string", description: "Supporting subheadline (optional, 3-10 words, empty string if not needed)" },
+                    cta: { type: "string", description: "Call to action text (optional, 2-5 words, empty string if not needed)" },
+                    supporting_text: { type: "string", description: "Any additional small text (optional, empty string if not needed)" },
+                  },
+                  required: ["headline", "subheadline", "cta", "supporting_text"],
+                  additionalProperties: false,
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "set_copy" } },
+          }),
+        });
+
+        if (copyResponse.ok) {
+          const copyData = await copyResponse.json();
+          const toolCall = copyData.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall?.function?.arguments) {
+            copyStructure = JSON.parse(toolCall.function.arguments);
+            console.log("Copywriter output:", JSON.stringify(copyStructure));
+          }
+        } else {
+          console.error("Copywriter agent failed, falling back to image model copy:", copyResponse.status);
+        }
+      } catch (e) {
+        console.error("Copywriter agent error, falling back:", e);
+      }
+
+      // Build the exact copy injection for the image prompt
+      const copyInjection = copyStructure
+        ? `\n\nEXACT TEXT TO RENDER ON THE DESIGN (use these EXACT words, do NOT modify, rephrase, or add ANY other text):
+- Headline: "${copyStructure.headline}"${copyStructure.subheadline ? `\n- Subheadline: "${copyStructure.subheadline}"` : ""}${copyStructure.cta ? `\n- CTA: "${copyStructure.cta}"` : ""}${copyStructure.supporting_text ? `\n- Supporting text: "${copyStructure.supporting_text}"` : ""}
+CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any text. Every word on the graphic must match exactly.`
+        : "";
+
       // Build image generation content
       const userImageInstruction = user_image_url
         ? ` CRITICAL: The user has provided a reference image (attached). Incorporate it into the design EXACTLY as the user describes. This image is the PRIMARY visual reference and must be used prominently.`
         : "";
-      const imagePromptText = `Create a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space. IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}`;
+      const imagePromptText = `Create a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${copyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}`;
 
       // Collect all image references
       const imageRefs: { type: string; image_url: { url: string } }[] = [];
@@ -426,6 +515,7 @@ CRITICAL RULES:
           explanation,
           design_prompt: designPrompt,
           free_edit: isFreeEdit,
+          ...(copyStructure ? { copy_structure: copyStructure } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
