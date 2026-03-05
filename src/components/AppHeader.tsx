@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,12 +57,13 @@ const AppHeader = () => {
 
   return (
     <header className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
-      <h1
-        className="text-xl sm:text-2xl font-serif tracking-tight cursor-pointer"
+      <div
+        className="flex items-center gap-2 cursor-pointer"
         onClick={() => navigate("/")}
       >
-        Brandie
-      </h1>
+        <img src={brandieLogo} alt="Brandie" className="h-8 w-8 sm:h-9 sm:w-9" />
+        <span className="text-xl sm:text-2xl font-serif tracking-tight">Brandie</span>
+      </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Credit badge */}
