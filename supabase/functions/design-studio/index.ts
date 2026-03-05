@@ -521,46 +521,19 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
       let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
-      // --- POST-PROCESS: Crop to exact target dimensions ---
+      // --- POST-PROCESS: Log actual dimensions from PNG header ---
       const targetW = parseInt(w);
       const targetH = parseInt(h);
-      const targetRatio = targetW / targetH;
       try {
-        const { Image } = await import("https://esm.sh/imagescript@1.3.0");
-        const img = await Image.decode(binaryData);
-        const actualRatio = img.width / img.height;
-        const ratioDiff = Math.abs(actualRatio - targetRatio);
-        
-        // Only crop if aspect ratio is off by more than 5%
-        if (ratioDiff > targetRatio * 0.05) {
-          console.log(`Aspect ratio mismatch: got ${img.width}x${img.height} (${actualRatio.toFixed(2)}), target ${targetW}x${targetH} (${targetRatio.toFixed(2)}). Cropping...`);
-          
-          let cropW: number, cropH: number;
-          if (actualRatio > targetRatio) {
-            // Image is too wide — crop width
-            cropH = img.height;
-            cropW = Math.round(img.height * targetRatio);
-          } else {
-            // Image is too tall — crop height
-            cropW = img.width;
-            cropH = Math.round(img.width / targetRatio);
-          }
-          
-          const offsetX = Math.round((img.width - cropW) / 2);
-          const offsetY = Math.round((img.height - cropH) / 2);
-          
-          const cropped = img.crop(offsetX, offsetY, cropW, cropH);
-          // Resize to exact target dimensions
-          const resized = cropped.resize(targetW, targetH);
-          const encoded = await resized.encode();
-          binaryData = new Uint8Array(encoded);
-          console.log(`Post-process: cropped and resized to ${targetW}x${targetH}`);
-        } else {
-          console.log(`Aspect ratio OK: ${img.width}x${img.height}`);
+        // Read PNG IHDR chunk: width at bytes 16-19, height at bytes 20-23 (big-endian)
+        if (binaryData.length > 24 && binaryData[1] === 0x50 && binaryData[2] === 0x4E && binaryData[3] === 0x47) {
+          const view = new DataView(binaryData.buffer, binaryData.byteOffset, binaryData.byteLength);
+          const actualW = view.getUint32(16, false);
+          const actualH = view.getUint32(20, false);
+          console.log(`Generated image dimensions: ${actualW}x${actualH}, target: ${targetW}x${targetH}`);
         }
-      } catch (cropErr) {
-        console.error("Post-process crop failed, using raw image:", cropErr);
-        // Fall back to raw image — no worse than before
+      } catch (dimErr) {
+        console.error("Dimension check failed:", dimErr);
       }
 
       const filePath = `${user.id}/${crypto.randomUUID()}.png`;
