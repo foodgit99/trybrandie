@@ -498,6 +498,93 @@ Output a complete genome that precisely captures the visual strategy for this sp
           if (toolCall?.function?.arguments) {
             genomeData = JSON.parse(toolCall.function.arguments);
             console.log("Genome Composer output:", JSON.stringify(genomeData));
+
+            // --- GENOME MUTATION ENGINE (15%) ---
+            // Randomly mutate FREE genes to keep outputs fresh across consecutive generations
+            // Locked genes (color primary, font personality) are never mutated
+            // Semi-flexible genes (weight, emotion) have reduced mutation chance
+            const MUTATION_RATE = 0.15;
+            const freeGeneOptions: Record<string, Record<string, string[]>> = {
+              layout: {
+                grid_type: ["strict_grid", "modular_grid", "broken_grid", "freeform"],
+                balance: ["symmetrical", "asymmetrical", "dynamic"],
+                spacing_density: ["minimal", "balanced", "dense"],
+                content_ratio: ["image_dominant", "text_dominant", "balanced"],
+              },
+              composition: {
+                visual_direction: ["vertical", "horizontal", "diagonal", "radial"],
+                focal_strategy: ["single_focal_point", "dual_focal", "distributed"],
+                layering_depth: ["flat", "medium", "deep_layered"],
+              },
+              texture: {
+                texture_type: ["none", "grain", "paper", "digital_noise", "plastic", "metallic"],
+                intensity: ["subtle", "medium", "heavy"],
+                distortion: ["none", "glitch", "warp", "pixel_sort"],
+              },
+              illustration: {
+                style: ["none", "3d", "flat", "hand_drawn", "abstract", "cartoon", "clay"],
+                detail_level: ["minimal", "medium", "high"],
+                line_weight: ["thin", "medium", "bold"],
+              },
+              image_style: {
+                lighting: ["natural", "dramatic", "neon", "soft"],
+                color_grading: ["cinematic", "vintage", "vibrant", "monochrome"],
+                framing: ["close_crop", "wide", "portrait"],
+              },
+            };
+            // Semi-flexible genes mutate at half rate
+            const semiFlexGeneOptions: Record<string, Record<string, string[]>> = {
+              typography: {
+                weight_system: ["light", "regular", "bold", "ultra_bold"],
+                text_effect: ["none", "outline", "drop_shadow", "gradient", "glitch", "neon"],
+                typography_layout: ["centered", "left_editorial", "split_text", "overlay"],
+              },
+              color: {
+                temperature: ["warm", "neutral", "cool"],
+                gradient_logic: ["flat", "soft_gradient", "metallic_gradient", "multi_spectrum"],
+              },
+            };
+            const emotionOptions = ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"];
+
+            let mutationCount = 0;
+            // Mutate free genes
+            for (const [category, fields] of Object.entries(freeGeneOptions)) {
+              for (const [field, options] of Object.entries(fields)) {
+                if (Math.random() < MUTATION_RATE) {
+                  const current = genomeData[category]?.[field];
+                  const alternatives = options.filter((o: string) => o !== current);
+                  if (alternatives.length > 0) {
+                    genomeData[category][field] = alternatives[Math.floor(Math.random() * alternatives.length)];
+                    mutationCount++;
+                  }
+                }
+              }
+            }
+            // Mutate semi-flexible genes at half rate
+            for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
+              for (const [field, options] of Object.entries(fields)) {
+                if (Math.random() < MUTATION_RATE / 2) {
+                  const current = genomeData[category]?.[field];
+                  const alternatives = options.filter((o: string) => o !== current);
+                  if (alternatives.length > 0) {
+                    genomeData[category][field] = alternatives[Math.floor(Math.random() * alternatives.length)];
+                    mutationCount++;
+                  }
+                }
+              }
+            }
+            // Mutate emotion at half rate (semi-flexible)
+            if (Math.random() < MUTATION_RATE / 2) {
+              const currentEmotion = genomeData.emotion;
+              const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
+              genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+              mutationCount++;
+            }
+
+            if (mutationCount > 0) {
+              console.log(`Genome Mutation: ${mutationCount} gene(s) mutated`);
+              console.log("Post-mutation genome:", JSON.stringify(genomeData));
+            }
           }
         } else {
           console.error("Genome Composer failed, proceeding without genome:", genomeResponse.status);
