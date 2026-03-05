@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, ArrowRight, Upload, X, Check } from "lucide-react";
+import brandieLogo from "@/assets/brandie-logo.png";
 
 const VIBES = ["Minimal", "Bold", "Luxury", "Playful", "Corporate", "Cinematic"] as const;
 
@@ -421,7 +422,8 @@ const Onboarding = () => {
       </div>
 
       {/* Header */}
-      <header className="px-4 sm:px-8 py-4 sm:py-6">
+      <header className="px-4 sm:px-8 py-4 sm:py-6 flex items-center gap-2">
+        <img src={brandieLogo} alt="Brandie" className="h-7 w-7" />
         <span className="text-lg font-serif tracking-tight">Brandie</span>
       </header>
 
