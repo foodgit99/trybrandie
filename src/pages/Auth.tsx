@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import brandieLogo from "@/assets/brandie-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,7 @@ const Auth = () => {
           transition={{ duration: 0.7, ease: "easeOut" }}
           className="max-w-md px-12 text-center"
         >
+          <img src={brandieLogo} alt="Brandie" className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-5xl font-serif tracking-tight text-foreground mb-4">Brandie</h1>
           <p className="text-lg text-muted-foreground leading-relaxed">
             Your AI creative director. Beautiful, on-brand social graphics — every time.
