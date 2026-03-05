@@ -59,7 +59,7 @@ const AppHeader = () => {
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm">
       <div
         className="flex items-center gap-2 cursor-pointer"
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/dashboard")}
       >
         <img src={brandieLogo} alt="Brandie" className="h-8 w-8 sm:h-9 sm:w-9" />
         <span className="text-xl sm:text-2xl font-serif tracking-tight">Brandie</span>
