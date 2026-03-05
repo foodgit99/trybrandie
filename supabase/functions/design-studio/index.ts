@@ -238,6 +238,19 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
       };
       const sizeLabel = sizeLabels[size] || `${w}x${h}`;
 
+      // Canvas format context for upstream agents
+      const canvasFormatBrief = size === "1080x1080"
+        ? "\n\nCANVAS FORMAT: SQUARE (1:1). Design for a PERFECTLY SQUARE canvas. Plan a centered, compact, symmetrical composition. All elements should be balanced around the center. Avoid wide horizontal layouts — keep content compact and vertically centered."
+        : size === "1080x1920"
+        ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Design for a TALL, NARROW canvas. Plan a vertically stacked composition with elements flowing top-to-bottom. Use strong vertical hierarchy. Avoid wide horizontal spreads — stack elements vertically."
+        : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). Design for a WIDE, HORIZONTAL canvas. Plan a horizontally spread composition. Content can span the full width. Use horizontal balance and side-by-side element placement.";
+
+      const canvasFormatCopy = size === "1080x1080"
+        ? "\n\nCANVAS FORMAT: SQUARE (1:1). Keep copy SHORT and COMPACT — fewer text elements, tight word count. A square canvas has limited space. Prefer a strong headline with minimal supporting text."
+        : size === "1080x1920"
+        ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Copy should follow a VERTICAL HIERARCHY — headline at top, supporting text in middle, CTA at bottom. You have vertical space so stacked text blocks work well, but keep each block concise."
+        : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). You have more HORIZONTAL space. Copy can be slightly more expansive. Side-by-side text elements work well. Keep good horizontal balance.";
+
       // Collect inspiration examples for context
       const inspirationUrls: string[] = brand?.inspiration_examples || [];
 
@@ -312,7 +325,7 @@ CRITICAL RULES:
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: brandContext + editContext + userImageContext + `\n\nThe user's request is below.\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific.${user_image_url ? " CRITICAL: The user provided a reference image — describe how to incorporate it prominently into the design as the user instructs." : ""}\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
+            { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nThe user's request is below.\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific. IMPORTANT: Your layout and composition directions MUST be optimised for the canvas format specified above.${user_image_url ? " CRITICAL: The user provided a reference image — describe how to incorporate it prominently into the design as the user instructs." : ""}\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
             ...messages.slice(0, -1),
             { role: "user", content: briefUserContent },
           ],
@@ -368,7 +381,7 @@ CONTEXT:
 - Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
 - Brand vibe: ${brand?.vibe || "Modern"}
 ${audienceContext ? `\n${audienceContext}` : ""}
-${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}
+${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}
 
 RULES:
 1. The copy MUST directly address the user's request topic: "${userPrompt}"
@@ -505,8 +518,51 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         throw new Error("No image was generated. Try a different prompt.");
       }
 
-      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-      const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+      let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+      // --- POST-PROCESS: Crop to exact target dimensions ---
+      const targetW = parseInt(w);
+      const targetH = parseInt(h);
+      const targetRatio = targetW / targetH;
+      try {
+        const { Image } = await import("https://esm.sh/imagescript@1.3.0");
+        const img = await Image.decode(binaryData);
+        const actualRatio = img.width / img.height;
+        const ratioDiff = Math.abs(actualRatio - targetRatio);
+        
+        // Only crop if aspect ratio is off by more than 5%
+        if (ratioDiff > targetRatio * 0.05) {
+          console.log(`Aspect ratio mismatch: got ${img.width}x${img.height} (${actualRatio.toFixed(2)}), target ${targetW}x${targetH} (${targetRatio.toFixed(2)}). Cropping...`);
+          
+          let cropW: number, cropH: number;
+          if (actualRatio > targetRatio) {
+            // Image is too wide — crop width
+            cropH = img.height;
+            cropW = Math.round(img.height * targetRatio);
+          } else {
+            // Image is too tall — crop height
+            cropW = img.width;
+            cropH = Math.round(img.width / targetRatio);
+          }
+          
+          const offsetX = Math.round((img.width - cropW) / 2);
+          const offsetY = Math.round((img.height - cropH) / 2);
+          
+          const cropped = img.crop(offsetX, offsetY, cropW, cropH);
+          // Resize to exact target dimensions
+          const resized = cropped.resize(targetW, targetH);
+          const encoded = await resized.encode();
+          binaryData = new Uint8Array(encoded);
+          console.log(`Post-process: cropped and resized to ${targetW}x${targetH}`);
+        } else {
+          console.log(`Aspect ratio OK: ${img.width}x${img.height}`);
+        }
+      } catch (cropErr) {
+        console.error("Post-process crop failed, using raw image:", cropErr);
+        // Fall back to raw image — no worse than before
+      }
+
       const filePath = `${user.id}/${crypto.randomUUID()}.png`;
 
       const { error: uploadError } = await adminClient.storage
