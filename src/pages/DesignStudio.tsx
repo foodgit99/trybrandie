@@ -84,6 +84,9 @@ const DesignStudio = () => {
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | "none">("none");
   const [selectedTrend, setSelectedTrend] = useState<string>("none");
   const [trendIntensity, setTrendIntensity] = useState(40);
+  const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +136,45 @@ const DesignStudio = () => {
       }
     }
   }, [trendPrefs]);
+
+  // Fetch AI trend recommendation when no trend is pre-selected
+  useEffect(() => {
+    if (recommendationFetched.current) return;
+    if (!brand) return;
+    // Wait for trendPrefs to load — if they have a trend set, skip recommendation
+    if (trendPrefs === undefined) return; // still loading
+    if (trendPrefs?.trend_enabled && trendPrefs?.selected_trend !== "none") return; // user already chose
+
+    // Only recommend when starting fresh (no messages)
+    if (messages.length > 0) return;
+
+    recommendationFetched.current = true;
+    setRecommendationLoading(true);
+
+    const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
+    const audienceSummary = activeAudience?.jtbd_profile?.persona_summary || null;
+
+    supabase.functions
+      .invoke("trend-recommend", {
+        body: {
+          brand: {
+            name: brand.name,
+            vibe: brand.vibe,
+            description: brand.description,
+            tone_of_voice: (brand as any).tone_of_voice,
+            personality_traits: (brand as any).personality_traits,
+          },
+          audience_summary: audienceSummary,
+        },
+      })
+      .then(({ data, error }) => {
+        if (!error && data?.trend_id) {
+          setTrendRecommendation({ trend_id: data.trend_id, reason: data.reason });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setRecommendationLoading(false));
+  }, [brand, trendPrefs, audiences, selectedAudienceId, messages.length]);
 
   // Auto-select first audience
   useEffect(() => {
@@ -529,7 +571,7 @@ const DesignStudio = () => {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                 <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
                   <span className="text-xl">✨</span>
                 </div>
@@ -537,6 +579,47 @@ const DesignStudio = () => {
                 <p className="text-sm text-muted-foreground max-w-[260px]">
                   Describe your social media post and I'll bring it to life — always on brand.
                 </p>
+
+                {/* Trend recommendation */}
+                {recommendationLoading && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Finding the perfect trend for your brand…</span>
+                  </div>
+                )}
+                {trendRecommendation && selectedTrend === "none" && !recommendationLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full max-w-[300px]"
+                  >
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                        <Sparkles className="h-3 w-3" />
+                        Recommended trend
+                      </div>
+                      <p className="text-sm font-medium">{getTrendById(trendRecommendation.trend_id)?.name}</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">{trendRecommendation.reason}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedTrend(trendRecommendation.trend_id);
+                            setTrendRecommendation(null);
+                          }}
+                          className="flex-1 text-xs font-medium py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                          Apply
+                        </button>
+                        <button
+                          onClick={() => setTrendRecommendation(null)}
+                          className="flex-1 text-xs font-medium py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
             )}
             {messages.map((msg, i) => (
