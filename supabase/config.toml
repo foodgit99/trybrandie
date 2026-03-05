@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.audience-intelligence]
 verify_jwt = false
+
+[functions.trend-recommend]
+verify_jwt = false
