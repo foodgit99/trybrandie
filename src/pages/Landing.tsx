@@ -301,7 +301,7 @@ const Landing = () => {
             <img src={brandieLogo} alt="Brandie" className="h-5 w-5" />
             <span className="text-sm font-serif">Brandie</span>
           </div>
-          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Brandie. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Yaries Digital Labs. All rights reserved.</p>
         </div>
       </footer>
     </div>
