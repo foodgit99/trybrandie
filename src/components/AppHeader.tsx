@@ -56,7 +56,7 @@ const AppHeader = () => {
   const creditsRemaining = FREE_TIER_LIMIT - creditsUsed;
 
   return (
-    <header className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
+    <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm">
       <div
         className="flex items-center gap-2 cursor-pointer"
         onClick={() => navigate("/")}
