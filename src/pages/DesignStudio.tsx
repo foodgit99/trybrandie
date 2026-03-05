@@ -48,6 +48,7 @@ import {
   RefreshCw,
   Share2,
   MoreHorizontal,
+  BarChart3,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
@@ -81,6 +82,8 @@ const DesignStudio = () => {
   const [vote, setVote] = useState<-1 | 0 | 1>(0);
   const [saved, setSaved] = useState(false);
   const [currentGenome, setCurrentGenome] = useState<any>(null);
+  const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
+  const [showScores, setShowScores] = useState(false);
   const [canvasSize, setCanvasSize] = useState("1080x1080");
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -365,6 +368,8 @@ const DesignStudio = () => {
         setCurrentImage(data.image_url);
         setCurrentPrompt(data.design_prompt || trimmed);
         setCurrentGenome(data.genome || null);
+        setGenomeScores(data.genome_scores || null);
+        setShowScores(false);
       }
 
       // Refresh credit counter
@@ -705,6 +710,56 @@ const DesignStudio = () => {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+
+                    {/* Genome Scores */}
+                    {genomeScores && msg.imageUrl === currentImage && (
+                      <div className="mt-1">
+                        <button
+                          onClick={() => setShowScores(!showScores)}
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-1 py-0.5"
+                        >
+                          <BarChart3 className="h-3 w-3" />
+                          <span>Design Score: {genomeScores.overall}/100</span>
+                          <ChevronDown className={`h-3 w-3 transition-transform ${showScores ? "rotate-180" : ""}`} />
+                        </button>
+                        <AnimatePresence>
+                          {showScores && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="mt-2 p-3 bg-secondary/50 rounded-xl space-y-2">
+                                {[
+                                  { key: "brand_alignment", label: "Brand Alignment", color: "bg-primary" },
+                                  { key: "trend_balance", label: "Trend Balance", color: "bg-accent-foreground" },
+                                  { key: "visual_clarity", label: "Visual Clarity", color: "bg-primary" },
+                                  { key: "conversion", label: "Conversion", color: "bg-accent-foreground" },
+                                  { key: "visual_balance", label: "Visual Balance", color: "bg-primary" },
+                                ].map(({ key, label, color }) => (
+                                  <div key={key} className="space-y-0.5">
+                                    <div className="flex justify-between text-xs">
+                                      <span className="text-muted-foreground">{label}</span>
+                                      <span className="font-medium text-foreground">{genomeScores[key]}</span>
+                                    </div>
+                                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                      <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${genomeScores[key]}%` }}
+                                        transition={{ duration: 0.5, ease: "easeOut" }}
+                                        className={`h-full rounded-full ${color} opacity-80`}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
