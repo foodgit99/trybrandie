@@ -1,16 +1,16 @@
 
 
-## Plan: Target Audience Intelligence Module
+## Plan: Trend Lab Module
 
-This feature transforms Brandie from "brand-aware" to "conversion-aware" by adding a JTBD (Jobs-to-be-Done) audience profiling system that feeds into the AI design pipeline.
+Adds a trend intelligence layer between Brand Centre and AI agents, enabling trend-aware design generation while preserving brand consistency.
 
 ### What Gets Built
 
-1. **Database**: New `target_audiences` table storing raw user answers and AI-generated JTBD profiles per brand
-2. **Edge Function**: New `audience-intelligence` function that converts raw answers into a structured JTBD model using AI
-3. **Brand Centre UI**: New collapsible "Target Audience Intelligence" section with a guided questionnaire and profile summary view
-4. **Design Pipeline Integration**: Update `design-studio` edge function to fetch and inject JTBD data into Copywriter and Renderer prompts
-5. **Design Studio Frontend**: Pass audience data alongside brand data when invoking the edge function
+1. **Database**: New `brand_trend_preferences` table storing per-brand trend settings (selected trend, intensity, enabled flag). Add `trend_used`, `trend_intensity` columns to existing `designs` table.
+2. **Brand Centre UI**: New collapsible "Trend Lab" section after Target Audience Intelligence with trend preset cards, intensity slider, and enable/disable toggle
+3. **Design Studio UI**: Compact trend selector above chat input (alongside existing audience selector) with trend toggle, preset picker, and intensity slider
+4. **Design Pipeline**: Update `design-studio` edge function to accept trend tokens and inject trend styling instructions into the Brief Agent and Renderer prompts
+5. **Feedback Learning**: Store trend metadata on saved designs; use upvote/downvote signals for trend preference tracking
 
 ---
 
@@ -18,107 +18,115 @@ This feature transforms Brandie from "brand-aware" to "conversion-aware" by addi
 
 #### A. Database Migration
 
-Create `target_audiences` table:
-
 ```sql
-CREATE TABLE public.target_audiences (
+-- Brand trend preferences
+CREATE TABLE public.brand_trend_preferences (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  brand_id uuid NOT NULL REFERENCES public.brands(id) ON DELETE CASCADE,
-  label text NOT NULL DEFAULT 'Primary Audience',
-  raw_inputs jsonb NOT NULL DEFAULT '{}',
-  jtbd_profile jsonb NOT NULL DEFAULT '{}',
+  brand_id uuid NOT NULL REFERENCES public.brands(id) ON DELETE CASCADE UNIQUE,
+  trend_enabled boolean NOT NULL DEFAULT false,
+  selected_trend text NOT NULL DEFAULT 'none',
+  default_trend_intensity integer NOT NULL DEFAULT 40,
+  preferred_trends text[] NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.target_audiences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.brand_trend_preferences ENABLE ROW LEVEL SECURITY;
 
--- RLS: users can CRUD their own audience profiles via brand ownership
-CREATE POLICY "Users can view their audiences"
-  ON public.target_audiences FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = target_audiences.brand_id AND brands.user_id = auth.uid()));
+-- RLS via brand ownership (same pattern as target_audiences)
+CREATE POLICY "Users can view their trend prefs" ON public.brand_trend_preferences FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
+CREATE POLICY "Users can insert their trend prefs" ON public.brand_trend_preferences FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
+CREATE POLICY "Users can update their trend prefs" ON public.brand_trend_preferences FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
+CREATE POLICY "Users can delete their trend prefs" ON public.brand_trend_preferences FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
 
-CREATE POLICY "Users can insert their audiences"
-  ON public.target_audiences FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM brands WHERE brands.id = target_audiences.brand_id AND brands.user_id = auth.uid()));
+CREATE TRIGGER update_brand_trend_preferences_updated_at
+  BEFORE UPDATE ON public.brand_trend_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE POLICY "Users can update their audiences"
-  ON public.target_audiences FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = target_audiences.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY "Users can delete their audiences"
-  ON public.target_audiences FOR DELETE TO authenticated
-  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = target_audiences.brand_id AND brands.user_id = auth.uid()));
-
-CREATE TRIGGER update_target_audiences_updated_at
-  BEFORE UPDATE ON public.target_audiences
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Add trend metadata to designs
+ALTER TABLE public.designs
+  ADD COLUMN trend_used text DEFAULT NULL,
+  ADD COLUMN trend_intensity integer DEFAULT NULL;
 ```
 
-#### B. New Edge Function: `audience-intelligence`
+No separate `trend_profiles` table needed at MVP — trend presets are defined as constants in code (easily extensible later via DB).
 
-**File:** `supabase/functions/audience-intelligence/index.ts`
+#### B. Trend Presets (Code Constants)
 
-- Accepts `raw_inputs` (the 5-section questionnaire answers) and `brand` context
-- Calls `google/gemini-3-flash-preview` with tool calling to extract structured JTBD output:
-  - `persona_summary`, `core_job_statement`, `struggling_moments`, `push_forces`, `pull_forces`, `anxiety_forces`, `habit_forces`, `functional_outcomes[]`, `emotional_outcomes[]`, `social_outcomes[]`, `buying_triggers[]`, `hesitation_factors[]`, `messaging_angles[]`, `language_patterns[]`, `conversion_levers_ranked[]`
-- Returns the structured profile; frontend saves it to `target_audiences.jtbd_profile`
+Define in a shared file `src/lib/trendPresets.ts` and reused across Brand Centre, Design Studio, and edge function:
 
-#### C. Brand Centre UI Update
+5 presets each with: `id`, `name`, `description`, `visual_characteristics`, `typography_style`, `color_profile`, `texture_elements`, `copy_tone_hint`. These are the styling tokens injected into the AI prompts.
+
+#### C. Brand Centre UI
 
 **File:** `src/pages/BrandCentre.tsx`
 
-Add a new collapsible card after the Inspiration section titled "Target Audience Intelligence":
+Add a new collapsible card after the Target Audience section:
 
-- **Status indicator**: "Not configured" / "Profile active"
-- **Collapsed view**: Shows `persona_summary` and `core_job_statement` if configured
-- **Expanded/Edit view**: A stepped form with 5 sections (simple textarea questions, not JTBD jargon):
-  1. Who Are They? (who buys, life stage, what they improve)
-  2. Their Struggle (frustrations, what's not working, what they've tried)
-  3. Motivation (success looks like, consequences of inaction)
-  4. Buying Context (when they decide, what makes them hesitate)
-  5. Emotional Drivers (multi-select: Status, Security, Growth, Belonging, Freedom, Simplicity, Recognition)
-- **"Generate Profile" button** calls `audience-intelligence` edge function
-- **"Regenerate" button** re-processes existing raw inputs
-- Full JTBD profile displayed in a clean, readable card layout after generation
+- Header: "Trend Lab" with a Palette icon and status badge ("Off" / trend name)
+- Collapsed: shows active trend name and intensity if enabled
+- Expanded:
+  - Toggle switch to enable/disable trend styling
+  - Grid of 5 trend preset cards (name, short description, select button)
+  - Intensity slider (0-100, default 40) with labels
+  - Auto-saves to `brand_trend_preferences` on change via mutation
 
-#### D. Design Pipeline Integration
-
-**File:** `supabase/functions/design-studio/index.ts`
-
-- At the start of `generate`/`edit` actions, fetch `target_audiences` for the brand (use the first/active one)
-- Inject JTBD context into `brandContext` prompt for the Brief Agent:
-  ```
-  AUDIENCE INTELLIGENCE (use to sharpen copy and visual strategy):
-  - Target persona: {persona_summary}
-  - Core job: {core_job_statement}
-  - Key struggles: {struggling_moments}
-  - Emotional drivers: {top emotional outcomes}
-  - Buying triggers: {buying_triggers}
-  - Hesitation factors: {hesitation_factors}
-  - Top messaging angles: {messaging_angles}
-  - Conversion levers: {conversion_levers_ranked}
-
-  CONVERSION RULES:
-  1. Select top 1-2 emotional drivers and weave them into the headline/copy
-  2. Reference a struggling moment the audience relates to
-  3. Amplify the desired outcome
-  4. Neutralise the top anxiety/hesitation factor
-  5. Visual strategy should match emotional driver (Status→bold/luxury, Security→calm/soft, Growth→energetic)
-  ```
-- This data is injected ONLY when a JTBD profile exists; otherwise the pipeline works exactly as before
-
-#### E. Design Studio Frontend
+#### D. Design Studio UI
 
 **File:** `src/pages/DesignStudio.tsx`
 
-- Fetch `target_audiences` for the current brand using a `useQuery` hook
-- Pass the first audience's `jtbd_profile` in the `brand` payload sent to the edge function (as `brand.audience_profile`)
+Add a trend selector pill next to the existing audience selector above the chat input:
+
+- Palette icon pill showing "No trend" or selected trend name
+- Dropdown with: "No trend", 5 trend presets, intensity slider
+- State: `trendEnabled`, `selectedTrend`, `trendIntensity` — initialized from `brand_trend_preferences` query
+- Pass `trend`, `trend_intensity` in the edge function request body
+
+#### E. Design Pipeline Integration
+
+**File:** `supabase/functions/design-studio/index.ts`
+
+Accept `trend` (string ID) and `trend_intensity` (0-100) from the request body.
+
+When a trend is active, inject into `brandContext`:
+
+```
+TREND STYLING (blend with brand, never override):
+- Active trend: {trend_name}
+- Intensity: {intensity}/100 (0=pure brand, 100=full trend)
+- Visual characteristics: {characteristics}
+- Typography influence: {typography_style}
+- Color treatment: {color_profile}
+- Texture elements: {texture_elements}
+
+TREND RULES:
+1. Brand colours, fonts, and voice ALWAYS take priority
+2. At intensity <25, apply only subtle hints
+3. At intensity 50, balance brand and trend equally
+4. At intensity >75, trend styling is dominant but brand colours remain
+5. Adapt copy tone slightly: {copy_tone_hint}
+```
+
+Also inject trend tokens into the Renderer prompt so Nano Banana applies the styling overlay.
+
+When `trend` is null/undefined, the pipeline works exactly as before.
+
+#### F. Design Saving with Trend Metadata
+
+When saving a design in `DesignStudio.tsx`, include `trend_used` and `trend_intensity` in the insert payload. The edge function also returns these values so the frontend can store them.
+
+#### G. Feedback Learning
+
+Existing upvote/downvote on designs already stores `vote` on the `designs` table. With `trend_used` and `trend_intensity` now on designs, future recommendation logic can query which trends received the most upvotes per brand. No additional changes needed at MVP — the data foundation is in place.
 
 ### What Does NOT Change
 
-- No changes to existing tables, RLS policies, or auth
-- The design pipeline falls back gracefully when no audience profile exists
-- Onboarding flow is untouched (audience is an advanced/optional feature)
-- Credit system, intent classification, and feedback engine remain unchanged
+- Existing tables, RLS policies, auth flow untouched
+- Audience intelligence pipeline unchanged
+- Credit system unchanged
+- The pipeline falls back gracefully when no trend is selected
+- Onboarding flow untouched
 
