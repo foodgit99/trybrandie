@@ -2,7 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check } from "lucide-react";
+import { Check } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 
 const tiers = [
   {
@@ -73,12 +74,7 @@ const Plans = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center gap-3 px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-xl sm:text-2xl font-serif tracking-tight">Plans</h1>
-      </header>
+      <AppHeader />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <motion.div

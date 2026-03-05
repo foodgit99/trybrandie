@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Pencil, Upload, X, LogOut, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -38,7 +39,7 @@ type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | 
 
 const BrandCentre = () => {
   const { brand, refetch } = useBrand();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [editing, setEditing] = useState<EditingField>(null);
@@ -428,16 +429,7 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")} aria-label="Back"><ArrowLeft className="h-4 w-4" /></Button>
-          <h1 className="text-xl sm:text-2xl font-serif tracking-tight">Brand Centre</h1>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
-          <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out"><LogOut className="h-4 w-4" /></Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
