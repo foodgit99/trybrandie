@@ -61,6 +61,7 @@ type Message = {
 
 const CANVAS_SIZES = [
   { label: "Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
+  { label: "Landscape (1920×1080)", value: "1920x1080", aspect: "16 / 9" },
   { label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
 ];
 

@@ -231,7 +231,12 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
       // Determine canvas dimensions
       const size = canvas_size || "1080x1080";
       const [w, h] = size.split("x");
-      const sizeLabel = size === "1080x1920" ? "portrait story (1080x1920)" : "square (1080x1080)";
+      const sizeLabels: Record<string, string> = {
+        "1080x1080": "square (1080x1080, aspect ratio 1:1)",
+        "1920x1080": "landscape rectangle (1920x1080, aspect ratio 16:9)",
+        "1080x1920": "portrait story (1080x1920, aspect ratio 9:16)",
+      };
+      const sizeLabel = sizeLabels[size] || `${w}x${h}`;
 
       // Collect inspiration examples for context
       const inspirationUrls: string[] = brand?.inspiration_examples || [];
