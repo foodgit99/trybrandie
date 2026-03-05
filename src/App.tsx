@@ -9,6 +9,7 @@ import { useBrand } from "@/hooks/useBrand";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
+import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import BrandCentre from "./pages/BrandCentre";
 import DesignStudio from "./pages/DesignStudio";
@@ -63,6 +64,21 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   if (user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
+function LandingOrDashboard() {
+  const { user, loading } = useAuth();
+  const { brand, isLoading: brandLoading } = useBrand(user);
+
+  if (loading || brandLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+  if (!user) return <Landing />;
+  if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
+  return <Index />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -75,7 +91,8 @@ const App = () => (
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />
-          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/" element={<LandingOrDashboard />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/brand" element={<ProtectedRoute><BrandCentre /></ProtectedRoute>} />
           <Route path="/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
