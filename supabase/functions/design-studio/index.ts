@@ -688,6 +688,111 @@ RULES:
         console.error("Copywriter agent error, falling back:", e);
       }
 
+      // --- GENOME SCORING ENGINE ---
+      // Deterministic scores based on genome alignment with brand, trend, and design principles
+      let genomeScores: Record<string, number> | null = null;
+      if (genomeData) {
+        const scores: Record<string, number> = {};
+
+        // 1. Brand Alignment Score (0-100)
+        let brandScore = 60;
+        const brandVibe = (brand?.vibe || "").toLowerCase();
+        const vibeEmotionMap: Record<string, string[]> = {
+          cinematic: ["luxurious", "authoritative", "futuristic"],
+          minimal: ["calm", "authoritative"],
+          bold: ["energetic", "rebellious"],
+          playful: ["playful", "warm", "energetic"],
+          luxury: ["luxurious", "calm", "authoritative"],
+          corporate: ["authoritative", "calm"],
+        };
+        if (vibeEmotionMap[brandVibe]?.includes(genomeData.emotion)) brandScore += 15;
+        const tonePersonalityMap: Record<string, string[]> = {
+          professional: ["corporate", "editorial"],
+          humourous: ["friendly", "street"],
+          formal: ["corporate", "editorial"],
+          casual: ["friendly", "street"],
+          inspirational: ["editorial", "friendly"],
+        };
+        const brandTone = (brand?.tone_of_voice || "").toLowerCase();
+        if (tonePersonalityMap[brandTone]?.includes(genomeData.typography.font_personality)) brandScore += 10;
+        if (["high", "extreme"].includes(genomeData.color.contrast)) brandScore += 10;
+        if (genomeData.texture.distortion !== "none" && brandVibe !== "bold") brandScore -= 5;
+        scores.brand_alignment = Math.max(0, Math.min(100, brandScore + 5));
+
+        // 2. Trend Balance Score (0-100)
+        let trendScore = 70;
+        if (trend && trend !== "none") {
+          const intensity = trend_intensity ?? 40;
+          const trendExpectations: Record<string, Record<string, any>> = {
+            "tactile-rebellion": { texture_type: "paper", emotion: "warm", balance: "dynamic" },
+            "hyper-chromatic": { saturation: "neon", contrast: "extreme", emotion: "energetic" },
+            "technical-mono": { saturation: "muted", grid_type: "strict_grid", emotion: "futuristic" },
+            "neo-naturalism": { texture_type: "paper", emotion: "calm", contrast: "low" },
+            "kinetic-typography": { balance: "dynamic", hierarchy_logic: "strong_headline_dominance", emotion: "energetic" },
+          };
+          const expected = trendExpectations[trend] || {};
+          let matches = 0;
+          const total = Object.keys(expected).length;
+          for (const [key, val] of Object.entries(expected)) {
+            for (const cat of Object.values(genomeData)) {
+              if (typeof cat === "object" && cat !== null && (cat as any)[key] === val) matches++;
+            }
+            if (genomeData[key] === val) matches++;
+          }
+          const matchRatio = total > 0 ? matches / total : 0;
+          const idealMatchRatio = intensity / 100;
+          const deviation = Math.abs(matchRatio - idealMatchRatio);
+          trendScore = Math.round(85 - deviation * 60);
+        }
+        scores.trend_balance = Math.max(0, Math.min(100, trendScore));
+
+        // 3. Visual Clarity Score (0-100)
+        let clarityScore = 50;
+        if (["high", "extreme"].includes(genomeData.color.contrast)) clarityScore += 20;
+        else if (genomeData.color.contrast === "medium") clarityScore += 10;
+        if (genomeData.typography.hierarchy_logic === "strong_headline_dominance") clarityScore += 15;
+        else if (genomeData.typography.hierarchy_logic === "balanced_hierarchy") clarityScore += 10;
+        if (genomeData.layout.spacing_density === "minimal") clarityScore += 10;
+        else if (genomeData.layout.spacing_density === "balanced") clarityScore += 5;
+        if (genomeData.composition.focal_strategy === "single_focal_point") clarityScore += 10;
+        if (genomeData.texture.distortion !== "none") clarityScore -= 10;
+        if (genomeData.texture.intensity === "heavy") clarityScore -= 5;
+        scores.visual_clarity = Math.max(0, Math.min(100, clarityScore));
+
+        // 4. Conversion Score (0-100)
+        let conversionScore = 40;
+        if (copyStructure?.cta && copyStructure.cta.length > 0) conversionScore += 20;
+        if (genomeData.composition.focal_strategy === "single_focal_point") conversionScore += 15;
+        if (genomeData.typography.hierarchy_logic === "strong_headline_dominance") conversionScore += 10;
+        if (["energetic", "authoritative", "rebellious"].includes(genomeData.emotion)) conversionScore += 10;
+        if (genomeData.layout.content_ratio === "balanced") conversionScore += 5;
+        scores.conversion = Math.max(0, Math.min(100, conversionScore));
+
+        // 5. Visual Balance Score (0-100)
+        let balanceScore = 50;
+        if (genomeData.layout.balance === "symmetrical") balanceScore += 20;
+        else if (genomeData.layout.balance === "asymmetrical") balanceScore += 15;
+        else if (genomeData.layout.balance === "dynamic") balanceScore += 10;
+        if (genomeData.composition.layering_depth === "medium") balanceScore += 15;
+        else if (genomeData.composition.layering_depth === "flat") balanceScore += 10;
+        if (genomeData.layout.spacing_density === "balanced") balanceScore += 10;
+        if (genomeData.color.gradient_logic !== "multi_spectrum") balanceScore += 5;
+        scores.visual_balance = Math.max(0, Math.min(100, balanceScore));
+
+        // Overall score (weighted average)
+        scores.overall = Math.round(
+          scores.brand_alignment * 0.30 +
+          scores.trend_balance * 0.15 +
+          scores.visual_clarity * 0.25 +
+          scores.conversion * 0.15 +
+          scores.visual_balance * 0.15
+        );
+
+        genomeScores = scores;
+        console.log("Genome Scores:", JSON.stringify(genomeScores));
+        genomeData._scores = genomeScores;
+      }
+
       // Build the exact copy injection for the image prompt
       const copyInjection = copyStructure
         ? `\n\nEXACT TEXT TO RENDER ON THE DESIGN (use these EXACT words, do NOT modify, rephrase, or add ANY other text):
@@ -804,6 +909,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           free_edit: isFreeEdit,
           ...(copyStructure ? { copy_structure: copyStructure } : {}),
           ...(genomeData ? { genome: genomeData } : {}),
+          ...(genomeScores ? { genome_scores: genomeScores } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
