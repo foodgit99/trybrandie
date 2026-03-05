@@ -45,6 +45,9 @@ import {
   X,
   Users,
   Palette,
+  RefreshCw,
+  Share2,
+  MoreHorizontal,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
@@ -81,6 +84,7 @@ const DesignStudio = () => {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("chat");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | "none">("none");
   const [selectedTrend, setSelectedTrend] = useState<string>("none");
   const [trendIntensity, setTrendIntensity] = useState(40);
@@ -536,102 +540,73 @@ const DesignStudio = () => {
         </div>
       </header>
 
-      {/* Mobile tab switcher */}
-      {currentImage && (
-        <div className="flex md:hidden border-b border-border">
-          <button
-            onClick={() => setMobileTab("chat")}
-            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-              mobileTab === "chat"
-                ? "text-foreground border-b-2 border-primary"
-                : "text-muted-foreground"
-            }`}
-          >
-            Chat
-          </button>
-          <button
-            onClick={() => setMobileTab("preview")}
-            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-              mobileTab === "preview"
-                ? "text-foreground border-b-2 border-primary"
-                : "text-muted-foreground"
-            }`}
-          >
-            Preview
-          </button>
-        </div>
-      )}
-
-      {/* Two-panel layout */}
-      <div className="flex flex-col md:flex-row flex-1 min-h-0">
-        {/* Left — Chat */}
-        <div className={`w-full md:w-[420px] flex flex-col md:border-r border-border min-h-0 flex-1 md:flex-initial ${
-          currentImage && mobileTab === "preview" ? "hidden md:flex" : "flex"
-        }`}>
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
-                  <span className="text-xl">✨</span>
-                </div>
-                <h3 className="text-lg font-serif">What would you like to design?</h3>
-                <p className="text-sm text-muted-foreground max-w-[260px]">
-                  Describe your social media post and I'll bring it to life — always on brand.
-                </p>
-
-                {/* Trend recommendation */}
-                {recommendationLoading && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>Finding the perfect trend for your brand…</span>
-                  </div>
-                )}
-                {trendRecommendation && selectedTrend === "none" && !recommendationLoading && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="w-full max-w-[300px]"
-                  >
-                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-                        <Sparkles className="h-3 w-3" />
-                        Recommended trend
-                      </div>
-                      <p className="text-sm font-medium">{getTrendById(trendRecommendation.trend_id)?.name}</p>
-                      <p className="text-[11px] text-muted-foreground leading-snug">{trendRecommendation.reason}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedTrend(trendRecommendation.trend_id);
-                            setTrendRecommendation(null);
-                          }}
-                          className="flex-1 text-xs font-medium py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                        >
-                          Apply
-                        </button>
-                        <button
-                          onClick={() => setTrendRecommendation(null)}
-                          className="flex-1 text-xs font-medium py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
+      {/* Single-column chat layout */}
+      <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
+                <span className="text-xl">✨</span>
               </div>
-            )}
-            {messages.map((msg, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
+              <h3 className="text-lg font-serif">What would you like to design?</h3>
+              <p className="text-sm text-muted-foreground max-w-[260px]">
+                Describe your social media post and I'll bring it to life — always on brand.
+              </p>
+
+              {/* Trend recommendation */}
+              {recommendationLoading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Finding the perfect trend for your brand…</span>
+                </div>
+              )}
+              {trendRecommendation && selectedTrend === "none" && !recommendationLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="w-full max-w-[300px]"
+                >
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <Sparkles className="h-3 w-3" />
+                      Recommended trend
+                    </div>
+                    <p className="text-sm font-medium">{getTrendById(trendRecommendation.trend_id)?.name}</p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{trendRecommendation.reason}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedTrend(trendRecommendation.trend_id);
+                          setTrendRecommendation(null);
+                        }}
+                        className="flex-1 text-xs font-medium py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        onClick={() => setTrendRecommendation(null)}
+                        className="flex-1 text-xs font-medium py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          )}
+          {messages.map((msg, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div className={`max-w-[85%] ${msg.role === "user" ? "" : ""}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-secondary-foreground"
@@ -651,302 +626,288 @@ const DesignStudio = () => {
                   >
                     {msg.content}
                   </ReactMarkdown>
-                  {msg.imageUrl && (
+                </div>
+
+                {/* Inline image with action icons beneath */}
+                {msg.imageUrl && (
+                  <div className="mt-3 space-y-2">
                     <img
                       src={msg.imageUrl}
                       alt="Generated design"
-                      className="mt-3 rounded-xl border border-border w-full md:hidden"
+                      className="w-full rounded-2xl border border-border cursor-pointer hover:opacity-95 transition-opacity"
+                      style={{ aspectRatio: currentAspect }}
+                      onClick={() => setPreviewImage(msg.imageUrl!)}
                     />
-                  )}
-                </div>
-              </motion.div>
-            ))}
-            {loading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex justify-start"
-              >
-                <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Designing…
-                </div>
-              </motion.div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Input — unified card */}
-          <div className="px-3 sm:px-4 py-3 sm:py-4">
-            <div className="rounded-2xl border border-border bg-card shadow-sm p-3 sm:p-4 space-y-3">
-              {/* Attached image preview */}
-              <AnimatePresence>
-                {attachedImage && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                  >
-                    <div className="relative inline-block mb-1">
-                      <img
-                        src={attachedImage}
-                        alt="Attached"
-                        className="w-16 h-16 object-cover rounded-xl border border-border"
-                      />
+                    <div className="flex items-center gap-1 px-1">
                       <button
-                        onClick={() => setAttachedImage(null)}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                        onClick={() => handleVote(1)}
+                        className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
+                          vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        }`}
                       >
-                        <X className="h-3 w-3" />
+                        <ThumbsUp className="h-[18px] w-[18px]" />
                       </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Text input */}
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={currentImage ? "Edit your design…" : "Describe your design"}
-                className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none"
-                disabled={loading}
-                maxLength={2000}
-              />
-
-              {/* Bottom row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  {/* Paperclip */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                  />
-                  <button
-                    className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={loading || uploadingImage}
-                  >
-                    {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-                  </button>
-
-                  {/* Audience selector */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="h-8 flex items-center gap-1 px-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-                        <Users className="h-4 w-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="min-w-[180px]">
-                      <DropdownMenuItem
-                        onClick={() => setSelectedAudienceId("none")}
-                        className={selectedAudienceId === "none" ? "bg-accent" : ""}
+                      <button
+                        onClick={() => handleVote(-1)}
+                        className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
+                          vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        }`}
                       >
-                        <span className="text-muted-foreground">No audience</span>
-                      </DropdownMenuItem>
-                      {audiences.map((a: any) => (
-                        <DropdownMenuItem
-                          key={a.id}
-                          onClick={() => setSelectedAudienceId(a.id)}
-                          className={selectedAudienceId === a.id ? "bg-accent" : ""}
-                        >
-                          {a.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {/* Audience label */}
-                  {(() => {
-                    const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
-                    return activeAudience ? (
-                      <span className="text-xs text-primary font-medium truncate max-w-[140px]">
-                        {activeAudience.label}
-                      </span>
-                    ) : null;
-                  })()}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Trend dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      {(() => {
-                        const activeTrend = getTrendById(selectedTrend);
-                        return (
-                          <button
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                              activeTrend
-                                ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                                : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
-                            }`}
-                          >
-                            <span>{activeTrend?.name || "Trend"}</span>
-                            <ChevronDown className="h-3 w-3 opacity-60" />
+                        <ThumbsDown className="h-[18px] w-[18px]" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setInput("Regenerate this design with a fresh approach");
+                        }}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      >
+                        <RefreshCw className="h-[18px] w-[18px]" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(msg.imageUrl!);
+                          toast({ title: "Image URL copied" });
+                        }}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      >
+                        <Share2 className="h-[18px] w-[18px]" />
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+                            <MoreHorizontal className="h-[18px] w-[18px]" />
                           </button>
-                        );
-                      })()}
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[220px] space-y-1 p-2">
-                      <DropdownMenuItem
-                        onClick={() => setSelectedTrend("none")}
-                        className={selectedTrend === "none" ? "bg-accent" : ""}
-                      >
-                        <span className="text-muted-foreground">No trend</span>
-                      </DropdownMenuItem>
-                      {TREND_PRESETS.map((t) => (
-                        <DropdownMenuItem
-                          key={t.id}
-                          onClick={() => setSelectedTrend(t.id)}
-                          className={selectedTrend === t.id ? "bg-accent" : ""}
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{t.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{t.description}</p>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                      {selectedTrend !== "none" && (
-                        <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground">Intensity</span>
-                            <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
-                          </div>
-                          <Slider
-                            value={[trendIntensity]}
-                            onValueChange={([val]) => setTrendIntensity(val)}
-                            min={0}
-                            max={100}
-                            step={5}
-                            className="w-full"
-                          />
-                        </div>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {/* Send button — circular */}
-                  <button
-                    className="h-9 w-9 rounded-full border border-border flex items-center justify-center text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                    onClick={sendMessage}
-                    disabled={loading || !input.trim()}
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={handleSave} disabled={saved}>
+                            <Save className="h-3.5 w-3.5 mr-2" />
+                            {saved ? "Saved" : "Save design"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => downloadAs("png")}>
+                            <Download className="h-3.5 w-3.5 mr-2" />
+                            Download PNG
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => downloadAs("jpg")}>
+                            <Download className="h-3.5 w-3.5 mr-2" />
+                            Download JPG
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            navigator.clipboard.writeText(msg.imageUrl!);
+                            toast({ title: "Image URL copied" });
+                          }}>
+                            <Copy className="h-3.5 w-3.5 mr-2" />
+                            Copy URL
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
+            </motion.div>
+          ))}
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-start"
+            >
+              <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Designing…
+              </div>
+            </motion.div>
+          )}
+          <div ref={chatEndRef} />
         </div>
 
-        {/* Right — Canvas */}
-        <div className={`flex-1 flex-col ${
-          currentImage && mobileTab === "preview" ? "flex" : "hidden md:flex"
-        }`}>
-          <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-            <AnimatePresence mode="wait">
-              {currentImage ? (
+        {/* Input — unified card */}
+        <div className="px-3 sm:px-4 py-3 sm:py-4">
+          <div className="rounded-2xl border border-border bg-card shadow-sm p-3 sm:p-4 space-y-3">
+            {/* Attached image preview */}
+            <AnimatePresence>
+              {attachedImage && (
                 <motion.div
-                  key={currentImage}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="relative"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
                 >
-                  <img
-                    src={currentImage}
-                    alt="Design preview"
-                    className="max-h-[70vh] rounded-2xl shadow-lg border border-border"
-                    style={{ aspectRatio: currentAspect }}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center space-y-3"
-                >
-                  <div
-                    className="w-64 rounded-2xl border-2 border-dashed border-border flex items-center justify-center mx-auto"
-                    style={{ aspectRatio: currentAspect }}
-                  >
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Your design will appear here</p>
-                    </div>
+                  <div className="relative inline-block mb-1">
+                    <img
+                      src={attachedImage}
+                      alt="Attached"
+                      className="w-16 h-16 object-cover rounded-xl border border-border"
+                    />
+                    <button
+                      onClick={() => setAttachedImage(null)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Text input */}
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={currentImage ? "Edit your design…" : "Describe your design"}
+              className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none"
+              disabled={loading}
+              maxLength={2000}
+            />
+
+            {/* Bottom row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <button
+                  className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || uploadingImage}
+                >
+                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="h-8 flex items-center gap-1 px-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+                      <Users className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-[180px]">
+                    <DropdownMenuItem
+                      onClick={() => setSelectedAudienceId("none")}
+                      className={selectedAudienceId === "none" ? "bg-accent" : ""}
+                    >
+                      <span className="text-muted-foreground">No audience</span>
+                    </DropdownMenuItem>
+                    {audiences.map((a: any) => (
+                      <DropdownMenuItem
+                        key={a.id}
+                        onClick={() => setSelectedAudienceId(a.id)}
+                        className={selectedAudienceId === a.id ? "bg-accent" : ""}
+                      >
+                        {a.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {(() => {
+                  const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
+                  return activeAudience ? (
+                    <span className="text-xs text-primary font-medium truncate max-w-[140px]">
+                      {activeAudience.label}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    {(() => {
+                      const activeTrend = getTrendById(selectedTrend);
+                      return (
+                        <button
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            activeTrend
+                              ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                              : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
+                          }`}
+                        >
+                          <span>{activeTrend?.name || "Trend"}</span>
+                          <ChevronDown className="h-3 w-3 opacity-60" />
+                        </button>
+                      );
+                    })()}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[220px] space-y-1 p-2">
+                    <DropdownMenuItem
+                      onClick={() => setSelectedTrend("none")}
+                      className={selectedTrend === "none" ? "bg-accent" : ""}
+                    >
+                      <span className="text-muted-foreground">No trend</span>
+                    </DropdownMenuItem>
+                    {TREND_PRESETS.map((t) => (
+                      <DropdownMenuItem
+                        key={t.id}
+                        onClick={() => setSelectedTrend(t.id)}
+                        className={selectedTrend === t.id ? "bg-accent" : ""}
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{t.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{t.description}</p>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                    {selectedTrend !== "none" && (
+                      <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">Intensity</span>
+                          <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
+                        </div>
+                        <Slider
+                          value={[trendIntensity]}
+                          onValueChange={([val]) => setTrendIntensity(val)}
+                          min={0}
+                          max={100}
+                          step={5}
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <button
+                  className="h-9 w-9 rounded-full border border-border flex items-center justify-center text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                  onClick={sendMessage}
+                  disabled={loading || !input.trim()}
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-
-          {/* Bottom toolbar */}
-          {currentImage && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 sm:py-4 border-t border-border flex-wrap"
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl gap-1.5"
-                onClick={handleSave}
-                disabled={saved}
-              >
-                <Save className="h-3.5 w-3.5" />
-                {saved ? "Saved" : "Save"}
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center">
-                  <DropdownMenuItem onClick={() => downloadAs("png")}>PNG</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => downloadAs("jpg")}>JPG</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                variant={vote === 1 ? "default" : "outline"}
-                size="sm"
-                className="rounded-xl gap-1.5"
-                onClick={() => handleVote(1)}
-              >
-                <ThumbsUp className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={vote === -1 ? "default" : "outline"}
-                size="sm"
-                className="rounded-xl gap-1.5"
-                onClick={() => handleVote(-1)}
-              >
-                <ThumbsDown className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl gap-1.5"
-                onClick={() => {
-                  navigator.clipboard.writeText(currentImage);
-                  toast({ title: "Image URL copied" });
-                }}
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
-            </motion.div>
-          )}
         </div>
       </div>
+
+      {/* Fullscreen image preview overlay */}
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center"
+            onClick={() => setPreviewImage(null)}
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-foreground hover:bg-muted transition-colors z-10"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              src={previewImage}
+              alt="Design preview"
+              className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl border border-border"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Limit reached modal */}
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
