@@ -31,7 +31,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity } = await req.json();
 
     if (action === "generate" || action === "edit") {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -76,8 +76,73 @@ CONVERSION RULES:
         }
       }
 
+      // Build trend context
+      let trendContext = "";
+      if (trend && trend !== "none") {
+        const trendPresets: Record<string, any> = {
+          "tactile-rebellion": {
+            name: "Tactile Rebellion",
+            visual_characteristics: "Paper textures, grain overlays, hand-drawn marks, imperfect alignment, scrapbook-style collage layouts, torn edges, stamp effects",
+            typography_style: "Handwritten or rough serif fonts, irregular baselines, ink-stamp lettering, slightly rotated text blocks",
+            color_profile: "Muted earth tones layered with the brand palette, cream/kraft paper backgrounds, ink-wash colour effects",
+            texture_elements: "Heavy grain, paper fibre texture, ink splatter, tape/sticker overlays, pencil scribbles",
+            copy_tone_hint: "More expressive and human — use imperfect, authentic, conversational language",
+          },
+          "hyper-chromatic": {
+            name: "Hyper Chromatic",
+            visual_characteristics: "Extremely vibrant colour contrasts, neon accents, bold gradients, energetic compositions, light leak effects, prismatic colour splits",
+            typography_style: "Heavy bold sans-serif, oversized display type, colour-filled text, glow effects on headlines",
+            color_profile: "Saturated neon accents blended with brand colours, vivid gradients, high-contrast complementary pairings",
+            texture_elements: "Light leaks, chromatic aberration, glass refraction, holographic sheen, subtle noise on gradients",
+            copy_tone_hint: "High-energy promotional language — bold, punchy, exclamatory, confident",
+          },
+          "technical-mono": {
+            name: "Technical Mono",
+            visual_characteristics: "Monospaced typography, clean grid structures, industrial aesthetic, futuristic UI elements, data-visualization motifs, blueprint feel",
+            typography_style: "Monospaced fonts for all text, fixed-width grid alignment, code-editor aesthetic, minimal font-weight variation",
+            color_profile: "Desaturated palette with single brand-colour accent, dark backgrounds, terminal-green or cyan highlights",
+            texture_elements: "Dot grids, scan lines, subtle noise, circuit-board patterns, thin rule lines",
+            copy_tone_hint: "Shorter and sharper copy — precise, technical, no-nonsense, data-driven",
+          },
+          "neo-naturalism": {
+            name: "Neo Naturalism",
+            visual_characteristics: "Calm colour palettes, organic textures, nature-inspired imagery, generous breathing space, soft rounded shapes, botanical motifs",
+            typography_style: "Elegant thin serifs or rounded sans-serif, generous letter-spacing, light font weights, organic flow",
+            color_profile: "Soft greens, warm terracottas, sky blues blended with brand palette, low saturation, natural harmony",
+            texture_elements: "Watercolour washes, linen textures, leaf shadows, soft bokeh, natural light effects",
+            copy_tone_hint: "Calm and soothing tone — gentle, reassuring, mindful, nurturing",
+          },
+          "kinetic-typography": {
+            name: "Kinetic Typography",
+            visual_characteristics: "Motion-oriented layouts, elastic typography, strong visual hierarchy, energetic diagonal compositions, speed lines, dynamic angles",
+            typography_style: "Elastic/stretched display fonts, extreme size contrasts, slanted baselines, overlapping text layers, variable font weight animation feel",
+            color_profile: "High-contrast brand colours with motion blur accents, speed gradients, directional colour transitions",
+            texture_elements: "Motion blur streaks, speed lines, dynamic shadows, perspective distortion, wind effects",
+            copy_tone_hint: "Energetic and dynamic — action-oriented verbs, short punchy phrases, momentum-building",
+          },
+        };
 
+        const t = trendPresets[trend];
+        if (t) {
+          const intensity = trend_intensity ?? 40;
+          trendContext = `
 
+TREND STYLING (blend with brand, never override):
+- Active trend: ${t.name}
+- Intensity: ${intensity}/100 (0=pure brand, 100=full trend)
+- Visual characteristics: ${t.visual_characteristics}
+- Typography influence: ${t.typography_style}
+- Color treatment: ${t.color_profile}
+- Texture elements: ${t.texture_elements}
+
+TREND RULES:
+1. Brand colours, fonts, and voice ALWAYS take priority
+2. At intensity <25, apply only subtle hints of the trend aesthetic
+3. At intensity 50, balance brand and trend equally
+4. At intensity >75, trend styling is dominant but brand colours remain
+5. Adapt copy tone slightly: ${t.copy_tone_hint}`;
+        }
+      }
       // --- Intent classification for edits ---
       let isFreeEdit = false;
       const userPrompt = messages[messages.length - 1]?.content || "";
@@ -188,7 +253,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? `- Brand inspiration/style references: The brand has ${inspirationUrls.length} inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.` : ""}
 ${brand.image_style_preferences?.length ? `- Image style preferences: ${brand.image_style_preferences.join(", ")}` : ""}
-${audienceContext}
+${audienceContext}${trendContext}
 
 DESIGN PHILOSOPHY (ALWAYS APPLY):
 1. ALWAYS use PHOTOREALISTIC imagery and real photography. Use natural textures, real environments, and lifelike visuals. NEVER use cartoons, clip art, flat illustrations, or AI-looking abstract art — UNLESS the user EXPLICITLY requests illustrations, cartoons, or abstract styles.
@@ -282,7 +347,7 @@ CRITICAL RULES:
       const userImageInstruction = user_image_url
         ? ` CRITICAL: The user has provided a reference image (attached). Incorporate it into the design EXACTLY as the user describes. This image is the PRIMARY visual reference and must be used prominently.`
         : "";
-      const imagePromptText = `Create a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space. IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction} ${designPrompt}`;
+      const imagePromptText = `Create a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space. IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}`;
 
       // Collect all image references
       const imageRefs: { type: string; image_url: { url: string } }[] = [];

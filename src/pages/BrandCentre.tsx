@@ -7,8 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Pencil, Upload, X, LogOut, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Upload, X, LogOut, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette } from "lucide-react";
+import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const VIBES = ["Minimal", "Bold", "Luxury", "Playful", "Corporate", "Cinematic"] as const;
@@ -62,6 +65,9 @@ const BrandCentre = () => {
   const [editingLabel, setEditingLabel] = useState("");
   const [audienceInputs, setAudienceInputs] = useState({ ...EMPTY_INPUTS });
 
+  // Trend Lab state
+  const [trendLabOpen, setTrendLabOpen] = useState(false);
+
   const { data: audiences = [] } = useQuery({
     queryKey: ["target_audiences", brand?.id],
     queryFn: async () => {
@@ -75,6 +81,51 @@ const BrandCentre = () => {
       return (data || []) as any[];
     },
     enabled: !!brand,
+  });
+
+  // Trend Lab preferences query
+  const { data: trendPrefs } = useQuery({
+    queryKey: ["brand_trend_preferences", brand?.id],
+    queryFn: async () => {
+      if (!brand) return null;
+      const { data, error } = await supabase
+        .from("brand_trend_preferences" as any)
+        .select("*")
+        .eq("brand_id", brand.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!brand,
+  });
+
+  const [trendEnabled, setTrendEnabled] = useState(false);
+  const [selectedTrend, setSelectedTrend] = useState("none");
+  const [trendIntensity, setTrendIntensity] = useState(40);
+
+  useEffect(() => {
+    if (trendPrefs) {
+      setTrendEnabled(trendPrefs.trend_enabled ?? false);
+      setSelectedTrend(trendPrefs.selected_trend ?? "none");
+      setTrendIntensity(trendPrefs.default_trend_intensity ?? 40);
+    }
+  }, [trendPrefs]);
+
+  const saveTrendPrefs = useMutation({
+    mutationFn: async (updates: { trend_enabled?: boolean; selected_trend?: string; default_trend_intensity?: number }) => {
+      const payload = { brand_id: brand!.id, ...updates };
+      if (trendPrefs?.id) {
+        const { error } = await supabase.from("brand_trend_preferences" as any).update(payload as any).eq("id", trendPrefs.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("brand_trend_preferences" as any).insert(payload as any);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["brand_trend_preferences", brand?.id] });
+    },
+    onError: (err: any) => toast({ title: "Error saving trend preferences", description: err.message, variant: "destructive" }),
   });
 
   const selectedAudience = audiences.find((a: any) => a.id === selectedAudienceId) || audiences[0] || null;
@@ -610,6 +661,95 @@ const BrandCentre = () => {
                     ) : (
                       <AudienceProfileDisplay profile={selectedAudience.jtbd_profile} />
                     )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Trend Lab */}
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
+            <button onClick={() => setTrendLabOpen(!trendLabOpen)} className="w-full flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Palette className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Trend Lab</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${trendEnabled && selectedTrend !== "none" ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                  {trendEnabled && selectedTrend !== "none" ? getTrendById(selectedTrend)?.name || selectedTrend : "Off"}
+                </span>
+                {trendLabOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            </button>
+
+            {!trendLabOpen && trendEnabled && selectedTrend !== "none" && (
+              <div className="space-y-1 pt-1">
+                <p className="text-sm font-medium">{getTrendById(selectedTrend)?.name}</p>
+                <p className="text-xs text-muted-foreground">Intensity: {trendIntensity}%</p>
+              </div>
+            )}
+
+            {trendLabOpen && (
+              <div className="space-y-5 pt-2">
+                <p className="text-sm text-muted-foreground">Blend modern design trends into your brand visuals.</p>
+
+                {/* Enable toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Enable Trend Styling</label>
+                  <Switch
+                    checked={trendEnabled}
+                    onCheckedChange={(val) => {
+                      setTrendEnabled(val);
+                      saveTrendPrefs.mutate({ trend_enabled: val, selected_trend: selectedTrend, default_trend_intensity: trendIntensity });
+                    }}
+                  />
+                </div>
+
+                {/* Trend preset cards */}
+                {trendEnabled && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {TREND_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => {
+                            setSelectedTrend(preset.id);
+                            saveTrendPrefs.mutate({ trend_enabled: true, selected_trend: preset.id, default_trend_intensity: trendIntensity });
+                          }}
+                          className={`text-left p-4 rounded-xl border transition-all space-y-1.5 ${
+                            selectedTrend === preset.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-muted-foreground/40"
+                          }`}
+                        >
+                          <p className="text-sm font-medium">{preset.name}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{preset.description}</p>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Intensity slider */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium">Trend Intensity</label>
+                        <span className="text-sm text-muted-foreground font-mono">{trendIntensity}%</span>
+                      </div>
+                      <Slider
+                        value={[trendIntensity]}
+                        onValueChange={([val]) => setTrendIntensity(val)}
+                        onValueCommit={([val]) => {
+                          saveTrendPrefs.mutate({ trend_enabled: true, selected_trend: selectedTrend, default_trend_intensity: val });
+                        }}
+                        min={0}
+                        max={100}
+                        step={5}
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>Pure brand</span>
+                        <span>Balanced</span>
+                        <span>Full trend</span>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>

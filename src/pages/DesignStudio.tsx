@@ -44,7 +44,10 @@ import {
   Paperclip,
   X,
   Users,
+  Palette,
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 
 type Message = {
   role: "user" | "assistant";
@@ -79,6 +82,8 @@ const DesignStudio = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("chat");
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | "none">("none");
+  const [selectedTrend, setSelectedTrend] = useState<string>("none");
+  const [trendIntensity, setTrendIntensity] = useState(40);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -106,6 +111,28 @@ const DesignStudio = () => {
     },
     enabled: !!brand,
   });
+
+  // Trend preferences for the current brand
+  const { data: trendPrefs } = useQuery({
+    queryKey: ["brand_trend_prefs_studio", brand?.id],
+    queryFn: async () => {
+      if (!brand) return null;
+      const { data, error } = await supabase.from("brand_trend_preferences" as any).select("*").eq("brand_id", brand.id).maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!brand,
+  });
+
+  // Initialize trend state from saved preferences
+  useEffect(() => {
+    if (trendPrefs) {
+      if (trendPrefs.trend_enabled && trendPrefs.selected_trend !== "none") {
+        setSelectedTrend(trendPrefs.selected_trend);
+        setTrendIntensity(trendPrefs.default_trend_intensity ?? 40);
+      }
+    }
+  }, [trendPrefs]);
 
   // Auto-select first audience
   useEffect(() => {
@@ -262,6 +289,7 @@ const DesignStudio = () => {
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
           brand: brandPayload,
           ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
+          ...(selectedTrend !== "none" && { trend: selectedTrend, trend_intensity: trendIntensity }),
           ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
           ...(isEdit && {
             previous_prompt: currentPrompt,
@@ -314,7 +342,8 @@ const DesignStudio = () => {
       image_url: currentImage,
       canvas_size: canvasSize,
       vote,
-    }).select("id").single();
+      ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
+    } as any).select("id").single();
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } else {
@@ -566,47 +595,106 @@ const DesignStudio = () => {
 
           {/* Input */}
           <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-border space-y-2">
-            {/* Audience context indicator */}
+            {/* Audience & Trend selectors */}
             {(() => {
               const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
               const coreJob = activeAudience?.jtbd_profile?.core_job_statement;
+              const activeTrend = getTrendById(selectedTrend);
               return (
-                <div className="flex items-start gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-                          activeAudience
-                            ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                            : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
-                        }`}
-                      >
-                        <Users className="h-3 w-3" />
-                        <span className="max-w-[100px] truncate">{activeAudience?.label || "No audience"}</span>
-                        <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="min-w-[180px]">
-                      <DropdownMenuItem
-                        onClick={() => setSelectedAudienceId("none")}
-                        className={selectedAudienceId === "none" ? "bg-accent" : ""}
-                      >
-                        <span className="text-muted-foreground">No audience</span>
-                      </DropdownMenuItem>
-                      {audiences.map((a: any) => (
-                        <DropdownMenuItem
-                          key={a.id}
-                          onClick={() => setSelectedAudienceId(a.id)}
-                          className={selectedAudienceId === a.id ? "bg-accent" : ""}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Audience pill */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+                            activeAudience
+                              ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                              : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
+                          }`}
                         >
-                          {a.label}
+                          <Users className="h-3 w-3" />
+                          <span className="max-w-[100px] truncate">{activeAudience?.label || "No audience"}</span>
+                          <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-[180px]">
+                        <DropdownMenuItem
+                          onClick={() => setSelectedAudienceId("none")}
+                          className={selectedAudienceId === "none" ? "bg-accent" : ""}
+                        >
+                          <span className="text-muted-foreground">No audience</span>
                         </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {coreJob && (
-                    <p className="text-[11px] leading-tight text-muted-foreground/70 italic line-clamp-2 pt-0.5">
-                      {coreJob}
+                        {audiences.map((a: any) => (
+                          <DropdownMenuItem
+                            key={a.id}
+                            onClick={() => setSelectedAudienceId(a.id)}
+                            className={selectedAudienceId === a.id ? "bg-accent" : ""}
+                          >
+                            {a.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Trend pill */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+                            activeTrend
+                              ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                              : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
+                          }`}
+                        >
+                          <Palette className="h-3 w-3" />
+                          <span className="max-w-[100px] truncate">{activeTrend?.name || "No trend"}</span>
+                          <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-[220px] space-y-1 p-2">
+                        <DropdownMenuItem
+                          onClick={() => setSelectedTrend("none")}
+                          className={selectedTrend === "none" ? "bg-accent" : ""}
+                        >
+                          <span className="text-muted-foreground">No trend</span>
+                        </DropdownMenuItem>
+                        {TREND_PRESETS.map((t) => (
+                          <DropdownMenuItem
+                            key={t.id}
+                            onClick={() => setSelectedTrend(t.id)}
+                            className={selectedTrend === t.id ? "bg-accent" : ""}
+                          >
+                            <div>
+                              <p className="text-sm font-medium">{t.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{t.description}</p>
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                        {selectedTrend !== "none" && (
+                          <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-muted-foreground">Intensity</span>
+                              <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
+                            </div>
+                            <Slider
+                              value={[trendIntensity]}
+                              onValueChange={([val]) => setTrendIntensity(val)}
+                              min={0}
+                              max={100}
+                              step={5}
+                              className="w-full"
+                            />
+                          </div>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  {(coreJob || activeTrend) && (
+                    <p className="text-[11px] leading-tight text-muted-foreground/70 italic line-clamp-2">
+                      {coreJob && <span>{coreJob}</span>}
+                      {coreJob && activeTrend && <span> · </span>}
+                      {activeTrend && <span>{activeTrend.name} at {trendIntensity}%</span>}
                     </p>
                   )}
                 </div>
