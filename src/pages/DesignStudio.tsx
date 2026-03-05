@@ -80,6 +80,7 @@ const DesignStudio = () => {
   const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
   const [vote, setVote] = useState<-1 | 0 | 1>(0);
   const [saved, setSaved] = useState(false);
+  const [currentGenome, setCurrentGenome] = useState<any>(null);
   const [canvasSize, setCanvasSize] = useState("1080x1080");
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -363,6 +364,7 @@ const DesignStudio = () => {
         setMessages((prev) => [...prev, assistantMsg]);
         setCurrentImage(data.image_url);
         setCurrentPrompt(data.design_prompt || trimmed);
+        setCurrentGenome(data.genome || null);
       }
 
       // Refresh credit counter
@@ -390,6 +392,7 @@ const DesignStudio = () => {
       canvas_size: canvasSize,
       vote,
       ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
+      ...(currentGenome && { genome: currentGenome }),
     } as any).select("id").single();
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
