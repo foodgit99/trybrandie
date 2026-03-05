@@ -43,6 +43,47 @@ export type Database = {
           },
         ]
       }
+      brand_trend_preferences: {
+        Row: {
+          brand_id: string
+          created_at: string
+          default_trend_intensity: number
+          id: string
+          preferred_trends: string[]
+          selected_trend: string
+          trend_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          default_trend_intensity?: number
+          id?: string
+          preferred_trends?: string[]
+          selected_trend?: string
+          trend_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          default_trend_intensity?: number
+          id?: string
+          preferred_trends?: string[]
+          selected_trend?: string
+          trend_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_trend_preferences_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           accent_colors: string[] | null
@@ -156,6 +197,8 @@ export type Database = {
           image_url: string
           prompt: string
           title: string | null
+          trend_intensity: number | null
+          trend_used: string | null
           user_id: string
           vote: number | null
         }
@@ -167,6 +210,8 @@ export type Database = {
           image_url: string
           prompt: string
           title?: string | null
+          trend_intensity?: number | null
+          trend_used?: string | null
           user_id: string
           vote?: number | null
         }
@@ -178,6 +223,8 @@ export type Database = {
           image_url?: string
           prompt?: string
           title?: string | null
+          trend_intensity?: number | null
+          trend_used?: string | null
           user_id?: string
           vote?: number | null
         }
