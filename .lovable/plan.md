@@ -1,132 +1,62 @@
 
 
-## Plan: Trend Lab Module
+## Analysis
 
-Adds a trend intelligence layer between Brand Centre and AI agents, enabling trend-aware design generation while preserving brand consistency.
+The design pipeline currently has a two-step process:
+1. **Brief generation** (gemini-3-flash-preview) — produces a design brief and explanation
+2. **Image rendering** (gemini-2.5-flash-image) — generates the image including all text
 
-### What Gets Built
+The problem: the image model is responsible for both visuals AND copy. It receives a design brief with general direction but is free to invent its own text. This results in generic, off-brand copy like "DON'T JUST AD-LIBS... DESIGN YOUR FLYER for that weekend thing!" instead of sharp, brand-aligned messaging.
 
-1. **Database**: New `brand_trend_preferences` table storing per-brand trend settings (selected trend, intensity, enabled flag). Add `trend_used`, `trend_intensity` columns to existing `designs` table.
-2. **Brand Centre UI**: New collapsible "Trend Lab" section after Target Audience Intelligence with trend preset cards, intensity slider, and enable/disable toggle
-3. **Design Studio UI**: Compact trend selector above chat input (alongside existing audience selector) with trend toggle, preset picker, and intensity slider
-4. **Design Pipeline**: Update `design-studio` edge function to accept trend tokens and inject trend styling instructions into the Brief Agent and Renderer prompts
-5. **Feedback Learning**: Store trend metadata on saved designs; use upvote/downvote signals for trend preference tracking
+## Solution: Add a Dedicated Copywriter Agent Step
 
----
+Insert a **Copywriter Agent** between the brief and the renderer. This agent produces exact, structured copy (headline, subheadline, CTA, supporting text) that is then passed verbatim to the image model with strict instructions to render it exactly as written.
 
-### Technical Details
+### Pipeline Change
 
-#### A. Database Migration
-
-```sql
--- Brand trend preferences
-CREATE TABLE public.brand_trend_preferences (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  brand_id uuid NOT NULL REFERENCES public.brands(id) ON DELETE CASCADE UNIQUE,
-  trend_enabled boolean NOT NULL DEFAULT false,
-  selected_trend text NOT NULL DEFAULT 'none',
-  default_trend_intensity integer NOT NULL DEFAULT 40,
-  preferred_trends text[] NOT NULL DEFAULT '{}',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.brand_trend_preferences ENABLE ROW LEVEL SECURITY;
-
--- RLS via brand ownership (same pattern as target_audiences)
-CREATE POLICY "Users can view their trend prefs" ON public.brand_trend_preferences FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
-CREATE POLICY "Users can insert their trend prefs" ON public.brand_trend_preferences FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
-CREATE POLICY "Users can update their trend prefs" ON public.brand_trend_preferences FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
-CREATE POLICY "Users can delete their trend prefs" ON public.brand_trend_preferences FOR DELETE TO authenticated
-  USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = brand_trend_preferences.brand_id AND brands.user_id = auth.uid()));
-
-CREATE TRIGGER update_brand_trend_preferences_updated_at
-  BEFORE UPDATE ON public.brand_trend_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Add trend metadata to designs
-ALTER TABLE public.designs
-  ADD COLUMN trend_used text DEFAULT NULL,
-  ADD COLUMN trend_intensity integer DEFAULT NULL;
+```text
+Current:  User Prompt → Brief Agent → Image Renderer
+Proposed: User Prompt → Brief Agent → Copywriter Agent → Image Renderer
 ```
 
-No separate `trend_profiles` table needed at MVP — trend presets are defined as constants in code (easily extensible later via DB).
+### Implementation (single file: `supabase/functions/design-studio/index.ts`)
 
-#### B. Trend Presets (Code Constants)
+**Step 1 — Add Copywriter Agent call after brief generation (after line ~342)**
 
-Define in a shared file `src/lib/trendPresets.ts` and reused across Brand Centre, Design Studio, and edge function:
+- Call `gemini-3-flash-preview` with a Copywriter system prompt that:
+  - Receives the design brief, brand tone/personality, audience JTBD signals, and trend copy tone hint
+  - Outputs structured JSON: `{ headline, subheadline, cta, supporting_text }`
+  - Enforces 20-30 word max total
+  - Aligns copy with the user's actual request topic
+  - Uses audience emotional drivers and messaging angles
+  - Adapts tone to the active trend's `copy_tone_hint`
 
-5 presets each with: `id`, `name`, `description`, `visual_characteristics`, `typography_style`, `color_profile`, `texture_elements`, `copy_tone_hint`. These are the styling tokens injected into the AI prompts.
+**Step 2 — Inject exact copy into the image generation prompt (line ~348)**
 
-#### C. Brand Centre UI
+- Modify `imagePromptText` to include the exact copy with explicit instructions: "Use these EXACT words on the design. Do NOT modify, rephrase, or add any text beyond what is provided."
+- Structure: `EXACT TEXT TO RENDER: Headline: "..." | Subheadline: "..." | CTA: "..."`
 
-**File:** `src/pages/BrandCentre.tsx`
+**Step 3 — Return the structured copy in the response**
 
-Add a new collapsible card after the Target Audience section:
+- Include `copy_structure` in the JSON response so the frontend can display/reference it.
 
-- Header: "Trend Lab" with a Palette icon and status badge ("Off" / trend name)
-- Collapsed: shows active trend name and intensity if enabled
-- Expanded:
-  - Toggle switch to enable/disable trend styling
-  - Grid of 5 trend preset cards (name, short description, select button)
-  - Intensity slider (0-100, default 40) with labels
-  - Auto-saves to `brand_trend_preferences` on change via mutation
+### Copywriter System Prompt (core logic)
 
-#### D. Design Studio UI
+The Copywriter receives:
+- The design brief (what the design is about)
+- Brand tone, personality traits, vibe
+- Audience JTBD signals (struggling moments, emotional drivers, messaging angles)
+- Trend copy tone hint (if active)
+- The user's original prompt
 
-**File:** `src/pages/DesignStudio.tsx`
+It must produce copy that:
+- Directly addresses the user's request topic
+- Uses the brand's tone of voice
+- Leverages audience psychology for persuasion
+- Stays within 20-30 words total
+- Never adds generic filler or unrelated taglines
 
-Add a trend selector pill next to the existing audience selector above the chat input:
-
-- Palette icon pill showing "No trend" or selected trend name
-- Dropdown with: "No trend", 5 trend presets, intensity slider
-- State: `trendEnabled`, `selectedTrend`, `trendIntensity` — initialized from `brand_trend_preferences` query
-- Pass `trend`, `trend_intensity` in the edge function request body
-
-#### E. Design Pipeline Integration
-
-**File:** `supabase/functions/design-studio/index.ts`
-
-Accept `trend` (string ID) and `trend_intensity` (0-100) from the request body.
-
-When a trend is active, inject into `brandContext`:
-
-```
-TREND STYLING (blend with brand, never override):
-- Active trend: {trend_name}
-- Intensity: {intensity}/100 (0=pure brand, 100=full trend)
-- Visual characteristics: {characteristics}
-- Typography influence: {typography_style}
-- Color treatment: {color_profile}
-- Texture elements: {texture_elements}
-
-TREND RULES:
-1. Brand colours, fonts, and voice ALWAYS take priority
-2. At intensity <25, apply only subtle hints
-3. At intensity 50, balance brand and trend equally
-4. At intensity >75, trend styling is dominant but brand colours remain
-5. Adapt copy tone slightly: {copy_tone_hint}
-```
-
-Also inject trend tokens into the Renderer prompt so Nano Banana applies the styling overlay.
-
-When `trend` is null/undefined, the pipeline works exactly as before.
-
-#### F. Design Saving with Trend Metadata
-
-When saving a design in `DesignStudio.tsx`, include `trend_used` and `trend_intensity` in the insert payload. The edge function also returns these values so the frontend can store them.
-
-#### G. Feedback Learning
-
-Existing upvote/downvote on designs already stores `vote` on the `designs` table. With `trend_used` and `trend_intensity` now on designs, future recommendation logic can query which trends received the most upvotes per brand. No additional changes needed at MVP — the data foundation is in place.
-
-### What Does NOT Change
-
-- Existing tables, RLS policies, auth flow untouched
-- Audience intelligence pipeline unchanged
-- Credit system unchanged
-- The pipeline falls back gracefully when no trend is selected
-- Onboarding flow untouched
+### Risk Mitigation
+- Adds one extra LLM call (~1-2s latency) but uses the fast flash model
+- If the copywriter call fails, falls back to the current behavior (image model generates its own copy)
 
