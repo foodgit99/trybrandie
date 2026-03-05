@@ -593,172 +593,169 @@ const DesignStudio = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-border space-y-2">
-            {/* Audience & Trend selectors */}
-            {(() => {
-              const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
-              const coreJob = activeAudience?.jtbd_profile?.core_job_statement;
-              const activeTrend = getTrendById(selectedTrend);
-              return (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Audience pill */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-                            activeAudience
-                              ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                              : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
-                          }`}
-                        >
-                          <Users className="h-3 w-3" />
-                          <span className="max-w-[100px] truncate">{activeAudience?.label || "No audience"}</span>
-                          <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="min-w-[180px]">
-                        <DropdownMenuItem
-                          onClick={() => setSelectedAudienceId("none")}
-                          className={selectedAudienceId === "none" ? "bg-accent" : ""}
-                        >
-                          <span className="text-muted-foreground">No audience</span>
-                        </DropdownMenuItem>
-                        {audiences.map((a: any) => (
-                          <DropdownMenuItem
-                            key={a.id}
-                            onClick={() => setSelectedAudienceId(a.id)}
-                            className={selectedAudienceId === a.id ? "bg-accent" : ""}
-                          >
-                            {a.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+          {/* Input — unified card */}
+          <div className="px-3 sm:px-4 py-3 sm:py-4">
+            <div className="rounded-2xl border border-border bg-card shadow-sm p-3 sm:p-4 space-y-3">
+              {/* Attached image preview */}
+              <AnimatePresence>
+                {attachedImage && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <div className="relative inline-block mb-1">
+                      <img
+                        src={attachedImage}
+                        alt="Attached"
+                        className="w-16 h-16 object-cover rounded-xl border border-border"
+                      />
+                      <button
+                        onClick={() => setAttachedImage(null)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-                    {/* Trend pill */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-                            activeTrend
-                              ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                              : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
-                          }`}
-                        >
-                          <Palette className="h-3 w-3" />
-                          <span className="max-w-[100px] truncate">{activeTrend?.name || "No trend"}</span>
-                          <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="min-w-[220px] space-y-1 p-2">
-                        <DropdownMenuItem
-                          onClick={() => setSelectedTrend("none")}
-                          className={selectedTrend === "none" ? "bg-accent" : ""}
-                        >
-                          <span className="text-muted-foreground">No trend</span>
-                        </DropdownMenuItem>
-                        {TREND_PRESETS.map((t) => (
-                          <DropdownMenuItem
-                            key={t.id}
-                            onClick={() => setSelectedTrend(t.id)}
-                            className={selectedTrend === t.id ? "bg-accent" : ""}
-                          >
-                            <div>
-                              <p className="text-sm font-medium">{t.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{t.description}</p>
-                            </div>
-                          </DropdownMenuItem>
-                        ))}
-                        {selectedTrend !== "none" && (
-                          <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-muted-foreground">Intensity</span>
-                              <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
-                            </div>
-                            <Slider
-                              value={[trendIntensity]}
-                              onValueChange={([val]) => setTrendIntensity(val)}
-                              min={0}
-                              max={100}
-                              step={5}
-                              className="w-full"
-                            />
-                          </div>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  {(coreJob || activeTrend) && (
-                    <p className="text-[11px] leading-tight text-muted-foreground/70 italic line-clamp-2">
-                      {coreJob && <span>{coreJob}</span>}
-                      {coreJob && activeTrend && <span> · </span>}
-                      {activeTrend && <span>{activeTrend.name} at {trendIntensity}%</span>}
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Attached image preview */}
-            <AnimatePresence>
-              {attachedImage && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <div className="relative inline-block">
-                    <img
-                      src={attachedImage}
-                      alt="Attached"
-                      className="w-16 h-16 object-cover rounded-xl border border-border"
-                    />
-                    <button
-                      onClick={() => setAttachedImage(null)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <div className="flex items-center gap-2">
+              {/* Text input */}
               <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 rounded-xl shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading || uploadingImage}
-              >
-                {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-              </Button>
-              <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={currentImage ? "Edit your design…" : "Describe your design…"}
-                className="rounded-xl h-11"
+                placeholder={currentImage ? "Edit your design…" : "Describe your design"}
+                className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none"
                 disabled={loading}
                 maxLength={2000}
               />
-              <Button
-                size="icon"
-                className="h-11 w-11 rounded-xl shrink-0"
-                onClick={sendMessage}
-                disabled={loading || !input.trim()}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+
+              {/* Bottom row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  {/* Paperclip */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
+                  <button
+                    className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading || uploadingImage}
+                  >
+                    {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  </button>
+
+                  {/* Audience selector */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="h-8 flex items-center gap-1 px-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+                        <Users className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[180px]">
+                      <DropdownMenuItem
+                        onClick={() => setSelectedAudienceId("none")}
+                        className={selectedAudienceId === "none" ? "bg-accent" : ""}
+                      >
+                        <span className="text-muted-foreground">No audience</span>
+                      </DropdownMenuItem>
+                      {audiences.map((a: any) => (
+                        <DropdownMenuItem
+                          key={a.id}
+                          onClick={() => setSelectedAudienceId(a.id)}
+                          className={selectedAudienceId === a.id ? "bg-accent" : ""}
+                        >
+                          {a.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Audience label */}
+                  {(() => {
+                    const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
+                    return activeAudience ? (
+                      <span className="text-xs text-primary font-medium truncate max-w-[140px]">
+                        {activeAudience.label}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Trend dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      {(() => {
+                        const activeTrend = getTrendById(selectedTrend);
+                        return (
+                          <button
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                              activeTrend
+                                ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                                : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
+                            }`}
+                          >
+                            <span>{activeTrend?.name || "Trend"}</span>
+                            <ChevronDown className="h-3 w-3 opacity-60" />
+                          </button>
+                        );
+                      })()}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[220px] space-y-1 p-2">
+                      <DropdownMenuItem
+                        onClick={() => setSelectedTrend("none")}
+                        className={selectedTrend === "none" ? "bg-accent" : ""}
+                      >
+                        <span className="text-muted-foreground">No trend</span>
+                      </DropdownMenuItem>
+                      {TREND_PRESETS.map((t) => (
+                        <DropdownMenuItem
+                          key={t.id}
+                          onClick={() => setSelectedTrend(t.id)}
+                          className={selectedTrend === t.id ? "bg-accent" : ""}
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{t.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{t.description}</p>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                      {selectedTrend !== "none" && (
+                        <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground">Intensity</span>
+                            <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
+                          </div>
+                          <Slider
+                            value={[trendIntensity]}
+                            onValueChange={([val]) => setTrendIntensity(val)}
+                            min={0}
+                            max={100}
+                            step={5}
+                            className="w-full"
+                          />
+                        </div>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Send button — circular */}
+                  <button
+                    className="h-9 w-9 rounded-full border border-border flex items-center justify-center text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    onClick={sendMessage}
+                    disabled={loading || !input.trim()}
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
