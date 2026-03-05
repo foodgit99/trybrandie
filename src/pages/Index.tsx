@@ -2,14 +2,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { LogOut, Plus, Palette, CreditCard, Sparkles } from "lucide-react";
+import { Plus, Palette } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
-const FREE_TIER_LIMIT = 10;
+import AppHeader from "@/components/AppHeader";
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const { data: designs } = useQuery({
@@ -26,57 +25,9 @@ const Index = () => {
     enabled: !!user,
   });
 
-  const { data: profile } = useQuery({
-    queryKey: ["profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("generations_count, generations_reset_at")
-        .eq("user_id", user!.id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const getCreditsUsed = () => {
-    if (!profile) return 0;
-    const resetAt = new Date(profile.generations_reset_at);
-    const now = new Date();
-    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return 0;
-    }
-    return profile.generations_count;
-  };
-
-  const creditsUsed = getCreditsUsed();
-  const creditsRemaining = FREE_TIER_LIMIT - creditsUsed;
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border">
-        <h1 className="text-xl sm:text-2xl font-serif tracking-tight">Brandie</h1>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
-            <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
-            <span className="font-medium">{creditsRemaining}</span>
-            <span className="text-muted-foreground hidden sm:inline">/ {FREE_TIER_LIMIT} left</span>
-          </div>
-          <Button variant="ghost" size="sm" className="gap-1.5 rounded-xl hidden sm:flex" onClick={() => navigate("/plans")}>
-            <CreditCard className="h-4 w-4" />
-            Plans
-          </Button>
-          <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => navigate("/plans")}>
-            <CreditCard className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>
-          <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </header>
+      <AppHeader />
 
       {/* Main */}
       <main className="max-w-5xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
