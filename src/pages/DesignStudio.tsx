@@ -95,6 +95,7 @@ const DesignStudio = () => {
   const [trendIntensity, setTrendIntensity] = useState(40);
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("fast");
   const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
