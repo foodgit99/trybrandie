@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
+import ChatSuggestions from "@/components/ChatSuggestions";
 
 type Message = {
   role: "user" | "assistant";
@@ -633,6 +634,16 @@ const DesignStudio = () => {
                   </div>
                 </motion.div>
               )}
+
+              {/* Suggestion bubbles — empty state */}
+              <ChatSuggestions
+                brandName={brand?.name}
+                brandVibe={brand?.vibe}
+                brandDescription={brand?.description}
+                onSelect={(text) => setInput(text)}
+                hasMessages={false}
+                hasImage={false}
+              />
             </div>
           )}
           {messages.map((msg, i) => (
@@ -806,6 +817,19 @@ const DesignStudio = () => {
                 Designing…
               </div>
             </motion.div>
+          )}
+          {/* Suggestion bubbles — after messages */}
+          {messages.length > 0 && !loading && (
+            <div className="py-2">
+              <ChatSuggestions
+                brandName={brand?.name}
+                brandVibe={brand?.vibe}
+                brandDescription={brand?.description}
+                onSelect={(text) => setInput(text)}
+                hasMessages={true}
+                hasImage={!!currentImage}
+              />
+            </div>
           )}
           <div ref={chatEndRef} />
         </div>
