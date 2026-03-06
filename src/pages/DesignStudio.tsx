@@ -95,6 +95,7 @@ const DesignStudio = () => {
   const [trendIntensity, setTrendIntensity] = useState(40);
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("fast");
   const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -342,6 +343,7 @@ const DesignStudio = () => {
           ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
           ...(selectedTrend !== "none" && { trend: selectedTrend, trend_intensity: trendIntensity }),
           ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
+          render_quality: renderQuality,
           ...(isEdit && {
             previous_prompt: currentPrompt,
             previous_image_url: currentImage,
@@ -542,6 +544,30 @@ const DesignStudio = () => {
               ))}
             </SelectContent>
           </Select>
+          {/* Quality toggle */}
+          <div className="flex items-center h-8 sm:h-9 rounded-xl border border-input bg-background overflow-hidden">
+            <button
+              onClick={() => setRenderQuality("fast")}
+              className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors ${
+                renderQuality === "fast"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Fast
+            </button>
+            <button
+              onClick={() => setRenderQuality("hd")}
+              className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                renderQuality === "hd"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="h-3 w-3" />
+              HD
+            </button>
+          </div>
           {/* Audience selector removed from header — now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}

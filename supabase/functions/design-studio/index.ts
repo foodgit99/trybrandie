@@ -31,7 +31,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality } = await req.json();
 
     if (action === "generate" || action === "edit") {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -836,7 +836,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
+          model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
           messages: [
             {
               role: "user",
