@@ -818,6 +818,19 @@ const DesignStudio = () => {
               </div>
             </motion.div>
           )}
+          {/* Suggestion bubbles — after messages */}
+          {messages.length > 0 && !loading && (
+            <div className="py-2">
+              <ChatSuggestions
+                brandName={brand?.name}
+                brandVibe={brand?.vibe}
+                brandDescription={brand?.description}
+                onSelect={(text) => setInput(text)}
+                hasMessages={true}
+                hasImage={!!currentImage}
+              />
+            </div>
+          )}
           <div ref={chatEndRef} />
         </div>
 
