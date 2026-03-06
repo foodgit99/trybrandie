@@ -147,6 +147,69 @@ export type Database = {
         }
         Relationships: []
       }
+      design_folder_assignments: {
+        Row: {
+          created_at: string
+          design_id: string
+          folder_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          design_id: string
+          folder_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          design_id?: string
+          folder_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_folder_assignments_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_folder_assignments_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "design_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      design_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       design_messages: {
         Row: {
           attached_image_url: string | null
