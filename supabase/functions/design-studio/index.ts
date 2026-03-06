@@ -31,7 +31,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality } = await req.json();
 
     if (action === "generate" || action === "edit") {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
