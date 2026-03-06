@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Send, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
@@ -13,14 +13,56 @@ const EXAMPLE_PROMPTS = [
   "Eye-catching sale graphic with modern typography",
 ];
 
+const TYPING_SPEED = 45;
+const PAUSE_AFTER_TYPE = 2000;
+const PAUSE_AFTER_ERASE = 400;
+const ERASE_SPEED = 25;
+
 const HeroChatInput = ({ disabled }: HeroChatInputProps) => {
   const [input, setInput] = useState("");
+  const [placeholder, setPlaceholder] = useState("");
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const navigate = useNavigate();
+  const promptIndex = useRef(0);
+  const animating = useRef(true);
+
+  const runAnimation = useCallback(async () => {
+    while (animating.current) {
+      const text = EXAMPLE_PROMPTS[promptIndex.current];
+      // Type
+      for (let i = 0; i <= text.length; i++) {
+        if (!animating.current) return;
+        setPlaceholder(text.slice(0, i));
+        await new Promise((r) => setTimeout(r, TYPING_SPEED));
+      }
+      await new Promise((r) => setTimeout(r, PAUSE_AFTER_TYPE));
+      // Erase
+      for (let i = text.length; i >= 0; i--) {
+        if (!animating.current) return;
+        setPlaceholder(text.slice(0, i));
+        await new Promise((r) => setTimeout(r, ERASE_SPEED));
+      }
+      await new Promise((r) => setTimeout(r, PAUSE_AFTER_ERASE));
+      promptIndex.current = (promptIndex.current + 1) % EXAMPLE_PROMPTS.length;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isUserTyping) return;
+    animating.current = true;
+    runAnimation();
+    return () => { animating.current = false; };
+  }, [isUserTyping, runAnimation]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    setIsUserTyping(val.length > 0);
+  };
 
   const handleSubmit = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
-    // Navigate to auth with the prompt stored so they can continue after login
     navigate(`/auth?prompt=${encodeURIComponent(trimmed)}`);
   };
 
@@ -39,15 +81,23 @@ const HeroChatInput = ({ disabled }: HeroChatInputProps) => {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="rounded-2xl border border-border bg-card shadow-lg p-3 sm:p-4 space-y-3"
       >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Describe a social media design…"
-          className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none"
-          disabled={disabled}
-          maxLength={2000}
-        />
+        <div className="relative w-full">
+          {!isUserTyping && !input && (
+            <span className="absolute inset-0 pointer-events-none text-sm sm:text-base text-muted-foreground/50 select-none">
+              {placeholder}
+              <span className="inline-block w-[2px] h-[1em] bg-muted-foreground/40 align-text-bottom ml-px animate-pulse" />
+            </span>
+          )}
+          <input
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder=""
+            className="w-full bg-transparent text-sm sm:text-base text-foreground focus:outline-none relative z-10"
+            disabled={disabled}
+            maxLength={2000}
+          />
+        </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-muted-foreground">Powered by AI</span>
