@@ -265,7 +265,8 @@ const DesignStudio = () => {
     if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
       return true;
     }
-    if (data.generations_count >= FREE_TIER_LIMIT) {
+    const creditCost = renderQuality === "hd" ? 2 : 1;
+    if (data.generations_count + creditCost > FREE_TIER_LIMIT) {
       setShowLimitModal(true);
       return false;
     }
