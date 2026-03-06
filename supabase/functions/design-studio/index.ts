@@ -197,6 +197,7 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
 
       // Check and increment generation count — skip for free edits
       if (!isFreeEdit) {
+        const creditCost = render_quality === "hd" ? 2 : 1;
         const { data: profile } = await adminClient
           .from("profiles")
           .select("generations_count, generations_reset_at")
@@ -211,10 +212,10 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
           if (needsReset) {
             await adminClient
               .from("profiles")
-              .update({ generations_count: 1, generations_reset_at: now.toISOString() })
+              .update({ generations_count: creditCost, generations_reset_at: now.toISOString() })
               .eq("user_id", user.id);
           } else {
-            if (profile.generations_count >= 10) {
+            if (profile.generations_count + creditCost > 10) {
               return new Response(JSON.stringify({ error: "Monthly generation limit reached. Please upgrade your plan." }), {
                 status: 429,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -222,7 +223,7 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
             }
             await adminClient
               .from("profiles")
-              .update({ generations_count: profile.generations_count + 1 })
+              .update({ generations_count: profile.generations_count + creditCost })
               .eq("user_id", user.id);
           }
         }
