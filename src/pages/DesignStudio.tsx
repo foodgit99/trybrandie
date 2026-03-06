@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
+import ChatSuggestions from "@/components/ChatSuggestions";
 
 type Message = {
   role: "user" | "assistant";
