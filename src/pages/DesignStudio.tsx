@@ -634,6 +634,16 @@ const DesignStudio = () => {
                   </div>
                 </motion.div>
               )}
+
+              {/* Suggestion bubbles — empty state */}
+              <ChatSuggestions
+                brandName={brand?.name}
+                brandVibe={brand?.vibe}
+                brandDescription={brand?.description}
+                onSelect={(text) => setInput(text)}
+                hasMessages={false}
+                hasImage={false}
+              />
             </div>
           )}
           {messages.map((msg, i) => (
