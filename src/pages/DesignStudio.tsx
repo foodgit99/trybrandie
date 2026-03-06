@@ -343,6 +343,7 @@ const DesignStudio = () => {
           ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
           ...(selectedTrend !== "none" && { trend: selectedTrend, trend_intensity: trendIntensity }),
           ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
+          render_quality: renderQuality,
           ...(isEdit && {
             previous_prompt: currentPrompt,
             previous_image_url: currentImage,

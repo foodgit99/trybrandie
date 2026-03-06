@@ -836,7 +836,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
+          model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
           messages: [
             {
               role: "user",
