@@ -867,6 +867,77 @@ RULES:
         genomeScores = scores;
         console.log("Genome Scores:", JSON.stringify(genomeScores));
         genomeData._scores = genomeScores;
+
+        // --- DESIGN STABILITY GATE ---
+        // If overall score < 55, trigger one refinement pass
+        let refined = false;
+        if (scores.overall < 55) {
+          console.log(`Stability Gate triggered: overall=${scores.overall}, attempting refinement...`);
+          // Find weakest dimension
+          const dimensions = ["brand_alignment", "trend_balance", "visual_clarity", "conversion", "visual_balance"];
+          const weakest = dimensions.reduce((a, b) => (scores[a] < scores[b] ? a : b));
+          try {
+            const refinementPrompt = `The generated Visual Style Genome scored poorly (overall: ${scores.overall}/100). The weakest dimension is "${weakest.replace(/_/g, " ")}" at ${scores[weakest]}/100.
+
+Current genome: ${JSON.stringify(genomeData)}
+
+Improve the genome specifically to raise the "${weakest.replace(/_/g, " ")}" score. Keep locked genes intact. Output an improved genome.`;
+
+            const refineResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: \`Bearer \${LOVABLE_API_KEY}\`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  { role: "system", content: refinementPrompt },
+                  { role: "user", content: "Refine the genome to improve quality." },
+                ],
+                tools: [{
+                  type: "function",
+                  function: {
+                    name: "set_genome",
+                    description: "Set the refined Visual Style Genome",
+                    parameters: {
+                      type: "object",
+                      properties: {
+                        color: { type: "object", properties: { palette_type: { type: "string" }, temperature: { type: "string" }, contrast: { type: "string" }, saturation: { type: "string" }, gradient_logic: { type: "string" } }, required: ["palette_type","temperature","contrast","saturation","gradient_logic"] },
+                        typography: { type: "object", properties: { font_personality: { type: "string" }, weight_system: { type: "string" }, hierarchy_logic: { type: "string" }, typography_layout: { type: "string" }, text_effect: { type: "string" } }, required: ["font_personality","weight_system","hierarchy_logic","typography_layout","text_effect"] },
+                        layout: { type: "object", properties: { grid_type: { type: "string" }, balance: { type: "string" }, spacing_density: { type: "string" }, content_ratio: { type: "string" } }, required: ["grid_type","balance","spacing_density","content_ratio"] },
+                        composition: { type: "object", properties: { visual_direction: { type: "string" }, focal_strategy: { type: "string" }, layering_depth: { type: "string" } }, required: ["visual_direction","focal_strategy","layering_depth"] },
+                        texture: { type: "object", properties: { texture_type: { type: "string" }, intensity: { type: "string" }, distortion: { type: "string" } }, required: ["texture_type","intensity","distortion"] },
+                        illustration: { type: "object", properties: { style: { type: "string" }, detail_level: { type: "string" }, line_weight: { type: "string" } }, required: ["style","detail_level","line_weight"] },
+                        image_style: { type: "object", properties: { lighting: { type: "string" }, color_grading: { type: "string" }, framing: { type: "string" } }, required: ["lighting","color_grading","framing"] },
+                        emotion: { type: "string" },
+                      },
+                      required: ["color","typography","layout","composition","texture","illustration","image_style","emotion"],
+                    },
+                  },
+                }],
+                tool_choice: { type: "function", function: { name: "set_genome" } },
+              }),
+            });
+
+            if (refineResponse.ok) {
+              const refData = await refineResponse.json();
+              const refTool = refData.choices?.[0]?.message?.tool_calls?.[0];
+              if (refTool?.function?.arguments) {
+                const refinedGenome = JSON.parse(refTool.function.arguments);
+                // Preserve locked genes from original
+                refinedGenome.color.palette_type = genomeData.color.palette_type;
+                refinedGenome.typography.font_personality = genomeData.typography.font_personality;
+                // Merge
+                Object.assign(genomeData, refinedGenome);
+                refined = true;
+                console.log("Stability Gate: genome refined successfully");
+              }
+            }
+          } catch (refErr) {
+            console.error("Stability Gate refinement failed:", refErr);
+          }
+        }
       }
 
       // Build the exact copy injection for the image prompt
