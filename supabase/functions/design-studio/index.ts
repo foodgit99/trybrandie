@@ -1048,6 +1048,9 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
 
+      // Check if refined was set (variable is in genome scoring scope, re-check)
+      const wasRefined = genomeData?._refined === true;
+
       return new Response(
         JSON.stringify({
           image_url: urlData.publicUrl,
@@ -1057,6 +1060,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(copyStructure ? { copy_structure: copyStructure } : {}),
           ...(genomeData ? { genome: genomeData } : {}),
           ...(genomeScores ? { genome_scores: genomeScores } : {}),
+          refined: wasRefined,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
