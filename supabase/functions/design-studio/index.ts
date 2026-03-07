@@ -76,6 +76,71 @@ CONVERSION RULES:
         }
       }
 
+      // --- RAG PERSONALISATION ENGINE ---
+      // Query user's top-rated past designs with genomes to build preference signals
+      let preferenceContext = "";
+      let preferenceWeights: Record<string, Record<string, number>> = {};
+      try {
+        const { data: pastDesigns } = await adminClient
+          .from("designs")
+          .select("genome, vote")
+          .eq("user_id", user.id)
+          .not("genome", "is", null)
+          .order("vote", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(8);
+
+        if (pastDesigns && pastDesigns.length >= 2) {
+          // Tally gene values weighted by vote: upvoted=3, neutral=1, downvoted=0
+          const tally: Record<string, Record<string, Record<string, number>>> = {};
+          for (const d of pastDesigns) {
+            const g = d.genome as any;
+            if (!g) continue;
+            const weight = d.vote === 1 ? 3 : d.vote === -1 ? 0 : 1;
+            for (const [cat, val] of Object.entries(g)) {
+              if (cat === "_scores" || cat === "emotion") continue;
+              if (typeof val === "object" && val !== null) {
+                if (!tally[cat]) tally[cat] = {};
+                for (const [field, fv] of Object.entries(val as any)) {
+                  if (typeof fv !== "string") continue;
+                  if (!tally[cat][field]) tally[cat][field] = {};
+                  tally[cat][field][fv] = (tally[cat][field][fv] || 0) + weight;
+                }
+              }
+            }
+            // emotion (top-level string)
+            if (g.emotion && typeof g.emotion === "string") {
+              if (!tally["_emotion"]) tally["_emotion"] = { value: {} };
+              tally["_emotion"]["value"][g.emotion] = (tally["_emotion"]["value"][g.emotion] || 0) + weight;
+            }
+          }
+
+          // Find top value per gene
+          const topGenes: string[] = [];
+          for (const [cat, fields] of Object.entries(tally)) {
+            for (const [field, counts] of Object.entries(fields)) {
+              // Store weights for mutation bias
+              if (!preferenceWeights[cat]) preferenceWeights[cat] = {};
+              const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+              if (sorted.length > 0 && sorted[0][1] >= 3) {
+                const label = cat === "_emotion" ? "emotion" : `${cat}.${field}`;
+                topGenes.push(`${label}=${sorted[0][0]}`);
+                preferenceWeights[cat][field] = sorted[0][1];
+                // Store preferred value for mutation bias
+                preferenceWeights[cat][`_preferred_${field}`] = sorted[0][0] as any;
+              }
+            }
+          }
+
+          if (topGenes.length > 0) {
+            preferenceContext = `\n\nUSER STYLE PREFERENCES (from ${pastDesigns.length} past designs, weighted by upvotes — bias toward these when appropriate but don't force them):\n${topGenes.join(", ")}`;
+            console.log("RAG preference context:", preferenceContext);
+          }
+        }
+      } catch (e) {
+        console.log("RAG preference retrieval failed, proceeding without:", e);
+      }
+
       // Build trend context
       let trendContext = "";
       if (trend && trend !== "none") {
