@@ -374,6 +374,7 @@ const DesignStudio = () => {
         setCurrentPrompt(data.design_prompt || trimmed);
         setCurrentGenome(data.genome || null);
         setGenomeScores(data.genome_scores || null);
+        setWasRefined(data.refined === true);
         setShowScores(false);
       }
 
