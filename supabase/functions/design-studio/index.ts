@@ -870,7 +870,7 @@ RULES:
 
         // --- DESIGN STABILITY GATE ---
         // If overall score < 55, trigger one refinement pass
-        let refined = false;
+        let stabilityRefined = false;
         if (scores.overall < 55) {
           console.log(`Stability Gate triggered: overall=${scores.overall}, attempting refinement...`);
           // Find weakest dimension
