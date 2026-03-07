@@ -930,7 +930,8 @@ Improve the genome specifically to raise the "${weakest.replace(/_/g, " ")}" sco
                 refinedGenome.typography.font_personality = genomeData.typography.font_personality;
                 // Merge
                 Object.assign(genomeData, refinedGenome);
-                refined = true;
+                genomeData._refined = true;
+                stabilityRefined = true;
                 console.log("Stability Gate: genome refined successfully");
               }
             }
