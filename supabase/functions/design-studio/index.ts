@@ -614,16 +614,24 @@ Output a complete genome that precisely captures the visual strategy for this sp
             const emotionOptions = ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"];
 
             let mutationCount = 0;
+            // Helper: pick a mutation value, biased by preference weights if available
+            const pickMutationValue = (category: string, field: string, options: string[], current: string): string => {
+              const prefKey = `_preferred_${field}`;
+              const preferred = preferenceWeights[category]?.[prefKey] as unknown as string;
+              if (preferred && preferred !== current && options.includes(preferred)) {
+                // 60% chance to pick the preferred value, 40% random
+                if (Math.random() < 0.6) return preferred;
+              }
+              const alternatives = options.filter((o: string) => o !== current);
+              return alternatives.length > 0 ? alternatives[Math.floor(Math.random() * alternatives.length)] : current;
+            };
+
             // Mutate free genes
             for (const [category, fields] of Object.entries(freeGeneOptions)) {
               for (const [field, options] of Object.entries(fields)) {
                 if (Math.random() < MUTATION_RATE) {
-                  const current = genomeData[category]?.[field];
-                  const alternatives = options.filter((o: string) => o !== current);
-                  if (alternatives.length > 0) {
-                    genomeData[category][field] = alternatives[Math.floor(Math.random() * alternatives.length)];
-                    mutationCount++;
-                  }
+                  genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+                  mutationCount++;
                 }
               }
             }
@@ -631,25 +639,26 @@ Output a complete genome that precisely captures the visual strategy for this sp
             for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
               for (const [field, options] of Object.entries(fields)) {
                 if (Math.random() < MUTATION_RATE / 2) {
-                  const current = genomeData[category]?.[field];
-                  const alternatives = options.filter((o: string) => o !== current);
-                  if (alternatives.length > 0) {
-                    genomeData[category][field] = alternatives[Math.floor(Math.random() * alternatives.length)];
-                    mutationCount++;
-                  }
+                  genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+                  mutationCount++;
                 }
               }
             }
-            // Mutate emotion at half rate (semi-flexible)
+            // Mutate emotion at half rate (semi-flexible), preference-biased
             if (Math.random() < MUTATION_RATE / 2) {
               const currentEmotion = genomeData.emotion;
-              const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
-              genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+              const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
+              if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
+                genomeData.emotion = prefEmotion;
+              } else {
+                const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
+                genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+              }
               mutationCount++;
             }
 
             if (mutationCount > 0) {
-              console.log(`Genome Mutation: ${mutationCount} gene(s) mutated`);
+              console.log(`Genome Mutation: ${mutationCount} gene(s) mutated (preference-biased)`);
               console.log("Post-mutation genome:", JSON.stringify(genomeData));
             }
           }
