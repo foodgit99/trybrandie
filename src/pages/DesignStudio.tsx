@@ -84,6 +84,7 @@ const DesignStudio = () => {
   const [saved, setSaved] = useState(false);
   const [currentGenome, setCurrentGenome] = useState<any>(null);
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
+  const [wasRefined, setWasRefined] = useState(false);
   const [showScores, setShowScores] = useState(false);
   const [canvasSize, setCanvasSize] = useState("1080x1080");
   const [showLimitModal, setShowLimitModal] = useState(false);
