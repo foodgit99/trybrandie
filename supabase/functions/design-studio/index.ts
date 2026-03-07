@@ -449,6 +449,7 @@ GENE LOCKING RULES:
 - FREE: Layout, composition, texture, illustration, image style — fully controlled by prompt/trend/context.
 
 ${trend && trend !== "none" ? `TREND BLENDING: At intensity ${trend_intensity ?? 40}/100, blend the "${trend}" trend aesthetic into free genes. Higher intensity = more trend influence on free genes.` : ""}
+${preferenceContext}
 
 Output a complete genome that precisely captures the visual strategy for this specific design.`;
 
