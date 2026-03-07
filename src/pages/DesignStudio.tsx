@@ -84,6 +84,7 @@ const DesignStudio = () => {
   const [saved, setSaved] = useState(false);
   const [currentGenome, setCurrentGenome] = useState<any>(null);
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
+  const [wasRefined, setWasRefined] = useState(false);
   const [showScores, setShowScores] = useState(false);
   const [canvasSize, setCanvasSize] = useState("1080x1080");
   const [showLimitModal, setShowLimitModal] = useState(false);
@@ -373,6 +374,7 @@ const DesignStudio = () => {
         setCurrentPrompt(data.design_prompt || trimmed);
         setCurrentGenome(data.genome || null);
         setGenomeScores(data.genome_scores || null);
+        setWasRefined(data.refined === true);
         setShowScores(false);
       }
 
@@ -761,6 +763,20 @@ const DesignStudio = () => {
                         >
                           <BarChart3 className="h-3 w-3" />
                           <span>Design Score: {genomeScores.overall}/100</span>
+                          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            genomeScores.overall >= 75
+                              ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                              : genomeScores.overall >= 55
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              : "bg-red-500/15 text-red-600 dark:text-red-400"
+                          }`}>
+                            {genomeScores.overall >= 75 ? "Strong" : genomeScores.overall >= 55 ? "Good" : "Weak"}
+                          </span>
+                          {wasRefined && (
+                            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary">
+                              Refined
+                            </span>
+                          )}
                           <ChevronDown className={`h-3 w-3 transition-transform ${showScores ? "rotate-180" : ""}`} />
                         </button>
                         <AnimatePresence>

@@ -1,81 +1,101 @@
 
 
-## Plan: Activate Design Genome System, Genome Mutation, Genome Scoring, and RAG Personalisation Engine
+## Visual Style Genome System (VSGS) — Implementation Plan
 
-### Current State
+The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
 
-The **Genome Composer**, **Mutation Engine**, and **Scoring Engine** are already fully implemented in the edge function but their outputs are only partially used:
-- Genome is stored on saved designs (`genome` JSONB column) — good
-- Genome scores are displayed in the UI — good
-- Votes are saved on designs — good
-- **However**: none of this historical data feeds back into future generations. The pipeline generates every design from scratch with no memory of what the user liked.
-
-### What We Will Build
-
-#### 1. RAG Personalisation Engine (Edge Function)
-
-Before invoking the Genome Composer, query the user's **top-rated past designs** (upvoted or most recent with genomes) and inject their genome patterns as "preference signals" into the Genome Composer prompt.
-
-**In `design-studio/index.ts`:**
-- After fetching audience context (~line 77), add a new block: query `designs` table for user's designs ordered by `vote DESC, created_at DESC`, limit 5, where `genome IS NOT NULL`
-- Extract common patterns: most frequent emotion, dominant layout preferences, preferred texture types, etc.
-- Build a `preferenceContext` string summarising the user's style DNA
-- Inject this into the Genome Composer system prompt so it biases toward proven preferences while the Mutation Engine still introduces variety
-
-#### 2. Design Stability Score — Pre-Render Quality Gate
-
-After the Genome Scoring Engine runs (~line 794), add a quality gate:
-- If `genomeScores.overall < 55`, trigger a **refinement pass** — re-invoke the Genome Composer with the low-scoring genome and explicit instructions to improve the weakest dimension
-- Cap at 1 retry to avoid cost explosion
-- Log when refinement triggers
-
-#### 3. Smarter Genome Mutation Engine
-
-The mutation engine already works but is fully random. Enhance it:
-- Use RAG preference data to **bias mutations toward previously upvoted gene values** rather than pure random selection
-- If the user has upvoted 3+ designs with `emotion: "energetic"`, mutations on the emotion gene should favour that value
-- Keep the 15% / 7.5% rates unchanged
-
-#### 4. Frontend — Show Design Stability Badge
-
-In `DesignStudio.tsx`, when `genome_scores` are returned:
-- Show a small coloured badge next to the score button: green (75+), amber (55-74), red (<55)
-- If a refinement pass occurred, show "Refined" label
-
-### Technical Details
-
-**Edge function changes** (`supabase/functions/design-studio/index.ts`):
-- ~30 lines for RAG preference retrieval
-- ~15 lines for stability gate logic
-- ~10 lines to pass preference weights into mutation engine
-- Return `refined: true` in response if refinement triggered
-
-**Frontend changes** (`src/pages/DesignStudio.tsx`):
-- ~10 lines for stability badge rendering
-
-**No database changes required** — all data already exists in the `designs` table with `genome`, `vote`, and `user_id` columns.
-
-### Flow Summary
+### Architecture Overview
 
 ```text
 User Prompt
   ↓
-Context Assembly (Brand + Audience + Trend)
+Brief Agent (existing)
   ↓
-[NEW] RAG: Query top-rated past genomes → build preference signals
+Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
+  ↓ outputs structured genome JSON
+Copywriter Agent (existing, receives genome context)
   ↓
-Genome Composer (now receives preference signals)
+Image Renderer (existing, receives genome as structured styling instructions)
   ↓
-Genome Mutation (now biased by preferences, not pure random)
-  ↓
-Genome Scoring
-  ↓
-[NEW] Stability Gate: if score < 55 → refine genome → re-score
-  ↓
-Copywriter Agent
-  ↓
-Image Renderer
-  ↓
-Output + Scores + Stability Badge
+Design Output + Genome stored alongside design
 ```
+
+### What Gets Built
+
+**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+
+Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+
+**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+
+Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
+
+Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
+
+**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
+
+Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
+- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
+- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
+- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
+- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
+- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
+
+This replaces the current loose `trendContext` string with structured, precise gene instructions.
+
+**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
+
+Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
+
+```
+VISUAL STYLE GENOME:
+- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
+- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
+- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
+- Composition: Diagonal direction, single focal point, medium layering
+- Texture: Paper grain, medium intensity, no distortion
+- Image Style: Natural lighting, vibrant grading, wide framing
+- Emotion: Energetic
+```
+
+**5. Store Genome with Design** (database migration)
+
+Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
+- Learning from upvoted/downvoted genomes over time
+- Reproducing exact styles
+- Future genome analytics
+
+```sql
+ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
+```
+
+**6. Brand Consistency Layer** (inside Genome Composer logic)
+
+Before finalizing the genome, enforce brand locks:
+- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
+- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
+- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
+
+### What Does NOT Change
+
+- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
+- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
+- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
+- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
+
+### File Changes Summary
+
+| File | Action |
+|---|---|
+| `src/lib/genomeTypes.ts` | Create — genome interfaces |
+| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
+| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
+| Database migration | Add `genome` JSONB column to `designs` table |
+
+### Risk Mitigation
+
+- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
+- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
+- Gene locking prevents brand drift even with high trend intensity or mutation
+- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
 

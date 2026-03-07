@@ -76,6 +76,71 @@ CONVERSION RULES:
         }
       }
 
+      // --- RAG PERSONALISATION ENGINE ---
+      // Query user's top-rated past designs with genomes to build preference signals
+      let preferenceContext = "";
+      let preferenceWeights: Record<string, Record<string, number>> = {};
+      try {
+        const { data: pastDesigns } = await adminClient
+          .from("designs")
+          .select("genome, vote")
+          .eq("user_id", user.id)
+          .not("genome", "is", null)
+          .order("vote", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(8);
+
+        if (pastDesigns && pastDesigns.length >= 2) {
+          // Tally gene values weighted by vote: upvoted=3, neutral=1, downvoted=0
+          const tally: Record<string, Record<string, Record<string, number>>> = {};
+          for (const d of pastDesigns) {
+            const g = d.genome as any;
+            if (!g) continue;
+            const weight = d.vote === 1 ? 3 : d.vote === -1 ? 0 : 1;
+            for (const [cat, val] of Object.entries(g)) {
+              if (cat === "_scores" || cat === "emotion") continue;
+              if (typeof val === "object" && val !== null) {
+                if (!tally[cat]) tally[cat] = {};
+                for (const [field, fv] of Object.entries(val as any)) {
+                  if (typeof fv !== "string") continue;
+                  if (!tally[cat][field]) tally[cat][field] = {};
+                  tally[cat][field][fv] = (tally[cat][field][fv] || 0) + weight;
+                }
+              }
+            }
+            // emotion (top-level string)
+            if (g.emotion && typeof g.emotion === "string") {
+              if (!tally["_emotion"]) tally["_emotion"] = { value: {} };
+              tally["_emotion"]["value"][g.emotion] = (tally["_emotion"]["value"][g.emotion] || 0) + weight;
+            }
+          }
+
+          // Find top value per gene
+          const topGenes: string[] = [];
+          for (const [cat, fields] of Object.entries(tally)) {
+            for (const [field, counts] of Object.entries(fields)) {
+              // Store weights for mutation bias
+              if (!preferenceWeights[cat]) preferenceWeights[cat] = {};
+              const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+              if (sorted.length > 0 && sorted[0][1] >= 3) {
+                const label = cat === "_emotion" ? "emotion" : `${cat}.${field}`;
+                topGenes.push(`${label}=${sorted[0][0]}`);
+                preferenceWeights[cat][field] = sorted[0][1];
+                // Store preferred value for mutation bias
+                preferenceWeights[cat][`_preferred_${field}`] = sorted[0][0] as any;
+              }
+            }
+          }
+
+          if (topGenes.length > 0) {
+            preferenceContext = `\n\nUSER STYLE PREFERENCES (from ${pastDesigns.length} past designs, weighted by upvotes — bias toward these when appropriate but don't force them):\n${topGenes.join(", ")}`;
+            console.log("RAG preference context:", preferenceContext);
+          }
+        }
+      } catch (e) {
+        console.log("RAG preference retrieval failed, proceeding without:", e);
+      }
+
       // Build trend context
       let trendContext = "";
       if (trend && trend !== "none") {
@@ -384,6 +449,7 @@ GENE LOCKING RULES:
 - FREE: Layout, composition, texture, illustration, image style — fully controlled by prompt/trend/context.
 
 ${trend && trend !== "none" ? `TREND BLENDING: At intensity ${trend_intensity ?? 40}/100, blend the "${trend}" trend aesthetic into free genes. Higher intensity = more trend influence on free genes.` : ""}
+${preferenceContext}
 
 Output a complete genome that precisely captures the visual strategy for this specific design.`;
 
@@ -548,16 +614,24 @@ Output a complete genome that precisely captures the visual strategy for this sp
             const emotionOptions = ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"];
 
             let mutationCount = 0;
+            // Helper: pick a mutation value, biased by preference weights if available
+            const pickMutationValue = (category: string, field: string, options: string[], current: string): string => {
+              const prefKey = `_preferred_${field}`;
+              const preferred = preferenceWeights[category]?.[prefKey] as unknown as string;
+              if (preferred && preferred !== current && options.includes(preferred)) {
+                // 60% chance to pick the preferred value, 40% random
+                if (Math.random() < 0.6) return preferred;
+              }
+              const alternatives = options.filter((o: string) => o !== current);
+              return alternatives.length > 0 ? alternatives[Math.floor(Math.random() * alternatives.length)] : current;
+            };
+
             // Mutate free genes
             for (const [category, fields] of Object.entries(freeGeneOptions)) {
               for (const [field, options] of Object.entries(fields)) {
                 if (Math.random() < MUTATION_RATE) {
-                  const current = genomeData[category]?.[field];
-                  const alternatives = options.filter((o: string) => o !== current);
-                  if (alternatives.length > 0) {
-                    genomeData[category][field] = alternatives[Math.floor(Math.random() * alternatives.length)];
-                    mutationCount++;
-                  }
+                  genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+                  mutationCount++;
                 }
               }
             }
@@ -565,25 +639,26 @@ Output a complete genome that precisely captures the visual strategy for this sp
             for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
               for (const [field, options] of Object.entries(fields)) {
                 if (Math.random() < MUTATION_RATE / 2) {
-                  const current = genomeData[category]?.[field];
-                  const alternatives = options.filter((o: string) => o !== current);
-                  if (alternatives.length > 0) {
-                    genomeData[category][field] = alternatives[Math.floor(Math.random() * alternatives.length)];
-                    mutationCount++;
-                  }
+                  genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+                  mutationCount++;
                 }
               }
             }
-            // Mutate emotion at half rate (semi-flexible)
+            // Mutate emotion at half rate (semi-flexible), preference-biased
             if (Math.random() < MUTATION_RATE / 2) {
               const currentEmotion = genomeData.emotion;
-              const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
-              genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+              const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
+              if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
+                genomeData.emotion = prefEmotion;
+              } else {
+                const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
+                genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+              }
               mutationCount++;
             }
 
             if (mutationCount > 0) {
-              console.log(`Genome Mutation: ${mutationCount} gene(s) mutated`);
+              console.log(`Genome Mutation: ${mutationCount} gene(s) mutated (preference-biased)`);
               console.log("Post-mutation genome:", JSON.stringify(genomeData));
             }
           }
@@ -792,6 +867,78 @@ RULES:
         genomeScores = scores;
         console.log("Genome Scores:", JSON.stringify(genomeScores));
         genomeData._scores = genomeScores;
+
+        // --- DESIGN STABILITY GATE ---
+        // If overall score < 55, trigger one refinement pass
+        let stabilityRefined = false;
+        if (scores.overall < 55) {
+          console.log(`Stability Gate triggered: overall=${scores.overall}, attempting refinement...`);
+          // Find weakest dimension
+          const dimensions = ["brand_alignment", "trend_balance", "visual_clarity", "conversion", "visual_balance"];
+          const weakest = dimensions.reduce((a, b) => (scores[a] < scores[b] ? a : b));
+          try {
+            const refinementPrompt = `The generated Visual Style Genome scored poorly (overall: ${scores.overall}/100). The weakest dimension is "${weakest.replace(/_/g, " ")}" at ${scores[weakest]}/100.
+
+Current genome: ${JSON.stringify(genomeData)}
+
+Improve the genome specifically to raise the "${weakest.replace(/_/g, " ")}" score. Keep locked genes intact. Output an improved genome.`;
+
+            const refineResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  { role: "system", content: refinementPrompt },
+                  { role: "user", content: "Refine the genome to improve quality." },
+                ],
+                tools: [{
+                  type: "function",
+                  function: {
+                    name: "set_genome",
+                    description: "Set the refined Visual Style Genome",
+                    parameters: {
+                      type: "object",
+                      properties: {
+                        color: { type: "object", properties: { palette_type: { type: "string" }, temperature: { type: "string" }, contrast: { type: "string" }, saturation: { type: "string" }, gradient_logic: { type: "string" } }, required: ["palette_type","temperature","contrast","saturation","gradient_logic"] },
+                        typography: { type: "object", properties: { font_personality: { type: "string" }, weight_system: { type: "string" }, hierarchy_logic: { type: "string" }, typography_layout: { type: "string" }, text_effect: { type: "string" } }, required: ["font_personality","weight_system","hierarchy_logic","typography_layout","text_effect"] },
+                        layout: { type: "object", properties: { grid_type: { type: "string" }, balance: { type: "string" }, spacing_density: { type: "string" }, content_ratio: { type: "string" } }, required: ["grid_type","balance","spacing_density","content_ratio"] },
+                        composition: { type: "object", properties: { visual_direction: { type: "string" }, focal_strategy: { type: "string" }, layering_depth: { type: "string" } }, required: ["visual_direction","focal_strategy","layering_depth"] },
+                        texture: { type: "object", properties: { texture_type: { type: "string" }, intensity: { type: "string" }, distortion: { type: "string" } }, required: ["texture_type","intensity","distortion"] },
+                        illustration: { type: "object", properties: { style: { type: "string" }, detail_level: { type: "string" }, line_weight: { type: "string" } }, required: ["style","detail_level","line_weight"] },
+                        image_style: { type: "object", properties: { lighting: { type: "string" }, color_grading: { type: "string" }, framing: { type: "string" } }, required: ["lighting","color_grading","framing"] },
+                        emotion: { type: "string" },
+                      },
+                      required: ["color","typography","layout","composition","texture","illustration","image_style","emotion"],
+                    },
+                  },
+                }],
+                tool_choice: { type: "function", function: { name: "set_genome" } },
+              }),
+            });
+
+            if (refineResponse.ok) {
+              const refData = await refineResponse.json();
+              const refTool = refData.choices?.[0]?.message?.tool_calls?.[0];
+              if (refTool?.function?.arguments) {
+                const refinedGenome = JSON.parse(refTool.function.arguments);
+                // Preserve locked genes from original
+                refinedGenome.color.palette_type = genomeData.color.palette_type;
+                refinedGenome.typography.font_personality = genomeData.typography.font_personality;
+                // Merge
+                Object.assign(genomeData, refinedGenome);
+                genomeData._refined = true;
+                stabilityRefined = true;
+                console.log("Stability Gate: genome refined successfully");
+              }
+            }
+          } catch (refErr) {
+            console.error("Stability Gate refinement failed:", refErr);
+          }
+        }
       }
 
       // Build the exact copy injection for the image prompt
@@ -902,6 +1049,9 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
 
+      // Check if refined was set (variable is in genome scoring scope, re-check)
+      const wasRefined = genomeData?._refined === true;
+
       return new Response(
         JSON.stringify({
           image_url: urlData.publicUrl,
@@ -911,6 +1061,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(copyStructure ? { copy_structure: copyStructure } : {}),
           ...(genomeData ? { genome: genomeData } : {}),
           ...(genomeScores ? { genome_scores: genomeScores } : {}),
+          refined: wasRefined,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
