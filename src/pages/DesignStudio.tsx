@@ -676,9 +676,6 @@ const DesignStudio = () => {
               HD
             </button>
           </div>
-          {renderQuality === "hd" && (
-            <span className="text-[10px] text-muted-foreground">2 credits</span>
-          )}
           {/* Audience selector removed from header — now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}
