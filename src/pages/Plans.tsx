@@ -15,8 +15,6 @@ const tiers = [
     period: "",
     credits: "10 generations/mo",
     plan_key: "free",
-    cta: "Current Plan",
-    disabled: true,
     features: [
       "1 brand",
       "Watermarked exports",
@@ -30,8 +28,6 @@ const tiers = [
     period: "/mo",
     credits: "50 credits/mo",
     plan_key: "entrepreneur",
-    cta: "Upgrade",
-    disabled: false,
     features: [
       "1 brand",
       "No watermark",
@@ -46,8 +42,6 @@ const tiers = [
     period: "/mo",
     credits: "150 credits/mo",
     plan_key: "creator",
-    cta: "Upgrade",
-    disabled: false,
     highlight: true,
     features: [
       "Multiple brands",
@@ -63,8 +57,6 @@ const tiers = [
     period: "/mo",
     credits: "400 credits/mo",
     plan_key: "agency",
-    cta: "Upgrade",
-    disabled: false,
     features: [
       "Unlimited brands",
       "Team access (5+ seats)",
@@ -80,6 +72,19 @@ const Plans = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [currentTier, setCurrentTier] = useState<string>("free");
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("subscription_tier")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.subscription_tier) setCurrentTier(data.subscription_tier);
+      });
+  }, [user]);
 
   const handleUpgrade = async (planKey: string) => {
     if (!user?.email) {
@@ -127,51 +132,63 @@ const Plans = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {tiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`rounded-2xl border p-6 flex flex-col justify-between transition-shadow ${
-                  tier.highlight
-                    ? "border-primary shadow-lg ring-1 ring-primary/20"
-                    : "border-border"
-                }`}
-              >
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{tier.name}</p>
-                    <p className="text-3xl font-serif tracking-tight mt-1">
-                      {tier.price}
-                      <span className="text-base font-sans text-muted-foreground">{tier.period}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">{tier.credits}</p>
+            {tiers.map((tier) => {
+              const isActive = currentTier === tier.plan_key;
+              return (
+                <div
+                  key={tier.name}
+                  className={`rounded-2xl border p-6 flex flex-col justify-between transition-shadow ${
+                    isActive
+                      ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+                      : tier.highlight
+                      ? "border-primary shadow-lg ring-1 ring-primary/20"
+                      : "border-border"
+                  }`}
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-muted-foreground">{tier.name}</p>
+                        {isActive && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-3xl font-serif tracking-tight mt-1">
+                        {tier.price}
+                        <span className="text-base font-sans text-muted-foreground">{tier.period}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{tier.credits}</p>
+                    </div>
+
+                    <ul className="space-y-2">
+                      {tier.features.map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-sm">
+                          <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
 
-                  <ul className="space-y-2">
-                    {tier.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <Button
+                    className="mt-6 w-full rounded-xl"
+                    variant={isActive ? "secondary" : tier.highlight ? "default" : "outline"}
+                    disabled={isActive || loadingPlan === tier.plan_key}
+                    onClick={() => handleUpgrade(tier.plan_key)}
+                  >
+                    {loadingPlan === tier.plan_key ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isActive ? (
+                      "Current Plan"
+                    ) : (
+                      "Upgrade"
+                    )}
+                  </Button>
                 </div>
-
-                <Button
-                  className="mt-6 w-full rounded-xl"
-                  variant={currentTier === tier.plan_key ? "secondary" : tier.highlight ? "default" : "outline"}
-                  disabled={currentTier === tier.plan_key || loadingPlan === tier.plan_key}
-                  onClick={() => handleUpgrade(tier.plan_key)}
-                >
-                  {loadingPlan === tier.plan_key ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : currentTier === tier.plan_key ? (
-                    "Current Plan"
-                  ) : (
-                    "Upgrade"
-                  )}
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       </main>
