@@ -208,6 +208,27 @@ const Settings = () => {
                     {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl text-xs gap-1.5"
+                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent("Hey! I've been using Brandie to create AI-powered branded graphics. Sign up with my link and we both get 5 bonus credits: " + referralLink)}`, "_blank")}
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl text-xs gap-1.5"
+                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("I've been using Brandie to create stunning branded graphics with AI — try it out and we both get 5 bonus credits! " + referralLink)}`, "_blank")}
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    X / Twitter
+                  </Button>
+                </div>
               )}
 
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
