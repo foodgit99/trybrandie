@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { motion } from "framer-motion";
-import { Check, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -71,8 +71,44 @@ const Plans = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [currentTier, setCurrentTier] = useState<string>("free");
+  const [paymentSuccess, setPaymentSuccess] = useState<{
+    plan: string;
+    amount: number;
+    currency: string;
+  } | null>(null);
+  const [verifying, setVerifying] = useState(false);
+
+  // Verify Paystack callback
+  useEffect(() => {
+    const reference = searchParams.get("reference") || searchParams.get("trxref");
+    if (!reference || !user) return;
+
+    setVerifying(true);
+    supabase.functions
+      .invoke("paystack-verify", { body: { reference } })
+      .then(({ data, error }) => {
+        if (error || !data?.verified) {
+          toast({
+            title: "Payment verification failed",
+            description: "Please contact support if you were charged.",
+            variant: "destructive",
+          });
+        } else {
+          setPaymentSuccess({
+            plan: data.plan,
+            amount: data.amount,
+            currency: data.currency,
+          });
+          setCurrentTier(data.plan);
+        }
+        // Clean URL params
+        setSearchParams({}, { replace: true });
+      })
+      .finally(() => setVerifying(false));
+  }, [searchParams, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -120,77 +156,124 @@ const Plans = () => {
       <AppHeader />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="space-y-10"
-        >
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Choose your plan</h2>
-            <p className="text-muted-foreground">Scale your brand as you grow.</p>
-          </div>
+        <AnimatePresence mode="wait">
+          {verifying ? (
+            <motion.div
+              key="verifying"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-24 gap-4"
+            >
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Verifying your payment…</p>
+            </motion.div>
+          ) : paymentSuccess ? (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex flex-col items-center justify-center py-16 gap-6 text-center"
+            >
+              <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                <CheckCircle2 className="h-10 w-10 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">
+                  Welcome to {tiers.find((t) => t.plan_key === paymentSuccess.plan)?.name || paymentSuccess.plan}!
+                </h2>
+                <p className="text-muted-foreground">
+                  Payment of {paymentSuccess.currency} {paymentSuccess.amount.toLocaleString()} confirmed.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Your plan has been upgraded. Enjoy your new credits and features.
+                </p>
+              </div>
+              <Button
+                className="rounded-xl gap-2 mt-4"
+                onClick={() => navigate("/dashboard")}
+              >
+                Go to Dashboard
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="plans"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-10"
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Choose your plan</h2>
+                <p className="text-muted-foreground">Scale your brand as you grow.</p>
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {tiers.map((tier) => {
-              const isActive = currentTier === tier.plan_key;
-              return (
-                <div
-                  key={tier.name}
-                  className={`rounded-2xl border p-6 flex flex-col justify-between transition-shadow ${
-                    isActive
-                      ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                      : tier.highlight
-                      ? "border-primary shadow-lg ring-1 ring-primary/20"
-                      : "border-border"
-                  }`}
-                >
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-muted-foreground">{tier.name}</p>
-                        {isActive && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                            Active
-                          </span>
-                        )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {tiers.map((tier) => {
+                  const isActive = currentTier === tier.plan_key;
+                  return (
+                    <div
+                      key={tier.name}
+                      className={`rounded-2xl border p-6 flex flex-col justify-between transition-shadow ${
+                        isActive
+                          ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+                          : tier.highlight
+                          ? "border-primary shadow-lg ring-1 ring-primary/20"
+                          : "border-border"
+                      }`}
+                    >
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-muted-foreground">{tier.name}</p>
+                            {isActive && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-3xl font-serif tracking-tight mt-1">
+                            {tier.price}
+                            <span className="text-base font-sans text-muted-foreground">{tier.period}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">{tier.credits}</p>
+                        </div>
+
+                        <ul className="space-y-2">
+                          {tier.features.map((f) => (
+                            <li key={f} className="flex items-start gap-2 text-sm">
+                              <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <p className="text-3xl font-serif tracking-tight mt-1">
-                        {tier.price}
-                        <span className="text-base font-sans text-muted-foreground">{tier.period}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">{tier.credits}</p>
+
+                      <Button
+                        className="mt-6 w-full rounded-xl"
+                        variant={isActive ? "secondary" : tier.highlight ? "default" : "outline"}
+                        disabled={isActive || loadingPlan === tier.plan_key}
+                        onClick={() => handleUpgrade(tier.plan_key)}
+                      >
+                        {loadingPlan === tier.plan_key ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : isActive ? (
+                          "Current Plan"
+                        ) : (
+                          "Upgrade"
+                        )}
+                      </Button>
                     </div>
-
-                    <ul className="space-y-2">
-                      {tier.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-sm">
-                          <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <Button
-                    className="mt-6 w-full rounded-xl"
-                    variant={isActive ? "secondary" : tier.highlight ? "default" : "outline"}
-                    disabled={isActive || loadingPlan === tier.plan_key}
-                    onClick={() => handleUpgrade(tier.plan_key)}
-                  >
-                    {loadingPlan === tier.plan_key ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : isActive ? (
-                      "Current Plan"
-                    ) : (
-                      "Upgrade"
-                    )}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
