@@ -86,14 +86,25 @@ const Index = () => {
           </section>
 
           {/* Referral Banner */}
-          {profile?.referral_code && (
+          {profile?.referral_code && !bannerDismissed && (
             <motion.section
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
               className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:p-6"
             >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <button
+                onClick={() => {
+                  setBannerDismissed(true);
+                  sessionStorage.setItem("referral-banner-dismissed", "true");
+                }}
+                className="absolute top-3 right-3 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pr-6">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <Gift className="h-5 w-5 text-primary" />
                 </div>
