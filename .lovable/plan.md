@@ -1,101 +1,85 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+## Plan: Referral Loyalty Program (Earn 5 Credits per Signup)
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+### How It Works
 
-### Architecture Overview
+1. Each user gets a unique referral code (stored in `profiles`)
+2. Users share a referral link: `trybrandie.lovable.app/auth?ref=CODE`
+3. When a new user signs up via that link, the referral code is stored on the new user's profile
+4. A backend function validates the referral and awards 5 bonus credits to the referrer
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+### Database Changes
 
-### What Gets Built
-
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
-
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
-
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
-
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
-
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
-
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
-
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
-
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
-
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
-
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
-
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
-
-**5. Store Genome with Design** (database migration)
-
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
-
+**Migration 1 — Add referral columns to `profiles`:**
 ```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
+ALTER TABLE public.profiles
+  ADD COLUMN referral_code text UNIQUE DEFAULT substr(gen_random_uuid()::text, 1, 8),
+  ADD COLUMN referred_by text;
 ```
 
-**6. Brand Consistency Layer** (inside Genome Composer logic)
+**Migration 2 — Create `referral_rewards` tracking table:**
+```sql
+CREATE TABLE public.referral_rewards (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_user_id uuid NOT NULL,
+  referred_user_id uuid NOT NULL,
+  credits_awarded integer NOT NULL DEFAULT 5,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (referred_user_id)
+);
+ALTER TABLE public.referral_rewards ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view their own rewards"
+  ON public.referral_rewards FOR SELECT TO authenticated
+  USING (auth.uid() = referrer_user_id);
+```
 
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
+**Migration 3 — Database function to process referral:**
+A `SECURITY DEFINER` function that:
+- Looks up `referred_by` on the new user's profile
+- Finds the referrer by `referral_code`
+- Adds 5 to referrer's `generations_count` (as negative, i.e. subtracts 5 from used credits) or adds a `bonus_credits` column
+- Inserts a row into `referral_rewards`
+- Called via a trigger on `profiles` insert, or invoked from the signup flow
 
-### What Does NOT Change
+**Better approach — add `bonus_credits` column to profiles:**
+```sql
+ALTER TABLE public.profiles ADD COLUMN bonus_credits integer NOT NULL DEFAULT 0;
+```
+This keeps earned credits separate from the generation counter. Credit check becomes: `FREE_TIER_LIMIT - generations_count + bonus_credits`.
 
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
+### Frontend Changes
 
-### File Changes Summary
+**1. `src/pages/Auth.tsx`** — Capture `ref` query param on signup:
+- Read `?ref=CODE` from URL
+- Pass it as `user_metadata.referred_by` in `signUp()` options
+- The `handle_new_user` trigger stores it on the profile
 
-| File | Action |
+**2. `src/pages/Settings.tsx`** — Add "Refer a Friend" section:
+- Show the user's unique referral link with a copy button
+- Show count of successful referrals and credits earned (from `referral_rewards`)
+
+**3. `src/components/AppHeader.tsx`** & `src/pages/DesignStudio.tsx`** — Update credit calculation:
+- Change credit remaining formula: `FREE_TIER_LIMIT + bonus_credits - generations_count`
+
+**4. `supabase/functions/handle_new_user` trigger update:**
+- Update `handle_new_user()` to also store `referred_by` from `raw_user_meta_data`
+
+### Edge Function: `process-referral`
+- Called after a new user completes onboarding (or on first login)
+- Validates the referral code, awards 5 `bonus_credits` to referrer
+- Inserts tracking row in `referral_rewards`
+- Prevents double-claiming (unique constraint on `referred_user_id`)
+
+### Summary of Changes
+
+| File / Resource | Change |
 |---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
-
-### Risk Mitigation
-
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+| DB migration | Add `referral_code`, `referred_by`, `bonus_credits` to `profiles`; create `referral_rewards` table; update `handle_new_user` function |
+| `supabase/functions/process-referral/index.ts` | New edge function to validate & award referral credits |
+| `src/pages/Auth.tsx` | Capture `?ref=` param, pass in signup metadata |
+| `src/pages/Settings.tsx` | Add referral link section with copy button + stats |
+| `src/pages/Onboarding.tsx` | Call `process-referral` on onboarding completion |
+| `src/components/AppHeader.tsx` | Update credit formula to include `bonus_credits` |
+| `src/pages/DesignStudio.tsx` | Update credit formula to include `bonus_credits` |
 
