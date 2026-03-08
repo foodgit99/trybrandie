@@ -226,9 +226,11 @@ const DesignStudio = () => {
       if (error || !data) return;
       setCurrentImage(data.image_url);
       setCurrentPrompt(data.prompt);
+      setCurrentCaption((data as any).caption || null);
       setCanvasSize(data.canvas_size || "1080x1080");
       setVote((data.vote as -1 | 0 | 1) || 0);
       setSaved(true);
+      setCurrentDesignId(designId);
 
       // Load full chat history
       const { data: msgData } = await supabase
