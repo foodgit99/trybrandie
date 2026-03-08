@@ -204,6 +204,11 @@ const Onboarding = () => {
         });
       }
 
+      // Process referral if applicable
+      try {
+        await supabase.rpc("process_referral", { p_user_id: user.id });
+      } catch {}
+
       toast({ title: "Your brand system is ready." });
       navigate("/");
     } catch (err: any) {
