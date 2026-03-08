@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
