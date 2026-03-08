@@ -425,246 +425,273 @@ CRITICAL RULES:
         ? briefContent.split("EXPLANATION:")[1].trim()
         : "I've crafted this design with your brand identity in mind.";
 
-      // --- GENOME COMPOSER AGENT ---
-      // Produces a structured Visual Style Genome JSON for precise design control
+      // --- DETERMINISTIC GENOME COMPOSER ---
+      // Uses preset library + trend overrides instead of an LLM call (saves 1 AI call per generation)
       let genomeData: any = null;
       try {
-        const genomeComposerPrompt = `You are a Visual Style Genome Composer for a brand design system. Your job is to produce a structured Visual Style Genome — the design DNA — that will guide image generation.
+        // 1. Pick a base genome preset from brand vibe
+        const vibePresetMap: Record<string, string> = {
+          cinematic: "luxury-editorial",
+          minimal: "minimalist-modern",
+          bold: "bold-startup",
+          playful: "streetwear-alte",
+          luxury: "luxury-editorial",
+          corporate: "corporate-clean",
+          futuristic: "tech-futurism",
+          natural: "organic-natural",
+          retro: "retro-futurism",
+        };
+        const brandVibeLower = (brand?.vibe || "").toLowerCase();
+        const basePresetId = vibePresetMap[brandVibeLower] || "bold-startup";
 
-CONTEXT:
-- Design brief: ${designPrompt}
-- User's request: "${userPrompt}"
-- Brand name: ${brand?.name || "Unknown"}
-- Brand vibe: ${brand?.vibe || "Modern"}
-- Brand tone: ${brand?.tone_of_voice || "Professional"}
-- Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
-- Primary colours: ${(brand?.primary_colors || []).join(", ")}
-- Primary font: ${brand?.typography_primary || "Clean sans-serif"}
-${trend && trend !== "none" ? `- Active trend: ${trend} (intensity: ${trend_intensity ?? 40}/100)` : "- No trend active"}
-${audienceContext ? audienceContext : ""}
-
-GENE LOCKING RULES:
-- LOCKED (never override): Brand primary colours must inform the palette. Brand fonts must inform font personality.
-- SEMI-FLEXIBLE: Typography weight, text effects, emotion — can shift within brand-compatible range.
-- FREE: Layout, composition, texture, illustration, image style — fully controlled by prompt/trend/context.
-
-${trend && trend !== "none" ? `TREND BLENDING: At intensity ${trend_intensity ?? 40}/100, blend the "${trend}" trend aesthetic into free genes. Higher intensity = more trend influence on free genes.` : ""}
-${preferenceContext}
-
-Output a complete genome that precisely captures the visual strategy for this specific design.`;
-
-        const genomeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
+        // Hardcoded genome presets (duplicated from src/lib/genomePresets.ts for edge function context)
+        const GENOME_PRESETS: Record<string, any> = {
+          "minimalist-modern": {
+            color: { palette_type: "monochrome", temperature: "neutral", contrast: "medium", saturation: "muted", gradient_logic: "flat" },
+            typography: { font_personality: "corporate", weight_system: "light", hierarchy_logic: "text_minimal", typography_layout: "centered", text_effect: "none" },
+            layout: { grid_type: "strict_grid", balance: "symmetrical", spacing_density: "minimal", content_ratio: "balanced" },
+            composition: { visual_direction: "vertical", focal_strategy: "single_focal_point", layering_depth: "flat" },
+            texture: { texture_type: "none", intensity: "subtle", distortion: "none" },
+            illustration: { style: "none", detail_level: "minimal", line_weight: "thin" },
+            image_style: { lighting: "natural", color_grading: "monochrome", framing: "wide" },
+            emotion: "calm",
           },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: genomeComposerPrompt },
-              { role: "user", content: "Generate the Visual Style Genome for this design." },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "set_genome",
-                description: "Set the Visual Style Genome for the design",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    color: {
-                      type: "object",
-                      properties: {
-                        palette_type: { type: "string", enum: ["monochrome", "complementary", "analogous", "split_complementary", "triadic"] },
-                        temperature: { type: "string", enum: ["warm", "neutral", "cool"] },
-                        contrast: { type: "string", enum: ["low", "medium", "high", "extreme"] },
-                        saturation: { type: "string", enum: ["muted", "balanced", "vibrant", "neon"] },
-                        gradient_logic: { type: "string", enum: ["flat", "soft_gradient", "metallic_gradient", "multi_spectrum"] },
-                      },
-                      required: ["palette_type", "temperature", "contrast", "saturation", "gradient_logic"],
-                      additionalProperties: false,
-                    },
-                    typography: {
-                      type: "object",
-                      properties: {
-                        font_personality: { type: "string", enum: ["corporate", "friendly", "futuristic", "street", "editorial"] },
-                        weight_system: { type: "string", enum: ["light", "regular", "bold", "ultra_bold"] },
-                        hierarchy_logic: { type: "string", enum: ["strong_headline_dominance", "balanced_hierarchy", "text_minimal"] },
-                        typography_layout: { type: "string", enum: ["centered", "left_editorial", "split_text", "overlay"] },
-                        text_effect: { type: "string", enum: ["none", "outline", "drop_shadow", "gradient", "glitch", "neon"] },
-                      },
-                      required: ["font_personality", "weight_system", "hierarchy_logic", "typography_layout", "text_effect"],
-                      additionalProperties: false,
-                    },
-                    layout: {
-                      type: "object",
-                      properties: {
-                        grid_type: { type: "string", enum: ["strict_grid", "modular_grid", "broken_grid", "freeform"] },
-                        balance: { type: "string", enum: ["symmetrical", "asymmetrical", "dynamic"] },
-                        spacing_density: { type: "string", enum: ["minimal", "balanced", "dense"] },
-                        content_ratio: { type: "string", enum: ["image_dominant", "text_dominant", "balanced"] },
-                      },
-                      required: ["grid_type", "balance", "spacing_density", "content_ratio"],
-                      additionalProperties: false,
-                    },
-                    composition: {
-                      type: "object",
-                      properties: {
-                        visual_direction: { type: "string", enum: ["vertical", "horizontal", "diagonal", "radial"] },
-                        focal_strategy: { type: "string", enum: ["single_focal_point", "dual_focal", "distributed"] },
-                        layering_depth: { type: "string", enum: ["flat", "medium", "deep_layered"] },
-                      },
-                      required: ["visual_direction", "focal_strategy", "layering_depth"],
-                      additionalProperties: false,
-                    },
-                    texture: {
-                      type: "object",
-                      properties: {
-                        texture_type: { type: "string", enum: ["none", "grain", "paper", "digital_noise", "plastic", "metallic"] },
-                        intensity: { type: "string", enum: ["subtle", "medium", "heavy"] },
-                        distortion: { type: "string", enum: ["none", "glitch", "warp", "pixel_sort"] },
-                      },
-                      required: ["texture_type", "intensity", "distortion"],
-                      additionalProperties: false,
-                    },
-                    illustration: {
-                      type: "object",
-                      properties: {
-                        style: { type: "string", enum: ["none", "3d", "flat", "hand_drawn", "abstract", "cartoon", "clay"] },
-                        detail_level: { type: "string", enum: ["minimal", "medium", "high"] },
-                        line_weight: { type: "string", enum: ["thin", "medium", "bold"] },
-                      },
-                      required: ["style", "detail_level", "line_weight"],
-                      additionalProperties: false,
-                    },
-                    image_style: {
-                      type: "object",
-                      properties: {
-                        lighting: { type: "string", enum: ["natural", "dramatic", "neon", "soft"] },
-                        color_grading: { type: "string", enum: ["cinematic", "vintage", "vibrant", "monochrome"] },
-                        framing: { type: "string", enum: ["close_crop", "wide", "portrait"] },
-                      },
-                      required: ["lighting", "color_grading", "framing"],
-                      additionalProperties: false,
-                    },
-                    emotion: { type: "string", enum: ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"] },
-                  },
-                  required: ["color", "typography", "layout", "composition", "texture", "illustration", "image_style", "emotion"],
-                  additionalProperties: false,
-                },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "set_genome" } },
-          }),
-        });
+          "luxury-editorial": {
+            color: { palette_type: "complementary", temperature: "warm", contrast: "high", saturation: "balanced", gradient_logic: "metallic_gradient" },
+            typography: { font_personality: "editorial", weight_system: "bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "left_editorial", text_effect: "none" },
+            layout: { grid_type: "modular_grid", balance: "asymmetrical", spacing_density: "balanced", content_ratio: "image_dominant" },
+            composition: { visual_direction: "diagonal", focal_strategy: "dual_focal", layering_depth: "deep_layered" },
+            texture: { texture_type: "paper", intensity: "subtle", distortion: "none" },
+            illustration: { style: "none", detail_level: "high", line_weight: "thin" },
+            image_style: { lighting: "dramatic", color_grading: "cinematic", framing: "portrait" },
+            emotion: "luxurious",
+          },
+          "streetwear-alte": {
+            color: { palette_type: "triadic", temperature: "warm", contrast: "extreme", saturation: "vibrant", gradient_logic: "flat" },
+            typography: { font_personality: "street", weight_system: "ultra_bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "overlay", text_effect: "outline" },
+            layout: { grid_type: "broken_grid", balance: "dynamic", spacing_density: "dense", content_ratio: "text_dominant" },
+            composition: { visual_direction: "diagonal", focal_strategy: "distributed", layering_depth: "deep_layered" },
+            texture: { texture_type: "grain", intensity: "heavy", distortion: "glitch" },
+            illustration: { style: "abstract", detail_level: "medium", line_weight: "bold" },
+            image_style: { lighting: "neon", color_grading: "vibrant", framing: "close_crop" },
+            emotion: "rebellious",
+          },
+          "neo-brutalism": {
+            color: { palette_type: "complementary", temperature: "neutral", contrast: "extreme", saturation: "vibrant", gradient_logic: "flat" },
+            typography: { font_personality: "street", weight_system: "ultra_bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "left_editorial", text_effect: "drop_shadow" },
+            layout: { grid_type: "broken_grid", balance: "asymmetrical", spacing_density: "dense", content_ratio: "text_dominant" },
+            composition: { visual_direction: "horizontal", focal_strategy: "single_focal_point", layering_depth: "medium" },
+            texture: { texture_type: "grain", intensity: "medium", distortion: "none" },
+            illustration: { style: "flat", detail_level: "minimal", line_weight: "bold" },
+            image_style: { lighting: "dramatic", color_grading: "vibrant", framing: "wide" },
+            emotion: "rebellious",
+          },
+          "retro-futurism": {
+            color: { palette_type: "split_complementary", temperature: "cool", contrast: "high", saturation: "neon", gradient_logic: "multi_spectrum" },
+            typography: { font_personality: "futuristic", weight_system: "bold", hierarchy_logic: "balanced_hierarchy", typography_layout: "centered", text_effect: "neon" },
+            layout: { grid_type: "modular_grid", balance: "symmetrical", spacing_density: "balanced", content_ratio: "balanced" },
+            composition: { visual_direction: "radial", focal_strategy: "single_focal_point", layering_depth: "deep_layered" },
+            texture: { texture_type: "metallic", intensity: "medium", distortion: "warp" },
+            illustration: { style: "3d", detail_level: "high", line_weight: "medium" },
+            image_style: { lighting: "neon", color_grading: "cinematic", framing: "wide" },
+            emotion: "futuristic",
+          },
+          "organic-natural": {
+            color: { palette_type: "analogous", temperature: "warm", contrast: "low", saturation: "muted", gradient_logic: "soft_gradient" },
+            typography: { font_personality: "friendly", weight_system: "light", hierarchy_logic: "balanced_hierarchy", typography_layout: "centered", text_effect: "none" },
+            layout: { grid_type: "freeform", balance: "symmetrical", spacing_density: "minimal", content_ratio: "image_dominant" },
+            composition: { visual_direction: "vertical", focal_strategy: "single_focal_point", layering_depth: "medium" },
+            texture: { texture_type: "paper", intensity: "subtle", distortion: "none" },
+            illustration: { style: "hand_drawn", detail_level: "medium", line_weight: "thin" },
+            image_style: { lighting: "natural", color_grading: "vintage", framing: "wide" },
+            emotion: "organic",
+          },
+          "tech-futurism": {
+            color: { palette_type: "monochrome", temperature: "cool", contrast: "high", saturation: "balanced", gradient_logic: "soft_gradient" },
+            typography: { font_personality: "futuristic", weight_system: "regular", hierarchy_logic: "text_minimal", typography_layout: "left_editorial", text_effect: "none" },
+            layout: { grid_type: "strict_grid", balance: "symmetrical", spacing_density: "balanced", content_ratio: "balanced" },
+            composition: { visual_direction: "horizontal", focal_strategy: "distributed", layering_depth: "medium" },
+            texture: { texture_type: "digital_noise", intensity: "subtle", distortion: "none" },
+            illustration: { style: "3d", detail_level: "high", line_weight: "thin" },
+            image_style: { lighting: "dramatic", color_grading: "cinematic", framing: "wide" },
+            emotion: "futuristic",
+          },
+          "bold-startup": {
+            color: { palette_type: "complementary", temperature: "warm", contrast: "high", saturation: "vibrant", gradient_logic: "soft_gradient" },
+            typography: { font_personality: "friendly", weight_system: "bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "centered", text_effect: "none" },
+            layout: { grid_type: "modular_grid", balance: "asymmetrical", spacing_density: "balanced", content_ratio: "balanced" },
+            composition: { visual_direction: "diagonal", focal_strategy: "single_focal_point", layering_depth: "medium" },
+            texture: { texture_type: "none", intensity: "subtle", distortion: "none" },
+            illustration: { style: "flat", detail_level: "medium", line_weight: "medium" },
+            image_style: { lighting: "natural", color_grading: "vibrant", framing: "wide" },
+            emotion: "energetic",
+          },
+          "corporate-clean": {
+            color: { palette_type: "analogous", temperature: "cool", contrast: "medium", saturation: "balanced", gradient_logic: "flat" },
+            typography: { font_personality: "corporate", weight_system: "regular", hierarchy_logic: "balanced_hierarchy", typography_layout: "left_editorial", text_effect: "none" },
+            layout: { grid_type: "strict_grid", balance: "symmetrical", spacing_density: "balanced", content_ratio: "balanced" },
+            composition: { visual_direction: "horizontal", focal_strategy: "dual_focal", layering_depth: "flat" },
+            texture: { texture_type: "none", intensity: "subtle", distortion: "none" },
+            illustration: { style: "none", detail_level: "minimal", line_weight: "thin" },
+            image_style: { lighting: "soft", color_grading: "vibrant", framing: "wide" },
+            emotion: "authoritative",
+          },
+        };
 
-        if (genomeResponse.ok) {
-          const gData = await genomeResponse.json();
-          const toolCall = gData.choices?.[0]?.message?.tool_calls?.[0];
-          if (toolCall?.function?.arguments) {
-            genomeData = JSON.parse(toolCall.function.arguments);
-            console.log("Genome Composer output:", JSON.stringify(genomeData));
+        // 2. Trend-to-genome override mappings
+        const TREND_OVERRIDES: Record<string, any> = {
+          "tactile-rebellion": {
+            color: { saturation: "muted", temperature: "warm" },
+            typography: { font_personality: "editorial", text_effect: "none" },
+            layout: { grid_type: "freeform", balance: "dynamic" },
+            texture: { texture_type: "paper", intensity: "heavy", distortion: "none" },
+            image_style: { color_grading: "vintage" },
+            emotion: "warm",
+          },
+          "hyper-chromatic": {
+            color: { saturation: "neon", contrast: "extreme", gradient_logic: "multi_spectrum" },
+            typography: { weight_system: "ultra_bold", text_effect: "neon" },
+            texture: { texture_type: "digital_noise", intensity: "subtle" },
+            image_style: { lighting: "neon", color_grading: "vibrant" },
+            emotion: "energetic",
+          },
+          "technical-mono": {
+            color: { saturation: "muted", temperature: "cool", contrast: "high" },
+            typography: { font_personality: "futuristic", weight_system: "regular", hierarchy_logic: "text_minimal" },
+            layout: { grid_type: "strict_grid", balance: "symmetrical", spacing_density: "balanced" },
+            texture: { texture_type: "digital_noise", intensity: "subtle" },
+            image_style: { lighting: "dramatic", color_grading: "monochrome" },
+            emotion: "futuristic",
+          },
+          "neo-naturalism": {
+            color: { saturation: "muted", temperature: "warm", contrast: "low", gradient_logic: "soft_gradient" },
+            typography: { font_personality: "friendly", weight_system: "light" },
+            layout: { spacing_density: "minimal" },
+            texture: { texture_type: "paper", intensity: "subtle" },
+            image_style: { lighting: "natural", color_grading: "vintage" },
+            emotion: "calm",
+          },
+          "kinetic-typography": {
+            color: { contrast: "high" },
+            typography: { weight_system: "ultra_bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "overlay" },
+            layout: { grid_type: "broken_grid", balance: "dynamic" },
+            composition: { visual_direction: "diagonal", layering_depth: "deep_layered" },
+            texture: { texture_type: "none", distortion: "warp" },
+            emotion: "energetic",
+          },
+        };
 
-            // --- GENOME MUTATION ENGINE (15%) ---
-            // Randomly mutate FREE genes to keep outputs fresh across consecutive generations
-            // Locked genes (color primary, font personality) are never mutated
-            // Semi-flexible genes (weight, emotion) have reduced mutation chance
-            const MUTATION_RATE = 0.15;
-            const freeGeneOptions: Record<string, Record<string, string[]>> = {
-              layout: {
-                grid_type: ["strict_grid", "modular_grid", "broken_grid", "freeform"],
-                balance: ["symmetrical", "asymmetrical", "dynamic"],
-                spacing_density: ["minimal", "balanced", "dense"],
-                content_ratio: ["image_dominant", "text_dominant", "balanced"],
-              },
-              composition: {
-                visual_direction: ["vertical", "horizontal", "diagonal", "radial"],
-                focal_strategy: ["single_focal_point", "dual_focal", "distributed"],
-                layering_depth: ["flat", "medium", "deep_layered"],
-              },
-              texture: {
-                texture_type: ["none", "grain", "paper", "digital_noise", "plastic", "metallic"],
-                intensity: ["subtle", "medium", "heavy"],
-                distortion: ["none", "glitch", "warp", "pixel_sort"],
-              },
-              illustration: {
-                style: ["none", "3d", "flat", "hand_drawn", "abstract", "cartoon", "clay"],
-                detail_level: ["minimal", "medium", "high"],
-                line_weight: ["thin", "medium", "bold"],
-              },
-              image_style: {
-                lighting: ["natural", "dramatic", "neon", "soft"],
-                color_grading: ["cinematic", "vintage", "vibrant", "monochrome"],
-                framing: ["close_crop", "wide", "portrait"],
-              },
-            };
-            // Semi-flexible genes mutate at half rate
-            const semiFlexGeneOptions: Record<string, Record<string, string[]>> = {
-              typography: {
-                weight_system: ["light", "regular", "bold", "ultra_bold"],
-                text_effect: ["none", "outline", "drop_shadow", "gradient", "glitch", "neon"],
-                typography_layout: ["centered", "left_editorial", "split_text", "overlay"],
-              },
-              color: {
-                temperature: ["warm", "neutral", "cool"],
-                gradient_logic: ["flat", "soft_gradient", "metallic_gradient", "multi_spectrum"],
-              },
-            };
-            const emotionOptions = ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"];
+        // 3. Deep clone the base preset
+        genomeData = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
+        console.log(`Genome Composer (deterministic): base preset="${basePresetId}" for vibe="${brandVibeLower}"`);
 
-            let mutationCount = 0;
-            // Helper: pick a mutation value, biased by preference weights if available
-            const pickMutationValue = (category: string, field: string, options: string[], current: string): string => {
-              const prefKey = `_preferred_${field}`;
-              const preferred = preferenceWeights[category]?.[prefKey] as unknown as string;
-              if (preferred && preferred !== current && options.includes(preferred)) {
-                // 60% chance to pick the preferred value, 40% random
-                if (Math.random() < 0.6) return preferred;
-              }
-              const alternatives = options.filter((o: string) => o !== current);
-              return alternatives.length > 0 ? alternatives[Math.floor(Math.random() * alternatives.length)] : current;
-            };
-
-            // Mutate free genes
-            for (const [category, fields] of Object.entries(freeGeneOptions)) {
-              for (const [field, options] of Object.entries(fields)) {
-                if (Math.random() < MUTATION_RATE) {
-                  genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
-                  mutationCount++;
+        // 4. Apply trend overrides if trend is selected, blended by intensity
+        if (trend && trend !== "none" && TREND_OVERRIDES[trend]) {
+          const overrides = TREND_OVERRIDES[trend];
+          const intensity = (trend_intensity ?? 40) / 100;
+          for (const [category, values] of Object.entries(overrides)) {
+            if (category === "emotion") {
+              // Apply emotion override if intensity > 0.3
+              if (intensity > 0.3) genomeData.emotion = values;
+            } else if (typeof values === "object" && values !== null && genomeData[category]) {
+              for (const [field, val] of Object.entries(values as Record<string, string>)) {
+                // Apply override probabilistically based on intensity
+                if (Math.random() < intensity) {
+                  genomeData[category][field] = val;
                 }
               }
-            }
-            // Mutate semi-flexible genes at half rate
-            for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
-              for (const [field, options] of Object.entries(fields)) {
-                if (Math.random() < MUTATION_RATE / 2) {
-                  genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
-                  mutationCount++;
-                }
-              }
-            }
-            // Mutate emotion at half rate (semi-flexible), preference-biased
-            if (Math.random() < MUTATION_RATE / 2) {
-              const currentEmotion = genomeData.emotion;
-              const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
-              if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
-                genomeData.emotion = prefEmotion;
-              } else {
-                const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
-                genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
-              }
-              mutationCount++;
-            }
-
-            if (mutationCount > 0) {
-              console.log(`Genome Mutation: ${mutationCount} gene(s) mutated (preference-biased)`);
-              console.log("Post-mutation genome:", JSON.stringify(genomeData));
             }
           }
-        } else {
-          console.error("Genome Composer failed, proceeding without genome:", genomeResponse.status);
+          console.log(`Genome: trend "${trend}" overrides applied at intensity ${trend_intensity ?? 40}%`);
         }
+
+        // --- GENOME MUTATION ENGINE (15%) ---
+        // Randomly mutate FREE genes to keep outputs fresh
+        const MUTATION_RATE = 0.15;
+        const freeGeneOptions: Record<string, Record<string, string[]>> = {
+          layout: {
+            grid_type: ["strict_grid", "modular_grid", "broken_grid", "freeform"],
+            balance: ["symmetrical", "asymmetrical", "dynamic"],
+            spacing_density: ["minimal", "balanced", "dense"],
+            content_ratio: ["image_dominant", "text_dominant", "balanced"],
+          },
+          composition: {
+            visual_direction: ["vertical", "horizontal", "diagonal", "radial"],
+            focal_strategy: ["single_focal_point", "dual_focal", "distributed"],
+            layering_depth: ["flat", "medium", "deep_layered"],
+          },
+          texture: {
+            texture_type: ["none", "grain", "paper", "digital_noise", "plastic", "metallic"],
+            intensity: ["subtle", "medium", "heavy"],
+            distortion: ["none", "glitch", "warp", "pixel_sort"],
+          },
+          illustration: {
+            style: ["none", "3d", "flat", "hand_drawn", "abstract", "cartoon", "clay"],
+            detail_level: ["minimal", "medium", "high"],
+            line_weight: ["thin", "medium", "bold"],
+          },
+          image_style: {
+            lighting: ["natural", "dramatic", "neon", "soft"],
+            color_grading: ["cinematic", "vintage", "vibrant", "monochrome"],
+            framing: ["close_crop", "wide", "portrait"],
+          },
+        };
+        const semiFlexGeneOptions: Record<string, Record<string, string[]>> = {
+          typography: {
+            weight_system: ["light", "regular", "bold", "ultra_bold"],
+            text_effect: ["none", "outline", "drop_shadow", "gradient", "glitch", "neon"],
+            typography_layout: ["centered", "left_editorial", "split_text", "overlay"],
+          },
+          color: {
+            temperature: ["warm", "neutral", "cool"],
+            gradient_logic: ["flat", "soft_gradient", "metallic_gradient", "multi_spectrum"],
+          },
+        };
+        const emotionOptions = ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"];
+
+        let mutationCount = 0;
+        const pickMutationValue = (category: string, field: string, options: string[], current: string): string => {
+          const prefKey = `_preferred_${field}`;
+          const preferred = preferenceWeights[category]?.[prefKey] as unknown as string;
+          if (preferred && preferred !== current && options.includes(preferred)) {
+            if (Math.random() < 0.6) return preferred;
+          }
+          const alternatives = options.filter((o: string) => o !== current);
+          return alternatives.length > 0 ? alternatives[Math.floor(Math.random() * alternatives.length)] : current;
+        };
+
+        for (const [category, fields] of Object.entries(freeGeneOptions)) {
+          for (const [field, options] of Object.entries(fields)) {
+            if (Math.random() < MUTATION_RATE) {
+              genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+              mutationCount++;
+            }
+          }
+        }
+        for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
+          for (const [field, options] of Object.entries(fields)) {
+            if (Math.random() < MUTATION_RATE / 2) {
+              genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+              mutationCount++;
+            }
+          }
+        }
+        if (Math.random() < MUTATION_RATE / 2) {
+          const currentEmotion = genomeData.emotion;
+          const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
+          if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
+            genomeData.emotion = prefEmotion;
+          } else {
+            const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
+            genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+          }
+          mutationCount++;
+        }
+
+        if (mutationCount > 0) {
+          console.log(`Genome Mutation: ${mutationCount} gene(s) mutated (preference-biased)`);
+        }
+        console.log("Final genome:", JSON.stringify(genomeData));
       } catch (e) {
         console.error("Genome Composer error, proceeding without:", e);
       }
