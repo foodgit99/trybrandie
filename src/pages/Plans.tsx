@@ -158,14 +158,16 @@ const Plans = () => {
 
                 <Button
                   className="mt-6 w-full rounded-xl"
-                  variant={tier.highlight ? "default" : "outline"}
-                  disabled={tier.disabled || loadingPlan === tier.plan_key}
+                  variant={currentTier === tier.plan_key ? "secondary" : tier.highlight ? "default" : "outline"}
+                  disabled={currentTier === tier.plan_key || loadingPlan === tier.plan_key}
                   onClick={() => handleUpgrade(tier.plan_key)}
                 >
                   {loadingPlan === tier.plan_key ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : currentTier === tier.plan_key ? (
+                    "Current Plan"
                   ) : (
-                    tier.cta
+                    "Upgrade"
                   )}
                 </Button>
               </div>
