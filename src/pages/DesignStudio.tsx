@@ -919,6 +919,26 @@ const DesignStudio = () => {
                         </AnimatePresence>
                       </div>
                     )}
+
+                    {/* Caption card */}
+                    {currentCaption && msg.imageUrl === currentImage && (
+                      <div className="mt-3 rounded-xl border border-border bg-card p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Caption</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(currentCaption);
+                              toast({ title: "Caption copied!" });
+                            }}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                          >
+                            <Copy className="h-3 w-3" />
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{currentCaption}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
