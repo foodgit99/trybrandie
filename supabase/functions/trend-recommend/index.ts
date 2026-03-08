@@ -6,117 +6,69 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const TREND_IDS = [
-  "tactile-rebellion",
-  "hyper-chromatic",
-  "technical-mono",
-  "neo-naturalism",
-  "kinetic-typography",
-] as const;
+// Deterministic vibe → trend mapping (no AI call needed)
+const VIBE_TREND_MAP: Record<string, { trend_id: string; reason: string; confidence: number }> = {
+  bold: { trend_id: "hyper-chromatic", reason: "Bold brands pair naturally with vibrant, high-energy visuals.", confidence: 80 },
+  energetic: { trend_id: "kinetic-typography", reason: "Energetic brands benefit from motion-inspired, dynamic layouts.", confidence: 80 },
+  playful: { trend_id: "hyper-chromatic", reason: "Playful brands shine with vibrant colours and bold contrasts.", confidence: 75 },
+  minimal: { trend_id: "technical-mono", reason: "Minimal brands align with clean grids and monospaced aesthetics.", confidence: 85 },
+  clean: { trend_id: "technical-mono", reason: "Clean brands suit industrial, grid-based layouts.", confidence: 80 },
+  modern: { trend_id: "technical-mono", reason: "Modern brands work well with structured, technical design systems.", confidence: 70 },
+  professional: { trend_id: "technical-mono", reason: "Professional brands benefit from structured, grid-based layouts.", confidence: 75 },
+  corporate: { trend_id: "technical-mono", reason: "Corporate brands suit clean, industrial aesthetics.", confidence: 80 },
+  natural: { trend_id: "neo-naturalism", reason: "Nature-oriented brands thrive with organic textures and calm palettes.", confidence: 85 },
+  organic: { trend_id: "neo-naturalism", reason: "Organic brands align perfectly with natural, breathable design.", confidence: 85 },
+  calm: { trend_id: "neo-naturalism", reason: "Calm brands suit nature-inspired compositions.", confidence: 80 },
+  wellness: { trend_id: "neo-naturalism", reason: "Wellness brands pair naturally with organic, soothing visuals.", confidence: 85 },
+  artisan: { trend_id: "tactile-rebellion", reason: "Artisan brands suit hand-crafted, textured aesthetics.", confidence: 85 },
+  handmade: { trend_id: "tactile-rebellion", reason: "Handmade brands thrive with paper textures and scrapbook feel.", confidence: 85 },
+  creative: { trend_id: "tactile-rebellion", reason: "Creative brands benefit from tactile, experimental visuals.", confidence: 75 },
+  vintage: { trend_id: "tactile-rebellion", reason: "Vintage brands align with hand-drawn, grain-overlay aesthetics.", confidence: 80 },
+  retro: { trend_id: "tactile-rebellion", reason: "Retro brands pair with nostalgic, textured design styles.", confidence: 80 },
+  luxury: { trend_id: "technical-mono", reason: "Luxury brands suit refined, minimal layouts with precise typography.", confidence: 70 },
+  edgy: { trend_id: "kinetic-typography", reason: "Edgy brands benefit from motion-inspired, high-contrast layouts.", confidence: 80 },
+  sporty: { trend_id: "kinetic-typography", reason: "Sporty brands thrive with dynamic, movement-driven design.", confidence: 85 },
+  fun: { trend_id: "hyper-chromatic", reason: "Fun brands pop with vibrant gradients and bold colour.", confidence: 80 },
+  warm: { trend_id: "neo-naturalism", reason: "Warm brands pair naturally with organic, earthy aesthetics.", confidence: 75 },
+  elegant: { trend_id: "neo-naturalism", reason: "Elegant brands suit calm, breathable compositions.", confidence: 70 },
+  tech: { trend_id: "technical-mono", reason: "Tech brands align with monospaced, grid-based design systems.", confidence: 85 },
+};
+
+const DEFAULT_RECOMMENDATION = {
+  trend_id: "tactile-rebellion",
+  reason: "A versatile default that adds warmth and character to any brand.",
+  confidence: 40,
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { brand, audience_summary } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const { brand } = await req.json();
+    const vibe = (brand?.vibe || "").toLowerCase().trim();
 
-    const systemPrompt = `You are a design trend recommendation engine for a brand studio called Brandie.
+    // Try exact match first
+    let result = VIBE_TREND_MAP[vibe];
 
-Given a brand profile and optional audience summary, recommend the SINGLE most appropriate design trend from these options:
-
-1. tactile-rebellion — Paper textures, hand-drawn marks, grain overlays, scrapbook feel. Best for: lifestyle, artisan, handmade, creative, storytelling brands.
-2. hyper-chromatic — Vibrant colours, neon accents, bold gradients, energetic layouts. Best for: entertainment, events, nightlife, bold consumer brands, launches.
-3. technical-mono — Monospaced typography, clean grids, industrial aesthetic. Best for: tech, SaaS, fintech, data, developer-focused brands.
-4. neo-naturalism — Calm palettes, organic textures, nature imagery, breathable spacing. Best for: wellness, health, sustainability, meditation, organic brands.
-5. kinetic-typography — Motion-oriented layouts, elastic type, strong hierarchy. Best for: sports, fitness, music, high-energy, youth-oriented brands.
-
-You MUST respond with ONLY a valid JSON object with these fields:
-- trend_id: one of the 5 IDs above
-- reason: a short 1-sentence explanation (max 20 words)
-- confidence: a number 0-100
-
-No extra text, no markdown. Just the JSON object.`;
-
-    const userPrompt = `Brand: ${JSON.stringify(brand || {})}
-${audience_summary ? `Audience: ${audience_summary}` : "No audience profile available."}
-
-Recommend the best trend.`;
-
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        }),
+    // Try partial match if no exact match
+    if (!result && vibe) {
+      for (const [key, value] of Object.entries(VIBE_TREND_MAP)) {
+        if (vibe.includes(key) || key.includes(vibe)) {
+          result = value;
+          break;
+        }
       }
-    );
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limited, please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      throw new Error("AI gateway error");
     }
 
-    const aiData = await response.json();
-    const raw = aiData.choices?.[0]?.message?.content?.trim() || "";
-
-    // Parse JSON from possibly markdown-wrapped response
-    let jsonStr = raw;
-    const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (fenceMatch) jsonStr = fenceMatch[1].trim();
-
-    let parsed: { trend_id: string; reason: string; confidence: number };
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      console.error("Failed to parse AI response:", raw);
-      // Fallback: default recommendation
-      parsed = {
-        trend_id: "tactile-rebellion",
-        reason: "Default recommendation — could not parse AI response.",
-        confidence: 30,
-      };
-    }
-
-    // Validate trend_id
-    if (!TREND_IDS.includes(parsed.trend_id as any)) {
-      parsed.trend_id = "tactile-rebellion";
-      parsed.reason = "Fallback — AI returned unknown trend ID.";
-      parsed.confidence = 30;
-    }
-
-    return new Response(JSON.stringify(parsed), {
+    return new Response(JSON.stringify(result || DEFAULT_RECOMMENDATION), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("trend-recommend error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify(DEFAULT_RECOMMENDATION),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
