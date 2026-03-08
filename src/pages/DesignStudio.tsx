@@ -400,6 +400,7 @@ const DesignStudio = () => {
         setCurrentImage(data.image_url);
         setCurrentPrompt(data.design_prompt || trimmed);
         setCurrentGenome(data.genome || null);
+        setCurrentCaption(data.caption || null);
         setGenomeScores(data.genome_scores || null);
         setWasRefined(data.refined === true);
         setShowScores(false);
