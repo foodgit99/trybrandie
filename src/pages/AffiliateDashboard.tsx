@@ -16,6 +16,7 @@ import {
   Loader2,
   ArrowRight,
   Wallet,
+  Share2,
 } from "lucide-react";
 
 interface Affiliate {
