@@ -1135,6 +1135,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(genomeData ? { genome: genomeData } : {}),
           ...(genomeScores ? { genome_scores: genomeScores } : {}),
           refined: wasRefined,
+          ...(captionText ? { caption: captionText } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
