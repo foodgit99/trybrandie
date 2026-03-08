@@ -49,7 +49,7 @@ const Settings = () => {
   });
 
   const referralLink = profile?.referral_code
-    ? `${window.location.origin}/auth?ref=${(profile as any).referral_code}`
+    ? `https://trybrandie.com/auth?ref=${(profile as any).referral_code}`
     : "";
 
   const handleCopyLink = () => {
