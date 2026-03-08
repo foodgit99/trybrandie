@@ -273,6 +273,12 @@ const DesignStudio = () => {
     const bonus = (data as any).bonus_credits ?? 0;
     if (data.generations_count + creditCost > FREE_TIER_LIMIT + bonus) {
       setShowLimitModal(true);
+      // Send out-of-credits email (fire-and-forget)
+      if (user?.email) {
+        supabase.functions.invoke("send-email", {
+          body: { type: "out_of_credits", to: user.email },
+        }).catch(() => {});
+      }
       return false;
     }
     return true;
