@@ -417,6 +417,7 @@ const DesignStudio = () => {
                 canvas_size: canvasSize,
                 ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
                 ...(data.genome && { genome: data.genome }),
+                ...(data.caption && { caption: data.caption }),
               } as any).eq("id", currentDesignId);
               if (!updateErr) {
                 setSaved(true);
