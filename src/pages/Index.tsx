@@ -44,7 +44,7 @@ const Index = () => {
   });
 
   const referralLink = profile?.referral_code
-    ? `${window.location.origin}/auth?ref=${profile.referral_code}`
+    ? `https://trybrandie.com/auth?ref=${profile.referral_code}`
     : "";
 
   const handleCopy = async () => {
