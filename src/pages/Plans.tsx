@@ -71,8 +71,44 @@ const Plans = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [currentTier, setCurrentTier] = useState<string>("free");
+  const [paymentSuccess, setPaymentSuccess] = useState<{
+    plan: string;
+    amount: number;
+    currency: string;
+  } | null>(null);
+  const [verifying, setVerifying] = useState(false);
+
+  // Verify Paystack callback
+  useEffect(() => {
+    const reference = searchParams.get("reference") || searchParams.get("trxref");
+    if (!reference || !user) return;
+
+    setVerifying(true);
+    supabase.functions
+      .invoke("paystack-verify", { body: { reference } })
+      .then(({ data, error }) => {
+        if (error || !data?.verified) {
+          toast({
+            title: "Payment verification failed",
+            description: "Please contact support if you were charged.",
+            variant: "destructive",
+          });
+        } else {
+          setPaymentSuccess({
+            plan: data.plan,
+            amount: data.amount,
+            currency: data.currency,
+          });
+          setCurrentTier(data.plan);
+        }
+        // Clean URL params
+        setSearchParams({}, { replace: true });
+      })
+      .finally(() => setVerifying(false));
+  }, [searchParams, user]);
 
   useEffect(() => {
     if (!user) return;
