@@ -178,6 +178,47 @@ const Settings = () => {
 
           <Separator />
 
+          {/* Refer a Friend */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Refer a Friend</h3>
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Gift className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Earn 5 free credits per referral</p>
+                  <p className="text-xs text-muted-foreground">Share your link — when they sign up, you get rewarded.</p>
+                </div>
+              </div>
+
+              {referralLink && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={referralLink}
+                    readOnly
+                    className="text-xs font-mono bg-secondary"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 rounded-xl"
+                    onClick={handleCopyLink}
+                  >
+                    {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span><strong className="text-foreground">{referralCount}</strong> referral{referralCount !== 1 ? "s" : ""}</span>
+                <span><strong className="text-foreground">{(profile as any)?.bonus_credits ?? 0}</strong> bonus credits earned</span>
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
           {/* Sign out */}
           <Button
             variant="ghost"
