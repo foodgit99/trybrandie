@@ -11,22 +11,22 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue } from
+"@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  DialogFooter } from
+"@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { useQuery } from "@tanstack/react-query";
@@ -48,8 +48,8 @@ import {
   RefreshCw,
   Share2,
   MoreHorizontal,
-  BarChart3,
-} from "lucide-react";
+  BarChart3 } from
+"lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
@@ -62,10 +62,10 @@ type Message = {
 };
 
 const CANVAS_SIZES = [
-  { label: "Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
-  { label: "Landscape (1920×1080)", value: "1920x1080", aspect: "16 / 9" },
-  { label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
-];
+{ label: "Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
+{ label: "Landscape (1920×1080)", value: "1920x1080", aspect: "16 / 9" },
+{ label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" }];
+
 
 const FREE_TIER_LIMIT = 10;
 
@@ -84,7 +84,6 @@ const DesignStudio = () => {
   const [saved, setSaved] = useState(false);
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [currentGenome, setCurrentGenome] = useState<any>(null);
-  const [currentCaption, setCurrentCaption] = useState<string | null>(null);
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
   const [wasRefined, setWasRefined] = useState(false);
   const [showScores, setShowScores] = useState(false);
@@ -97,7 +96,7 @@ const DesignStudio = () => {
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | "none">("none");
   const [selectedTrend, setSelectedTrend] = useState<string>("none");
   const [trendIntensity, setTrendIntensity] = useState(40);
-  const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
+  const [trendRecommendation, setTrendRecommendation] = useState<{trend_id: string;reason: string;} | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("fast");
   const recommendationFetched = useRef(false);
@@ -114,7 +113,7 @@ const DesignStudio = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user
   });
 
   // Audience profiles for the current brand
@@ -126,7 +125,7 @@ const DesignStudio = () => {
       if (error) throw error;
       return (data || []) as any[];
     },
-    enabled: !!brand,
+    enabled: !!brand
   });
 
   // Trend preferences for the current brand
@@ -138,7 +137,7 @@ const DesignStudio = () => {
       if (error) throw error;
       return data as any;
     },
-    enabled: !!brand,
+    enabled: !!brand
   });
 
   // Initialize trend state from saved preferences
@@ -168,26 +167,26 @@ const DesignStudio = () => {
     const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
     const audienceSummary = activeAudience?.jtbd_profile?.persona_summary || null;
 
-    supabase.functions
-      .invoke("trend-recommend", {
-        body: {
-          brand: {
-            name: brand.name,
-            vibe: brand.vibe,
-            description: brand.description,
-            tone_of_voice: (brand as any).tone_of_voice,
-            personality_traits: (brand as any).personality_traits,
-          },
-          audience_summary: audienceSummary,
+    supabase.functions.
+    invoke("trend-recommend", {
+      body: {
+        brand: {
+          name: brand.name,
+          vibe: brand.vibe,
+          description: brand.description,
+          tone_of_voice: (brand as any).tone_of_voice,
+          personality_traits: (brand as any).personality_traits
         },
-      })
-      .then(({ data, error }) => {
-        if (!error && data?.trend_id) {
-          setTrendRecommendation({ trend_id: data.trend_id, reason: data.reason });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setRecommendationLoading(false));
+        audience_summary: audienceSummary
+      }
+    }).
+    then(({ data, error }) => {
+      if (!error && data?.trend_id) {
+        setTrendRecommendation({ trend_id: data.trend_id, reason: data.reason });
+      }
+    }).
+    catch(() => {}).
+    finally(() => setRecommendationLoading(false));
   }, [brand, trendPrefs, audiences, selectedAudienceId, messages.length]);
 
   // Auto-select first audience
@@ -217,27 +216,25 @@ const DesignStudio = () => {
     const designId = searchParams.get("design");
     if (!designId || !user) return;
     const loadDesign = async () => {
-      const { data, error } = await supabase
-        .from("designs")
-        .select("*")
-        .eq("id", designId)
-        .eq("user_id", user.id)
-        .single();
+      const { data, error } = await supabase.
+      from("designs").
+      select("*").
+      eq("id", designId).
+      eq("user_id", user.id).
+      single();
       if (error || !data) return;
       setCurrentImage(data.image_url);
       setCurrentPrompt(data.prompt);
-      setCurrentCaption((data as any).caption || null);
       setCanvasSize(data.canvas_size || "1080x1080");
-      setVote((data.vote as -1 | 0 | 1) || 0);
+      setVote(data.vote as -1 | 0 | 1 || 0);
       setSaved(true);
-      setCurrentDesignId(designId);
 
       // Load full chat history
-      const { data: msgData } = await supabase
-        .from("design_messages")
-        .select("role, content, image_url, attached_image_url")
-        .eq("design_id", designId)
-        .order("created_at", { ascending: true });
+      const { data: msgData } = await supabase.
+      from("design_messages").
+      select("role, content, image_url, attached_image_url").
+      eq("design_id", designId).
+      order("created_at", { ascending: true });
 
       if (msgData && msgData.length > 0) {
         setMessages(
@@ -245,15 +242,15 @@ const DesignStudio = () => {
             role: m.role as "user" | "assistant",
             content: m.content,
             imageUrl: m.image_url || undefined,
-            attachedImageUrl: m.attached_image_url || undefined,
+            attachedImageUrl: m.attached_image_url || undefined
           }))
         );
       } else {
         // Fallback for designs saved before chat history was stored
         setMessages([
-          { role: "user", content: data.prompt },
-          { role: "assistant", content: "Here's your design.", imageUrl: data.image_url },
-        ]);
+        { role: "user", content: data.prompt },
+        { role: "assistant", content: "Here's your design.", imageUrl: data.image_url }]
+        );
       }
     };
     loadDesign();
@@ -261,11 +258,11 @@ const DesignStudio = () => {
 
   const checkGenerationLimit = async (): Promise<boolean> => {
     if (!user) return false;
-    const { data } = await supabase
-      .from("profiles")
-      .select("generations_count, generations_reset_at")
-      .eq("user_id", user.id)
-      .single();
+    const { data } = await supabase.
+    from("profiles").
+    select("generations_count, generations_reset_at").
+    eq("user_id", user.id).
+    single();
     if (!data) return true;
     const resetAt = new Date(data.generations_reset_at);
     const now = new Date();
@@ -276,12 +273,6 @@ const DesignStudio = () => {
     const bonus = (data as any).bonus_credits ?? 0;
     if (data.generations_count + creditCost > FREE_TIER_LIMIT + bonus) {
       setShowLimitModal(true);
-      // Send out-of-credits email (fire-and-forget)
-      if (user?.email) {
-        supabase.functions.invoke("send-email", {
-          body: { type: "out_of_credits", to: user.email },
-        }).catch(() => {});
-      }
       return false;
     }
     return true;
@@ -294,13 +285,13 @@ const DesignStudio = () => {
     try {
       const ext = file.name.split(".").pop() || "png";
       const filePath = `${user.id}/chat-${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("brand-inspiration")
-        .upload(filePath, file, { contentType: file.type });
+      const { error } = await supabase.storage.
+      from("brand-inspiration").
+      upload(filePath, file, { contentType: file.type });
       if (error) throw error;
-      const { data: urlData } = supabase.storage
-        .from("brand-inspiration")
-        .getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage.
+      from("brand-inspiration").
+      getPublicUrl(filePath);
       setAttachedImage(urlData.publicUrl);
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
@@ -336,22 +327,22 @@ const DesignStudio = () => {
     setVote(0);
 
     try {
-      const brandPayload = brand
-        ? {
-            name: brand.name,
-            tagline: brand.tagline,
-            description: brand.description,
-            vibe: brand.vibe,
-            primary_colors: brand.primary_colors,
-            secondary_colors: brand.secondary_colors,
-            accent_colors: brand.accent_colors,
-            typography_primary: brand.typography_primary,
-            typography_secondary: brand.typography_secondary,
-            logo_url: brand.logo_url,
-            tone_of_voice: (brand as any).tone_of_voice,
-            personality_traits: (brand as any).personality_traits,
-          }
-        : null;
+      const brandPayload = brand ?
+      {
+        name: brand.name,
+        tagline: brand.tagline,
+        description: brand.description,
+        vibe: brand.vibe,
+        primary_colors: brand.primary_colors,
+        secondary_colors: brand.secondary_colors,
+        accent_colors: brand.accent_colors,
+        typography_primary: brand.typography_primary,
+        typography_secondary: brand.typography_secondary,
+        logo_url: brand.logo_url,
+        tone_of_voice: (brand as any).tone_of_voice,
+        personality_traits: (brand as any).personality_traits
+      } :
+      null;
 
       const { data, error } = await supabase.functions.invoke("design-studio", {
         body: {
@@ -365,9 +356,9 @@ const DesignStudio = () => {
           render_quality: renderQuality,
           ...(isEdit && {
             previous_prompt: currentPrompt,
-            previous_image_url: currentImage,
-          }),
-        },
+            previous_image_url: currentImage
+          })
+        }
       });
 
       if (error) {
@@ -395,14 +386,13 @@ const DesignStudio = () => {
         const assistantMsg: Message = {
           role: "assistant",
           content: (data.explanation || "Here's your design.") + freeLabel,
-          imageUrl: data.image_url,
+          imageUrl: data.image_url
         };
         const updatedMessages = [...newMessages, assistantMsg];
         setMessages(updatedMessages);
         setCurrentImage(data.image_url);
         setCurrentPrompt(data.design_prompt || trimmed);
         setCurrentGenome(data.genome || null);
-        setCurrentCaption(data.caption || null);
         setGenomeScores(data.genome_scores || null);
         setWasRefined(data.refined === true);
         setShowScores(false);
@@ -418,8 +408,7 @@ const DesignStudio = () => {
                 image_url: data.image_url,
                 canvas_size: canvasSize,
                 ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
-                ...(data.genome && { genome: data.genome }),
-                ...(data.caption && { caption: data.caption }),
+                ...(data.genome && { genome: data.genome })
               } as any).eq("id", currentDesignId);
               if (!updateErr) {
                 setSaved(true);
@@ -430,7 +419,7 @@ const DesignStudio = () => {
                   role: m.role,
                   content: m.content,
                   image_url: m.imageUrl || null,
-                  attached_image_url: m.attachedImageUrl || null,
+                  attached_image_url: m.attachedImageUrl || null
                 }));
                 await supabase.from("design_messages").insert(newChatRows);
               }
@@ -445,8 +434,7 @@ const DesignStudio = () => {
                 canvas_size: canvasSize,
                 vote: 0,
                 ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
-                ...(data.genome && { genome: data.genome }),
-                ...(data.caption && { caption: data.caption }),
+                ...(data.genome && { genome: data.genome })
               } as any).select("id").single();
 
               if (!saveErr && designData?.id) {
@@ -459,7 +447,7 @@ const DesignStudio = () => {
                   role: m.role,
                   content: m.content,
                   image_url: m.imageUrl || null,
-                  attached_image_url: m.attachedImageUrl || null,
+                  attached_image_url: m.attachedImageUrl || null
                 }));
                 await supabase.from("design_messages").insert(chatRows);
               }
@@ -477,7 +465,7 @@ const DesignStudio = () => {
       toast({
         title: "Generation failed",
         description: err.message || "Something went wrong",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
@@ -500,7 +488,7 @@ const DesignStudio = () => {
       canvas_size: canvasSize,
       vote,
       ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
-      ...(currentGenome && { genome: currentGenome }),
+      ...(currentGenome && { genome: currentGenome })
     } as any).select("id").single();
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
@@ -513,7 +501,7 @@ const DesignStudio = () => {
           role: m.role,
           content: m.content,
           image_url: m.imageUrl || null,
-          attached_image_url: m.attachedImageUrl || null,
+          attached_image_url: m.attachedImageUrl || null
         }));
         await supabase.from("design_messages").insert(rows);
       }
@@ -527,17 +515,17 @@ const DesignStudio = () => {
     setVote(newVote);
     // Update vote on the auto-saved or manually saved design
     if (currentDesignId) {
-      await supabase
-        .from("designs")
-        .update({ vote: newVote })
-        .eq("id", currentDesignId)
-        .eq("user_id", user!.id);
+      await supabase.
+      from("designs").
+      update({ vote: newVote }).
+      eq("id", currentDesignId).
+      eq("user_id", user!.id);
     } else if (saved && currentImage) {
-      await supabase
-        .from("designs")
-        .update({ vote: newVote })
-        .eq("image_url", currentImage)
-        .eq("user_id", user!.id);
+      await supabase.
+      from("designs").
+      update({ vote: newVote }).
+      eq("image_url", currentImage).
+      eq("user_id", user!.id);
     }
   };
 
@@ -566,7 +554,7 @@ const DesignStudio = () => {
         img.crossOrigin = "anonymous";
         const objectUrl = URL.createObjectURL(blob);
         img.src = objectUrl;
-        await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; });
+        await new Promise<void>((res, rej) => {img.onload = () => res();img.onerror = rej;});
         const canvas = document.createElement("canvas");
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
@@ -590,7 +578,7 @@ const DesignStudio = () => {
         img.crossOrigin = "anonymous";
         const objectUrl = URL.createObjectURL(blob);
         img.src = objectUrl;
-        await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; });
+        await new Promise<void>((res, rej) => {img.onload = () => res();img.onerror = rej;});
         const canvas = document.createElement("canvas");
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
@@ -645,11 +633,11 @@ const DesignStudio = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CANVAS_SIZES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
+              {CANVAS_SIZES.map((s) =>
+              <SelectItem key={s.value} value={s.value}>
                   {s.label}
                 </SelectItem>
-              ))}
+              )}
             </SelectContent>
           </Select>
           {/* Quality toggle */}
@@ -657,28 +645,28 @@ const DesignStudio = () => {
             <button
               onClick={() => setRenderQuality("fast")}
               className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors ${
-                renderQuality === "fast"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
+              renderQuality === "fast" ?
+              "bg-primary text-primary-foreground" :
+              "text-muted-foreground hover:text-foreground"}`
+              }>
+              
               Fast
             </button>
             <button
               onClick={() => setRenderQuality("hd")}
               className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors flex items-center gap-1 ${
-                renderQuality === "hd"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
+              renderQuality === "hd" ?
+              "bg-primary text-primary-foreground" :
+              "text-muted-foreground hover:text-foreground"}`
+              }>
+              
               <Sparkles className="h-3 w-3" />
               HD
             </button>
           </div>
-          {renderQuality === "hd" && (
-            <span className="text-[10px] text-muted-foreground">2 credits</span>
-          )}
+          {renderQuality === "hd" &&
+          <span className="text-[10px] text-muted-foreground">2 credits</span>
+          }
           {/* Audience selector removed from header — now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}
@@ -689,317 +677,297 @@ const DesignStudio = () => {
       {/* Single-column chat layout */}
       <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
-                <span className="text-xl">✨</span>
-              </div>
-              <h3 className="text-lg font-serif">What would you like to design?</h3>
-              <p className="text-sm text-muted-foreground max-w-[260px]">
-                Describe your social media post and I'll bring it to life — always on brand.
-              </p>
+        
 
-              {/* Trend recommendation */}
-              {recommendationLoading && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Finding the perfect trend for your brand…</span>
-                </div>
-              )}
-              {trendRecommendation && selectedTrend === "none" && !recommendationLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="w-full max-w-[300px]"
-                >
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-                      <Sparkles className="h-3 w-3" />
-                      Recommended trend
-                    </div>
-                    <p className="text-sm font-medium">{getTrendById(trendRecommendation.trend_id)?.name}</p>
-                    <p className="text-[11px] text-muted-foreground leading-snug">{trendRecommendation.reason}</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedTrend(trendRecommendation.trend_id);
-                          setTrendRecommendation(null);
-                        }}
-                        className="flex-1 text-xs font-medium py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                      >
-                        Apply
-                      </button>
-                      <button
-                        onClick={() => setTrendRecommendation(null)}
-                        className="flex-1 text-xs font-medium py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
 
-              {/* Suggestion bubbles — empty state */}
-              <ChatSuggestions
-                brandName={brand?.name}
-                brandVibe={brand?.vibe}
-                brandDescription={brand?.description}
-                onSelect={(text) => setInput(text)}
-                hasMessages={false}
-                hasImage={false}
-              />
-            </div>
-          )}
-          {messages.map((msg, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div className={`max-w-[85%] ${msg.role === "user" ? "" : ""}`}>
-                <div
-                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground"
-                  }`}
-                >
-                  {msg.attachedImageUrl && (
-                    <img
-                      src={msg.attachedImageUrl}
-                      alt="Attached reference"
-                      className="mb-2 rounded-lg w-20 h-20 object-cover border border-border"
-                    />
-                  )}
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-                    }}
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
-                </div>
 
-                {/* Inline image with action icons beneath */}
-                {msg.imageUrl && (
-                  <div className="mt-3 space-y-2">
-                    <img
-                      src={msg.imageUrl}
-                      alt="Generated design"
-                      className="w-full rounded-2xl border border-border cursor-pointer hover:opacity-95 transition-opacity"
-                      style={{ aspectRatio: currentAspect }}
-                      onClick={() => setPreviewImage(msg.imageUrl!)}
-                    />
-                    <div className="flex items-center gap-1 px-1">
-                      <button
-                        onClick={() => handleVote(1)}
-                        className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        }`}
-                      >
-                        <ThumbsUp className="h-[18px] w-[18px]" />
-                      </button>
-                      <button
-                        onClick={() => handleVote(-1)}
-                        className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        }`}
-                      >
-                        <ThumbsDown className="h-[18px] w-[18px]" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setInput("Regenerate this design with a fresh approach");
-                        }}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        <RefreshCw className="h-[18px] w-[18px]" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(msg.imageUrl!);
-                          toast({ title: "Image URL copied" });
-                        }}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        <Share2 className="h-[18px] w-[18px]" />
-                      </button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-                            <MoreHorizontal className="h-[18px] w-[18px]" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuItem onClick={handleSave} disabled={saved}>
-                            <Save className="h-3.5 w-3.5 mr-2" />
-                            {saved ? "Saved" : "Save design"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => downloadAs("png")}>
-                            <Download className="h-3.5 w-3.5 mr-2" />
-                            Download PNG
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => downloadAs("jpg")}>
-                            <Download className="h-3.5 w-3.5 mr-2" />
-                            Download JPG
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            navigator.clipboard.writeText(msg.imageUrl!);
-                            toast({ title: "Image URL copied" });
-                          }}>
-                            <Copy className="h-3.5 w-3.5 mr-2" />
-                            Copy URL
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
 
-                    {/* Genome Scores */}
-                    {genomeScores && msg.imageUrl === currentImage && (
-                      <div className="mt-1">
-                        <button
-                          onClick={() => setShowScores(!showScores)}
-                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-1 py-0.5"
-                        >
-                          <BarChart3 className="h-3 w-3" />
-                          <span>Design Score: {genomeScores.overall}/100</span>
-                          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                            genomeScores.overall >= 75
-                              ? "bg-green-500/15 text-green-600 dark:text-green-400"
-                              : genomeScores.overall >= 55
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                              : "bg-red-500/15 text-red-600 dark:text-red-400"
-                          }`}>
-                            {genomeScores.overall >= 75 ? "Strong" : genomeScores.overall >= 55 ? "Good" : "Weak"}
-                          </span>
-                          {wasRefined && (
-                            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary">
-                              Refined
-                            </span>
-                          )}
-                          <ChevronDown className={`h-3 w-3 transition-transform ${showScores ? "rotate-180" : ""}`} />
-                        </button>
-                        <AnimatePresence>
-                          {showScores && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="mt-2 p-3 bg-secondary/50 rounded-xl space-y-2">
-                                {[
-                                  { key: "brand_alignment", label: "Brand Alignment", color: "bg-primary" },
-                                  { key: "trend_balance", label: "Trend Balance", color: "bg-accent-foreground" },
-                                  { key: "visual_clarity", label: "Visual Clarity", color: "bg-primary" },
-                                  { key: "conversion", label: "Conversion", color: "bg-accent-foreground" },
-                                  { key: "visual_balance", label: "Visual Balance", color: "bg-primary" },
-                                ].map(({ key, label, color }) => (
-                                  <div key={key} className="space-y-0.5">
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-muted-foreground">{label}</span>
-                                      <span className="font-medium text-foreground">{genomeScores[key]}</span>
-                                    </div>
-                                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                      <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${genomeScores[key]}%` }}
-                                        transition={{ duration: 0.5, ease: "easeOut" }}
-                                        className={`h-full rounded-full ${color} opacity-80`}
-                                      />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    )}
 
-                    {/* Caption card */}
-                    {currentCaption && msg.imageUrl === currentImage && (
-                      <div className="mt-3 rounded-xl border border-border bg-card p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-muted-foreground">Caption</span>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(currentCaption);
-                              toast({ title: "Caption copied!" });
-                            }}
-                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
-                          >
-                            <Copy className="h-3 w-3" />
-                            Copy
-                          </button>
-                        </div>
-                        <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{currentCaption}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-start"
-            >
-              <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Designing…
-              </div>
-            </motion.div>
-          )}
-          {/* Suggestion bubbles — after messages */}
-          {messages.length > 0 && !loading && (
-            <div className="py-2">
-              <ChatSuggestions
-                brandName={brand?.name}
-                brandVibe={brand?.vibe}
-                brandDescription={brand?.description}
-                onSelect={(text) => setInput(text)}
-                hasMessages={true}
-                hasImage={!!currentImage}
-              />
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
 
         {/* Input — unified card */}
         <div className="px-3 sm:px-4 py-3 sm:py-4">
           <div className="rounded-2xl border border-border bg-card shadow-sm p-3 sm:p-4 space-y-3">
             {/* Attached image preview */}
             <AnimatePresence>
-              {attachedImage && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
+              {attachedImage &&
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}>
+                
                   <div className="relative inline-block mb-1">
                     <img
-                      src={attachedImage}
-                      alt="Attached"
-                      className="w-16 h-16 object-cover rounded-xl border border-border"
-                    />
+                    src={attachedImage}
+                    alt="Attached"
+                    className="w-16 h-16 object-cover rounded-xl border border-border" />
+                  
                     <button
-                      onClick={() => setAttachedImage(null)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
-                    >
+                    onClick={() => setAttachedImage(null)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                    
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 </motion.div>
-              )}
+              }
             </AnimatePresence>
 
             {/* Text input */}
@@ -1010,8 +978,8 @@ const DesignStudio = () => {
               placeholder={currentImage ? "Edit your design…" : "Describe your design"}
               className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none"
               disabled={loading}
-              maxLength={2000}
-            />
+              maxLength={2000} />
+            
 
             {/* Bottom row */}
             <div className="flex items-center justify-between">
@@ -1021,13 +989,13 @@ const DesignStudio = () => {
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   className="hidden"
-                  onChange={handleImageUpload}
-                />
+                  onChange={handleImageUpload} />
+                
                 <button
                   className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={loading || uploadingImage}
-                >
+                  disabled={loading || uploadingImage}>
+                  
                   {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
                 </button>
                 <DropdownMenu>
@@ -1039,28 +1007,28 @@ const DesignStudio = () => {
                   <DropdownMenuContent align="start" className="min-w-[180px]">
                     <DropdownMenuItem
                       onClick={() => setSelectedAudienceId("none")}
-                      className={selectedAudienceId === "none" ? "bg-accent" : ""}
-                    >
+                      className={selectedAudienceId === "none" ? "bg-accent" : ""}>
+                      
                       <span className="text-muted-foreground">No audience</span>
                     </DropdownMenuItem>
-                    {audiences.map((a: any) => (
-                      <DropdownMenuItem
-                        key={a.id}
-                        onClick={() => setSelectedAudienceId(a.id)}
-                        className={selectedAudienceId === a.id ? "bg-accent" : ""}
-                      >
+                    {audiences.map((a: any) =>
+                    <DropdownMenuItem
+                      key={a.id}
+                      onClick={() => setSelectedAudienceId(a.id)}
+                      className={selectedAudienceId === a.id ? "bg-accent" : ""}>
+                      
                         {a.label}
                       </DropdownMenuItem>
-                    ))}
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {(() => {
                   const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
-                  return activeAudience ? (
-                    <span className="text-xs text-primary font-medium truncate max-w-[140px]">
+                  return activeAudience ?
+                  <span className="text-xs text-primary font-medium truncate max-w-[140px]">
                       {activeAudience.label}
-                    </span>
-                  ) : null;
+                    </span> :
+                  null;
                 })()}
               </div>
               <div className="flex items-center gap-2">
@@ -1071,59 +1039,59 @@ const DesignStudio = () => {
                       return (
                         <button
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                            activeTrend
-                              ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                              : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
-                          }`}
-                        >
+                          activeTrend ?
+                          "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10" :
+                          "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"}`
+                          }>
+                          
                           <span>{activeTrend?.name || "Trend"}</span>
                           <ChevronDown className="h-3 w-3 opacity-60" />
-                        </button>
-                      );
+                        </button>);
+
                     })()}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="min-w-[220px] space-y-1 p-2">
                     <DropdownMenuItem
                       onClick={() => setSelectedTrend("none")}
-                      className={selectedTrend === "none" ? "bg-accent" : ""}
-                    >
+                      className={selectedTrend === "none" ? "bg-accent" : ""}>
+                      
                       <span className="text-muted-foreground">No trend</span>
                     </DropdownMenuItem>
-                    {TREND_PRESETS.map((t) => (
-                      <DropdownMenuItem
-                        key={t.id}
-                        onClick={() => setSelectedTrend(t.id)}
-                        className={selectedTrend === t.id ? "bg-accent" : ""}
-                      >
+                    {TREND_PRESETS.map((t) =>
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => setSelectedTrend(t.id)}
+                      className={selectedTrend === t.id ? "bg-accent" : ""}>
+                      
                         <div>
                           <p className="text-sm font-medium">{t.name}</p>
                           <p className="text-[10px] text-muted-foreground">{t.description}</p>
                         </div>
                       </DropdownMenuItem>
-                    ))}
-                    {selectedTrend !== "none" && (
-                      <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
+                    )}
+                    {selectedTrend !== "none" &&
+                    <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground">Intensity</span>
                           <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
                         </div>
                         <Slider
-                          value={[trendIntensity]}
-                          onValueChange={([val]) => setTrendIntensity(val)}
-                          min={0}
-                          max={100}
-                          step={5}
-                          className="w-full"
-                        />
+                        value={[trendIntensity]}
+                        onValueChange={([val]) => setTrendIntensity(val)}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="w-full" />
+                      
                       </div>
-                    )}
+                    }
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <button
                   className="h-9 w-9 rounded-full border border-border flex items-center justify-center text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                   onClick={sendMessage}
-                  disabled={loading || !input.trim()}
-                >
+                  disabled={loading || !input.trim()}>
+                  
                   <Send className="h-4 w-4" />
                 </button>
               </div>
@@ -1134,32 +1102,32 @@ const DesignStudio = () => {
 
       {/* Fullscreen image preview overlay */}
       <AnimatePresence>
-        {previewImage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center"
-            onClick={() => setPreviewImage(null)}
-          >
+        {previewImage &&
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => setPreviewImage(null)}>
+          
             <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-foreground hover:bg-muted transition-colors z-10"
-            >
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-foreground hover:bg-muted transition-colors z-10">
+            
               <X className="h-5 w-5" />
             </button>
             <motion.img
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              src={previewImage}
-              alt="Design preview"
-              className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl border border-border"
-              onClick={(e) => e.stopPropagation()}
-            />
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            src={previewImage}
+            alt="Design preview"
+            className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl border border-border"
+            onClick={(e) => e.stopPropagation()} />
+          
           </motion.div>
-        )}
+        }
       </AnimatePresence>
 
       {/* Limit reached modal */}
@@ -1179,8 +1147,8 @@ const DesignStudio = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 };
 
 export default DesignStudio;
