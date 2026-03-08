@@ -1,101 +1,61 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+## Plan: Fix All Known Issues
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+Based on the full audit, here are the concrete fixes needed to make everything work properly (excluding payment integration).
 
-### Architecture Overview
+### 1. Fix `audience-intelligence` edge function auth (broken)
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+The function uses `supabase.auth.getClaims(token)` which is not a valid Supabase JS method. Replace with `supabase.auth.getUser()` to match the working pattern in `design-studio/index.ts`.
 
-### What Gets Built
+**File:** `supabase/functions/audience-intelligence/index.ts` (lines 26-33)
+- Replace `getClaims()` block with `getUser()` pattern
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+### 2. Fix credit reset year-boundary bug
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+The frontend `getCreditsRemaining()` in `DesignStudio.tsx` already checks both month AND year (line 203). But `AppHeader.tsx` also has this logic and already checks year too (line 49). The edge function (line 275) also checks both. **Verified: all three locations already compare both month and year.** No fix needed here.
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+### 3. Graceful 429/402 error handling in Design Studio
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
+Currently when the edge function returns a 429, `supabase.functions.invoke` returns it as `{ error }` which triggers a generic toast. The problem: the 429 body contains `{ error: "Monthly generation limit reached..." }` but the Supabase client wraps non-2xx responses — the actual error message may get lost and show as "Edge function returned 429".
 
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
+**File:** `src/pages/DesignStudio.tsx` (lines 358-366)
+- After `supabase.functions.invoke`, check `error?.message` for "429" or "limit" keywords
+- Show the limit modal (`setShowLimitModal(true)`) instead of a generic toast
+- Also handle 402 (AI credits exhausted) with a specific message
 
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
+### 4. Fix `trend-recommend` being called on every fresh studio load (wastes AI credits)
 
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
+The trend recommendation fires an LLM call every time the studio loads without a pre-selected trend. This wastes credits. Make it deterministic instead — map brand vibe to a trend recommendation without an AI call.
 
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
+**File:** `supabase/functions/trend-recommend/index.ts`
+- Replace the LLM call with a deterministic mapping (vibe → trend), matching how the genome composer was optimized
+- Keep the same response shape `{ trend_id, reason, confidence }`
 
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
+**File:** `src/pages/DesignStudio.tsx` (lines 154-190)
+- Remove the edge function call for trend recommendation
+- Implement the deterministic mapping client-side in a simple function
 
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
+### 5. Fix duplicate saves on edits
 
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
+When a user edits an existing design, the auto-save creates a NEW design record instead of updating the existing one. After an edit, `currentDesignId` is reset to `null` (line 321), causing a fresh insert.
 
-**5. Store Genome with Design** (database migration)
+**File:** `src/pages/DesignStudio.tsx`
+- On edits (`isEdit === true`), don't reset `currentDesignId` to null
+- If `currentDesignId` exists, update the existing record instead of inserting a new one
+- Only insert a new record for genuinely new generations
 
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
+### 6. Fix AppHeader `forwardRef` console warning
 
-```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
-```
+**File:** `src/components/AppHeader.tsx`
+- Wrap the `DropdownMenuTrigger` child in a proper `Button` with `asChild` pattern to avoid the ref warning
 
-**6. Brand Consistency Layer** (inside Genome Composer logic)
+### Summary of changes
 
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
-
-### What Does NOT Change
-
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
-
-### File Changes Summary
-
-| File | Action |
+| File | Change |
 |---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
-
-### Risk Mitigation
-
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+| `supabase/functions/audience-intelligence/index.ts` | Replace `getClaims()` with `getUser()` |
+| `supabase/functions/trend-recommend/index.ts` | Replace LLM call with deterministic vibe→trend mapping |
+| `src/pages/DesignStudio.tsx` | Graceful 429/402 handling; fix duplicate saves on edits; remove trend-recommend edge function call, use client-side mapping |
+| `src/components/AppHeader.tsx` | Fix `forwardRef` warning |
 
