@@ -369,13 +369,48 @@ const DesignStudio = () => {
           content: (data.explanation || "Here's your design.") + freeLabel,
           imageUrl: data.image_url,
         };
-        setMessages((prev) => [...prev, assistantMsg]);
+        const updatedMessages = [...newMessages, assistantMsg];
+        setMessages(updatedMessages);
         setCurrentImage(data.image_url);
         setCurrentPrompt(data.design_prompt || trimmed);
         setCurrentGenome(data.genome || null);
         setGenomeScores(data.genome_scores || null);
         setWasRefined(data.refined === true);
         setShowScores(false);
+
+        // --- AUTO-SAVE: persist design + genome immediately so RAG learning loop always has data ---
+        if (data.image_url && user && brand) {
+          try {
+            const { data: designData, error: saveErr } = await supabase.from("designs").insert({
+              user_id: user.id,
+              brand_id: brand.id,
+              title: trimmed.slice(0, 100) || "Untitled",
+              prompt: data.design_prompt || trimmed,
+              image_url: data.image_url,
+              canvas_size: canvasSize,
+              vote: 0,
+              ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
+              ...(data.genome && { genome: data.genome }),
+            } as any).select("id").single();
+
+            if (!saveErr && designData?.id) {
+              setSaved(true);
+              setCurrentDesignId(designData.id);
+              // Persist chat history
+              const chatRows = updatedMessages.map((m) => ({
+                design_id: designData.id,
+                user_id: user.id,
+                role: m.role,
+                content: m.content,
+                image_url: m.imageUrl || null,
+                attached_image_url: m.attachedImageUrl || null,
+              }));
+              await supabase.from("design_messages").insert(chatRows);
+            }
+          } catch (autoSaveErr) {
+            console.error("Auto-save failed:", autoSaveErr);
+          }
+        }
       }
 
       // Refresh credit counter
