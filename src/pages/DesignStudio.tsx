@@ -82,6 +82,7 @@ const DesignStudio = () => {
   const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
   const [vote, setVote] = useState<-1 | 0 | 1>(0);
   const [saved, setSaved] = useState(false);
+  const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [currentGenome, setCurrentGenome] = useState<any>(null);
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
   const [wasRefined, setWasRefined] = useState(false);
