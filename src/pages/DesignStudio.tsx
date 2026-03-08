@@ -359,14 +359,26 @@ const DesignStudio = () => {
         },
       });
 
-      if (error) throw error;
-
-      if (data?.error) {
-        toast({ title: "Error", description: data.error, variant: "destructive" });
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: data.error },
-        ]);
+      if (error) {
+        const errMsg = error.message || "";
+        if (errMsg.includes("429") || errMsg.toLowerCase().includes("limit") || errMsg.toLowerCase().includes("rate")) {
+          setShowLimitModal(true);
+          setMessages((prev) => [...prev, { role: "assistant", content: "You've reached your generation limit for this month. Upgrade your plan for more credits." }]);
+        } else if (errMsg.includes("402") || errMsg.toLowerCase().includes("payment")) {
+          toast({ title: "AI credits exhausted", description: "Please try again later or upgrade your plan.", variant: "destructive" });
+          setMessages((prev) => [...prev, { role: "assistant", content: "AI credits are temporarily exhausted. Please try again later." }]);
+        } else {
+          throw error;
+        }
+      } else if (data?.error) {
+        // Check if the edge function returned a soft error in the body
+        const bodyErr = (data.error || "").toLowerCase();
+        if (bodyErr.includes("limit") || bodyErr.includes("429")) {
+          setShowLimitModal(true);
+        } else {
+          toast({ title: "Error", description: data.error, variant: "destructive" });
+        }
+        setMessages((prev) => [...prev, { role: "assistant", content: data.error }]);
       } else {
         const freeLabel = data.free_edit ? " (free edit — no credit used)" : "";
         const assistantMsg: Message = {
