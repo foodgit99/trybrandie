@@ -14,6 +14,166 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          affiliate_id: string
+          commission_amount: number
+          created_at: string
+          id: string
+          payment_amount: number
+          payment_reference: string | null
+          referral_id: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          commission_amount?: number
+          created_at?: string
+          id?: string
+          payment_amount?: number
+          payment_reference?: string | null
+          referral_id?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          commission_amount?: number
+          created_at?: string
+          id?: string
+          payment_amount?: number
+          payment_reference?: string | null
+          referral_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_payouts: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          created_at: string
+          id: string
+          processed_at: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_payouts_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_referrals: {
+        Row: {
+          affiliate_id: string
+          created_at: string
+          id: string
+          referred_user_id: string
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          created_at?: string
+          id?: string
+          referred_user_id: string
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          created_at?: string
+          id?: string
+          referred_user_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_referrals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          affiliate_code: string
+          bank_name: string | null
+          commission_rate: number
+          created_at: string
+          id: string
+          status: string
+          total_earned: number
+          total_paid: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          affiliate_code?: string
+          bank_name?: string | null
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          status?: string
+          total_earned?: number
+          total_paid?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          affiliate_code?: string
+          bank_name?: string | null
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          status?: string
+          total_earned?: number
+          total_paid?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       brand_inspiration: {
         Row: {
           brand_id: string
