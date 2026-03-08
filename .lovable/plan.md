@@ -1,101 +1,75 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+## Plan: Affiliate Marketer System
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+### Overview
+Build a full affiliate partner system where external marketers can sign up, get a unique affiliate link, track referred signups and paid conversions, and earn 20% commission on payments. Includes a dedicated affiliate dashboard with earnings, referral tracking, and payout management.
 
-### Architecture Overview
+### Database Changes (4 new tables, 1 migration)
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+**1. `affiliates` table** — stores affiliate partner accounts
+- `id`, `user_id` (FK to auth.users), `affiliate_code` (unique), `status` (pending/approved/suspended), `commission_rate` (default 0.20), `total_earned`, `total_paid`, `created_at`
+- RLS: users can read/update their own row
 
-### What Gets Built
+**2. `affiliate_referrals` table** — tracks users who signed up via affiliate link
+- `id`, `affiliate_id` (FK), `referred_user_id`, `status` (signed_up/converted), `created_at`
+- RLS: affiliates can read their own referrals
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+**3. `affiliate_commissions` table** — tracks earned commissions per payment
+- `id`, `affiliate_id` (FK), `referral_id` (FK), `payment_reference`, `payment_amount`, `commission_amount`, `status` (pending/approved/paid), `created_at`
+- RLS: affiliates can read their own commissions
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+**4. `affiliate_payouts` table** — tracks payout requests and history
+- `id`, `affiliate_id` (FK), `amount`, `status` (requested/processing/paid/rejected), `bank_name`, `account_number`, `account_name`, `created_at`, `processed_at`
+- RLS: affiliates can read/insert their own payouts
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+### Backend Changes
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
+**5. Update `paystack-webhook/index.ts`**
+- On `charge.success`, check if the paying user was referred by an affiliate
+- If so, create a commission record (20% of payment amount) in `affiliate_commissions`
+- Update the affiliate's `total_earned`
 
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
+### Frontend Changes
 
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
+**6. Affiliate signup page (`src/pages/AffiliateSignup.tsx`)**
+- Public page where anyone can apply to become an affiliate
+- Form: name, email, password + auto-create affiliate record with "pending" status
+- Or existing users can apply from settings
 
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
+**7. Affiliate dashboard (`src/pages/AffiliateDashboard.tsx`)**
+- Overview cards: total earned, pending commissions, total paid, total referrals
+- Affiliate link with copy button and share buttons
+- Referrals table: user email (masked), signup date, conversion status
+- Commissions table: amount, date, status
+- Payout section: request payout, bank details form, payout history
 
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
+**8. Update `src/App.tsx`**
+- Add `/affiliate` route (affiliate dashboard, protected)
+- Add `/affiliate/signup` route (public)
 
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
+**9. Update `src/pages/Auth.tsx`**
+- Detect `?aff=CODE` query param and store in signup metadata as `affiliate_code`
 
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
+**10. Update `handle_new_user` DB function**
+- On new user creation, check if `affiliate_code` metadata exists
+- If valid, create an `affiliate_referrals` record linking the new user to the affiliate
 
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
+### Route Structure
 
-**5. Store Genome with Design** (database migration)
+| Route | Page | Access |
+|---|---|---|
+| `/affiliate/signup` | Affiliate application form | Public |
+| `/affiliate` | Affiliate dashboard | Authenticated affiliates |
 
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
+### Files Changed
 
-```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
-```
-
-**6. Brand Consistency Layer** (inside Genome Composer logic)
-
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
-
-### What Does NOT Change
-
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
-
-### File Changes Summary
-
-| File | Action |
+| File | Change |
 |---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
-
-### Risk Mitigation
-
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+| DB migration | Create 4 tables + update trigger |
+| `supabase/functions/paystack-webhook/index.ts` | Add commission tracking on payment |
+| `src/pages/AffiliateSignup.tsx` | New — affiliate application |
+| `src/pages/AffiliateDashboard.tsx` | New — affiliate dashboard |
+| `src/App.tsx` | Add affiliate routes |
+| `src/pages/Auth.tsx` | Detect `?aff=` param |
 
