@@ -1,16 +1,20 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import { supabase } from "@/integrations/supabase/client";
 
 const tiers = [
   {
     name: "Free",
-    price: "$0",
+    price: "₦0",
     period: "",
     credits: "10 generations/mo",
+    plan_key: "free",
     cta: "Current Plan",
     disabled: true,
     features: [
@@ -22,9 +26,10 @@ const tiers = [
   },
   {
     name: "Entrepreneur",
-    price: "$16",
+    price: "₦12,500",
     period: "/mo",
     credits: "50 credits/mo",
+    plan_key: "entrepreneur",
     cta: "Upgrade",
     disabled: false,
     features: [
@@ -37,9 +42,10 @@ const tiers = [
   },
   {
     name: "Creator",
-    price: "$29",
+    price: "₦22,500",
     period: "/mo",
     credits: "150 credits/mo",
+    plan_key: "creator",
     cta: "Upgrade",
     disabled: false,
     highlight: true,
@@ -53,9 +59,10 @@ const tiers = [
   },
   {
     name: "Agency",
-    price: "$75",
+    price: "₦59,000",
     period: "/mo",
     credits: "400 credits/mo",
+    plan_key: "agency",
     cta: "Upgrade",
     disabled: false,
     features: [
@@ -71,6 +78,37 @@ const tiers = [
 const Plans = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleUpgrade = async (planKey: string) => {
+    if (!user?.email) {
+      toast({ title: "Please sign in first", variant: "destructive" });
+      return;
+    }
+
+    setLoadingPlan(planKey);
+    try {
+      const { data, error } = await supabase.functions.invoke("paystack-checkout", {
+        body: {
+          plan: planKey,
+          email: user.email,
+          user_id: user.id,
+          callback_url: window.location.origin + "/plans",
+        },
+      });
+
+      if (error || !data?.authorization_url) {
+        throw new Error(error?.message || data?.error || "Could not start checkout");
+      }
+
+      window.location.href = data.authorization_url;
+    } catch (err: any) {
+      toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -121,12 +159,14 @@ const Plans = () => {
                 <Button
                   className="mt-6 w-full rounded-xl"
                   variant={tier.highlight ? "default" : "outline"}
-                  disabled={tier.disabled}
-                  onClick={() =>
-                    toast({ title: "Coming soon", description: "Payments will be available soon." })
-                  }
+                  disabled={tier.disabled || loadingPlan === tier.plan_key}
+                  onClick={() => handleUpgrade(tier.plan_key)}
                 >
-                  {tier.cta}
+                  {loadingPlan === tier.plan_key ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    tier.cta
+                  )}
                 </Button>
               </div>
             ))}
