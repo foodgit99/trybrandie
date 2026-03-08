@@ -203,7 +203,8 @@ const DesignStudio = () => {
     if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
       return FREE_TIER_LIMIT;
     }
-    return Math.max(0, FREE_TIER_LIMIT - profile.generations_count);
+    const bonus = (profile as any).bonus_credits ?? 0;
+    return Math.max(0, FREE_TIER_LIMIT + bonus - profile.generations_count);
   };
 
   useEffect(() => {
