@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check, X } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -119,15 +119,35 @@ const Index = () => {
                     )}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 rounded-lg gap-1.5 h-9"
-                  onClick={handleCopy}
-                >
-                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copied" : "Copy Link"}
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 rounded-lg gap-1.5 h-9"
+                    onClick={handleCopy}
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? "Copied" : "Copy Link"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-lg"
+                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("I've been using Brandie to create stunning branded graphics with AI — try it out and we both get 5 bonus credits! " + referralLink)}`, "_blank")}
+                    aria-label="Share on X"
+                  >
+                    <Twitter className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-lg"
+                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent("Hey! I've been using Brandie to create AI-powered branded graphics. Sign up with my link and we both get 5 bonus credits: " + referralLink)}`, "_blank")}
+                    aria-label="Share on WhatsApp"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             </motion.section>
           )}
