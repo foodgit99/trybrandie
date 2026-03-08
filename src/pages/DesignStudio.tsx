@@ -398,31 +398,57 @@ const DesignStudio = () => {
         // --- AUTO-SAVE: persist design + genome immediately so RAG learning loop always has data ---
         if (data.image_url && user && brand) {
           try {
-            const { data: designData, error: saveErr } = await supabase.from("designs").insert({
-              user_id: user.id,
-              brand_id: brand.id,
-              title: trimmed.slice(0, 100) || "Untitled",
-              prompt: data.design_prompt || trimmed,
-              image_url: data.image_url,
-              canvas_size: canvasSize,
-              vote: 0,
-              ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
-              ...(data.genome && { genome: data.genome }),
-            } as any).select("id").single();
-
-            if (!saveErr && designData?.id) {
-              setSaved(true);
-              setCurrentDesignId(designData.id);
-              // Persist chat history
-              const chatRows = updatedMessages.map((m) => ({
-                design_id: designData.id,
+            if (isEdit && currentDesignId) {
+              // Update existing design record
+              const { error: updateErr } = await supabase.from("designs").update({
+                title: trimmed.slice(0, 100) || "Untitled",
+                prompt: data.design_prompt || trimmed,
+                image_url: data.image_url,
+                canvas_size: canvasSize,
+                ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
+                ...(data.genome && { genome: data.genome }),
+              } as any).eq("id", currentDesignId);
+              if (!updateErr) {
+                setSaved(true);
+                // Append new messages to chat history
+                const newChatRows = [userMsg, assistantMsg].map((m) => ({
+                  design_id: currentDesignId,
+                  user_id: user.id,
+                  role: m.role,
+                  content: m.content,
+                  image_url: m.imageUrl || null,
+                  attached_image_url: m.attachedImageUrl || null,
+                }));
+                await supabase.from("design_messages").insert(newChatRows);
+              }
+            } else {
+              // Insert new design record
+              const { data: designData, error: saveErr } = await supabase.from("designs").insert({
                 user_id: user.id,
-                role: m.role,
-                content: m.content,
-                image_url: m.imageUrl || null,
-                attached_image_url: m.attachedImageUrl || null,
-              }));
-              await supabase.from("design_messages").insert(chatRows);
+                brand_id: brand.id,
+                title: trimmed.slice(0, 100) || "Untitled",
+                prompt: data.design_prompt || trimmed,
+                image_url: data.image_url,
+                canvas_size: canvasSize,
+                vote: 0,
+                ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
+                ...(data.genome && { genome: data.genome }),
+              } as any).select("id").single();
+
+              if (!saveErr && designData?.id) {
+                setSaved(true);
+                setCurrentDesignId(designData.id);
+                // Persist chat history
+                const chatRows = updatedMessages.map((m) => ({
+                  design_id: designData.id,
+                  user_id: user.id,
+                  role: m.role,
+                  content: m.content,
+                  image_url: m.imageUrl || null,
+                  attached_image_url: m.attachedImageUrl || null,
+                }));
+                await supabase.from("design_messages").insert(chatRows);
+              }
             }
           } catch (autoSaveErr) {
             console.error("Auto-save failed:", autoSaveErr);
