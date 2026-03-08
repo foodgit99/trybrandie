@@ -58,6 +58,7 @@ const Auth = () => {
         data: {
           full_name: fullName,
           ...(referralCode && { referred_by: referralCode }),
+          ...(affiliateCode && { affiliate_code: affiliateCode }),
         },
         emailRedirectTo: window.location.origin,
       },

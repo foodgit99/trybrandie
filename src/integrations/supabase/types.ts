@@ -579,6 +579,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_affiliate_earned: {
+        Args: { p_affiliate_id: string; p_amount: number }
+        Returns: undefined
+      }
       process_referral: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
