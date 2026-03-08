@@ -3,10 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useBrand } from "@/hooks/useBrand";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Palette, CreditCard, LogOut, Sun, Moon, Monitor } from "lucide-react";
+import { ArrowLeft, User, Palette, CreditCard, LogOut, Sun, Moon, Monitor, Gift, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import AppHeader from "@/components/AppHeader";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
   const { user, signOut } = useAuth();
