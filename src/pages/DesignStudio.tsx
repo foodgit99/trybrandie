@@ -270,7 +270,8 @@ const DesignStudio = () => {
       return true;
     }
     const creditCost = renderQuality === "hd" ? 2 : 1;
-    if (data.generations_count + creditCost > FREE_TIER_LIMIT) {
+    const bonus = (data as any).bonus_credits ?? 0;
+    if (data.generations_count + creditCost > FREE_TIER_LIMIT + bonus) {
       setShowLimitModal(true);
       return false;
     }

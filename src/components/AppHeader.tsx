@@ -53,7 +53,8 @@ const AppHeader = () => {
   };
 
   const creditsUsed = getCreditsUsed();
-  const creditsRemaining = FREE_TIER_LIMIT - creditsUsed;
+  const bonusCredits = (profile as any)?.bonus_credits ?? 0;
+  const creditsRemaining = FREE_TIER_LIMIT + bonusCredits - creditsUsed;
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm">
