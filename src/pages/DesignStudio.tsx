@@ -84,6 +84,7 @@ const DesignStudio = () => {
   const [saved, setSaved] = useState(false);
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [currentGenome, setCurrentGenome] = useState<any>(null);
+  const [currentCaption, setCurrentCaption] = useState<string | null>(null);
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
   const [wasRefined, setWasRefined] = useState(false);
   const [showScores, setShowScores] = useState(false);
