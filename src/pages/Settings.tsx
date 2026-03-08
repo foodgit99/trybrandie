@@ -18,6 +18,46 @@ const Settings = () => {
   const { brand } = useBrand(user);
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile-settings", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("referral_code, bonus_credits")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: referralCount = 0 } = useQuery({
+    queryKey: ["referral-count", user?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("referral_rewards" as any)
+        .select("*", { count: "exact", head: true })
+        .eq("referrer_user_id", user!.id);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!user,
+  });
+
+  const referralLink = profile?.referral_code
+    ? `${window.location.origin}/auth?ref=${(profile as any).referral_code}`
+    : "";
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralLink);
+    setCopied(true);
+    toast({ title: "Referral link copied!" });
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-background">
