@@ -318,6 +318,7 @@ const DesignStudio = () => {
     setAttachedImage(null);
     setLoading(true);
     setSaved(false);
+    setCurrentDesignId(null);
     setVote(0);
 
     try {
