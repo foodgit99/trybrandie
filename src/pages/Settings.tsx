@@ -3,16 +3,61 @@ import { useNavigate } from "react-router-dom";
 import { useBrand } from "@/hooks/useBrand";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Palette, CreditCard, LogOut, Sun, Moon, Monitor } from "lucide-react";
+import { ArrowLeft, User, Palette, CreditCard, LogOut, Sun, Moon, Monitor, Gift, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import AppHeader from "@/components/AppHeader";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
   const { user, signOut } = useAuth();
   const { brand } = useBrand(user);
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile-settings", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("referral_code, bonus_credits")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: referralCount = 0 } = useQuery({
+    queryKey: ["referral-count", user?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("referral_rewards" as any)
+        .select("*", { count: "exact", head: true })
+        .eq("referrer_user_id", user!.id);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!user,
+  });
+
+  const referralLink = profile?.referral_code
+    ? `${window.location.origin}/auth?ref=${(profile as any).referral_code}`
+    : "";
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralLink);
+    setCopied(true);
+    toast({ title: "Referral link copied!" });
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -127,6 +172,47 @@ const Settings = () => {
                     </Button>
                   ))}
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Refer a Friend */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Refer a Friend</h3>
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Gift className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Earn 5 free credits per referral</p>
+                  <p className="text-xs text-muted-foreground">Share your link — when they sign up, you get rewarded.</p>
+                </div>
+              </div>
+
+              {referralLink && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={referralLink}
+                    readOnly
+                    className="text-xs font-mono bg-secondary"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 rounded-xl"
+                    onClick={handleCopyLink}
+                  >
+                    {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span><strong className="text-foreground">{referralCount}</strong> referral{referralCount !== 1 ? "s" : ""}</span>
+                <span><strong className="text-foreground">{(profile as any)?.bonus_credits ?? 0}</strong> bonus credits earned</span>
               </div>
             </div>
           </section>

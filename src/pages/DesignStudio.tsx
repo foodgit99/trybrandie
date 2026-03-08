@@ -109,7 +109,7 @@ const DesignStudio = () => {
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-studio", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("generations_count, generations_reset_at").eq("user_id", user!.id).single();
+      const { data, error } = await supabase.from("profiles").select("generations_count, generations_reset_at, bonus_credits").eq("user_id", user!.id).single();
       if (error) throw error;
       return data;
     },
@@ -203,7 +203,8 @@ const DesignStudio = () => {
     if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
       return FREE_TIER_LIMIT;
     }
-    return Math.max(0, FREE_TIER_LIMIT - profile.generations_count);
+    const bonus = (profile as any).bonus_credits ?? 0;
+    return Math.max(0, FREE_TIER_LIMIT + bonus - profile.generations_count);
   };
 
   useEffect(() => {
@@ -269,7 +270,8 @@ const DesignStudio = () => {
       return true;
     }
     const creditCost = renderQuality === "hd" ? 2 : 1;
-    if (data.generations_count + creditCost > FREE_TIER_LIMIT) {
+    const bonus = (data as any).bonus_credits ?? 0;
+    if (data.generations_count + creditCost > FREE_TIER_LIMIT + bonus) {
       setShowLimitModal(true);
       return false;
     }

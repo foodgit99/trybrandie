@@ -307,33 +307,66 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bonus_credits: number
           created_at: string
           full_name: string | null
           generations_count: number
           generations_reset_at: string
           id: string
+          referral_code: string | null
+          referred_by: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          bonus_credits?: number
           created_at?: string
           full_name?: string | null
           generations_count?: number
           generations_reset_at?: string
           id?: string
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          bonus_credits?: number
           created_at?: string
           full_name?: string | null
           generations_count?: number
           generations_reset_at?: string
           id?: string
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      referral_rewards: {
+        Row: {
+          created_at: string
+          credits_awarded: number
+          id: string
+          referred_user_id: string
+          referrer_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_awarded?: number
+          id?: string
+          referred_user_id: string
+          referrer_user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_awarded?: number
+          id?: string
+          referred_user_id?: string
+          referrer_user_id?: string
         }
         Relationships: []
       }
@@ -380,7 +413,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      process_referral: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
