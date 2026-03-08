@@ -791,6 +791,83 @@ RULES:
         console.error("Copywriter agent error, falling back:", e);
       }
 
+      // --- CAPTION AGENT ---
+      // Generate a social-media-optimised, brand-aligned caption with hashtags
+      let captionText: string | null = null;
+      try {
+        const captionSystemPrompt = `You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts.
+
+BRAND CONTEXT:
+- Brand: ${brand?.name || "Unknown"}
+- Tone: ${brand?.tone_of_voice || "Professional"}
+- Personality: ${(brand?.personality_traits || []).join(", ") || "None"}
+- Vibe: ${brand?.vibe || "Modern"}
+${audienceContext ? `\n${audienceContext}` : ""}
+
+RULES:
+1. Write a ready-to-post caption (2-4 sentences max)
+2. Match the brand's tone of voice exactly
+3. Include a clear call-to-action or engagement hook
+4. Generate 5-10 relevant hashtags mixing popular and niche
+5. Use line breaks between caption and hashtags
+6. Do NOT use generic filler — every word must serve the brand
+7. If audience data is available, use emotional drivers and messaging angles`;
+
+        const captionUserPrompt = `Write a social media caption for this design:
+Brief: ${designPrompt}
+${copyStructure ? `Copy on design — Headline: "${copyStructure.headline}"${copyStructure.subheadline ? `, Subheadline: "${copyStructure.subheadline}"` : ""}${copyStructure.cta ? `, CTA: "${copyStructure.cta}"` : ""}` : `User request: "${userPrompt}"`}`;
+
+        const captionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: captionSystemPrompt },
+              { role: "user", content: captionUserPrompt },
+            ],
+            tools: [{
+              type: "function",
+              function: {
+                name: "set_caption",
+                description: "Set the social media caption and hashtags for the design",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
+                    hashtags: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "5-10 relevant hashtags including the # symbol",
+                    },
+                  },
+                  required: ["caption", "hashtags"],
+                  additionalProperties: false,
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "set_caption" } },
+          }),
+        });
+
+        if (captionResponse.ok) {
+          const captionData = await captionResponse.json();
+          const toolCall = captionData.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall?.function?.arguments) {
+            const parsed = JSON.parse(toolCall.function.arguments);
+            captionText = parsed.caption + "\n\n" + (parsed.hashtags || []).join(" ");
+            console.log("Caption Agent output:", captionText);
+          }
+        } else {
+          console.error("Caption agent failed:", captionResponse.status);
+        }
+      } catch (e) {
+        console.error("Caption agent error:", e);
+      }
+
       // --- GENOME SCORING ENGINE ---
       // Deterministic scores based on genome alignment with brand, trend, and design principles
       let genomeScores: Record<string, number> | null = null;
@@ -1058,6 +1135,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(genomeData ? { genome: genomeData } : {}),
           ...(genomeScores ? { genome_scores: genomeScores } : {}),
           refined: wasRefined,
+          ...(captionText ? { caption: captionText } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

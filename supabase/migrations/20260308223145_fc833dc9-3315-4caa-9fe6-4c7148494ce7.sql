@@ -1,0 +1,1 @@
+ALTER TABLE public.designs ADD COLUMN caption text DEFAULT NULL;

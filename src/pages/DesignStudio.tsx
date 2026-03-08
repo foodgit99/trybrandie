@@ -84,6 +84,7 @@ const DesignStudio = () => {
   const [saved, setSaved] = useState(false);
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [currentGenome, setCurrentGenome] = useState<any>(null);
+  const [currentCaption, setCurrentCaption] = useState<string | null>(null);
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
   const [wasRefined, setWasRefined] = useState(false);
   const [showScores, setShowScores] = useState(false);
@@ -399,6 +400,7 @@ const DesignStudio = () => {
         setCurrentImage(data.image_url);
         setCurrentPrompt(data.design_prompt || trimmed);
         setCurrentGenome(data.genome || null);
+        setCurrentCaption(data.caption || null);
         setGenomeScores(data.genome_scores || null);
         setWasRefined(data.refined === true);
         setShowScores(false);
@@ -415,6 +417,7 @@ const DesignStudio = () => {
                 canvas_size: canvasSize,
                 ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
                 ...(data.genome && { genome: data.genome }),
+                ...(data.caption && { caption: data.caption }),
               } as any).eq("id", currentDesignId);
               if (!updateErr) {
                 setSaved(true);
@@ -441,6 +444,7 @@ const DesignStudio = () => {
                 vote: 0,
                 ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
                 ...(data.genome && { genome: data.genome }),
+                ...(data.caption && { caption: data.caption }),
               } as any).select("id").single();
 
               if (!saveErr && designData?.id) {
@@ -913,6 +917,26 @@ const DesignStudio = () => {
                             </motion.div>
                           )}
                         </AnimatePresence>
+                      </div>
+                    )}
+
+                    {/* Caption card */}
+                    {currentCaption && msg.imageUrl === currentImage && (
+                      <div className="mt-3 rounded-xl border border-border bg-card p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Caption</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(currentCaption);
+                              toast({ title: "Caption copied!" });
+                            }}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                          >
+                            <Copy className="h-3 w-3" />
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{currentCaption}</p>
                       </div>
                     )}
                   </div>

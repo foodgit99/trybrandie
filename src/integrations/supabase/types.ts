@@ -255,6 +255,7 @@ export type Database = {
         Row: {
           brand_id: string
           canvas_size: string
+          caption: string | null
           created_at: string
           genome: Json | null
           id: string
@@ -269,6 +270,7 @@ export type Database = {
         Insert: {
           brand_id: string
           canvas_size?: string
+          caption?: string | null
           created_at?: string
           genome?: Json | null
           id?: string
@@ -283,6 +285,7 @@ export type Database = {
         Update: {
           brand_id?: string
           canvas_size?: string
+          caption?: string | null
           created_at?: string
           genome?: Json | null
           id?: string
