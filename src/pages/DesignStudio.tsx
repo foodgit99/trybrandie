@@ -444,6 +444,7 @@ const DesignStudio = () => {
                 vote: 0,
                 ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
                 ...(data.genome && { genome: data.genome }),
+                ...(data.caption && { caption: data.caption }),
               } as any).select("id").single();
 
               if (!saveErr && designData?.id) {
