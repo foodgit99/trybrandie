@@ -16,6 +16,8 @@ import DesignStudio from "./pages/DesignStudio";
 import DesignHistory from "./pages/DesignHistory";
 import Settings from "./pages/Settings";
 import Plans from "./pages/Plans";
+import AffiliateSignup from "./pages/AffiliateSignup";
+import AffiliateDashboard from "./pages/AffiliateDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
