@@ -44,19 +44,64 @@ Deno.serve(async (req) => {
     const event = JSON.parse(body);
 
     if (event.event === "charge.success") {
-      const { metadata } = event.data;
+      const { metadata, reference, amount } = event.data;
       const user_id = metadata?.user_id;
       const plan = metadata?.plan;
 
-      if (user_id && plan) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
+      // Update subscription tier
+      if (user_id && plan) {
         await supabase
           .from("profiles")
           .update({ subscription_tier: plan })
           .eq("user_id", user_id);
+      }
+
+      // Track affiliate commission
+      if (user_id && amount) {
+        const { data: referral } = await supabase
+          .from("affiliate_referrals")
+          .select("id, affiliate_id")
+          .eq("referred_user_id", user_id)
+          .limit(1)
+          .single();
+
+        if (referral) {
+          const paymentAmount = amount / 100; // Paystack sends in kobo
+          const { data: affiliate } = await supabase
+            .from("affiliates")
+            .select("commission_rate")
+            .eq("id", referral.affiliate_id)
+            .single();
+
+          const rate = affiliate?.commission_rate ?? 0.20;
+          const commissionAmount = paymentAmount * rate;
+
+          // Insert commission record
+          await supabase.from("affiliate_commissions").insert({
+            affiliate_id: referral.affiliate_id,
+            referral_id: referral.id,
+            payment_reference: reference,
+            payment_amount: paymentAmount,
+            commission_amount: commissionAmount,
+            status: "pending",
+          });
+
+          // Update affiliate total_earned
+          await supabase.rpc("increment_affiliate_earned", {
+            p_affiliate_id: referral.affiliate_id,
+            p_amount: commissionAmount,
+          });
+
+          // Mark referral as converted
+          await supabase
+            .from("affiliate_referrals")
+            .update({ status: "converted" })
+            .eq("id", referral.id);
+        }
       }
     }
 

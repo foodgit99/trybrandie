@@ -21,10 +21,17 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
+
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) {
       setReferralCode(ref);
+      setMode("signup");
+    }
+    const aff = searchParams.get("aff");
+    if (aff) {
+      setAffiliateCode(aff);
       setMode("signup");
     }
   }, [searchParams]);
@@ -51,6 +58,7 @@ const Auth = () => {
         data: {
           full_name: fullName,
           ...(referralCode && { referred_by: referralCode }),
+          ...(affiliateCode && { affiliate_code: affiliateCode }),
         },
         emailRedirectTo: window.location.origin,
       },
