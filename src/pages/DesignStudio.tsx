@@ -318,7 +318,10 @@ const DesignStudio = () => {
     setAttachedImage(null);
     setLoading(true);
     setSaved(false);
-    setCurrentDesignId(null);
+    // Only reset design ID for genuinely new generations, not edits
+    if (!isEdit) {
+      setCurrentDesignId(null);
+    }
     setVote(0);
 
     try {
