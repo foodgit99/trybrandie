@@ -14,6 +14,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(() => sessionStorage.getItem("referral-banner-dismissed") === "true");
 
   const { data: designs } = useQuery({
     queryKey: ["recent-designs", user?.id],
