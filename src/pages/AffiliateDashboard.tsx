@@ -278,6 +278,34 @@ const AffiliateDashboard = () => {
               {copied ? "Copied" : "Copy"}
             </Button>
           </div>
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-2 text-xs"
+              onClick={() => {
+                const url = `${window.location.origin}/auth?aff=${affiliate.affiliate_code}`;
+                const text = encodeURIComponent(`Join Brandie and grow your brand! Check it out here: ${url}`);
+                window.open(`https://wa.me/?text=${text}`, "_blank");
+              }}
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              WhatsApp
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-2 text-xs"
+              onClick={() => {
+                const url = `${window.location.origin}/auth?aff=${affiliate.affiliate_code}`;
+                const text = encodeURIComponent(`Join Brandie and grow your brand! Check it out here: ${url}`);
+                window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+              }}
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              X / Twitter
+            </Button>
+          </div>
         </div>
 
         {/* Referrals */}
