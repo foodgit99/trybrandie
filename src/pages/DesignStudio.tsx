@@ -430,7 +430,12 @@ const DesignStudio = () => {
   };
 
   const handleSave = async () => {
-    if (!currentImage || !user || !brand || saved) return;
+    // Auto-save already persisted the design — just show confirmation
+    if (saved) {
+      toast({ title: "Design already saved" });
+      return;
+    }
+    if (!currentImage || !user || !brand) return;
     const { data: designData, error } = await supabase.from("designs").insert({
       user_id: user.id,
       brand_id: brand.id,
@@ -445,8 +450,8 @@ const DesignStudio = () => {
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } else {
-      // Persist full chat history
       if (designData?.id && messages.length > 0) {
+        setCurrentDesignId(designData.id);
         const rows = messages.map((m) => ({
           design_id: designData.id,
           user_id: user.id,
@@ -465,7 +470,14 @@ const DesignStudio = () => {
   const handleVote = async (v: -1 | 1) => {
     const newVote = vote === v ? 0 : v;
     setVote(newVote);
-    if (saved && currentImage) {
+    // Update vote on the auto-saved or manually saved design
+    if (currentDesignId) {
+      await supabase
+        .from("designs")
+        .update({ vote: newVote })
+        .eq("id", currentDesignId)
+        .eq("user_id", user!.id);
+    } else if (saved && currentImage) {
       await supabase
         .from("designs")
         .update({ vote: newVote })
