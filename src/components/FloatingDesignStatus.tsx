@@ -10,7 +10,6 @@ export default function FloatingDesignStatus() {
   const navigate = useNavigate();
   const location = useLocation();
   const toastFired = useRef(false);
-  const autoDismissTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const isOnStudio = location.pathname === "/studio";
   const isVisible = status !== "idle" && !isOnStudio;
