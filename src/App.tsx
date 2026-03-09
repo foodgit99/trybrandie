@@ -108,6 +108,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <DesignGenerationProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
@@ -125,7 +126,9 @@ const App = () => (
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <FloatingDesignStatus />
       </BrowserRouter>
+      </DesignGenerationProvider>
     </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
