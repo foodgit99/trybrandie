@@ -506,7 +506,7 @@ function AdminDesignsTab() {
   );
 }
 
-
+function DataTable({ tableName }: { tableName: string }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
