@@ -269,6 +269,7 @@ const DesignStudio = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const checkGenerationLimit = async (): Promise<boolean> => {
     if (!user) return false;
     const { data } = await supabase
       .from("profiles")
