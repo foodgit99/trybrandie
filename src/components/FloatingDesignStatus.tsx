@@ -45,17 +45,6 @@ export default function FloatingDesignStatus() {
     }
   }, [status]);
 
-  // Auto-dismiss after 30s when complete
-  useEffect(() => {
-    if (status === "complete") {
-      autoDismissTimer.current = setTimeout(() => {
-        clearResult();
-      }, 30000);
-    }
-    return () => {
-      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
-    };
-  }, [status, clearResult]);
 
   const handleClick = () => {
     if (status === "complete" && result?.design_id) {
