@@ -4,14 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   Users,
@@ -35,13 +38,18 @@ import {
   Search,
   Pencil,
   Trash2,
-  Plus,
   BarChart3,
   RefreshCw,
+  Send,
+  Eye,
+  CheckCircle2,
+  Link,
+  Mail,
 } from "lucide-react";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
+  { key: "broadcast", label: "Broadcast", icon: Send },
   { key: "profiles", label: "Users", icon: Users },
   { key: "brands", label: "Brands", icon: Palette },
   { key: "designs", label: "Designs", icon: Image },
