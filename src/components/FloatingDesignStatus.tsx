@@ -15,10 +15,29 @@ export default function FloatingDesignStatus() {
   const isVisible = status !== "idle";
   const isOnStudio = location.pathname === "/studio";
 
-  // Fire toast on completion
+  // Play a subtle chime sound
+  const playChime = () => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {}
+  };
+
+  // Fire toast + chime on completion
   useEffect(() => {
     if (status === "complete" && !toastFired.current) {
       toastFired.current = true;
+      playChime();
       toast.success("Your design is ready!", { duration: 5000 });
     }
     if (status === "idle") {
