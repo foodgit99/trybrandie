@@ -27,14 +27,12 @@ export interface GenerationParams {
   render_quality: "fast" | "hd";
   previous_prompt?: string;
   previous_image_url?: string;
-  // For auto-save
   user_id: string;
   brand_id: string;
   title: string;
   current_design_id?: string | null;
   selected_trend?: string;
   user_email?: string;
-  // Full messages for chat persistence
   full_messages: Array<{
     role: string;
     content: string;
@@ -47,6 +45,7 @@ interface DesignGenerationContextValue {
   status: GenerationStatus;
   result: GenerationResult | null;
   error: string | null;
+  progress: number;
   startGeneration: (params: GenerationParams) => void;
   clearResult: () => void;
   consumeResult: () => GenerationResult | null;
@@ -54,18 +53,42 @@ interface DesignGenerationContextValue {
 
 const DesignGenerationContext = createContext<DesignGenerationContextValue | null>(null);
 
+const ESTIMATED_MS = 25000;
+const TICK_MS = 300;
+
 export function DesignGenerationProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const consumedRef = useRef(false);
+  const progressTimer = useRef<ReturnType<typeof setInterval>>();
+
+  const stopProgressTimer = useCallback((final: number) => {
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    setProgress(final);
+  }, []);
+
+  const startProgressTimer = useCallback(() => {
+    setProgress(0);
+    const startTime = Date.now();
+    progressTimer.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const raw = (elapsed / ESTIMATED_MS) * 100;
+      // Ease-out curve approaching 95%
+      const eased = 95 * (1 - Math.exp(-2.5 * raw / 100));
+      setProgress(Math.min(Math.round(eased), 95));
+    }, TICK_MS);
+  }, []);
 
   const clearResult = useCallback(() => {
     setStatus("idle");
     setResult(null);
     setError(null);
+    setProgress(0);
+    stopProgressTimer(0);
     consumedRef.current = false;
-  }, []);
+  }, [stopProgressTimer]);
 
   const consumeResult = useCallback(() => {
     if (result && !consumedRef.current) {
@@ -76,14 +99,14 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   }, [result]);
 
   const startGeneration = useCallback((params: GenerationParams) => {
-    if (status === "generating") return; // one at a time
+    if (status === "generating") return;
 
     setStatus("generating");
     setResult(null);
     setError(null);
     consumedRef.current = false;
+    startProgressTimer();
 
-    // Build edge function body (strip our internal fields)
     const {
       user_id, brand_id, title, current_design_id, selected_trend,
       user_email, full_messages, ...edgeFnBody
@@ -96,15 +119,16 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
         });
 
         if (fnError) {
-          const errMsg = fnError.message || "Generation failed";
-          setError(errMsg);
+          setError(fnError.message || "Generation failed");
           setStatus("error");
+          stopProgressTimer(0);
           return;
         }
 
         if (data?.error) {
           setError(data.error);
           setStatus("error");
+          stopProgressTimer(0);
           return;
         }
 
@@ -114,7 +138,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
 
         if (data.image_url && user_id && brand_id) {
           try {
-            const userMsg = full_messages[full_messages.length - 2]; // last user msg
+            const userMsg = full_messages[full_messages.length - 2];
             const assistantMsg = {
               role: "assistant",
               content: (data.explanation || "Here's your design.") + (data.free_edit ? " (free edit — no credit used)" : ""),
@@ -132,7 +156,6 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
                 ...(data.caption && { caption: data.caption }),
               } as any).eq("id", designId);
 
-              // Append new messages
               const newChatRows = [userMsg, assistantMsg].filter(Boolean).map((m: any) => ({
                 design_id: designId!,
                 user_id,
@@ -158,7 +181,6 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
 
               if (!saveErr && designData?.id) {
                 designId = designData.id;
-                // Persist full chat history
                 const allMsgs = [...full_messages.slice(0, -1), {
                   role: "assistant",
                   content: assistantMsg.content,
@@ -180,6 +202,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           }
         }
 
+        stopProgressTimer(100);
         setResult({
           image_url: data.image_url,
           design_id: designId,
@@ -196,12 +219,13 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
         console.error("Generation error:", err);
         setError(err.message || "Something went wrong");
         setStatus("error");
+        stopProgressTimer(0);
       }
     })();
-  }, [status]);
+  }, [status, startProgressTimer, stopProgressTimer]);
 
   return (
-    <DesignGenerationContext.Provider value={{ status, result, error, startGeneration, clearResult, consumeResult }}>
+    <DesignGenerationContext.Provider value={{ status, result, error, progress, startGeneration, clearResult, consumeResult }}>
       {children}
     </DesignGenerationContext.Provider>
   );

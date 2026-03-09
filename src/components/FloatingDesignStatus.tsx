@@ -146,12 +146,11 @@ export default function FloatingDesignStatus() {
 
             {/* Generating pulse bar */}
             {status === "generating" && (
-              <div className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full overflow-hidden bg-primary/10">
+              <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-2xl overflow-hidden bg-primary/10">
                 <motion.div
-                  className="h-full bg-primary/60 rounded-full"
-                  animate={{ x: ["-100%", "100%"] }}
-                  transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                  style={{ width: "40%" }}
+                  className="h-full bg-primary/60"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
                 />
               </div>
             )}
