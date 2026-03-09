@@ -35,7 +35,7 @@ const EMPTY_INPUTS = {
   emotional_drivers: [] as string[],
 };
 
-type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality";
+type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality" | "special_instructions";
 
 const BrandCentre = () => {
   const { brand, refetch } = useBrand();
