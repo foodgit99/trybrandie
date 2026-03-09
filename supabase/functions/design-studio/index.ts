@@ -453,7 +453,7 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
           if (needsReset) {
             await adminClient
               .from("profiles")
-              .update({ generations_count: creditCost, generations_reset_at: now.toISOString() })
+              .update({ generations_count: creditCost, generations_reset_at: now.toISOString(), bonus_earned_count: 0, bonus_earned_reset_at: now.toISOString() })
               .eq("user_id", user.id);
           } else {
             if (profile.generations_count + creditCost > totalCredits) {
