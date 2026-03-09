@@ -339,6 +339,30 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_preference_cache: {
+        Row: {
+          id: string
+          message_count: number
+          tags: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          message_count?: number
+          tags?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          message_count?: number
+          tags?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       design_folder_assignments: {
         Row: {
           created_at: string
