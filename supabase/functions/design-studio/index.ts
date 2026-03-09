@@ -141,6 +141,29 @@ CONVERSION RULES:
         console.log("RAG preference retrieval failed, proceeding without:", e);
       }
 
+      // --- CHAT HISTORY RAG ---
+      // Query user's recent chat messages for recurring style/preference signals
+      let chatHistoryContext = "";
+      try {
+        const { data: recentMessages } = await adminClient
+          .from("design_messages")
+          .select("content")
+          .eq("user_id", user.id)
+          .eq("role", "user")
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+        if (recentMessages && recentMessages.length >= 3) {
+          const condensed = recentMessages
+            .map((m: any) => m.content.trim().substring(0, 120))
+            .join(" | ");
+          chatHistoryContext = `\n\nCONVERSATION HISTORY INSIGHTS (recent user requests — look for recurring patterns in visual styles, topics, tone preferences, and content types. Use these to inform your decisions but ALWAYS prioritise the current prompt):\n${condensed}`;
+          console.log(`Chat RAG: ${recentMessages.length} messages condensed for context`);
+        }
+      } catch (e) {
+        console.log("Chat history RAG failed, proceeding without:", e);
+      }
+
       // Build trend context
       let trendContext = "";
       if (trend && trend !== "none") {
@@ -407,7 +430,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? `- Brand inspiration/style references: The brand has ${inspirationUrls.length} inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.` : ""}
 ${brand.image_style_preferences?.length ? `- Image style preferences: ${brand.image_style_preferences.join(", ")}` : ""}
-${audienceContext}${trendContext}${productImageContext}
+${audienceContext}${trendContext}${productImageContext}${preferenceContext}${chatHistoryContext}
 
 DESIGN PHILOSOPHY (ALWAYS APPLY):
 1. ALWAYS use PHOTOREALISTIC imagery and real photography. Use natural textures, real environments, and lifelike visuals. NEVER use cartoons, clip art, flat illustrations, or AI-looking abstract art — UNLESS the user EXPLICITLY requests illustrations, cartoons, or abstract styles.
@@ -800,7 +823,7 @@ CONTEXT:
 - Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
 - Brand vibe: ${brand?.vibe || "Modern"}
 ${audienceContext ? `\n${audienceContext}` : ""}
-${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}
+${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}${chatHistoryContext}
 ${genomeData ? `\nVISUAL DENSITY CONTEXT: The design uses ${genomeData.layout.content_ratio.replace(/_/g, " ")} content ratio with ${genomeData.typography.hierarchy_logic.replace(/_/g, " ")}. Adjust copy length accordingly — text_minimal means fewer words, text_dominant means richer copy.` : ""}
 
 RULES:
