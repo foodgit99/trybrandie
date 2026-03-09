@@ -52,11 +52,10 @@ import {
   Info,
 } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
