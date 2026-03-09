@@ -1,7 +1,7 @@
 import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, XCircle, X, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, X, Sparkles, Square } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
