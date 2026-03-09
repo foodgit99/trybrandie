@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +21,7 @@ import {
   Settings,
   CreditCard,
   LogOut,
+  Shield,
 } from "lucide-react";
 
 const FREE_TIER_LIMIT = 10;
