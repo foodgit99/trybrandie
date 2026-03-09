@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
     const metadata = data.data.metadata;
     const user_id = metadata?.user_id;
     const plan = metadata?.plan;
+    const amount = data.data.amount / 100;
+    const currency = data.data.currency;
 
     // Update profile tier as a safety net (webhook may have already done this)
     if (user_id && plan) {
@@ -69,6 +71,36 @@ Deno.serve(async (req) => {
       } else {
         console.log(`Profile updated successfully for user ${user_id} to ${plan}`);
       }
+
+      // Send payment confirmation email
+      try {
+        const { data: userData } = await supabase.auth.admin.getUserById(user_id);
+        const userEmail = userData?.user?.email;
+        
+        if (userEmail) {
+          const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              type: "payment_confirmation",
+              to: userEmail,
+              data: { plan, amount, currency },
+            }),
+          });
+          
+          if (emailRes.ok) {
+            console.log(`Payment confirmation email sent to ${userEmail}`);
+          } else {
+            const emailError = await emailRes.text();
+            console.error("Failed to send payment confirmation email:", emailError);
+          }
+        }
+      } catch (emailErr) {
+        console.error("Error sending payment confirmation email:", emailErr);
+      }
     } else {
       console.warn(`Missing metadata - user_id: ${user_id}, plan: ${plan}`);
     }
@@ -77,8 +109,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         verified: true,
         plan,
-        amount: data.data.amount / 100,
-        currency: data.data.currency,
+        amount,
+        currency,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

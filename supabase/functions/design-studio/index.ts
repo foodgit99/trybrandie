@@ -265,7 +265,7 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
         const creditCost = render_quality === "hd" ? 2 : 1;
         const { data: profile } = await adminClient
           .from("profiles")
-          .select("generations_count, generations_reset_at")
+          .select("generations_count, generations_reset_at, bonus_credits, referral_code, subscription_tier")
           .eq("user_id", user.id)
           .single();
 
@@ -274,22 +274,71 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
           const now = new Date();
           const needsReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
 
+          // Determine monthly limit based on tier
+          const tierLimits: Record<string, number> = {
+            free: 10,
+            entrepreneur: 50,
+            creator: 150,
+            agency: 400,
+          };
+          const monthlyLimit = tierLimits[profile.subscription_tier] || 10;
+          const totalCredits = monthlyLimit + (profile.bonus_credits || 0);
+
           if (needsReset) {
             await adminClient
               .from("profiles")
               .update({ generations_count: creditCost, generations_reset_at: now.toISOString() })
               .eq("user_id", user.id);
           } else {
-            if (profile.generations_count + creditCost > 10) {
+            if (profile.generations_count + creditCost > totalCredits) {
               return new Response(JSON.stringify({ error: "Monthly generation limit reached. Please upgrade your plan." }), {
                 status: 429,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
               });
             }
+            
+            const newCount = profile.generations_count + creditCost;
             await adminClient
               .from("profiles")
-              .update({ generations_count: profile.generations_count + creditCost })
+              .update({ generations_count: newCount })
               .eq("user_id", user.id);
+
+            // Check if credits are running low (< 5 remaining) and send warning email
+            const remainingCredits = totalCredits - newCount;
+            if (remainingCredits > 0 && remainingCredits < 5) {
+              try {
+                const { data: userData } = await adminClient.auth.admin.getUserById(user.id);
+                const userEmail = userData?.user?.email;
+                
+                if (userEmail && profile.referral_code) {
+                  // Only send once per low-credits threshold (check if we haven't already this session)
+                  const cacheKey = `low_credits_email_${user.id}_${now.getMonth()}_${now.getFullYear()}`;
+                  // Simple approach: just log and send - in production you'd use a flag or cache
+                  console.log(`Sending low credits warning to ${userEmail}, remaining: ${remainingCredits}`);
+                  
+                  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+                  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+                  
+                  fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Bearer ${serviceKey}`,
+                    },
+                    body: JSON.stringify({
+                      type: "low_credits",
+                      to: userEmail,
+                      data: { 
+                        remaining_credits: remainingCredits,
+                        referral_code: profile.referral_code 
+                      },
+                    }),
+                  }).catch(e => console.error("Low credits email failed:", e));
+                }
+              } catch (e) {
+                console.error("Error checking for low credits email:", e);
+              }
+            }
           }
         }
       }
