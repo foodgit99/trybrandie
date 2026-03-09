@@ -45,7 +45,10 @@ import {
   CheckCircle2,
   Link,
   Mail,
+  Calendar,
 } from "lucide-react";
+import { format } from "date-fns";
+import DesignViewer from "@/components/DesignViewer";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
