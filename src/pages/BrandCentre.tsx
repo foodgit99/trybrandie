@@ -237,6 +237,36 @@ const BrandCentre = () => {
     enabled: !!brand,
   });
 
+  // Product Images
+  const { data: productImages, refetch: refetchProducts } = useQuery({
+    queryKey: ["brand_products", brand?.id],
+    queryFn: async () => {
+      if (!brand) return [];
+      const { data, error } = await supabase.from("brand_products" as any).select("*").eq("brand_id", brand.id).order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!brand,
+  });
+
+  const handleProductUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !brand || !user) return;
+    for (const file of files) {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
+      if (upErr) continue;
+      const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
+      await supabase.from("brand_products" as any).insert({ brand_id: brand.id, image_url: urlData.publicUrl, label: file.name.replace(/\.[^.]+$/, "") } as any);
+    }
+    toast({ title: "Product images added" }); refetchProducts();
+  };
+
+  const deleteProduct = async (id: string) => {
+    await supabase.from("brand_products" as any).delete().eq("id", id); refetchProducts();
+  };
+
   useEffect(() => {
     if (brand) {
       setName(brand.name || ""); setTagline(brand.tagline || ""); setDescription(brand.description || "");
