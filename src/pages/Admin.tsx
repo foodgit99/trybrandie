@@ -387,7 +387,126 @@ function BroadcastTab() {
   );
 }
 
-function DataTable({ tableName }: { tableName: string }) {
+// ─── Admin Designs Gallery ───────────────────────────────────────────────────
+
+function AdminDesignsTab() {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const limit = 30;
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["admin-all-designs", page, search],
+    queryFn: () =>
+      adminAction({
+        operation: "list",
+        table: "designs",
+        offset: page * limit,
+        limit,
+        search,
+      }),
+  });
+
+  const rows = (data?.rows || []) as Array<{
+    id: string;
+    title: string | null;
+    prompt: string;
+    image_url: string;
+    created_at: string;
+    canvas_size: string;
+    user_id: string;
+  }>;
+  const count = data?.count || 0;
+  const totalPages = Math.ceil(count / limit);
+
+  const openViewer = (index: number) => {
+    setViewerIndex(index);
+    setViewerOpen(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Search */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search designs..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            className="pl-9 rounded-xl"
+          />
+        </div>
+        <Button variant="outline" size="icon" onClick={() => refetch()} className="rounded-xl">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <p className="text-sm text-muted-foreground">{count} total designs</p>
+
+      {/* Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-xl" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">No designs found</div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {rows.map((design, index) => (
+            <div
+              key={design.id}
+              onClick={() => openViewer(index)}
+              className="group relative rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
+            >
+              <div className="aspect-square">
+                <img
+                  src={design.image_url}
+                  alt={design.title || design.prompt}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <p className="text-white text-xs font-medium truncate">
+                  {design.title || "Untitled"}
+                </p>
+                <div className="flex items-center gap-1 text-white/70 mt-1">
+                  <Calendar className="h-3 w-3" />
+                  <span className="text-[10px]">
+                    {format(new Date(design.created_at), "MMM d, yyyy")}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 pt-4">
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded-xl">Previous</Button>
+          <span className="flex items-center px-3 text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="rounded-xl">Next</Button>
+        </div>
+      )}
+
+      {/* Viewer */}
+      <DesignViewer
+        designs={rows}
+        initialIndex={viewerIndex}
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+      />
+    </div>
+  );
+}
+
+
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
