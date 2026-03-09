@@ -1,101 +1,65 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+## Plan: Add Chat Messages to RAG Personalisation Engine
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+### Current State
 
-### Architecture Overview
+The RAG engine currently has **one data source**: past design genomes weighted by vote scores. It extracts gene preferences (e.g., "user prefers warm palettes, bold typography") from the `designs` table.
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+Chat messages are stored in `design_messages` but are **never queried** by the RAG engine. This means valuable user intent signals — style preferences, feedback, correction patterns, tone directions — expressed in conversation are lost between sessions.
 
 ### What Gets Built
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+**1. Chat Preference Extraction** (inside `design-studio/index.ts`)
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+Add a new RAG step that queries the user's recent chat messages to extract recurring style/preference signals. This runs alongside the existing genome-based RAG.
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+- Query the user's last ~30 messages (role = "user") from `design_messages`, ordered by recency
+- Concatenate them into a compact summary string
+- Inject into the Brief Agent and Copywriter prompts as a "CONVERSATION HISTORY INSIGHTS" context block
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
+**2. Lightweight Preference Summarisation**
 
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
+Rather than passing raw chat messages (too noisy, too many tokens), use a compact extraction approach:
 
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
+- Filter only **user** messages (not assistant responses)
+- Take the most recent 30 messages across all designs for that user
+- Trim each to first 120 characters to capture intent without bloating the prompt
+- Inject as: `"Recent user requests and preferences (use to understand their style and content patterns): [messages]"`
 
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
+This is cheap (no extra LLM call) and gives the agents a sense of what the user typically asks for — recurring themes, preferred tones, common topics.
 
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
+**3. Structured Preference Signals (Enhancement)**
 
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
+For higher-quality extraction, add an optional step where the Brief Agent's system prompt is updated to note:
 
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
+> "The user's recent chat history is provided below. Look for recurring patterns: preferred visual styles, common topics/industries, tone preferences, and content types they request most. Use these patterns to inform your brief — but always prioritise the current prompt."
 
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
+### Integration Points
 
-**5. Store Genome with Design** (database migration)
+The chat context is injected at **LOW priority** — below brand data and audience intelligence, at the same level as genome RAG preferences. It informs but never overrides the current prompt.
 
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
-
-```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
+```text
+Priority Stack:
+1. Current user prompt (HIGHEST)
+2. Brand Centre data
+3. User attached image
+4. Audience JTBD
+5. Trend Lab
+6. Genome RAG preferences  ← existing
+7. Chat history patterns   ← NEW
 ```
 
-**6. Brand Consistency Layer** (inside Genome Composer logic)
+### File Changes
 
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
+| File | Change |
+|---|---|
+| `supabase/functions/design-studio/index.ts` | Add chat message RAG query after genome RAG; inject condensed chat context into Brief Agent and Copywriter prompts |
 
 ### What Does NOT Change
 
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
-
-### File Changes Summary
-
-| File | Action |
-|---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
-
-### Risk Mitigation
-
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+- No new database tables or migrations needed — `design_messages` already exists with the right schema
+- No UI changes — this is an invisible intelligence layer
+- No additional API/LLM calls — raw messages are condensed and injected as prompt context
+- Existing genome-based RAG remains unchanged
 
