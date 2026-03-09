@@ -320,14 +320,14 @@ function BroadcastTab() {
 
       {/* Result banner */}
       {result && (
-        <Card className="rounded-2xl border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+        <Card className="rounded-2xl border-primary/30 bg-primary/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+            <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
             <div>
-              <p className="font-medium text-green-800 dark:text-green-200">
+              <p className="font-medium text-foreground">
                 Broadcast sent successfully
               </p>
-              <p className="text-sm text-green-700 dark:text-green-300">
+              <p className="text-sm text-muted-foreground">
                 {result.sent} sent · {result.failed} failed · {result.total} total affiliates
               </p>
             </div>
