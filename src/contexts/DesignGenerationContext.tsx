@@ -83,6 +83,19 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
     }, TICK_MS);
   }, []);
 
+  const stopGeneration = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    stopProgressTimer(0);
+    setStatus("idle");
+    setResult(null);
+    setError(null);
+    setProgress(0);
+    consumedRef.current = false;
+  }, [stopProgressTimer]);
+
   const clearResult = useCallback(() => {
     setStatus("idle");
     setResult(null);
