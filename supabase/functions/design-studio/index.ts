@@ -369,6 +369,27 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
       // Collect inspiration examples for context
       const inspirationUrls: string[] = brand?.inspiration_examples || [];
 
+      // Fetch product images for contextual use
+      let productImageUrls: string[] = [];
+      let productImageContext = "";
+      if (brand?.id) {
+        try {
+          const { data: productData } = await adminClient
+            .from("brand_products")
+            .select("image_url, label")
+            .eq("brand_id", brand.id)
+            .order("created_at", { ascending: true })
+            .limit(6);
+          if (productData && productData.length > 0) {
+            productImageUrls = productData.map((p: any) => p.image_url);
+            const labels = productData.filter((p: any) => p.label).map((p: any) => p.label).join(", ");
+            productImageContext = `\n\nPRODUCT IMAGES AVAILABLE: The brand has ${productData.length} product image(s)${labels ? ` (${labels})` : ""}. When the design is promoting, showcasing, or related to the brand's products, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For motivational, informational, or brand-awareness posts, product images are optional. The user's attached image always takes priority over product images.`;
+          }
+        } catch (e) {
+          console.log("Product images fetch failed, proceeding without:", e);
+        }
+      }
+
       const brandContext = brand
         ? `You are Brandie, a senior creative director with 20+ years of experience. You design STRICTLY within the user's brand system.
 
@@ -386,7 +407,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? `- Brand inspiration/style references: The brand has ${inspirationUrls.length} inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.` : ""}
 ${brand.image_style_preferences?.length ? `- Image style preferences: ${brand.image_style_preferences.join(", ")}` : ""}
-${audienceContext}${trendContext}
+${audienceContext}${trendContext}${productImageContext}
 
 DESIGN PHILOSOPHY (ALWAYS APPLY):
 1. ALWAYS use PHOTOREALISTIC imagery and real photography. Use natural textures, real environments, and lifelike visuals. NEVER use cartoons, clip art, flat illustrations, or AI-looking abstract art — UNLESS the user EXPLICITLY requests illustrations, cartoons, or abstract styles.
@@ -1090,6 +1111,16 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       // Pass brand inspiration images as visual references (up to 2)
       for (const inspUrl of inspirationUrls.slice(0, 2)) {
         imageRefs.push({ type: "image_url", image_url: { url: inspUrl } });
+      }
+      // Pass product images as supporting visual references when contextually relevant
+      // Check if the design brief or user prompt suggests product-related content
+      const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
+      const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
+      if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
+        for (const prodUrl of productImageUrls.slice(0, 2)) {
+          imageRefs.push({ type: "image_url", image_url: { url: prodUrl } });
+        }
+        console.log(`Product images injected: ${Math.min(2, productImageUrls.length)} (prompt matched product context)`);
       }
 
       const imageContent = imageRefs.length > 0

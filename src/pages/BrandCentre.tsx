@@ -237,6 +237,36 @@ const BrandCentre = () => {
     enabled: !!brand,
   });
 
+  // Product Images
+  const { data: productImages, refetch: refetchProducts } = useQuery({
+    queryKey: ["brand_products", brand?.id],
+    queryFn: async () => {
+      if (!brand) return [];
+      const { data, error } = await supabase.from("brand_products" as any).select("*").eq("brand_id", brand.id).order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!brand,
+  });
+
+  const handleProductUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !brand || !user) return;
+    for (const file of files) {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
+      if (upErr) continue;
+      const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
+      await supabase.from("brand_products" as any).insert({ brand_id: brand.id, image_url: urlData.publicUrl, label: file.name.replace(/\.[^.]+$/, "") } as any);
+    }
+    toast({ title: "Product images added" }); refetchProducts();
+  };
+
+  const deleteProduct = async (id: string) => {
+    await supabase.from("brand_products" as any).delete().eq("id", id); refetchProducts();
+  };
+
   useEffect(() => {
     if (brand) {
       setName(brand.name || ""); setTagline(brand.tagline || ""); setDescription(brand.description || "");
@@ -560,6 +590,31 @@ const BrandCentre = () => {
               <div><label className="text-xs text-muted-foreground">Headings</label><p className="text-sm font-medium">{brand.typography_secondary || "Not set"}</p></div>
             </div>
           </Section>
+
+          {/* Product Images */}
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Images</h3>
+              <label className="cursor-pointer">
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground pointer-events-none"><Upload className="h-3 w-3" /> Add</Button>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleProductUpload} />
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">Upload photos of your products. They'll be used contextually in designs when relevant (promotions, launches, showcases).</p>
+            {productImages && productImages.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {productImages.map((item: any) => (
+                  <div key={item.id} className="relative aspect-square group">
+                    <img src={item.image_url} alt={item.label || "Product"} className="w-full h-full object-cover rounded-xl border border-border" />
+                    <button onClick={() => deleteProduct(item.id)} className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3" /></button>
+                    {item.label && <span className="absolute bottom-2 left-2 right-2 text-[10px] text-foreground bg-background/80 backdrop-blur-sm rounded-lg px-2 py-1 truncate">{item.label}</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No product images yet.</p>
+            )}
+          </div>
 
           {/* Inspiration */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
