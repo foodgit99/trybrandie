@@ -1,101 +1,52 @@
 
+## Analysis
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+The `send-email` edge function exists and has templates, but **it's not deployed** — the `supabase/config.toml` doesn't include it, which is why no logs appear and emails never send.
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+Additionally, I need to:
+1. Add the function to `config.toml`
+2. Add a **payment confirmation** email template (missing)
+3. Add a **low credits warning** email template (different from "out of credits" — triggered at <5 credits)
+4. Send confirmation email after payment (in `paystack-verify` or `paystack-webhook`)
+5. Send low credits warning in `design-studio` when credits drop below 5
+6. Update all templates to use clickable links with proper anchor tags
 
-### Architecture Overview
+## Plan
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+### 1. Update `supabase/config.toml`
+Add the `send-email` function configuration.
 
-### What Gets Built
+### 2. Enhance `send-email/index.ts`
+Add two new email templates:
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+**Payment Confirmation** (`payment_confirmation`)
+- Confirms successful subscription upgrade
+- Shows plan name and amount
+- Links to Design Studio
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+**Low Credits Warning** (`low_credits`)
+- Triggers when remaining credits < 5
+- Encourages upgrading or sharing referral link
+- Links to Plans page
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+Both templates will:
+- Use Brandie's brand colors (#1a1a2e header, #c4a265 gold accents)
+- Include the Brandie logo
+- Have clickable buttons using proper `<a href>` tags
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
+### 3. Update `paystack-verify/index.ts`
+After successful payment verification, fetch user email and send `payment_confirmation` email.
 
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
+### 4. Update `supabase/functions/design-studio/index.ts`
+After incrementing generation count, check if remaining credits < 5 and send `low_credits` warning (once per session/day to avoid spam).
 
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
+### 5. Deploy `send-email` function
 
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
+## Files Changed
 
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
-
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
-
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
-
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
-
-**5. Store Genome with Design** (database migration)
-
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
-
-```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
-```
-
-**6. Brand Consistency Layer** (inside Genome Composer logic)
-
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
-
-### What Does NOT Change
-
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
-
-### File Changes Summary
-
-| File | Action |
+| File | Change |
 |---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
-
-### Risk Mitigation
-
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
-
+| `supabase/config.toml` | Add `[functions.send-email]` config |
+| `supabase/functions/send-email/index.ts` | Add `payment_confirmation` and `low_credits` templates with branded design |
+| `supabase/functions/paystack-verify/index.ts` | Send confirmation email after successful payment |
+| `supabase/functions/design-studio/index.ts` | Send low credits warning when < 5 credits remain |
