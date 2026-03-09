@@ -141,6 +141,29 @@ CONVERSION RULES:
         console.log("RAG preference retrieval failed, proceeding without:", e);
       }
 
+      // --- CHAT HISTORY RAG ---
+      // Query user's recent chat messages for recurring style/preference signals
+      let chatHistoryContext = "";
+      try {
+        const { data: recentMessages } = await adminClient
+          .from("design_messages")
+          .select("content")
+          .eq("user_id", user.id)
+          .eq("role", "user")
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+        if (recentMessages && recentMessages.length >= 3) {
+          const condensed = recentMessages
+            .map((m: any) => m.content.trim().substring(0, 120))
+            .join(" | ");
+          chatHistoryContext = `\n\nCONVERSATION HISTORY INSIGHTS (recent user requests — look for recurring patterns in visual styles, topics, tone preferences, and content types. Use these to inform your decisions but ALWAYS prioritise the current prompt):\n${condensed}`;
+          console.log(`Chat RAG: ${recentMessages.length} messages condensed for context`);
+        }
+      } catch (e) {
+        console.log("Chat history RAG failed, proceeding without:", e);
+      }
+
       // Build trend context
       let trendContext = "";
       if (trend && trend !== "none") {
