@@ -51,6 +51,7 @@ const BrandCentre = () => {
   const [description, setDescription] = useState("");
   const [vibe, setVibe] = useState("");
   const [toneOfVoice, setToneOfVoice] = useState("");
+  const [specialInstructions, setSpecialInstructions] = useState("");
   const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
   const [primaryColors, setPrimaryColors] = useState<string[]>([]);
   const [secondaryColors, setSecondaryColors] = useState<string[]>([]);
