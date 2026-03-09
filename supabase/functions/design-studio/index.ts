@@ -172,18 +172,43 @@ CONVERSION RULES:
             // Cache miss or stale — run LLM extraction
             console.log(`Chat RAG cache MISS (cached: ${cached?.message_count ?? 0}, current: ${msgCount})`);
 
+            // Fetch messages with their parent design's vote score
             const { data: recentMessages } = await adminClient
               .from("design_messages")
-              .select("content")
+              .select("content, design_id")
               .eq("user_id", user.id)
               .eq("role", "user")
               .order("created_at", { ascending: false })
-              .limit(30);
+              .limit(40);
 
             if (recentMessages && recentMessages.length >= 5) {
-              const rawMessages = recentMessages
-                .map((m: any) => m.content.trim().substring(0, 150))
-                .join("\n- ");
+              // Batch-fetch vote scores for all related designs
+              const designIds = [...new Set(recentMessages.map((m: any) => m.design_id))];
+              const { data: designVotes } = await adminClient
+                .from("designs")
+                .select("id, vote")
+                .in("id", designIds);
+
+              const voteMap: Record<string, number> = {};
+              if (designVotes) {
+                for (const d of designVotes) {
+                  voteMap[d.id] = d.vote ?? 0;
+                }
+              }
+
+              // Weight messages: upvoted design msgs repeated 3x, neutral 1x, downvoted skipped
+              const weightedMessages: string[] = [];
+              for (const m of recentMessages) {
+                const vote = voteMap[m.design_id] ?? 0;
+                if (vote < 0) continue; // skip messages from downvoted designs
+                const text = m.content.trim().substring(0, 150);
+                const repeats = vote > 0 ? 3 : 1;
+                for (let i = 0; i < repeats; i++) {
+                  weightedMessages.push(text);
+                }
+              }
+
+              const rawMessages = weightedMessages.slice(0, 45).join("\n- ");
 
               const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
                 method: "POST",
