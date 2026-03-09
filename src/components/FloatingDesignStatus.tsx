@@ -80,7 +80,19 @@ export default function FloatingDesignStatus() {
                 : "border-border bg-card/95 shadow-lg"
             }`}
           >
-            {/* Close button */}
+            {/* Close / Stop button */}
+            {status === "generating" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stopGeneration();
+                }}
+                className="absolute -top-2 -right-2 rounded-full bg-destructive/90 p-1 hover:bg-destructive transition-colors"
+                title="Stop generation"
+              >
+                <Square className="h-3 w-3 text-destructive-foreground fill-current" />
+              </button>
+            )}
             {(status === "complete" || status === "error") && (
               <button
                 onClick={(e) => {
