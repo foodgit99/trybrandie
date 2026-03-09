@@ -141,8 +141,7 @@ CONVERSION RULES:
         console.log("RAG preference retrieval failed, proceeding without:", e);
       }
 
-      // --- CHAT HISTORY RAG ---
-      // Query user's recent chat messages for recurring style/preference signals
+      // --- CHAT HISTORY RAG (LLM-summarised preference tags) ---
       let chatHistoryContext = "";
       try {
         const { data: recentMessages } = await adminClient
@@ -153,12 +152,87 @@ CONVERSION RULES:
           .order("created_at", { ascending: false })
           .limit(30);
 
-        if (recentMessages && recentMessages.length >= 3) {
+        if (recentMessages && recentMessages.length >= 5) {
+          const rawMessages = recentMessages
+            .map((m: any) => m.content.trim().substring(0, 150))
+            .join("\n- ");
+
+          // Use a fast, cheap model to extract structured preference tags
+          const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-lite",
+              messages: [
+                {
+                  role: "system",
+                  content: `You are a design preference analyst. Given a user's recent chat messages from a brand design tool, extract structured preference tags.
+
+Output ONLY a JSON object with these fields (use empty arrays if no clear pattern):
+{
+  "visual_styles": ["up to 3 recurring visual style preferences, e.g. 'minimalist', 'bold gradients', 'dark backgrounds'"],
+  "color_preferences": ["up to 3 color tendencies, e.g. 'warm tones', 'neon accents', 'monochrome'"],
+  "typography_preferences": ["up to 2, e.g. 'large headlines', 'serif fonts', 'handwritten feel'"],
+  "content_topics": ["up to 3 recurring topics/industries, e.g. 'product launches', 'motivational quotes', 'food photography'"],
+  "tone_preferences": ["up to 2, e.g. 'professional', 'playful', 'luxury', 'casual'"],
+  "layout_preferences": ["up to 2, e.g. 'text-heavy', 'image-dominant', 'centered layout'"],
+  "recurring_requests": ["up to 2 specific patterns, e.g. 'always asks for CTA buttons', 'prefers short copy'"]
+}
+
+Be concise. Only include tags with clear evidence from multiple messages. Output valid JSON only.`,
+                },
+                {
+                  role: "user",
+                  content: `Recent user messages:\n- ${rawMessages}`,
+                },
+              ],
+            }),
+          });
+
+          if (extractResponse.ok) {
+            const extractData = await extractResponse.json();
+            const rawContent = extractData.choices?.[0]?.message?.content || "";
+            
+            // Parse JSON from response (handle markdown code blocks)
+            let tags: any = null;
+            try {
+              const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+              if (jsonMatch) tags = JSON.parse(jsonMatch[0]);
+            } catch { /* ignore parse errors */ }
+
+            if (tags && typeof tags === "object") {
+              const tagLines: string[] = [];
+              const tagMap: Record<string, string[]> = {
+                "Visual styles": tags.visual_styles,
+                "Color preferences": tags.color_preferences,
+                "Typography": tags.typography_preferences,
+                "Content topics": tags.content_topics,
+                "Tone": tags.tone_preferences,
+                "Layout": tags.layout_preferences,
+                "Patterns": tags.recurring_requests,
+              };
+              for (const [label, values] of Object.entries(tagMap)) {
+                if (Array.isArray(values) && values.length > 0) {
+                  tagLines.push(`- ${label}: ${values.join(", ")}`);
+                }
+              }
+              if (tagLines.length > 0) {
+                chatHistoryContext = `\n\nUSER STYLE PREFERENCE TAGS (extracted from ${recentMessages.length} recent conversations — use to inform decisions but ALWAYS prioritise the current prompt):\n${tagLines.join("\n")}`;
+                console.log("Chat RAG preference tags:", chatHistoryContext);
+              }
+            }
+          } else {
+            console.log("Chat RAG extraction call failed:", extractResponse.status);
+          }
+        } else if (recentMessages && recentMessages.length >= 3) {
+          // Fallback: too few messages for LLM extraction, use simple condensation
           const condensed = recentMessages
             .map((m: any) => m.content.trim().substring(0, 120))
             .join(" | ");
-          chatHistoryContext = `\n\nCONVERSATION HISTORY INSIGHTS (recent user requests — look for recurring patterns in visual styles, topics, tone preferences, and content types. Use these to inform your decisions but ALWAYS prioritise the current prompt):\n${condensed}`;
-          console.log(`Chat RAG: ${recentMessages.length} messages condensed for context`);
+          chatHistoryContext = `\n\nCONVERSATION HISTORY INSIGHTS (recent user requests — look for recurring patterns):\n${condensed}`;
         }
       } catch (e) {
         console.log("Chat history RAG failed, proceeding without:", e);
