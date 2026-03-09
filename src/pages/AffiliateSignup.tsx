@@ -27,6 +27,7 @@ const AffiliateSignup = () => {
 
     try {
       let userId = user?.id;
+      let userEmail = user?.email;
 
       // If not logged in, create account first
       if (!userId) {
@@ -40,6 +41,7 @@ const AffiliateSignup = () => {
         });
         if (signupError) throw signupError;
         userId = signupData.user?.id;
+        userEmail = email;
         if (!userId) {
           toast({
             title: "Check your email",
@@ -77,6 +79,21 @@ const AffiliateSignup = () => {
       });
 
       if (error) throw error;
+
+      // Send application received email
+      if (userEmail) {
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "affiliate_application_received",
+              to: userEmail,
+              data: { name: fullName || user?.user_metadata?.full_name || "" },
+            },
+          });
+        } catch (emailErr) {
+          console.error("Failed to send application email:", emailErr);
+        }
+      }
 
       toast({
         title: "Application submitted!",
