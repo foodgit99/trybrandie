@@ -696,7 +696,13 @@ const DesignStudio = () => {
               />
             </div>
           )}
-          {messages.map((msg, i) => (
+          {(() => {
+            // Find the index of the last assistant message with an image (the current design)
+            let lastImageIdx = -1;
+            for (let j = messages.length - 1; j >= 0; j--) {
+              if (messages[j].role === "assistant" && messages[j].imageUrl) { lastImageIdx = j; break; }
+            }
+            return messages.map((msg, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 8 }}
@@ -742,7 +748,7 @@ const DesignStudio = () => {
                       <button
                         onClick={() => handleVote(1)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          i === lastImageIdx && vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsUp className="h-[18px] w-[18px]" />
@@ -750,7 +756,7 @@ const DesignStudio = () => {
                       <button
                         onClick={() => handleVote(-1)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          i === lastImageIdx && vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsDown className="h-[18px] w-[18px]" />
