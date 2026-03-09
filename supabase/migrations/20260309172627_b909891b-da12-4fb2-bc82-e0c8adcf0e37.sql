@@ -1,0 +1,1 @@
+ALTER TABLE public.brands ADD COLUMN special_instructions text DEFAULT NULL;

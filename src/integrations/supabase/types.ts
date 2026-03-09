@@ -288,6 +288,7 @@ export type Database = {
           personality_traits: string[] | null
           primary_colors: string[] | null
           secondary_colors: string[] | null
+          special_instructions: string | null
           tagline: string | null
           tone_of_voice: string | null
           typography_display: string | null
@@ -308,6 +309,7 @@ export type Database = {
           personality_traits?: string[] | null
           primary_colors?: string[] | null
           secondary_colors?: string[] | null
+          special_instructions?: string | null
           tagline?: string | null
           tone_of_voice?: string | null
           typography_display?: string | null
@@ -328,6 +330,7 @@ export type Database = {
           personality_traits?: string[] | null
           primary_colors?: string[] | null
           secondary_colors?: string[] | null
+          special_instructions?: string | null
           tagline?: string | null
           tone_of_voice?: string | null
           typography_display?: string | null

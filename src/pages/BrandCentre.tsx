@@ -35,7 +35,7 @@ const EMPTY_INPUTS = {
   emotional_drivers: [] as string[],
 };
 
-type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality";
+type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality" | "special_instructions";
 
 const BrandCentre = () => {
   const { brand, refetch } = useBrand();
@@ -51,6 +51,7 @@ const BrandCentre = () => {
   const [description, setDescription] = useState("");
   const [vibe, setVibe] = useState("");
   const [toneOfVoice, setToneOfVoice] = useState("");
+  const [specialInstructions, setSpecialInstructions] = useState("");
   const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
   const [primaryColors, setPrimaryColors] = useState<string[]>([]);
   const [secondaryColors, setSecondaryColors] = useState<string[]>([]);
@@ -271,6 +272,7 @@ const BrandCentre = () => {
     if (brand) {
       setName(brand.name || ""); setTagline(brand.tagline || ""); setDescription(brand.description || "");
       setVibe(brand.vibe || ""); setToneOfVoice((brand as any).tone_of_voice || "");
+      setSpecialInstructions((brand as any).special_instructions || "");
       setPersonalityTraits((brand as any).personality_traits || []);
       setPrimaryColors(brand.primary_colors || []); setSecondaryColors(brand.secondary_colors || []);
       setAccentColors(brand.accent_colors || []);
@@ -288,6 +290,7 @@ const BrandCentre = () => {
     else if (field === "vibe") updates = { vibe };
     else if (field === "tone") updates = { tone_of_voice: toneOfVoice.trim() };
     else if (field === "personality") updates = { personality_traits: personalityTraits };
+    else if (field === "special_instructions") updates = { special_instructions: specialInstructions.trim() || null };
     const { error } = await supabase.from("brands").update(updates as any).eq("id", brand.id);
     setSaving(false);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
@@ -638,6 +641,20 @@ const BrandCentre = () => {
               <p className="text-sm text-muted-foreground">No inspiration images yet.</p>
             )}
           </div>
+
+          {/* Special Instructions */}
+          <Section title="Special Instructions" field="special_instructions" editContent={
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">These are persistent, high-priority rules the AI will always follow when generating designs. Use them for things like language preferences, content restrictions, or mandatory elements.</p>
+              <Textarea value={specialInstructions} onChange={(e) => setSpecialInstructions(e.target.value)} placeholder='e.g. "Always include our website URL: www.example.com", "Use Yoruba language for headlines", "Never use stock photos of people"' maxLength={2000} className="min-h-[120px]" />
+            </div>
+          }>
+            {(brand as any).special_instructions ? (
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{(brand as any).special_instructions}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No special instructions set. Add persistent rules that the AI will always follow.</p>
+            )}
+          </Section>
 
           {/* Target Audience Intelligence */}
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
