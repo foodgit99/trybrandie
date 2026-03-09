@@ -47,6 +47,7 @@ interface DesignGenerationContextValue {
   error: string | null;
   progress: number;
   startGeneration: (params: GenerationParams) => void;
+  stopGeneration: () => void;
   clearResult: () => void;
   consumeResult: () => GenerationResult | null;
 }
