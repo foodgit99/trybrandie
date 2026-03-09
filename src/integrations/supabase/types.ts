@@ -527,6 +527,8 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bonus_credits: number
+          bonus_earned_count: number
+          bonus_earned_reset_at: string
           created_at: string
           full_name: string | null
           generations_count: number
@@ -541,6 +543,8 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bonus_credits?: number
+          bonus_earned_count?: number
+          bonus_earned_reset_at?: string
           created_at?: string
           full_name?: string | null
           generations_count?: number
@@ -555,6 +559,8 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bonus_credits?: number
+          bonus_earned_count?: number
+          bonus_earned_reset_at?: string
           created_at?: string
           full_name?: string | null
           generations_count?: number
