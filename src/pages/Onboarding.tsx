@@ -209,17 +209,6 @@ const Onboarding = () => {
         body: { type: "welcome", to: user.email, data: { name: user.user_metadata?.full_name || "" } },
       }).catch(() => {});
 
-      // Process referral if applicable
-      try {
-        const { data: refResult } = await supabase.rpc("process_referral", { p_user_id: user.id });
-        const ref = refResult as any;
-        // Notify referrer via email
-        if (ref?.success && ref?.referrer_email) {
-          supabase.functions.invoke("send-email", {
-            body: { type: "referral_reward", to: ref.referrer_email, data: { credits: ref.credits_awarded || 5 } },
-          }).catch(() => {});
-        }
-      } catch {}
 
       toast({ title: "Your brand system is ready." });
       navigate("/");
