@@ -26,7 +26,7 @@ const Settings = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("referral_code, bonus_credits")
+        .select("referral_code, bonus_credits, subscription_tier")
         .eq("user_id", user!.id)
         .single();
       if (error) throw error;
