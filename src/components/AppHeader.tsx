@@ -28,6 +28,7 @@ const FREE_TIER_LIMIT = 10;
 
 const AppHeader = () => {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
 
   const { data: profile } = useQuery({
