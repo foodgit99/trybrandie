@@ -106,6 +106,18 @@ const AppHeader = () => {
               <Clock className="h-4 w-4" />
               Design History
             </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg cursor-pointer"
+                  onClick={() => navigate("/admin")}
+                >
+                  <Shield className="h-4 w-4" />
+                  Admin Panel
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="gap-2 rounded-lg cursor-pointer"
