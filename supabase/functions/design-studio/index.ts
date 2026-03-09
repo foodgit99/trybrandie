@@ -1112,6 +1112,16 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       for (const inspUrl of inspirationUrls.slice(0, 2)) {
         imageRefs.push({ type: "image_url", image_url: { url: inspUrl } });
       }
+      // Pass product images as supporting visual references when contextually relevant
+      // Check if the design brief or user prompt suggests product-related content
+      const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
+      const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
+      if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
+        for (const prodUrl of productImageUrls.slice(0, 2)) {
+          imageRefs.push({ type: "image_url", image_url: { url: prodUrl } });
+        }
+        console.log(`Product images injected: ${Math.min(2, productImageUrls.length)} (prompt matched product context)`);
+      }
 
       const imageContent = imageRefs.length > 0
         ? [
