@@ -49,7 +49,14 @@ import {
   Share2,
   MoreHorizontal,
   BarChart3,
+  Info,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
@@ -106,7 +113,7 @@ const DesignStudio = () => {
   const [trendIntensity, setTrendIntensity] = useState(40);
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
-  const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("fast");
+  const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
   const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -600,28 +607,45 @@ const DesignStudio = () => {
             </SelectContent>
           </Select>
           {/* Quality toggle */}
-          <div className="flex items-center h-8 sm:h-9 rounded-xl border border-input bg-background overflow-hidden">
-            <button
-              onClick={() => setRenderQuality("fast")}
-              className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors ${
-                renderQuality === "fast"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Fast
-            </button>
-            <button
-              onClick={() => setRenderQuality("hd")}
-              className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors flex items-center gap-1 ${
-                renderQuality === "hd"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Sparkles className="h-3 w-3" />
-              HD
-            </button>
+          <div className="flex items-center gap-1">
+            <div className="flex items-center h-8 sm:h-9 rounded-xl border border-input bg-background overflow-hidden">
+              <button
+                onClick={() => setRenderQuality("fast")}
+                className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors ${
+                  renderQuality === "fast"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Fast
+              </button>
+              <button
+                onClick={() => setRenderQuality("hd")}
+                className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                  renderQuality === "hd"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Sparkles className="h-3 w-3" />
+                HD
+              </button>
+            </div>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                    <Info className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+                  <p className="font-semibold mb-1">Fast</p>
+                  <p className="text-muted-foreground mb-2">Quick generation, uses 1 credit.</p>
+                  <p className="font-semibold mb-1">HD</p>
+                  <p className="text-muted-foreground">Higher quality output, uses 2 credits.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           {/* Audience selector removed from header — now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
