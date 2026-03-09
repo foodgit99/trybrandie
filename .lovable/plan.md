@@ -1,101 +1,192 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+# Brandie — Full User Flow Audit
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+## 1. Landing Page (`/`)
+**Status: Working**
+- Marketing landing page renders for unauthenticated users
+- Hero chat input with animated placeholder works — submits redirect to `/auth?prompt=...`
+- Navigation to sign in / sign up works
+- Feature sections, CTA, footer all render correctly
 
-### Architecture Overview
+**Issue (minor):** The hero chat input redirects to `/auth?prompt=...` but the Auth page does NOT read or use the `prompt` query param. The user's typed prompt is lost after signup/login. This is a **partially working** flow — the intent to carry the prompt into the studio is broken.
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+---
 
-### What Gets Built
+## 2. Authentication (`/auth`)
+**Status: Working**
+- Login, signup, forgot password modes all present
+- Referral code (`?ref=`) and affiliate code (`?aff=`) params are captured on signup
+- Email confirmation flow triggers correctly
+- Redirect to `/` after login works
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+**Issue (minor):** The `?mode=signup` param from landing page CTAs is not read — the Auth page always starts on "login" mode unless `?ref` or `?aff` is present. Users clicking "Get started" land on login, not signup.
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+---
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+## 3. Password Reset (`/reset-password`)
+**Status: Working with caveat**
+- Checks for `type=recovery` in hash fragment
+- Allows password update via `supabase.auth.updateUser`
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
+**Potential issue:** Modern Supabase auth may use PKCE flow where the hash format differs. If the redirect URL doesn't include `type=recovery` in the hash, users see "Invalid or expired reset link" permanently. This could be **partially working** depending on the auth config.
 
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
+---
 
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
+## 4. Onboarding (`/onboarding`)
+**Status: Working**
+- 10-step guided flow collecting brand data
+- Logo upload to `brand-logos` storage bucket
+- Inspiration upload to `brand-inspiration` storage bucket
+- Brand record created with `onboarding_complete: true`
+- Welcome email sent (fire-and-forget)
+- Redirects to `/` on completion
 
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
+**No issues found.** All steps have proper validation, back/next navigation works, and data persistence is correct.
 
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
+---
 
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
+## 5. Dashboard (`/` when authenticated, or `/dashboard`)
+**Status: Working**
+- Shows recent designs (up to 6)
+- Referral banner with copy/share functionality
+- Navigation to studio and brand centre
+- Credit badge in header
 
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
+**No issues found.**
 
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
+---
 
-**5. Store Genome with Design** (database migration)
+## 6. Design Studio (`/studio`)
+**Status: Working (core flow)**
+- Chat-based design generation with AI
+- Canvas size selection (square, landscape, story)
+- Quality toggle (fast/HD)
+- Audience selector from saved JTBD profiles
+- Trend selector with intensity slider
+- Image attachment support
+- Auto-save designs and chat messages
+- Load existing design via `?design=` param
+- Vote (thumbs up/down), download (PNG/JPG with watermark), copy URL, regenerate
+- Genome scores display
+- Caption display with copy
+- Credit limit checking
+- Chat suggestions (empty state and post-message)
+- Floating design status when navigating away
 
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
+**Issue (minor):** The `loading` state is set to `true` on `sendMessage` but is only set back to `false` inside the `useEffect` watching `generation.status`. If the user navigates away and back, the `loading` flag may not reset properly since it's local state. However, this is a minor edge case.
 
-```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
-```
+**Issue (minor):** Vote state (`vote`) is shared across all messages. If a user generates multiple designs in one session, voting on the latest design correctly updates the DB, but the UI shows the same vote state for all image messages. This is cosmetic.
 
-**6. Brand Consistency Layer** (inside Genome Composer logic)
+---
 
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
+## 7. Brand Centre (`/brand`)
+**Status: Working**
+- All brand fields editable (name, tagline, description, colors, typography, vibe, tone, personality)
+- Logo upload/update
+- Inspiration image upload/delete
+- Product image upload/delete
+- Target Audience Intelligence (JTBD) — add/edit/delete audience profiles, generate AI profiles
+- Trend Lab — enable/disable trends, select trend, adjust intensity
 
-### What Does NOT Change
+**No issues found.** All CRUD operations, mutations, and queries appear correct.
 
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
+---
 
-### File Changes Summary
+## 8. Design History (`/history`)
+**Status: Working**
+- Displays all designs in grid
+- Folder system: create, rename, delete folders, assign designs
+- Design viewer modal
+- Filter by folder
 
-| File | Action |
-|---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
+**No issues found.**
 
-### Risk Mitigation
+---
 
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+## 9. Settings (`/settings`)
+**Status: Working**
+- Account info display
+- Brand link to Brand Centre
+- Plan info (hardcoded "Free Plan")
+- Theme toggle (light/dark/system)
+- Referral section with copy/share
+- Sign out
+
+**Issue (minor):** Plan section always shows "Free Plan" hardcoded. It doesn't read from `profile.subscription_tier`. Users who upgraded via Plans page would still see "Free Plan" here.
+
+---
+
+## 10. Plans (`/plans`)
+**Status: Working (UI), Partially Working (payments)**
+- Displays 4 tiers with NGN pricing
+- Current tier badge reads from profile
+- Paystack checkout integration via edge function
+- Payment verification callback handling
+
+**Potential issue:** Payment integration depends on `paystack-checkout` and `paystack-verify` edge functions having valid Paystack API keys configured. If secrets aren't set, upgrades will fail silently with a toast error.
+
+---
+
+## 11. Affiliate Signup (`/affiliate/signup`)
+**Status: Working**
+- Signup for non-authenticated users (creates account + affiliate record)
+- Application for authenticated users
+- Duplicate check
+- Email notification (fire-and-forget)
+
+**Note:** This route is NOT behind `ProtectedRoute`, which is intentional for public access.
+
+---
+
+## 12. Affiliate Dashboard (`/affiliate`)
+**Status: Working (UI)**
+- Protected route
+- Shows affiliate stats, referrals, commissions, payouts
+- Bank details form
+- Payout request
+
+---
+
+## 13. Admin (`/admin`)
+**Status: Working (UI)**
+- Protected by `AdminRoute` (checks `user_roles` table)
+- Multi-tab admin panel for managing users, brands, designs, affiliates
+
+---
+
+## 14. Floating Design Status
+**Status: Working**
+- Shows when generating/complete and NOT on `/studio`
+- Hidden on studio page
+- Click navigates to studio with design ID
+- Pulsing glow on completion
+- Chime + toast on completion
+
+---
+
+## Summary Table
+
+| Flow | Status | Issues |
+|------|--------|--------|
+| Landing page | **Working** | Hero prompt lost after auth redirect |
+| Auth (login/signup) | **Working** | `?mode=signup` param ignored |
+| Password reset | **Working** | May break with PKCE auth flow |
+| Onboarding | **Working** | None |
+| Dashboard | **Working** | None |
+| Design Studio | **Working** | Minor vote state shared across messages |
+| Brand Centre | **Working** | None |
+| Design History | **Working** | None |
+| Settings | **Partially working** | Plan always shows "Free Plan" |
+| Plans/Payments | **Partially working** | Depends on Paystack secrets |
+| Affiliate Signup | **Working** | None |
+| Affiliate Dashboard | **Working** | None |
+| Admin | **Working** | None |
+| Floating Status | **Working** | None |
+
+## Priority Fixes Recommended
+
+1. **Auth page: Read `?mode=signup`** — Landing CTAs send users to signup but they land on login
+2. **Hero prompt carry-through** — Save prompt to sessionStorage, load it in studio after auth
+3. **Settings: Show actual subscription tier** — Read from `profile.subscription_tier` instead of hardcoded "Free Plan"
 
