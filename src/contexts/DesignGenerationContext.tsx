@@ -247,6 +247,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
         });
         setStatus("complete");
       } catch (err: any) {
+        if (abortController.signal.aborted) return;
         console.error("Generation error:", err);
         setError(err.message || "Something went wrong");
         setStatus("error");
