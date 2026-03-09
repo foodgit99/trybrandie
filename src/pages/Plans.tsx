@@ -135,7 +135,7 @@ const Plans = () => {
           plan: planKey,
           email: user.email,
           user_id: user.id,
-          callback_url: window.location.origin + "/plans",
+          callback_url: "https://trybrandie.com/plans",
         },
       });
 

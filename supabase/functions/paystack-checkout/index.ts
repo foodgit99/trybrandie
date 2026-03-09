@@ -43,6 +43,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    const safeCallbackUrl = (!callback_url || callback_url.includes("lovable.app"))
+      ? "https://trybrandie.com/plans"
+      : callback_url;
+
     const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: {
@@ -53,7 +57,7 @@ Deno.serve(async (req) => {
         email,
         amount,
         currency: "NGN",
-        callback_url: callback_url || undefined,
+        callback_url: safeCallbackUrl,
         metadata: {
           user_id,
           plan,
