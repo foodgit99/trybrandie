@@ -4,14 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   Users,
@@ -35,13 +38,18 @@ import {
   Search,
   Pencil,
   Trash2,
-  Plus,
   BarChart3,
   RefreshCw,
+  Send,
+  Eye,
+  CheckCircle2,
+  Link,
+  Mail,
 } from "lucide-react";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
+  { key: "broadcast", label: "Broadcast", icon: Send },
   { key: "profiles", label: "Users", icon: Users },
   { key: "brands", label: "Brands", icon: Palette },
   { key: "designs", label: "Designs", icon: Image },
@@ -128,6 +136,250 @@ function OverviewTab() {
         <StatCard title="Designs" value={stats.designs || 0} icon={Image} />
         <StatCard title="Affiliates" value={stats.affiliates || 0} icon={UserCheck} />
       </div>
+    </div>
+  );
+}
+
+// ─── Broadcast Tab ────────────────────────────────────────────────────────────
+
+function BroadcastTab() {
+  const [subjectLine, setSubjectLine] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [message, setMessage] = useState("");
+  const [ctaText, setCtaText] = useState("");
+  const [ctaUrl, setCtaUrl] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+
+  const { data: countData } = useQuery({
+    queryKey: ["affiliate-broadcast-count"],
+    queryFn: () =>
+      adminAction({ operation: "broadcast", broadcast: { countOnly: true } }),
+  });
+
+  const recipientCount = countData?.count ?? 0;
+
+  const broadcastMutation = useMutation({
+    mutationFn: () =>
+      adminAction({
+        operation: "broadcast",
+        broadcast: {
+          subject_line: subjectLine,
+          headline: headline || subjectLine,
+          message,
+          cta_text: ctaText,
+          cta_url: ctaUrl,
+        },
+      }),
+    onSuccess: (data) => {
+      setResult(data);
+      toast.success(`Broadcast sent to ${data.sent} affiliates`);
+      setConfirmOpen(false);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+      setConfirmOpen(false);
+    },
+  });
+
+  const isValid = subjectLine.trim() && message.trim();
+
+  const paragraphs = message.split("\n").filter((p) => p.trim());
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div>
+        <h2 className="text-xl font-semibold">Affiliate Broadcast</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Send a custom email announcement to all approved affiliate partners.
+        </p>
+      </div>
+
+      {/* Recipient badge */}
+      <div className="flex items-center gap-2">
+        <Mail className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">
+          This will be sent to{" "}
+          <Badge variant="secondary" className="rounded-lg font-semibold">
+            {recipientCount} approved affiliate{recipientCount !== 1 ? "s" : ""}
+          </Badge>
+        </span>
+      </div>
+
+      {/* Compose card */}
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-base">Compose Message</CardTitle>
+          <CardDescription>Write your announcement below. Paragraphs are separated by line breaks.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="subject">Email subject line <span className="text-destructive">*</span></Label>
+            <Input
+              id="subject"
+              value={subjectLine}
+              onChange={(e) => setSubjectLine(e.target.value)}
+              placeholder="e.g. Important update for Brandie Affiliates"
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="headline">Email headline</Label>
+            <Input
+              id="headline"
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              placeholder="Shown prominently at the top of the email (defaults to subject)"
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="message">Message body <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Write your message here. Use new lines for separate paragraphs."
+              rows={6}
+              className="rounded-xl resize-none"
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Link className="h-3.5 w-3.5" />
+              Call-to-action (optional)
+            </Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                value={ctaText}
+                onChange={(e) => setCtaText(e.target.value)}
+                placeholder="Button text, e.g. View Dashboard"
+                className="rounded-xl"
+              />
+              <Input
+                value={ctaUrl}
+                onChange={(e) => setCtaUrl(e.target.value)}
+                placeholder="https://..."
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email preview */}
+      {showPreview && (
+        <Card className="rounded-2xl overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Eye className="h-4 w-4" />
+              Email Preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-xl overflow-hidden border border-border">
+              <div style={{ background: "#1a1a2e" }} className="px-8 py-7 text-center">
+                <p style={{ color: "#c4a265" }} className="text-xs font-semibold uppercase tracking-widest mb-2">
+                  Affiliate Partner Update
+                </p>
+                <h2 style={{ color: "#ffffff" }} className="font-bold text-xl leading-snug">
+                  {headline || subjectLine || "Your headline appears here"}
+                </h2>
+              </div>
+              <div style={{ background: "#fafaf9" }} className="px-8 py-7 space-y-3">
+                {paragraphs.length > 0 ? (
+                  paragraphs.map((p, i) => (
+                    <p key={i} style={{ color: "#1a1a2e" }} className="text-sm leading-relaxed">{p}</p>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-sm italic">Your message appears here…</p>
+                )}
+                {ctaText && ctaUrl && (
+                  <div className="pt-2 text-center">
+                    <span style={{ background: "#c4a265", color: "#1a1a2e" }} className="inline-block font-semibold text-sm px-6 py-2.5 rounded-xl">
+                      {ctaText}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div style={{ background: "#fafaf9" }} className="border-t border-border px-8 py-4 text-center">
+                <p className="text-xs text-muted-foreground">
+                  You received this as an approved Brandie Affiliate Partner.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Result banner */}
+      {result && (
+        <Card className="rounded-2xl border-primary/30 bg-primary/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+            <div>
+              <p className="font-medium text-foreground">
+                Broadcast sent successfully
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {result.sent} sent · {result.failed} failed · {result.total} total affiliates
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex gap-3">
+        <Button
+          variant="outline"
+          onClick={() => setShowPreview((v) => !v)}
+          className="rounded-xl gap-2"
+        >
+          <Eye className="h-4 w-4" />
+          {showPreview ? "Hide Preview" : "Preview Email"}
+        </Button>
+        <Button
+          onClick={() => setConfirmOpen(true)}
+          disabled={!isValid || recipientCount === 0}
+          className="rounded-xl gap-2"
+        >
+          <Send className="h-4 w-4" />
+          Send to {recipientCount} affiliate{recipientCount !== 1 ? "s" : ""}
+        </Button>
+      </div>
+
+      {/* Confirm dialog */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Broadcast Email?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will send <strong>"{subjectLine}"</strong> to{" "}
+              <strong>{recipientCount} approved affiliate{recipientCount !== 1 ? "s" : ""}</strong>.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl" disabled={broadcastMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => broadcastMutation.mutate()}
+              disabled={broadcastMutation.isPending}
+              className="rounded-xl"
+            >
+              {broadcastMutation.isPending ? "Sending…" : "Send Now"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -413,7 +665,11 @@ export default function Admin() {
             <OverviewTab />
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview").map((t) => (
+          <TabsContent value="broadcast">
+            <BroadcastTab />
+          </TabsContent>
+
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "broadcast").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>

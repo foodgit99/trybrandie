@@ -411,6 +411,46 @@ function affiliatePayoutProcessedHtml(amount: number, status: "paid" | "rejected
 </body></html>`;
 }
 
+function affiliateBroadcastHtml(headline: string, message: string, ctaText: string, ctaUrl: string): string {
+  const paragraphs = message
+    .split("\n")
+    .filter((p) => p.trim())
+    .map((p) => `<p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">${p}</p>`)
+    .join("");
+
+  const ctaBlock = ctaText && ctaUrl
+    ? `<table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center" style="padding-top:8px;">
+        <a href="${ctaUrl}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+          ${ctaText}
+        </a>
+      </td></tr></table>`
+    : "";
+
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <p style="color:#c4a265;font-size:13px;font-weight:600;letter-spacing:0.08em;margin:0 0 8px;text-transform:uppercase;">Affiliate Partner Update</p>
+    <h1 style="color:#ffffff;font-size:26px;margin:0;font-weight:700;line-height:1.3;">${headline}</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    ${paragraphs}
+    ${ctaBlock}
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this as an approved Brandie Affiliate Partner.</p>
+    <p style="font-size:13px;color:#9ca3af;margin:6px 0 0;">
+      <a href="${APP_URL}/affiliate" style="color:#c4a265;text-decoration:underline;">View your dashboard</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -484,6 +524,15 @@ Deno.serve(async (req) => {
           ? "Your Brandie affiliate payout has been sent 🏦" 
           : "Update on your Brandie payout request";
         html = affiliatePayoutProcessedHtml(data?.amount || 0, data?.status || "paid");
+        break;
+      case "affiliate_broadcast":
+        subject = data?.subject_line || "Message from the Brandie Team";
+        html = affiliateBroadcastHtml(
+          data?.headline || data?.subject_line || "A message from Brandie",
+          data?.message || "",
+          data?.cta_text || "",
+          data?.cta_url || ""
+        );
         break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
