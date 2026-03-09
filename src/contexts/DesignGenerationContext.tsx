@@ -195,6 +195,17 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
                   attached_image_url: m.attachedImageUrl || null,
                 }));
                 await supabase.from("design_messages").insert(chatRows);
+
+                // Process referral reward on first design (fire-and-forget, idempotent)
+                try {
+                  const { data: refResult } = await supabase.rpc("process_referral", { p_user_id: user_id });
+                  const ref = refResult as any;
+                  if (ref?.success && ref?.referrer_email) {
+                    supabase.functions.invoke("send-email", {
+                      body: { type: "referral_reward", to: ref.referrer_email, data: { credits: ref.credits_awarded || 5 } },
+                    }).catch(() => {});
+                  }
+                } catch {}
               }
             }
           } catch (autoSaveErr) {
