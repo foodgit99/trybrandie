@@ -280,7 +280,7 @@ const DesignStudio = () => {
     if (!user) return false;
     const { data } = await supabase
       .from("profiles")
-      .select("generations_count, generations_reset_at")
+      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
       .eq("user_id", user.id)
       .single();
     if (!data) return true;
@@ -289,11 +289,11 @@ const DesignStudio = () => {
     if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
       return true;
     }
+    const limit = getTierLimit((data as any).subscription_tier);
     const creditCost = renderQuality === "hd" ? 2 : 1;
     const bonus = (data as any).bonus_credits ?? 0;
-    if (data.generations_count + creditCost > FREE_TIER_LIMIT + bonus) {
+    if (data.generations_count + creditCost > limit + bonus) {
       setShowLimitModal(true);
-      // Send out-of-credits email (fire-and-forget)
       if (user?.email) {
         supabase.functions.invoke("send-email", {
           body: { type: "out_of_credits", to: user.email },
