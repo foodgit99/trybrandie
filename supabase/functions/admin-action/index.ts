@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { operation, table, data, id, offset = 0, limit = 50, search } = await req.json();
+    const { operation, table, data, id, offset = 0, limit = 50, search, broadcast } = await req.json();
 
     // Validate table name
     if (table && !ALLOWED_TABLES.includes(table)) {
@@ -105,6 +105,66 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     switch (operation) {
+      case "broadcast": {
+        // Get count of approved affiliates
+        if (broadcast?.countOnly) {
+          const { count } = await adminClient
+            .from("affiliates")
+            .select("*", { count: "exact", head: true })
+            .eq("status", "approved");
+          return new Response(JSON.stringify({ count: count || 0 }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Send broadcast email to all approved affiliates
+        const { subject_line, headline, message, cta_text, cta_url } = broadcast || {};
+        if (!subject_line || !message) {
+          return new Response(JSON.stringify({ error: "subject_line and message are required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get all approved affiliates
+        const { data: affiliates, error: affErr } = await adminClient
+          .from("affiliates")
+          .select("user_id")
+          .eq("status", "approved");
+
+        if (affErr) throw affErr;
+
+        let sent = 0;
+        let failed = 0;
+        const total = affiliates?.length || 0;
+
+        // Send emails (limit concurrent requests)
+        for (const aff of affiliates || []) {
+          const { data: authUser } = await adminClient.auth.admin.getUserById(aff.user_id);
+          const email = authUser?.user?.email;
+          if (email) {
+            try {
+              await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "affiliate_broadcast", email, {
+                subject_line,
+                headline,
+                message,
+                cta_text,
+                cta_url,
+              });
+              sent++;
+            } catch {
+              failed++;
+            }
+          } else {
+            failed++;
+          }
+        }
+
+        return new Response(JSON.stringify({ sent, failed, total }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "stats": {
         // Get counts for dashboard
         const stats: Record<string, number> = {};
