@@ -1,101 +1,55 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+# Brandie — Full User Flow Audit (Updated)
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+## Summary
 
-### Architecture Overview
+All three priority fixes from the previous audit have been implemented. Here is the current status of every flow:
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+---
 
-### What Gets Built
+## Flow Status
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+| # | Flow | Status | Notes |
+|---|------|--------|-------|
+| 1 | **Landing Page** | **Working** | Hero chat saves prompt to sessionStorage, CTA links to `?mode=signup`. Both previously broken flows are now fixed. |
+| 2 | **Auth (Login/Signup)** | **Working** | Reads `?mode=signup`, `?ref=`, `?aff=`, `?prompt=` params correctly. Prompt persisted to sessionStorage for carry-through. |
+| 3 | **Password Reset** | **Working (caveat)** | Checks `type=recovery` in hash fragment. May fail if PKCE auth flow changes the hash format — not a code bug, but a configuration sensitivity. |
+| 4 | **Onboarding** | **Working** | 10-step flow, logo/inspiration uploads, brand creation, welcome email. No issues. |
+| 5 | **Dashboard** | **Working** | Recent designs, referral banner, navigation. No issues. |
+| 6 | **Design Studio** | **Working** | Full generation flow, edits, auto-save, audience/trend selectors, credit checks, hero prompt pickup from sessionStorage. |
+| 7 | **Brand Centre** | **Working** | All brand fields, JTBD profiles, Trend Lab. No issues. |
+| 8 | **Design History** | **Working** | Grid view, folder system, viewer modal. No issues. |
+| 9 | **Settings** | **Working** | Now reads `subscription_tier` from profile dynamically. Shows correct plan name and credits. Previously hardcoded — now fixed. |
+| 10 | **Plans/Payments** | **Working** | Paystack checkout + verification flow functional. `PAYSTACK_SECRET_KEY` secret is configured. |
+| 11 | **Affiliate Signup** | **Working** | Public route, dual-mode (auth/unauth). No issues. |
+| 12 | **Affiliate Dashboard** | **Working** | Stats, referrals, payouts. No issues. |
+| 13 | **Admin** | **Working** | Role-based protection via `user_roles` table + `has_role()` function. No issues. |
+| 14 | **Floating Design Status** | **Working** | Hidden on `/studio`, visible elsewhere, pulsing glow on complete, chime + toast, click navigates to studio. |
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+---
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+## Previously Identified Issues — Now Resolved
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
+| Issue | Status |
+|-------|--------|
+| Auth page ignores `?mode=signup` | **Fixed** — `useEffect` reads param and sets mode |
+| Hero prompt lost after auth redirect | **Fixed** — Saved to sessionStorage, picked up in DesignStudio |
+| Settings shows hardcoded "Free Plan" | **Fixed** — Reads `profile.subscription_tier` dynamically |
 
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
+---
 
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
+## Remaining Minor Issues (Cosmetic / Edge Cases)
 
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
+1. **Vote state shared across all messages** — The `vote` state in DesignStudio is a single value applied to all image messages in the UI. If a user generates multiple designs in one session, the thumbs-up/down highlight applies to all images, not just the one being voted on. This is cosmetic only; DB writes target the correct design.
 
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
+2. **Password reset PKCE sensitivity** — The `ResetPassword` page checks `window.location.hash` for `type=recovery`. Modern auth PKCE flows may deliver the recovery token differently. If users report "Invalid or expired reset link" despite clicking a valid link, this would need investigation.
 
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
+3. **Credit calculation ignores paid tiers** — `getCreditsRemaining()` in DesignStudio uses `FREE_TIER_LIMIT = 10` for all users. Paid users (entrepreneur/creator/agency) should have higher limits (50/150/400). The limit check in `checkGenerationLimit()` also uses this constant. Upgrading users would still be capped at 10 + bonus credits.
 
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
+---
 
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
+## Verdict
 
-**5. Store Genome with Design** (database migration)
-
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
-
-```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
-```
-
-**6. Brand Consistency Layer** (inside Genome Composer logic)
-
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
-
-### What Does NOT Change
-
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
-
-### File Changes Summary
-
-| File | Action |
-|---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
-
-### Risk Mitigation
-
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+**All major flows are working.** The three priority fixes from the last audit are confirmed implemented. The only functional issue of note is #3 above — credit limits don't scale with paid tiers — which would matter once real payments are live.
 
