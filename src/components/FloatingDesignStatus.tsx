@@ -1,12 +1,12 @@
 import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, XCircle, X, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, X, Sparkles, Square } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export default function FloatingDesignStatus() {
-  const { status, result, error, progress, clearResult } = useDesignGeneration();
+  const { status, result, error, progress, clearResult, stopGeneration } = useDesignGeneration();
   const navigate = useNavigate();
   const location = useLocation();
   const toastFired = useRef(false);
@@ -80,7 +80,19 @@ export default function FloatingDesignStatus() {
                 : "border-border bg-card/95 shadow-lg"
             }`}
           >
-            {/* Close button */}
+            {/* Close / Stop button */}
+            {status === "generating" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stopGeneration();
+                }}
+                className="absolute -top-2 -right-2 rounded-full bg-destructive/90 p-1 hover:bg-destructive transition-colors"
+                title="Stop generation"
+              >
+                <Square className="h-3 w-3 text-destructive-foreground fill-current" />
+              </button>
+            )}
             {(status === "complete" || status === "error") && (
               <button
                 onClick={(e) => {

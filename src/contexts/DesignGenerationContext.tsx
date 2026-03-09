@@ -47,6 +47,7 @@ interface DesignGenerationContextValue {
   error: string | null;
   progress: number;
   startGeneration: (params: GenerationParams) => void;
+  stopGeneration: () => void;
   clearResult: () => void;
   consumeResult: () => GenerationResult | null;
 }
@@ -63,6 +64,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   const [progress, setProgress] = useState(0);
   const consumedRef = useRef(false);
   const progressTimer = useRef<ReturnType<typeof setInterval>>();
+  const abortRef = useRef<AbortController | null>(null);
 
   const stopProgressTimer = useCallback((final: number) => {
     if (progressTimer.current) clearInterval(progressTimer.current);
@@ -80,6 +82,19 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
       setProgress(Math.min(Math.round(eased), 95));
     }, TICK_MS);
   }, []);
+
+  const stopGeneration = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    stopProgressTimer(0);
+    setStatus("idle");
+    setResult(null);
+    setError(null);
+    setProgress(0);
+    consumedRef.current = false;
+  }, [stopProgressTimer]);
 
   const clearResult = useCallback(() => {
     setStatus("idle");
@@ -101,6 +116,9 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   const startGeneration = useCallback((params: GenerationParams) => {
     if (status === "generating") return;
 
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+
     setStatus("generating");
     setResult(null);
     setError(null);
@@ -117,6 +135,8 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
         const { data, error: fnError } = await supabase.functions.invoke("design-studio", {
           body: edgeFnBody,
         });
+
+        if (abortController.signal.aborted) return;
 
         if (fnError) {
           setError(fnError.message || "Generation failed");
@@ -227,6 +247,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
         });
         setStatus("complete");
       } catch (err: any) {
+        if (abortController.signal.aborted) return;
         console.error("Generation error:", err);
         setError(err.message || "Something went wrong");
         setStatus("error");
@@ -236,7 +257,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   }, [status, startProgressTimer, stopProgressTimer]);
 
   return (
-    <DesignGenerationContext.Provider value={{ status, result, error, progress, startGeneration, clearResult, consumeResult }}>
+    <DesignGenerationContext.Provider value={{ status, result, error, progress, startGeneration, stopGeneration, clearResult, consumeResult }}>
       {children}
     </DesignGenerationContext.Provider>
   );
