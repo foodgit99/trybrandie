@@ -895,7 +895,8 @@ const DesignStudio = () => {
                 )}
               </div>
             </motion.div>
-          ))}
+            ));
+          })()}
           {loading && (
             <motion.div
               initial={{ opacity: 0 }}
