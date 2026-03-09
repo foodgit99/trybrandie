@@ -823,7 +823,7 @@ CONTEXT:
 - Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
 - Brand vibe: ${brand?.vibe || "Modern"}
 ${audienceContext ? `\n${audienceContext}` : ""}
-${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}
+${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}${chatHistoryContext}
 ${genomeData ? `\nVISUAL DENSITY CONTEXT: The design uses ${genomeData.layout.content_ratio.replace(/_/g, " ")} content ratio with ${genomeData.typography.hierarchy_logic.replace(/_/g, " ")}. Adjust copy length accordingly — text_minimal means fewer words, text_dominant means richer copy.` : ""}
 
 RULES:
