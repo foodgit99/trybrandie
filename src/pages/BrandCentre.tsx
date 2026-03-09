@@ -272,6 +272,7 @@ const BrandCentre = () => {
     if (brand) {
       setName(brand.name || ""); setTagline(brand.tagline || ""); setDescription(brand.description || "");
       setVibe(brand.vibe || ""); setToneOfVoice((brand as any).tone_of_voice || "");
+      setSpecialInstructions((brand as any).special_instructions || "");
       setPersonalityTraits((brand as any).personality_traits || []);
       setPrimaryColors(brand.primary_colors || []); setSecondaryColors(brand.secondary_colors || []);
       setAccentColors(brand.accent_colors || []);
