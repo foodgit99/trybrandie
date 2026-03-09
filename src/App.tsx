@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
+import FloatingDesignStatus from "@/components/FloatingDesignStatus";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -106,6 +108,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <DesignGenerationProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
@@ -123,7 +126,9 @@ const App = () => (
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <FloatingDesignStatus />
       </BrowserRouter>
+      </DesignGenerationProvider>
     </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>

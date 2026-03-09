@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,7 +53,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
-
+import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 type Message = {
   role: "user" | "assistant";
   content: string;
@@ -75,6 +75,7 @@ const DesignStudio = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const generation = useDesignGeneration();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -312,7 +313,7 @@ const DesignStudio = () => {
 
   const sendMessage = async () => {
     const trimmed = input.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || generation.status === "generating") return;
 
     const isEdit = !!currentImage && !!currentPrompt;
 
@@ -329,160 +330,90 @@ const DesignStudio = () => {
     setAttachedImage(null);
     setLoading(true);
     setSaved(false);
-    // Only reset design ID for genuinely new generations, not edits
     if (!isEdit) {
       setCurrentDesignId(null);
     }
     setVote(0);
 
-    try {
-      const brandPayload = brand
-        ? {
-            name: brand.name,
-            tagline: brand.tagline,
-            description: brand.description,
-            vibe: brand.vibe,
-            primary_colors: brand.primary_colors,
-            secondary_colors: brand.secondary_colors,
-            accent_colors: brand.accent_colors,
-            typography_primary: brand.typography_primary,
-            typography_secondary: brand.typography_secondary,
-            logo_url: brand.logo_url,
-            tone_of_voice: (brand as any).tone_of_voice,
-            personality_traits: (brand as any).personality_traits,
-          }
-        : null;
-
-      const { data, error } = await supabase.functions.invoke("design-studio", {
-        body: {
-          action: isEdit ? "edit" : "generate",
-          canvas_size: canvasSize,
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          brand: brandPayload,
-          ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
-          ...(selectedTrend !== "none" && { trend: selectedTrend, trend_intensity: trendIntensity }),
-          ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
-          render_quality: renderQuality,
-          ...(isEdit && {
-            previous_prompt: currentPrompt,
-            previous_image_url: currentImage,
-          }),
-        },
-      });
-
-      if (error) {
-        const errMsg = error.message || "";
-        if (errMsg.includes("429") || errMsg.toLowerCase().includes("limit") || errMsg.toLowerCase().includes("rate")) {
-          setShowLimitModal(true);
-          setMessages((prev) => [...prev, { role: "assistant", content: "You've reached your generation limit for this month. Upgrade your plan for more credits." }]);
-        } else if (errMsg.includes("402") || errMsg.toLowerCase().includes("payment")) {
-          toast({ title: "AI credits exhausted", description: "Please try again later or upgrade your plan.", variant: "destructive" });
-          setMessages((prev) => [...prev, { role: "assistant", content: "AI credits are temporarily exhausted. Please try again later." }]);
-        } else {
-          throw error;
+    const brandPayload = brand
+      ? {
+          name: brand.name,
+          tagline: brand.tagline,
+          description: brand.description,
+          vibe: brand.vibe,
+          primary_colors: brand.primary_colors,
+          secondary_colors: brand.secondary_colors,
+          accent_colors: brand.accent_colors,
+          typography_primary: brand.typography_primary,
+          typography_secondary: brand.typography_secondary,
+          logo_url: brand.logo_url,
+          tone_of_voice: (brand as any).tone_of_voice,
+          personality_traits: (brand as any).personality_traits,
         }
-      } else if (data?.error) {
-        // Check if the edge function returned a soft error in the body
-        const bodyErr = (data.error || "").toLowerCase();
-        if (bodyErr.includes("limit") || bodyErr.includes("429")) {
-          setShowLimitModal(true);
-        } else {
-          toast({ title: "Error", description: data.error, variant: "destructive" });
-        }
-        setMessages((prev) => [...prev, { role: "assistant", content: data.error }]);
-      } else {
-        const freeLabel = data.free_edit ? " (free edit — no credit used)" : "";
-        const assistantMsg: Message = {
-          role: "assistant",
-          content: (data.explanation || "Here's your design.") + freeLabel,
-          imageUrl: data.image_url,
-        };
-        const updatedMessages = [...newMessages, assistantMsg];
-        setMessages(updatedMessages);
-        setCurrentImage(data.image_url);
-        setCurrentPrompt(data.design_prompt || trimmed);
-        setCurrentGenome(data.genome || null);
-        setCurrentCaption(data.caption || null);
-        setGenomeScores(data.genome_scores || null);
-        setWasRefined(data.refined === true);
-        setShowScores(false);
+      : null;
 
-        // --- AUTO-SAVE: persist design + genome immediately so RAG learning loop always has data ---
-        if (data.image_url && user && brand) {
-          try {
-            if (isEdit && currentDesignId) {
-              // Update existing design record
-              const { error: updateErr } = await supabase.from("designs").update({
-                title: trimmed.slice(0, 100) || "Untitled",
-                prompt: data.design_prompt || trimmed,
-                image_url: data.image_url,
-                canvas_size: canvasSize,
-                ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
-                ...(data.genome && { genome: data.genome }),
-                ...(data.caption && { caption: data.caption }),
-              } as any).eq("id", currentDesignId);
-              if (!updateErr) {
-                setSaved(true);
-                // Append new messages to chat history
-                const newChatRows = [userMsg, assistantMsg].map((m) => ({
-                  design_id: currentDesignId,
-                  user_id: user.id,
-                  role: m.role,
-                  content: m.content,
-                  image_url: m.imageUrl || null,
-                  attached_image_url: m.attachedImageUrl || null,
-                }));
-                await supabase.from("design_messages").insert(newChatRows);
-              }
-            } else {
-              // Insert new design record
-              const { data: designData, error: saveErr } = await supabase.from("designs").insert({
-                user_id: user.id,
-                brand_id: brand.id,
-                title: trimmed.slice(0, 100) || "Untitled",
-                prompt: data.design_prompt || trimmed,
-                image_url: data.image_url,
-                canvas_size: canvasSize,
-                vote: 0,
-                ...(selectedTrend !== "none" && { trend_used: selectedTrend, trend_intensity: trendIntensity }),
-                ...(data.genome && { genome: data.genome }),
-                ...(data.caption && { caption: data.caption }),
-              } as any).select("id").single();
+    generation.startGeneration({
+      action: isEdit ? "edit" : "generate",
+      canvas_size: canvasSize,
+      messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+      brand: brandPayload,
+      ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
+      ...(selectedTrend !== "none" && { trend: selectedTrend, trend_intensity: trendIntensity }),
+      ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
+      render_quality: renderQuality,
+      ...(isEdit && {
+        previous_prompt: currentPrompt!,
+        previous_image_url: currentImage!,
+      }),
+      // Internal fields for auto-save
+      user_id: user!.id,
+      brand_id: brand!.id,
+      title: trimmed,
+      current_design_id: isEdit ? currentDesignId : null,
+      selected_trend: selectedTrend,
+      user_email: user?.email || undefined,
+      full_messages: newMessages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        imageUrl: m.imageUrl,
+        attachedImageUrl: m.attachedImageUrl,
+      })),
+    });
+  };
 
-              if (!saveErr && designData?.id) {
-                setSaved(true);
-                setCurrentDesignId(designData.id);
-                // Persist chat history
-                const chatRows = updatedMessages.map((m) => ({
-                  design_id: designData.id,
-                  user_id: user.id,
-                  role: m.role,
-                  content: m.content,
-                  image_url: m.imageUrl || null,
-                  attached_image_url: m.attachedImageUrl || null,
-                }));
-                await supabase.from("design_messages").insert(chatRows);
-              }
-            }
-          } catch (autoSaveErr) {
-            console.error("Auto-save failed:", autoSaveErr);
-          }
-        }
-      }
-
-      // Refresh credit counter
+  // Sync generation results back to local state
+  useEffect(() => {
+    if (generation.status === "complete" && generation.result) {
+      const r = generation.result;
+      const freeLabel = r.free_edit ? " (free edit — no credit used)" : "";
+      const assistantMsg: Message = {
+        role: "assistant",
+        content: r.explanation + freeLabel,
+        imageUrl: r.image_url,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+      setCurrentImage(r.image_url);
+      setCurrentPrompt(r.design_prompt);
+      setCurrentGenome(r.genome);
+      setCurrentCaption(r.caption);
+      setGenomeScores(r.genome_scores);
+      setWasRefined(r.refined);
+      setShowScores(false);
+      setSaved(true);
+      if (r.design_id) setCurrentDesignId(r.design_id);
+      setLoading(false);
       refetchProfile();
-    } catch (err: any) {
-      console.error(err);
-      toast({
-        title: "Generation failed",
-        description: err.message || "Something went wrong",
-        variant: "destructive",
-      });
-    } finally {
+    } else if (generation.status === "error") {
+      const errMsg = generation.error || "Something went wrong";
+      if (errMsg.includes("429") || errMsg.toLowerCase().includes("limit")) {
+        setShowLimitModal(true);
+        setMessages((prev) => [...prev, { role: "assistant", content: "You've reached your generation limit. Upgrade your plan for more credits." }]);
+      } else {
+        toast({ title: "Generation failed", description: errMsg, variant: "destructive" });
+      }
       setLoading(false);
     }
-  };
+  }, [generation.status, generation.result, generation.error]);
 
   const handleSave = async () => {
     // Auto-save already persisted the design — just show confirmation
