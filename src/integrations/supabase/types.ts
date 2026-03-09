@@ -203,6 +203,38 @@ export type Database = {
           },
         ]
       }
+      brand_products: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          image_url: string
+          label: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          image_url: string
+          label?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_trend_preferences: {
         Row: {
           brand_id: string
