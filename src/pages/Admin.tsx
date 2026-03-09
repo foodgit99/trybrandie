@@ -791,7 +791,21 @@ export default function Admin() {
             <BroadcastTab />
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview" && t.key !== "broadcast").map((t) => (
+          <TabsContent value="designs">
+            <Card className="rounded-2xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Image className="h-5 w-5" />
+                  Designs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AdminDesignsTab />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "broadcast" && t.key !== "designs").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
