@@ -525,6 +525,15 @@ Deno.serve(async (req) => {
           : "Update on your Brandie payout request";
         html = affiliatePayoutProcessedHtml(data?.amount || 0, data?.status || "paid");
         break;
+      case "affiliate_broadcast":
+        subject = data?.subject_line || "Message from the Brandie Team";
+        html = affiliateBroadcastHtml(
+          data?.headline || data?.subject_line || "A message from Brandie",
+          data?.message || "",
+          data?.cta_text || "",
+          data?.cta_url || ""
+        );
+        break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
           status: 400,
