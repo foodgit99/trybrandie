@@ -24,6 +24,28 @@ const ALLOWED_TABLES = [
   "user_roles",
 ];
 
+async function sendAffiliateEmail(
+  supabaseUrl: string,
+  supabaseKey: string,
+  type: string,
+  to: string,
+  data: Record<string, unknown>
+) {
+  try {
+    const url = `${supabaseUrl}/functions/v1/send-email`;
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ type, to, data }),
+    });
+  } catch (err) {
+    console.error("Failed to send affiliate email:", err);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -148,12 +170,74 @@ Deno.serve(async (req) => {
       }
 
       case "update": {
+        // For affiliates and affiliate_payouts, check if status is changing
+        let oldStatus: string | null = null;
+        let affiliateUserId: string | null = null;
+        let affiliateCode: string | null = null;
+        let payoutAmount: number | null = null;
+
+        if (
+          (table === "affiliates" || table === "affiliate_payouts") &&
+          data?.status
+        ) {
+          // Get the current record to check old status
+          const { data: oldRecord } = await adminClient
+            .from(table)
+            .select("*")
+            .eq("id", id)
+            .single();
+
+          if (oldRecord) {
+            oldStatus = oldRecord.status;
+
+            if (table === "affiliates") {
+              affiliateUserId = oldRecord.user_id;
+              affiliateCode = oldRecord.affiliate_code;
+            } else if (table === "affiliate_payouts") {
+              payoutAmount = oldRecord.amount;
+              // Get affiliate user_id
+              const { data: affiliate } = await adminClient
+                .from("affiliates")
+                .select("user_id")
+                .eq("id", oldRecord.affiliate_id)
+                .single();
+              affiliateUserId = affiliate?.user_id || null;
+            }
+          }
+        }
+
         const { error } = await adminClient
           .from(table)
           .update(data)
           .eq("id", id);
 
         if (error) throw error;
+
+        // Send affiliate emails based on status change
+        if (affiliateUserId && data?.status && data.status !== oldStatus) {
+          // Get user email
+          const { data: authUser } = await adminClient.auth.admin.getUserById(affiliateUserId);
+          const email = authUser?.user?.email;
+
+          if (email) {
+            if (table === "affiliates") {
+              if (data.status === "approved") {
+                await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "affiliate_approved", email, {
+                  affiliate_code: affiliateCode,
+                });
+              } else if (data.status === "rejected" || data.status === "suspended") {
+                await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "affiliate_rejected", email, {});
+              }
+            } else if (table === "affiliate_payouts") {
+              if (data.status === "paid" || data.status === "rejected") {
+                await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "affiliate_payout_processed", email, {
+                  amount: payoutAmount,
+                  status: data.status,
+                });
+              }
+            }
+          }
+        }
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

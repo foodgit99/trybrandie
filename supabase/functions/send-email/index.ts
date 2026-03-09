@@ -186,6 +186,231 @@ function lowCreditsHtml(remainingCredits: number, referralCode: string): string 
 </body></html>`;
 }
 
+// ============ AFFILIATE EMAIL TEMPLATES ============
+
+function affiliateApplicationReceivedHtml(name: string): string {
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Application Received 📨</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Hey ${name || "there"},
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Thanks for applying to the <strong>Brandie Affiliate Program</strong>! We're excited you want to partner with us.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Our team will review your application and get back to you within 24-48 hours. Once approved, you'll get access to your affiliate dashboard and unique referral link.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Explore Brandie
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because you applied to the Brandie Affiliate Program.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function affiliateApprovedHtml(affiliateCode: string): string {
+  const affiliateLink = `${APP_URL}/?aff=${affiliateCode}`;
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">You're Approved! 🎉</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Congratulations! Your application to the <strong>Brandie Affiliate Program</strong> has been approved.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      You'll earn <strong>20% commission</strong> on every payment made by users you refer. Here's your unique affiliate link:
+    </p>
+    <p style="font-size:14px;color:#1a1a2e;background:#e5e7eb;padding:12px 16px;border-radius:8px;margin:0 0 24px;word-break:break-all;">
+      <a href="${affiliateLink}" style="color:#1a1a2e;">${affiliateLink}</a>
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Open Affiliate Dashboard
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because you were approved as a Brandie affiliate.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function affiliateRejectedHtml(): string {
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Application Update</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Thank you for your interest in the Brandie Affiliate Program.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      After reviewing your application, we're unable to approve it at this time. This could be due to various factors related to our current program requirements.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      You're still welcome to use Brandie and refer friends using the regular referral program — you'll earn bonus credits for each signup!
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/design-studio" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Open Design Studio
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">Questions? Reply to this email — we're here to help.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function affiliateNewReferralHtml(referredEmail: string): string {
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">New Referral! 🚀</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Great news! Someone just signed up using your affiliate link.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      <strong>${referredEmail}</strong> is now linked to your affiliate account. When they make a payment, you'll automatically earn your 20% commission.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Keep sharing your link to grow your network and earnings!
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View Dashboard
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because someone signed up using your Brandie affiliate link.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function affiliateCommissionEarnedHtml(commissionAmount: number, paymentAmount: number): string {
+  const formattedCommission = new Intl.NumberFormat('en-NG', { 
+    style: 'currency', 
+    currency: 'NGN',
+    minimumFractionDigits: 0 
+  }).format(commissionAmount);
+  const formattedPayment = new Intl.NumberFormat('en-NG', { 
+    style: 'currency', 
+    currency: 'NGN',
+    minimumFractionDigits: 0 
+  }).format(paymentAmount);
+
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">You Earned Commission! 💰</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Cha-ching! One of your referrals just made a payment.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Payment amount: <strong>${formattedPayment}</strong><br/>
+      Your commission (20%): <strong style="color:#16a34a;">${formattedCommission}</strong>
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      This has been added to your pending balance. Request a payout anytime from your dashboard.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View Earnings
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because you earned an affiliate commission on Brandie.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function affiliatePayoutProcessedHtml(amount: number, status: "paid" | "rejected"): string {
+  const formattedAmount = new Intl.NumberFormat('en-NG', { 
+    style: 'currency', 
+    currency: 'NGN',
+    minimumFractionDigits: 0 
+  }).format(amount);
+
+  const isPaid = status === "paid";
+  const title = isPaid ? "Payout Sent! 🏦" : "Payout Update";
+  const message = isPaid
+    ? `Your payout of <strong>${formattedAmount}</strong> has been sent to your bank account. It should arrive within 1-3 business days.`
+    : `Your payout request of <strong>${formattedAmount}</strong> could not be processed at this time. The amount has been returned to your available balance. Please check your bank details are correct and try again.`;
+
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">${title}</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      ${message}
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View Dashboard
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">Questions? Reply to this email — we're here to help.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -232,6 +457,33 @@ Deno.serve(async (req) => {
       case "low_credits":
         subject = "You're running low on Brandie credits ⚡";
         html = lowCreditsHtml(data?.remaining_credits || 0, data?.referral_code || "");
+        break;
+      // ============ AFFILIATE EMAILS ============
+      case "affiliate_application_received":
+        subject = "We received your Brandie Affiliate application 📨";
+        html = affiliateApplicationReceivedHtml(data?.name || "");
+        break;
+      case "affiliate_approved":
+        subject = "You're approved as a Brandie Affiliate! 🎉";
+        html = affiliateApprovedHtml(data?.affiliate_code || "");
+        break;
+      case "affiliate_rejected":
+        subject = "Update on your Brandie Affiliate application";
+        html = affiliateRejectedHtml();
+        break;
+      case "affiliate_new_referral":
+        subject = "New signup from your affiliate link! 🚀";
+        html = affiliateNewReferralHtml(data?.referred_email || "A new user");
+        break;
+      case "affiliate_commission_earned":
+        subject = "You earned affiliate commission on Brandie! 💰";
+        html = affiliateCommissionEarnedHtml(data?.commission_amount || 0, data?.payment_amount || 0);
+        break;
+      case "affiliate_payout_processed":
+        subject = data?.status === "paid" 
+          ? "Your Brandie affiliate payout has been sent 🏦" 
+          : "Update on your Brandie payout request";
+        html = affiliatePayoutProcessedHtml(data?.amount || 0, data?.status || "paid");
         break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {

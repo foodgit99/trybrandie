@@ -22,6 +22,28 @@ async function verifySignature(body: string, signature: string, secret: string):
   return hex === signature;
 }
 
+async function sendAffiliateEmail(
+  supabaseUrl: string,
+  supabaseKey: string,
+  type: string,
+  to: string,
+  data: Record<string, unknown>
+) {
+  try {
+    const url = `${supabaseUrl}/functions/v1/send-email`;
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ type, to, data }),
+    });
+  } catch (err) {
+    console.error("Failed to send affiliate email:", err);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -73,7 +95,7 @@ Deno.serve(async (req) => {
           const paymentAmount = amount / 100; // Paystack sends in kobo
           const { data: affiliate } = await supabase
             .from("affiliates")
-            .select("commission_rate")
+            .select("commission_rate, user_id")
             .eq("id", referral.affiliate_id)
             .single();
 
@@ -101,6 +123,32 @@ Deno.serve(async (req) => {
             .from("affiliate_referrals")
             .update({ status: "converted" })
             .eq("id", referral.id);
+
+          // Send commission earned email to affiliate
+          if (affiliate?.user_id) {
+            const { data: authUser } = await supabase.auth.admin.getUserById(affiliate.user_id);
+            const affiliateEmail = authUser?.user?.email;
+            if (affiliateEmail) {
+              await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_commission_earned", affiliateEmail, {
+                commission_amount: commissionAmount,
+                payment_amount: paymentAmount,
+              });
+            }
+          }
+
+          // Send new referral email (referral is now converted)
+          if (affiliate?.user_id) {
+            const { data: authUser } = await supabase.auth.admin.getUserById(affiliate.user_id);
+            const affiliateEmail = authUser?.user?.email;
+            // Get referred user email
+            const { data: referredUser } = await supabase.auth.admin.getUserById(user_id);
+            const referredEmail = referredUser?.user?.email || "A new user";
+            if (affiliateEmail) {
+              await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_new_referral", affiliateEmail, {
+                referred_email: referredEmail,
+              });
+            }
+          }
         }
       }
     }
