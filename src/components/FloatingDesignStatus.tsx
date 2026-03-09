@@ -58,10 +58,10 @@ export default function FloatingDesignStatus() {
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          initial={{ opacity: 0, y: 40, scale: 0.9, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: 20, scale: 0.95, filter: "blur(4px)" }}
+          transition={{ type: "spring", stiffness: 300, damping: 24, mass: 0.8 }}
           className="fixed bottom-6 right-6 z-[9999]"
         >
           <div
