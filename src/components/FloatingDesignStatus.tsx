@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export default function FloatingDesignStatus() {
-  const { status, result, error, clearResult } = useDesignGeneration();
+  const { status, result, error, progress, clearResult } = useDesignGeneration();
   const navigate = useNavigate();
   const location = useLocation();
   const toastFired = useRef(false);
@@ -122,7 +122,7 @@ export default function FloatingDesignStatus() {
             <div className="flex-1 min-w-0">
               {status === "generating" && (
                 <>
-                  <p className="text-sm font-medium text-foreground">Creating your design…</p>
+                  <p className="text-sm font-medium text-foreground">Creating your design… {progress}%</p>
                   <p className="text-xs text-muted-foreground truncate">This may take a moment</p>
                 </>
               )}
@@ -146,12 +146,11 @@ export default function FloatingDesignStatus() {
 
             {/* Generating pulse bar */}
             {status === "generating" && (
-              <div className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full overflow-hidden bg-primary/10">
+              <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-2xl overflow-hidden bg-primary/10">
                 <motion.div
-                  className="h-full bg-primary/60 rounded-full"
-                  animate={{ x: ["-100%", "100%"] }}
-                  transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                  style={{ width: "40%" }}
+                  className="h-full bg-primary/60"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
                 />
               </div>
             )}
