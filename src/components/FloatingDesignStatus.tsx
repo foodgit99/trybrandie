@@ -122,7 +122,7 @@ export default function FloatingDesignStatus() {
             <div className="flex-1 min-w-0">
               {status === "generating" && (
                 <>
-                  <p className="text-sm font-medium text-foreground">Creating your design…</p>
+                  <p className="text-sm font-medium text-foreground">Creating your design… {progress}%</p>
                   <p className="text-xs text-muted-foreground truncate">This may take a moment</p>
                 </>
               )}
