@@ -10,10 +10,9 @@ export default function FloatingDesignStatus() {
   const navigate = useNavigate();
   const location = useLocation();
   const toastFired = useRef(false);
-  const autoDismissTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const isVisible = status !== "idle";
   const isOnStudio = location.pathname === "/studio";
+  const isVisible = status !== "idle" && !isOnStudio;
 
   // Play a subtle chime sound
   const playChime = () => {
@@ -45,17 +44,6 @@ export default function FloatingDesignStatus() {
     }
   }, [status]);
 
-  // Auto-dismiss after 30s when complete
-  useEffect(() => {
-    if (status === "complete") {
-      autoDismissTimer.current = setTimeout(() => {
-        clearResult();
-      }, 30000);
-    }
-    return () => {
-      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
-    };
-  }, [status, clearResult]);
 
   const handleClick = () => {
     if (status === "complete" && result?.design_id) {
@@ -132,7 +120,7 @@ export default function FloatingDesignStatus() {
                     Design ready! <Sparkles className="h-3.5 w-3.5 text-primary" />
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {isOnStudio ? "Scroll up to view" : "Click to view →"}
+                    Click to view →
                   </p>
                 </>
               )}
