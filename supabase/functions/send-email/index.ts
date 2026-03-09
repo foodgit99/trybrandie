@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const RESEND_API = "https://api.resend.com/emails";
-const APP_URL = "https://trybrandie.lovable.app";
+const APP_URL = "https://trybrandie.com";
 
 function welcomeHtml(name: string): string {
   return `
