@@ -52,11 +52,10 @@ import {
   Info,
 } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
@@ -631,21 +630,19 @@ const DesignStudio = () => {
                 HD
               </button>
             </div>
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
-                    <Info className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[220px] text-xs">
-                  <p className="font-semibold mb-1">Fast</p>
-                  <p className="text-muted-foreground mb-2">Quick generation, uses 1 credit.</p>
-                  <p className="font-semibold mb-1">HD</p>
-                  <p className="text-muted-foreground">Higher quality output, uses 2 credits.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" className="w-[220px] text-xs p-3">
+                <p className="font-semibold mb-1">Fast</p>
+                <p className="text-muted-foreground mb-2">Quick generation, uses 1 credit.</p>
+                <p className="font-semibold mb-1">HD</p>
+                <p className="text-muted-foreground">Higher quality output, uses 2 credits.</p>
+              </PopoverContent>
+            </Popover>
           </div>
           {/* Audience selector removed from header — now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
