@@ -49,11 +49,15 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
         "Content-Type": "application/json",
       },
+      const safeCallbackUrl = (!callback_url || callback_url.includes("lovable.app"))
+        ? "https://trybrandie.com/plans"
+        : callback_url;
+
       body: JSON.stringify({
         email,
         amount,
         currency: "NGN",
-        callback_url: callback_url || undefined,
+        callback_url: safeCallbackUrl,
         metadata: {
           user_id,
           plan,
