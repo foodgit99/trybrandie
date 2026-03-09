@@ -205,14 +205,15 @@ const DesignStudio = () => {
   }, [audiences, selectedAudienceId]);
 
   const getCreditsRemaining = () => {
-    if (!profile) return FREE_TIER_LIMIT;
+    const limit = getTierLimit((profile as any)?.subscription_tier);
+    if (!profile) return limit;
     const resetAt = new Date(profile.generations_reset_at);
     const now = new Date();
     if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return FREE_TIER_LIMIT;
+      return limit;
     }
     const bonus = (profile as any).bonus_credits ?? 0;
-    return Math.max(0, FREE_TIER_LIMIT + bonus - profile.generations_count);
+    return Math.max(0, limit + bonus - profile.generations_count);
   };
 
   useEffect(() => {
