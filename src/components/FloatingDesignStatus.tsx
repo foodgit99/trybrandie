@@ -12,8 +12,8 @@ export default function FloatingDesignStatus() {
   const toastFired = useRef(false);
   const autoDismissTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const isVisible = status !== "idle";
   const isOnStudio = location.pathname === "/studio";
+  const isVisible = status !== "idle" && !isOnStudio;
 
   // Play a subtle chime sound
   const playChime = () => {
