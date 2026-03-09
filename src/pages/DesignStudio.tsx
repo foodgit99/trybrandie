@@ -67,7 +67,13 @@ const CANVAS_SIZES = [
   { label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
 ];
 
-const FREE_TIER_LIMIT = 10;
+const TIER_LIMITS: Record<string, number> = {
+  free: 10,
+  entrepreneur: 50,
+  creator: 150,
+  agency: 400,
+};
+const getTierLimit = (tier?: string) => TIER_LIMITS[tier || "free"] || TIER_LIMITS.free;
 
 const DesignStudio = () => {
   const { brand } = useBrand();
@@ -111,7 +117,7 @@ const DesignStudio = () => {
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-studio", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("generations_count, generations_reset_at, bonus_credits").eq("user_id", user!.id).single();
+      const { data, error } = await supabase.from("profiles").select("generations_count, generations_reset_at, bonus_credits, subscription_tier").eq("user_id", user!.id).single();
       if (error) throw error;
       return data;
     },
@@ -199,14 +205,15 @@ const DesignStudio = () => {
   }, [audiences, selectedAudienceId]);
 
   const getCreditsRemaining = () => {
-    if (!profile) return FREE_TIER_LIMIT;
+    const limit = getTierLimit((profile as any)?.subscription_tier);
+    if (!profile) return limit;
     const resetAt = new Date(profile.generations_reset_at);
     const now = new Date();
     if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return FREE_TIER_LIMIT;
+      return limit;
     }
     const bonus = (profile as any).bonus_credits ?? 0;
-    return Math.max(0, FREE_TIER_LIMIT + bonus - profile.generations_count);
+    return Math.max(0, limit + bonus - profile.generations_count);
   };
 
   useEffect(() => {
@@ -273,7 +280,7 @@ const DesignStudio = () => {
     if (!user) return false;
     const { data } = await supabase
       .from("profiles")
-      .select("generations_count, generations_reset_at")
+      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
       .eq("user_id", user.id)
       .single();
     if (!data) return true;
@@ -282,11 +289,11 @@ const DesignStudio = () => {
     if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
       return true;
     }
+    const limit = getTierLimit((data as any).subscription_tier);
     const creditCost = renderQuality === "hd" ? 2 : 1;
     const bonus = (data as any).bonus_credits ?? 0;
-    if (data.generations_count + creditCost > FREE_TIER_LIMIT + bonus) {
+    if (data.generations_count + creditCost > limit + bonus) {
       setShowLimitModal(true);
-      // Send out-of-credits email (fire-and-forget)
       if (user?.email) {
         supabase.functions.invoke("send-email", {
           body: { type: "out_of_credits", to: user.email },
@@ -689,7 +696,13 @@ const DesignStudio = () => {
               />
             </div>
           )}
-          {messages.map((msg, i) => (
+          {(() => {
+            // Find the index of the last assistant message with an image (the current design)
+            let lastImageIdx = -1;
+            for (let j = messages.length - 1; j >= 0; j--) {
+              if (messages[j].role === "assistant" && messages[j].imageUrl) { lastImageIdx = j; break; }
+            }
+            return messages.map((msg, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 8 }}
@@ -735,7 +748,7 @@ const DesignStudio = () => {
                       <button
                         onClick={() => handleVote(1)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          i === lastImageIdx && vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsUp className="h-[18px] w-[18px]" />
@@ -743,7 +756,7 @@ const DesignStudio = () => {
                       <button
                         onClick={() => handleVote(-1)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          i === lastImageIdx && vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsDown className="h-[18px] w-[18px]" />
@@ -882,7 +895,8 @@ const DesignStudio = () => {
                 )}
               </div>
             </motion.div>
-          ))}
+            ));
+          })()}
           {loading && (
             <motion.div
               initial={{ opacity: 0 }}

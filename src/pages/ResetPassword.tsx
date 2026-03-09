@@ -11,15 +11,37 @@ const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check for recovery hash
+    // Support both hash-based (#type=recovery) and PKCE query-param flows
     const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
+    const params = new URLSearchParams(window.location.search);
+
+    if (hash.includes("type=recovery") || params.get("type") === "recovery") {
       setReady(true);
+      setChecking(false);
+      return;
     }
+
+    // PKCE flow: Supabase may deliver a code param that auto-exchanges for a session
+    // Listen for the PASSWORD_RECOVERY event from the auth state change
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setReady(true);
+        setChecking(false);
+      }
+    });
+
+    // Give a short window for the auth event to fire, then stop checking
+    const timeout = setTimeout(() => setChecking(false), 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +56,14 @@ const ResetPassword = () => {
       navigate("/auth");
     }
   };
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Verifying reset link…</p>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (
