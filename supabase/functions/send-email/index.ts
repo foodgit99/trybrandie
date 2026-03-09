@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const RESEND_API = "https://api.resend.com/emails";
+const APP_URL = "https://trybrandie.lovable.app";
 
 function welcomeHtml(name: string): string {
   return `
@@ -29,8 +30,8 @@ function welcomeHtml(name: string): string {
       Head to the Design Studio and create your first graphic. Just describe what you need in plain English.
     </p>
     <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
-      <a href="https://trybrandie.lovable.app/" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
-        Open Brandie
+      <a href="${APP_URL}/design-studio" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Open Design Studio
       </a>
     </td></tr></table>
   </td></tr>
@@ -60,7 +61,7 @@ function referralRewardHtml(credits: number): string {
       We've added <strong>${credits} bonus credits</strong> to your account. Keep sharing to earn more!
     </p>
     <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
-      <a href="https://trybrandie.lovable.app/" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+      <a href="${APP_URL}/design-studio" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
         Start Designing
       </a>
     </td></tr></table>
@@ -91,13 +92,94 @@ function outOfCreditsHtml(): string {
       In the meantime, you can still browse and download your existing designs.
     </p>
     <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
-      <a href="https://trybrandie.lovable.app/plans" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+      <a href="${APP_URL}/plans" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
         View Plans
       </a>
     </td></tr></table>
   </td></tr>
   <tr><td style="padding:16px 40px 32px;text-align:center;">
     <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because you reached your Brandie credit limit.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function paymentConfirmationHtml(plan: string, amount: number, currency: string): string {
+  const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+  const formattedAmount = new Intl.NumberFormat('en-NG', { 
+    style: 'currency', 
+    currency: currency || 'NGN',
+    minimumFractionDigits: 0 
+  }).format(amount);
+
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Payment Successful 🎊</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Thank you for upgrading to <strong>Brandie ${planName}</strong>!
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Your payment of <strong>${formattedAmount}</strong> has been confirmed. Your new plan is now active and you have access to all ${planName} features.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Ready to create stunning branded graphics? Jump into the Design Studio.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/design-studio" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Start Designing
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">Questions? Reply to this email — we're here to help.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function lowCreditsHtml(remainingCredits: number, referralCode: string): string {
+  const referralLink = `${APP_URL}/?ref=${referralCode}`;
+  
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Running Low on Credits ⚡</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Heads up — you have <strong>${remainingCredits} credit${remainingCredits === 1 ? '' : 's'}</strong> left this month.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Need more? You've got options:
+    </p>
+    <ul style="font-size:16px;color:#1a1a2e;line-height:1.8;margin:0 0 24px;padding-left:20px;">
+      <li><strong>Upgrade your plan</strong> for more monthly credits</li>
+      <li><strong>Share your referral link</strong> and earn 5 bonus credits per signup</li>
+    </ul>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center" style="padding-bottom:16px;">
+      <a href="${APP_URL}/plans" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View Plans
+      </a>
+    </td></tr></table>
+    <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0;text-align:center;">
+      Your referral link: <a href="${referralLink}" style="color:#c4a265;text-decoration:underline;">${referralLink}</a>
+    </p>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because your Brandie credits are running low.</p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -142,6 +224,14 @@ Deno.serve(async (req) => {
       case "out_of_credits":
         subject = "You've used all your Brandie credits this month";
         html = outOfCreditsHtml();
+        break;
+      case "payment_confirmation":
+        subject = "Payment confirmed — welcome to Brandie " + (data?.plan ? data.plan.charAt(0).toUpperCase() + data.plan.slice(1) : "") + " 🎊";
+        html = paymentConfirmationHtml(data?.plan || "pro", data?.amount || 0, data?.currency || "NGN");
+        break;
+      case "low_credits":
+        subject = "You're running low on Brandie credits ⚡";
+        html = lowCreditsHtml(data?.remaining_credits || 0, data?.referral_code || "");
         break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
