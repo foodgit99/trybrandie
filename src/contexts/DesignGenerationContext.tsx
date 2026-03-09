@@ -53,7 +53,7 @@ interface DesignGenerationContextValue {
 
 const DesignGenerationContext = createContext<DesignGenerationContextValue | null>(null);
 
-const ESTIMATED_MS = 25000;
+const ESTIMATED_MS = 50000;
 const TICK_MS = 300;
 
 export function DesignGenerationProvider({ children }: { children: React.ReactNode }) {
