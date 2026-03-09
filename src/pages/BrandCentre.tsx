@@ -290,6 +290,7 @@ const BrandCentre = () => {
     else if (field === "vibe") updates = { vibe };
     else if (field === "tone") updates = { tone_of_voice: toneOfVoice.trim() };
     else if (field === "personality") updates = { personality_traits: personalityTraits };
+    else if (field === "special_instructions") updates = { special_instructions: specialInstructions.trim() || null };
     const { error } = await supabase.from("brands").update(updates as any).eq("id", brand.id);
     setSaving(false);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
