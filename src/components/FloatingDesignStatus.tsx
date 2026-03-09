@@ -64,9 +64,21 @@ export default function FloatingDesignStatus() {
           transition={{ type: "spring", stiffness: 300, damping: 24, mass: 0.8 }}
           className="fixed bottom-6 right-6 z-[9999]"
         >
+          {/* Pulsing glow ring when complete */}
+          {status === "complete" && (
+            <motion.div
+              className="absolute inset-0 rounded-2xl bg-primary/20"
+              animate={{ opacity: [0, 0.5, 0], scale: [1, 1.06, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            />
+          )}
           <div
             onClick={handleClick}
-            className="relative flex items-center gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-lg cursor-pointer hover:shadow-xl transition-shadow min-w-[240px] max-w-[320px]"
+            className={`relative flex items-center gap-3 rounded-2xl border px-4 py-3 backdrop-blur-xl cursor-pointer hover:shadow-xl transition-shadow min-w-[240px] max-w-[320px] ${
+              status === "complete"
+                ? "border-primary/40 bg-card/95 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)]"
+                : "border-border bg-card/95 shadow-lg"
+            }`}
           >
             {/* Close button */}
             {(status === "complete" || status === "error") && (
