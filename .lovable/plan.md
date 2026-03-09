@@ -1,101 +1,82 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+## Current Data Sources for Design Generation
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+Here are all the data sources that feed into the AI agent pipeline, listed with their effective priority/weight:
 
-### Architecture Overview
+| # | Data Source | Weight / Priority | Used By | Where Stored |
+|---|---|---|---|---|
+| 1 | **User Prompt** (intent) | HIGHEST — overrides everything | Brief Agent, Copywriter, Renderer | Chat message |
+| 2 | **Brand Centre** (colors, fonts, tone, vibe, personality, logo) | SECOND HIGHEST — always enforced | Brief Agent, Copywriter, Creative Director, Renderer | `brands` table |
+| 3 | **User Attached Image** | PRIMARY visual element when present — overrides other imagery | Brief Agent, Renderer | Uploaded per-message, passed as `user_image_url` |
+| 4 | **Audience Intelligence (JTBD)** | HIGH — shapes copy persuasion and visual energy | Copywriter (emotional drivers, messaging angles), Brief Agent (visual strategy) | `target_audiences` table |
+| 5 | **Trend Lab** (trend preset + intensity 0–100) | MEDIUM — styling overlay, never overrides brand | Creative Director genome overrides, Copywriter tone hints, Renderer styling | `brand_trend_preferences` table |
+| 6 | **RAG Preferences** (top 8 past designs weighted by votes) | MEDIUM — 60% bias toward preferred gene values | Genome Mutation Engine | Queried from `designs` table at generation time |
+| 7 | **Visual Style Genome** (8 gene categories, deterministic) | MEDIUM — precise styling instructions for renderer | Renderer prompt, Genome Scoring, Stability Gate | Generated per-design, stored in `designs.genome` |
+| 8 | **Brand Inspiration Images** (up to 2 passed to renderer) | LOW-MEDIUM — visual style reference | Renderer (passed as image references) | `brand_inspiration` table + `brand-inspiration` storage bucket |
+| 9 | **Canvas Format** (square/portrait/landscape) | STRUCTURAL — affects layout and copy length | Brief Agent, Copywriter, Renderer | Selected per-design |
+| 10 | **Session/Edit Context** (previous prompt + image for edits) | CONTEXTUAL — preserves continuity | Brief Agent, Renderer | Passed from frontend |
 
-```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
-```
+---
 
-### What Gets Built
+## Plan: Product Images Data Source
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+### Concept
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+Add a **Product Gallery** section to the Brand Centre where users upload photos of their actual products/services. These images become a new data source for the agents — used **contextually** (not always) based on the design brief's relevance to product promotion.
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+### Database Changes
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
-
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
-
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
-
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
-
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
-
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
-
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
-
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
-```
-
-**5. Store Genome with Design** (database migration)
-
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
+**New table: `brand_products`**
 
 ```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
+CREATE TABLE public.brand_products (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_id uuid NOT NULL REFERENCES public.brands(id) ON DELETE CASCADE,
+  image_url text NOT NULL,
+  label text DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.brand_products ENABLE ROW LEVEL SECURITY;
 ```
 
-**6. Brand Consistency Layer** (inside Genome Composer logic)
+RLS policies mirroring `brand_inspiration` (owner CRUD via brand ownership check + admin access).
 
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
+**Storage**: Reuse the existing `brand-inspiration` bucket (or create a dedicated `brand-products` bucket for cleaner separation).
 
-### What Does NOT Change
+### Brand Centre UI
 
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
+Add a **"Product Images"** section in the Brand Centre, positioned between the Logo section and the Inspiration section. It follows the same pattern as inspiration uploads:
+- Grid of uploaded product photos with delete buttons
+- Upload button accepting multiple images
+- Optional label/name per product image
+- Same upload flow as inspiration (storage upload → insert row → display)
 
-### File Changes Summary
+### Agent Integration (Edge Function)
 
-| File | Action |
+In `design-studio/index.ts`:
+
+1. **Fetch product images** alongside brand data (query `brand_products` for the brand, limit 6)
+2. **Brief Agent awareness**: Add to the brand context a note like: "The brand has N product image(s) available. When the design is promoting, showcasing, or related to the brand's products, incorporate a product image as a supporting visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For motivational, informational, or brand-awareness posts, product images are optional."
+3. **Renderer image references**: When the Brief Agent's output mentions products or when the user prompt relates to products/offers/promotions, pass up to 2 product images as additional image references to the renderer (same pattern as inspiration images and logo)
+4. **Intent-based inclusion**: Use the Brief Agent's design brief text to determine relevance — if the brief mentions product, promotion, offer, sale, showcase, launch, or similar terms, include product images. Otherwise, omit them.
+
+### Priority / Weight
+
+Product images sit at **LOW-MEDIUM** priority — same tier as inspiration images but with contextual gating:
+- They are NOT always included (unlike brand colors/fonts which are always enforced)
+- They are included when the design context is product-related
+- They serve as supporting visual references, not the hero element
+- The user's attached image (if any) always takes priority over product images
+
+### Files Changed
+
+| File | Change |
 |---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
-
-### Risk Mitigation
-
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+| Database migration | Create `brand_products` table with RLS |
+| `src/pages/BrandCentre.tsx` | Add Product Images section (upload, display, delete) |
+| `src/pages/Onboarding.tsx` | Optionally add product upload step (or defer to post-onboarding) |
+| `supabase/functions/design-studio/index.ts` | Fetch product images, add to brand context, conditionally pass to renderer |
+| `src/integrations/supabase/types.ts` | Auto-updated after migration |
 
