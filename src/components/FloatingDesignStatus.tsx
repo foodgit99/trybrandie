@@ -120,7 +120,7 @@ export default function FloatingDesignStatus() {
                     Design ready! <Sparkles className="h-3.5 w-3.5 text-primary" />
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {isOnStudio ? "Scroll up to view" : "Click to view →"}
+                    Click to view →
                   </p>
                 </>
               )}
