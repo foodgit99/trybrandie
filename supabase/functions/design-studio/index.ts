@@ -369,6 +369,27 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
       // Collect inspiration examples for context
       const inspirationUrls: string[] = brand?.inspiration_examples || [];
 
+      // Fetch product images for contextual use
+      let productImageUrls: string[] = [];
+      let productImageContext = "";
+      if (brand?.id) {
+        try {
+          const { data: productData } = await adminClient
+            .from("brand_products")
+            .select("image_url, label")
+            .eq("brand_id", brand.id)
+            .order("created_at", { ascending: true })
+            .limit(6);
+          if (productData && productData.length > 0) {
+            productImageUrls = productData.map((p: any) => p.image_url);
+            const labels = productData.filter((p: any) => p.label).map((p: any) => p.label).join(", ");
+            productImageContext = `\n\nPRODUCT IMAGES AVAILABLE: The brand has ${productData.length} product image(s)${labels ? ` (${labels})` : ""}. When the design is promoting, showcasing, or related to the brand's products, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For motivational, informational, or brand-awareness posts, product images are optional. The user's attached image always takes priority over product images.`;
+          }
+        } catch (e) {
+          console.log("Product images fetch failed, proceeding without:", e);
+        }
+      }
+
       const brandContext = brand
         ? `You are Brandie, a senior creative director with 20+ years of experience. You design STRICTLY within the user's brand system.
 
