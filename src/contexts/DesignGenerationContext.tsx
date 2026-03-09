@@ -64,6 +64,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   const [progress, setProgress] = useState(0);
   const consumedRef = useRef(false);
   const progressTimer = useRef<ReturnType<typeof setInterval>>();
+  const abortRef = useRef<AbortController | null>(null);
 
   const stopProgressTimer = useCallback((final: number) => {
     if (progressTimer.current) clearInterval(progressTimer.current);
