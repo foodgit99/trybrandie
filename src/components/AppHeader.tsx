@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -20,12 +21,14 @@ import {
   Settings,
   CreditCard,
   LogOut,
+  Shield,
 } from "lucide-react";
 
 const FREE_TIER_LIMIT = 10;
 
 const AppHeader = () => {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
 
   const { data: profile } = useQuery({
@@ -103,6 +106,18 @@ const AppHeader = () => {
               <Clock className="h-4 w-4" />
               Design History
             </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg cursor-pointer"
+                  onClick={() => navigate("/admin")}
+                >
+                  <Shield className="h-4 w-4" />
+                  Admin Panel
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="gap-2 rounded-lg cursor-pointer"
