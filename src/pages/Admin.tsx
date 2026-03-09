@@ -284,31 +284,31 @@ function BroadcastTab() {
           </CardHeader>
           <CardContent>
             <div className="rounded-xl overflow-hidden border border-border">
-              <div className="bg-[#1a1a2e] px-8 py-7 text-center">
-                <p className="text-[#c4a265] text-xs font-semibold uppercase tracking-widest mb-2">
+              <div style={{ background: "#1a1a2e" }} className="px-8 py-7 text-center">
+                <p style={{ color: "#c4a265" }} className="text-xs font-semibold uppercase tracking-widest mb-2">
                   Affiliate Partner Update
                 </p>
-                <h2 className="text-white font-bold text-xl leading-snug">
+                <h2 style={{ color: "#ffffff" }} className="font-bold text-xl leading-snug">
                   {headline || subjectLine || "Your headline appears here"}
                 </h2>
               </div>
-              <div className="bg-[#fafaf9] px-8 py-7 space-y-3">
+              <div style={{ background: "#fafaf9" }} className="px-8 py-7 space-y-3">
                 {paragraphs.length > 0 ? (
                   paragraphs.map((p, i) => (
-                    <p key={i} className="text-[#1a1a2e] text-sm leading-relaxed">{p}</p>
+                    <p key={i} style={{ color: "#1a1a2e" }} className="text-sm leading-relaxed">{p}</p>
                   ))
                 ) : (
                   <p className="text-muted-foreground text-sm italic">Your message appears here…</p>
                 )}
                 {ctaText && ctaUrl && (
                   <div className="pt-2 text-center">
-                    <span className="inline-block bg-[#c4a265] text-[#1a1a2e] font-semibold text-sm px-6 py-2.5 rounded-xl">
+                    <span style={{ background: "#c4a265", color: "#1a1a2e" }} className="inline-block font-semibold text-sm px-6 py-2.5 rounded-xl">
                       {ctaText}
                     </span>
                   </div>
                 )}
               </div>
-              <div className="bg-[#fafaf9] border-t border-border px-8 py-4 text-center">
+              <div style={{ background: "#fafaf9" }} className="border-t border-border px-8 py-4 text-center">
                 <p className="text-xs text-muted-foreground">
                   You received this as an approved Brandie Affiliate Partner.
                 </p>
