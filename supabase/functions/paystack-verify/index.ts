@@ -57,10 +57,20 @@ Deno.serve(async (req) => {
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      await supabase
+      console.log(`Attempting to update profile for user ${user_id} to plan ${plan}`);
+
+      const { error: updateError } = await supabase
         .from("profiles")
         .update({ subscription_tier: plan })
         .eq("user_id", user_id);
+
+      if (updateError) {
+        console.error("Profile update failed:", JSON.stringify(updateError));
+      } else {
+        console.log(`Profile updated successfully for user ${user_id} to ${plan}`);
+      }
+    } else {
+      console.warn(`Missing metadata - user_id: ${user_id}, plan: ${plan}`);
     }
 
     return new Response(
