@@ -53,7 +53,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
-
+import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 type Message = {
   role: "user" | "assistant";
   content: string;
