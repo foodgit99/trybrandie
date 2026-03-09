@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export default function FloatingDesignStatus() {
-  const { status, result, error, clearResult } = useDesignGeneration();
+  const { status, result, error, progress, clearResult } = useDesignGeneration();
   const navigate = useNavigate();
   const location = useLocation();
   const toastFired = useRef(false);
