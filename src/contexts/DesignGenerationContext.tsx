@@ -116,6 +116,9 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   const startGeneration = useCallback((params: GenerationParams) => {
     if (status === "generating") return;
 
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+
     setStatus("generating");
     setResult(null);
     setError(null);
@@ -132,6 +135,8 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
         const { data, error: fnError } = await supabase.functions.invoke("design-studio", {
           body: edgeFnBody,
         });
+
+        if (abortController.signal.aborted) return;
 
         if (fnError) {
           setError(fnError.message || "Generation failed");
