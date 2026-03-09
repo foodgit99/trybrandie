@@ -665,7 +665,11 @@ export default function Admin() {
             <OverviewTab />
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview").map((t) => (
+          <TabsContent value="broadcast">
+            <BroadcastTab />
+          </TabsContent>
+
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "broadcast").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
