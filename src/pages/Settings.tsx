@@ -26,7 +26,7 @@ const Settings = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("referral_code, bonus_credits")
+        .select("referral_code, bonus_credits, subscription_tier")
         .eq("user_id", user!.id)
         .single();
       if (error) throw error;
@@ -132,8 +132,13 @@ const Settings = () => {
                     <CreditCard className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Free Plan</p>
-                    <p className="text-xs text-muted-foreground">10 generations per month</p>
+                    <p className="text-sm font-medium capitalize">{profile?.subscription_tier ?? "Free"} Plan</p>
+                    <p className="text-xs text-muted-foreground">
+                      {profile?.subscription_tier === "entrepreneur" ? "50 credits/month" :
+                       profile?.subscription_tier === "creator" ? "150 credits/month" :
+                       profile?.subscription_tier === "agency" ? "400 credits/month" :
+                       "10 generations per month"}
+                    </p>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" className="rounded-xl" onClick={() => navigate("/plans")}>

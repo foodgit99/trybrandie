@@ -260,6 +260,15 @@ const DesignStudio = () => {
     loadDesign();
   }, [searchParams, user]);
 
+  // Pick up hero prompt from sessionStorage (set on landing page → auth)
+  useEffect(() => {
+    const heroPrompt = sessionStorage.getItem("brandie_hero_prompt");
+    if (heroPrompt && messages.length === 0 && !searchParams.get("design")) {
+      sessionStorage.removeItem("brandie_hero_prompt");
+      setInput(heroPrompt);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const checkGenerationLimit = async (): Promise<boolean> => {
     if (!user) return false;
     const { data } = await supabase
