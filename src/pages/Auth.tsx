@@ -24,6 +24,9 @@ const Auth = () => {
   const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
 
   useEffect(() => {
+    const modeParam = searchParams.get("mode");
+    if (modeParam === "signup") setMode("signup");
+
     const ref = searchParams.get("ref");
     if (ref) {
       setReferralCode(ref);
@@ -32,6 +35,13 @@ const Auth = () => {
     const aff = searchParams.get("aff");
     if (aff) {
       setAffiliateCode(aff);
+      setMode("signup");
+    }
+
+    // Persist hero prompt for carry-through to studio
+    const prompt = searchParams.get("prompt");
+    if (prompt) {
+      sessionStorage.setItem("brandie_hero_prompt", prompt);
       setMode("signup");
     }
   }, [searchParams]);
