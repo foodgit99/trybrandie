@@ -16,6 +16,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -539,6 +545,7 @@ function DataTable({ tableName }: { tableName: string }) {
   const [editItem, setEditItem] = useState<Record<string, unknown> | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<Record<string, unknown> | null>(null);
   const limit = 20;
 
   const { data, isLoading, refetch } = useQuery({
@@ -661,6 +668,16 @@ function DataTable({ tableName }: { tableName: string }) {
                   </p>
                 </div>
                 <div className="flex gap-2 ml-4">
+                  {tableName === "profiles" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDetailItem(row)}
+                      className="rounded-xl"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -779,6 +796,32 @@ function DataTable({ tableName }: { tableName: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* User Details Dialog */}
+      {tableName === "profiles" && (
+        <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
+          <DialogContent className="rounded-2xl max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>User Details</DialogTitle>
+            </DialogHeader>
+            {detailItem && (
+              <div className="space-y-3 mt-2">
+                {Object.entries(detailItem).map(([key, value]) => (
+                  <div key={key}>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{key.replace(/_/g, " ")}</p>
+                    <p className="text-sm mt-0.5 break-all">
+                      {value === null || value === undefined
+                        ? <span className="text-muted-foreground italic">—</span>
+                        : typeof value === "object"
+                        ? JSON.stringify(value, null, 2)
+                        : String(value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
