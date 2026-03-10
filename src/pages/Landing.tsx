@@ -13,8 +13,8 @@ const fadeUp = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, delay: i * 0.12, ease: "easeOut" as const },
-  }),
+    transition: { duration: 0.6, delay: i * 0.12, ease: "easeOut" as const }
+  })
 };
 
 const Landing = () => {
@@ -44,8 +44,8 @@ const Landing = () => {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+            transition={{ duration: 0.5 }}>
+            
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-muted-foreground border border-border">
               <Sparkles className="h-3 w-3" />
               AI-Powered Brand Studio
@@ -56,8 +56,8 @@ const Landing = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-6xl font-serif tracking-tight leading-[1.1]"
-          >
+            className="text-4xl sm:text-5xl md:text-6xl font-serif tracking-tight leading-[1.1]">
+            
             Your AI creative director.
             <br />
             <span className="text-muted-foreground">Always on brand.</span>
@@ -67,8 +67,8 @@ const Landing = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto"
-          >
+            className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto">
+            
             Describe what you need. Brandie generates stunning, brand-consistent social media graphics in seconds — no design skills required.
           </motion.p>
 
@@ -81,14 +81,14 @@ const Landing = () => {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.5 }}
-          className="max-w-5xl mx-auto px-4 sm:px-8 pb-16"
-        >
+          className="max-w-5xl mx-auto px-4 sm:px-8 pb-16">
+          
           <img
             src={heroDesigns}
             alt="Social media designs created by Brandie AI"
             className="w-full rounded-2xl border border-border shadow-2xl"
-            loading="lazy"
-          />
+            loading="lazy" />
+          
         </motion.div>
       </section>
 
@@ -99,8 +99,8 @@ const Landing = () => {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-80px" }}
-            className="text-center mb-16 space-y-3"
-          >
+            className="text-center mb-16 space-y-3">
+            
             <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
               Design intelligence, not templates
             </motion.h2>
@@ -111,38 +111,38 @@ const Landing = () => {
 
           <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
             {[
-              {
-                icon: Palette,
-                title: "Brand Centre",
-                description: "Store your colours, typography, tone, and logo. Every design reflects your unique identity.",
-              },
-              {
-                icon: Target,
-                title: "Audience Intelligence",
-                description: "Tell us who you're targeting. We'll craft copy and visuals that resonate and convert.",
-              },
-              {
-                icon: TrendingUp,
-                title: "Trend Lab",
-                description: "Stay current with design trends — Neo Brutalism, Hyper Chromatic, and more — blended with your brand.",
-              },
-            ].map((feature, i) => (
-              <motion.div
-                key={feature.title}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-60px" }}
-                variants={fadeUp}
-                custom={i + 2}
-                className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-3"
-              >
+            {
+              icon: Palette,
+              title: "Brand Centre",
+              description: "Store your colours, typography, tone, and logo. Every design reflects your unique identity."
+            },
+            {
+              icon: Target,
+              title: "Audience Intelligence",
+              description: "Tell us who you're targeting. We'll craft copy and visuals that resonate and convert."
+            },
+            {
+              icon: TrendingUp,
+              title: "Trend Lab",
+              description: "Stay current with design trends — Neo Brutalism, Hyper Chromatic, and more — blended with your brand."
+            }].
+            map((feature, i) =>
+            <motion.div
+              key={feature.title}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={fadeUp}
+              custom={i + 2}
+              className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-3">
+              
                 <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
                   <feature.icon className="h-5 w-5 text-foreground" />
                 </div>
                 <h3 className="text-lg font-serif">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
               </motion.div>
-            ))}
+            )}
           </div>
         </div>
       </section>
@@ -154,8 +154,8 @@ const Landing = () => {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-80px" }}
-            className="space-y-5"
-          >
+            className="space-y-5">
+            
             <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
               Every post, perfectly on brand
             </motion.h2>
@@ -172,14 +172,14 @@ const Landing = () => {
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6 }}
-          >
+            transition={{ duration: 0.6 }}>
+            
             <img
               src={brandConsistency}
               alt="Brand consistent social media designs"
               className="w-full rounded-2xl border border-border shadow-lg"
-              loading="lazy"
-            />
+              loading="lazy" />
+            
           </motion.div>
         </div>
       </section>
@@ -193,21 +193,21 @@ const Landing = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 0.6 }}
-              className="order-2 md:order-1"
-            >
+              className="order-2 md:order-1">
+              
               <img
                 src={aiIntelligence}
                 alt="AI creative intelligence powering Brandie"
                 className="w-full rounded-2xl border border-primary-foreground/10 shadow-lg"
-                loading="lazy"
-              />
+                loading="lazy" />
+              
             </motion.div>
             <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-80px" }}
-              className="space-y-5 order-1 md:order-2"
-            >
+              className="space-y-5 order-1 md:order-2">
+              
               <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
                 Smarter with every design
               </motion.h2>
@@ -215,11 +215,11 @@ const Landing = () => {
                 Brandie's Visual Style Genome learns what works. Upvote your favourites and the system adapts — refining tone, layout, and styling to match your taste.
               </motion.p>
               <motion.div variants={fadeUp} custom={2} className="flex flex-wrap gap-3">
-                {["Genome Scoring", "Mutation Engine", "Brand Memory", "Trend Adaptation"].map((tag) => (
-                  <span key={tag} className="text-xs px-3 py-1.5 rounded-full border border-primary-foreground/20 text-primary-foreground/80">
+                {["Genome Scoring", "Mutation Engine", "Brand Memory", "Trend Adaptation"].map((tag) =>
+                <span key={tag} className="text-xs px-3 py-1.5 rounded-full border border-primary-foreground/20 text-primary-foreground/80">
                     {tag}
                   </span>
-                ))}
+                )}
               </motion.div>
             </motion.div>
           </div>
@@ -232,8 +232,8 @@ const Landing = () => {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className="space-y-16"
-        >
+          className="space-y-16">
+          
           <div className="space-y-3">
             <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
               Three steps to stunning graphics
@@ -245,16 +245,16 @@ const Landing = () => {
 
           <div className="grid sm:grid-cols-3 gap-8">
             {[
-              { step: "01", title: "Set up your brand", desc: "Add your colours, logo, fonts, and tone of voice." },
-              { step: "02", title: "Describe your design", desc: "Tell Brandie what you need in plain language." },
-              { step: "03", title: "Refine and download", desc: "Edit via chat. Download when it's perfect." },
-            ].map((item, i) => (
-              <motion.div key={item.step} variants={fadeUp} custom={i + 2} className="space-y-3">
+            { step: "01", title: "Set up your brand", desc: "Add your colours, logo, fonts, and tone of voice." },
+            { step: "02", title: "Describe your design", desc: "Tell Brandie what you need in plain language." },
+            { step: "03", title: "Refine and download", desc: "Edit via chat. Download when it's perfect." }].
+            map((item, i) =>
+            <motion.div key={item.step} variants={fadeUp} custom={i + 2} className="space-y-3">
                 <span className="text-4xl font-serif text-muted-foreground/30">{item.step}</span>
                 <h3 className="text-lg font-serif">{item.title}</h3>
                 <p className="text-sm text-muted-foreground">{item.desc}</p>
               </motion.div>
-            ))}
+            )}
           </div>
         </motion.div>
       </section>
@@ -267,8 +267,8 @@ const Landing = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-3xl sm:text-4xl font-serif tracking-tight"
-          >
+            className="text-3xl sm:text-4xl font-serif tracking-tight">
+            
             Ready to meet your AI creative director?
           </motion.h2>
           <motion.p
@@ -276,16 +276,16 @@ const Landing = () => {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-muted-foreground"
-          >
-            Start free. 10 generations per month. No credit card required.
+            className="text-muted-foreground">Start free. 10 credits per month. No credit card required.
+
+
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
+            transition={{ duration: 0.5, delay: 0.2 }}>
+            
             <Button size="lg" className="h-12 px-8 rounded-xl gap-2" onClick={() => navigate("/auth?mode=signup")}>
               <Zap className="h-4 w-4" />
               Get started for free
@@ -304,8 +304,8 @@ const Landing = () => {
           <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Yaries Digital Labs. All rights reserved.</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>);
+
 };
 
 export default Landing;
