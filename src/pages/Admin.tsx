@@ -668,6 +668,16 @@ function DataTable({ tableName }: { tableName: string }) {
                   </p>
                 </div>
                 <div className="flex gap-2 ml-4">
+                  {tableName === "profiles" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDetailItem(row)}
+                      className="rounded-xl"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
