@@ -10,9 +10,21 @@ export default function FloatingDesignStatus() {
   const navigate = useNavigate();
   const location = useLocation();
   const toastFired = useRef(false);
+  const completedOnStudio = useRef(false);
 
   const isOnStudio = location.pathname === "/studio";
-  const isVisible = status !== "idle" && !isOnStudio;
+
+  // If design completes while on /studio, suppress the floating pill entirely
+  useEffect(() => {
+    if (status === "complete" && isOnStudio) {
+      completedOnStudio.current = true;
+    }
+    if (status === "idle") {
+      completedOnStudio.current = false;
+    }
+  }, [status, isOnStudio]);
+
+  const isVisible = status !== "idle" && !isOnStudio && !completedOnStudio.current;
 
   // Play a subtle chime sound
   const playChime = () => {
