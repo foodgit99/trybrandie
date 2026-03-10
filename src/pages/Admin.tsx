@@ -408,6 +408,23 @@ function AdminDesignsTab() {
       }),
   });
 
+  // Fetch all profiles to map user_id -> name
+  const { data: profilesData } = useQuery({
+    queryKey: ["admin-all-profiles-map"],
+    queryFn: () =>
+      adminAction({
+        operation: "list",
+        table: "profiles",
+        offset: 0,
+        limit: 1000,
+      }),
+  });
+
+  const profileMap = new Map<string, string>();
+  ((profilesData?.rows || []) as Array<{ user_id: string; full_name: string | null }>).forEach((p) => {
+    profileMap.set(p.user_id, p.full_name || "Unknown user");
+  });
+
   const rows = (data?.rows || []) as Array<{
     id: string;
     title: string | null;
@@ -474,11 +491,20 @@ function AdminDesignsTab() {
                 <p className="text-white text-xs font-medium truncate">
                   {design.title || "Untitled"}
                 </p>
-                <div className="flex items-center gap-1 text-white/70 mt-1">
-                  <Calendar className="h-3 w-3" />
-                  <span className="text-[10px]">
-                    {format(new Date(design.created_at), "MMM d, yyyy")}
-                  </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1 text-white/70">
+                    <Users className="h-3 w-3" />
+                    <span className="text-[10px] truncate max-w-[100px]">
+                      {profileMap.get(design.user_id) || "Unknown"}
+                    </span>
+                  </div>
+                  <span className="text-white/30">·</span>
+                  <div className="flex items-center gap-1 text-white/70">
+                    <Calendar className="h-3 w-3" />
+                    <span className="text-[10px]">
+                      {format(new Date(design.created_at), "MMM d, yyyy")}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
