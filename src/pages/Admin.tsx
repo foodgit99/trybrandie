@@ -545,6 +545,7 @@ function DataTable({ tableName }: { tableName: string }) {
   const [editItem, setEditItem] = useState<Record<string, unknown> | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<Record<string, unknown> | null>(null);
   const limit = 20;
 
   const { data, isLoading, refetch } = useQuery({
