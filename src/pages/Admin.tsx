@@ -408,6 +408,23 @@ function AdminDesignsTab() {
       }),
   });
 
+  // Fetch all profiles to map user_id -> name
+  const { data: profilesData } = useQuery({
+    queryKey: ["admin-all-profiles-map"],
+    queryFn: () =>
+      adminAction({
+        operation: "list",
+        table: "profiles",
+        offset: 0,
+        limit: 1000,
+      }),
+  });
+
+  const profileMap = new Map<string, string>();
+  ((profilesData?.rows || []) as Array<{ user_id: string; full_name: string | null }>).forEach((p) => {
+    profileMap.set(p.user_id, p.full_name || "Unknown user");
+  });
+
   const rows = (data?.rows || []) as Array<{
     id: string;
     title: string | null;
