@@ -226,6 +226,27 @@ const DesignStudio = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Reset state when opening studio fresh (no design param)
+  useEffect(() => {
+    const designId = searchParams.get("design");
+    if (!designId) {
+      setMessages([]);
+      setCurrentImage(null);
+      setCurrentPrompt(null);
+      setCurrentDesignId(null);
+      setCurrentCaption(null);
+      setCurrentGenome(null);
+      setGenomeScores(null);
+      setVote(0);
+      setSaved(false);
+      setWasRefined(false);
+      setShowScores(false);
+      setAttachedImage(null);
+      setPreviewImage(null);
+      generation.clearResult();
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Load existing design from query param
   useEffect(() => {
     const designId = searchParams.get("design");
