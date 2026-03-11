@@ -538,6 +538,67 @@ function AdminDesignsTab() {
   );
 }
 
+function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, unknown> | null; onClose: () => void }) {
+  const [email, setEmail] = useState<string | null>(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  useEffect(() => {
+    if (!detailItem?.user_id) {
+      setEmail(null);
+      return;
+    }
+    setEmailLoading(true);
+    const fetchEmail = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await supabase.functions.invoke("admin-action", {
+          body: { operation: "get_user_email", data: { user_id: detailItem.user_id } },
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+        setEmail(res.data?.email || null);
+      } catch {
+        setEmail(null);
+      } finally {
+        setEmailLoading(false);
+      }
+    };
+    fetchEmail();
+  }, [detailItem?.user_id]);
+
+  return (
+    <Dialog open={!!detailItem} onOpenChange={() => onClose()}>
+      <DialogContent className="rounded-2xl max-w-md max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>User Details</DialogTitle>
+        </DialogHeader>
+        {detailItem && (
+          <div className="space-y-3 mt-2">
+            {/* Email field at the top */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">email</p>
+              <p className="text-sm mt-0.5 break-all">
+                {emailLoading ? <span className="text-muted-foreground italic">Loading...</span> : email || <span className="text-muted-foreground italic">—</span>}
+              </p>
+            </div>
+            {Object.entries(detailItem).map(([key, value]) => (
+              <div key={key}>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{key.replace(/_/g, " ")}</p>
+                <p className="text-sm mt-0.5 break-all">
+                  {value === null || value === undefined
+                    ? <span className="text-muted-foreground italic">—</span>
+                    : typeof value === "object"
+                    ? JSON.stringify(value, null, 2)
+                    : String(value)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DataTable({ tableName }: { tableName: string }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
