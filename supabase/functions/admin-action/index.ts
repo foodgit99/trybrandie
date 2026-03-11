@@ -314,6 +314,20 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "get_user_email": {
+        const { user_id: targetUserId } = data || {};
+        if (!targetUserId) {
+          return new Response(JSON.stringify({ error: "user_id is required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: authUser } = await adminClient.auth.admin.getUserById(targetUserId);
+        return new Response(JSON.stringify({ email: authUser?.user?.email || null }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "insert": {
         const { data: row, error } = await adminClient
           .from(table)

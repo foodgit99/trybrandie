@@ -798,29 +798,10 @@ function DataTable({ tableName }: { tableName: string }) {
       </AlertDialog>
       {/* User Details Dialog */}
       {tableName === "profiles" && (
-        <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
-          <DialogContent className="rounded-2xl max-w-md max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>User Details</DialogTitle>
-            </DialogHeader>
-            {detailItem && (
-              <div className="space-y-3 mt-2">
-                {Object.entries(detailItem).map(([key, value]) => (
-                  <div key={key}>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{key.replace(/_/g, " ")}</p>
-                    <p className="text-sm mt-0.5 break-all">
-                      {value === null || value === undefined
-                        ? <span className="text-muted-foreground italic">—</span>
-                        : typeof value === "object"
-                        ? JSON.stringify(value, null, 2)
-                        : String(value)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <UserDetailDialog
+          detailItem={detailItem}
+          onClose={() => setDetailItem(null)}
+        />
       )}
     </div>
   );
