@@ -599,7 +599,9 @@ const BrandCentre = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Images</h3>
               <label className="cursor-pointer">
-                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground pointer-events-none"><Upload className="h-3 w-3" /> Add</Button>
+                <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
+                  <span><Upload className="h-3 w-3" /> Add</span>
+                </Button>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleProductUpload} />
               </label>
             </div>
@@ -624,7 +626,9 @@ const BrandCentre = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Inspiration</h3>
               <label className="cursor-pointer">
-                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground pointer-events-none"><Upload className="h-3 w-3" /> Add</Button>
+                <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
+                  <span><Upload className="h-3 w-3" /> Add</span>
+                </Button>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleInspirationUpload} />
               </label>
             </div>
