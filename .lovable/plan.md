@@ -1,90 +1,101 @@
 
 
-# Plan: Fix All Missing/Not Working Items in Design Studio Pipeline
+## Visual Style Genome System (VSGS) — Implementation Plan
 
-## Overview
-Six fixes to the `supabase/functions/design-studio/index.ts` edge function. No database changes needed.
+The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
 
----
-
-## 1. Parallel Agent Execution (~2-4s latency reduction)
-
-Currently Copywriter → Caption → Scoring runs sequentially. Caption doesn't hard-depend on Copywriter output (it can use the design brief directly).
-
-**Change:** Run Copywriter and Caption as `Promise.all()`, then run Genome Scoring after.
+### Architecture Overview
 
 ```text
-BEFORE: Brief → Genome → Copywriter → Caption → Scoring → Image
-AFTER:  Brief → Genome → [Copywriter + Caption] parallel → Scoring → Image
+User Prompt
+  ↓
+Brief Agent (existing)
+  ↓
+Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
+  ↓ outputs structured genome JSON
+Copywriter Agent (existing, receives genome context)
+  ↓
+Image Renderer (existing, receives genome as structured styling instructions)
+  ↓
+Design Output + Genome stored alongside design
 ```
 
-The Caption prompt will use `designPrompt` and `userPrompt` instead of `copyStructure` fields. This removes the sequential dependency.
+### What Gets Built
 
----
+**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
 
-## 2. Brand Lock Enforcement in Genome Composer
+Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
 
-After the genome is composed (preset + trend overrides + mutation), override locked genes with actual brand values. This prevents the genome from contradicting brand settings.
+**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
 
-**Change:** After the mutation engine (line ~933), add a brand lock pass:
-- If brand has `primary_colors`, force `genome.color.palette_type` to match brand palette logic and set `temperature`/`saturation` based on brand color analysis.
-- If brand has `typography_primary`, map it to the closest `font_personality` value.
-- Skip overriding genes that are already aligned.
-- Locked genes: `color.palette_type`, `color.saturation`, `typography.font_personality`, `typography.weight_system`. Semi-flexible genes like `color.temperature` get overridden only if they strongly conflict.
+Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
 
----
+Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
 
-## 3. Inspiration Image Influence on Genome
+**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
 
-Currently inspiration images only go to the image renderer as visual refs. They should also influence genome selection.
+Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
+- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
+- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
+- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
+- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
+- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
 
-**Change:** Before the genome composer runs, if inspiration images exist, use a fast LLM call (`gemini-2.5-flash-lite`) to analyze 1-2 inspiration image URLs and extract style tags (e.g., "luxurious", "minimal", "editorial", "warm tones"). Use these tags to bias the base preset selection instead of relying solely on the `vibe` field. This runs in parallel with the Brief Agent call to avoid adding latency.
+This replaces the current loose `trendContext` string with structured, precise gene instructions.
 
----
+**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
 
-## 4. Chat Action Brand Context
+Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
 
-The `chat` action (line 1393-1431) uses a generic system prompt with no brand data.
+```
+VISUAL STYLE GENOME:
+- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
+- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
+- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
+- Composition: Diagonal direction, single focal point, medium layering
+- Texture: Paper grain, medium intensity, no distortion
+- Image Style: Natural lighting, vibrant grading, wide framing
+- Emotion: Energetic
+```
 
-**Change:** Before the chat response, fetch the user's brand (same query as generate/edit). Inject brand name, colors, fonts, tone, vibe, personality, audience summary, and trend preferences into the chat system prompt. This makes pre-generation conversations brand-aware.
+**5. Store Genome with Design** (database migration)
 
-The chat action will need a small data-fetch block at the top (brand query + optional audience query). Since `brand` is passed in the request body already, we just need to use it in the system prompt.
+Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
+- Learning from upvoted/downvoted genomes over time
+- Reproducing exact styles
+- Future genome analytics
 
----
+```sql
+ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
+```
 
-## 5. Error Recovery / Retry
+**6. Brand Consistency Layer** (inside Genome Composer logic)
 
-Currently, if the Brief Agent or Image Renderer returns a transient 500, the function immediately throws. No retry.
+Before finalizing the genome, enforce brand locks:
+- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
+- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
+- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
 
-**Change:** Add a `retryFetch` helper that wraps `fetch()` with:
-- Max 2 retries (3 total attempts)
-- Only retry on 500, 502, 503, 504 status codes
-- Exponential backoff: 1s, 2s delays
-- Apply to: Brief Agent call, Image Renderer call (the two critical non-fallback stages)
-- Copywriter and Caption already have graceful fallbacks, so no retry needed there.
+### What Does NOT Change
 
----
+- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
+- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
+- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
+- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
 
-## 6. Stability Gate Re-scoring
+### File Changes Summary
 
-Currently after applying deterministic fixes, the code just adds `+15` to the overall score (line 1252).
+| File | Action |
+|---|---|
+| `src/lib/genomeTypes.ts` | Create — genome interfaces |
+| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
+| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
+| Database migration | Add `genome` JSONB column to `designs` table |
 
-**Change:** After applying fixes, re-run the same scoring logic (brand alignment, visual clarity, trend balance, conversion, visual balance) against the mutated genome. Replace the `scores.overall + 15` with the actual recomputed weighted average. This requires extracting the scoring logic into a reusable function.
+### Risk Mitigation
 
----
-
-## Implementation Approach
-
-All changes are in a single file: `supabase/functions/design-studio/index.ts`. The function will be redeployed after changes.
-
-**Estimated sections affected:**
-- Lines 1-10: Add `retryFetch` helper
-- Lines 624-650: Wrap Brief Agent in retry
-- Lines 700-933: Brand lock pass after mutation, inspiration analysis parallel with brief
-- Lines 950-1031: Copywriter stays as-is
-- Lines 1033-1108: Caption refactored to not depend on copyStructure
-- Lines 950-1108: Wrap both in Promise.all
-- Lines 1110-1255: Extract scoring into function, call twice if stability gate triggers
-- Lines 1302-1334: Wrap Image Renderer in retry
-- Lines 1393-1431: Enrich chat system prompt with brand context
+- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
+- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
+- Gene locking prevents brand drift even with high trend intensity or mutation
+- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
 

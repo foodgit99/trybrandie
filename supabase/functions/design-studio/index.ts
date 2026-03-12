@@ -7,6 +7,186 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// --- RETRY HELPER (exponential backoff for transient failures) ---
+async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      // Don't retry on 429/402 (rate limit / payment) — these are intentional
+      if (response.ok || response.status === 429 || response.status === 402) {
+        return response;
+      }
+      // Retry only on server errors
+      if ([500, 502, 503, 504].includes(response.status) && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 1s, 2s
+        console.log(`retryFetch: attempt ${attempt + 1} failed with ${response.status}, retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      return response; // Non-retryable error, return as-is
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`retryFetch: attempt ${attempt + 1} threw error, retrying in ${delay}ms...`, e);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastError || new Error("retryFetch: all attempts failed");
+}
+
+// --- GENOME SCORING FUNCTION (extracted for reuse) ---
+function computeGenomeScores(
+  genomeData: any,
+  brand: any,
+  trend: string | undefined,
+  trend_intensity: number | undefined,
+  copyStructure: any
+): Record<string, number> {
+  const scores: Record<string, number> = {};
+
+  // 1. Brand Alignment Score (0-100)
+  let brandScore = 60;
+  const brandVibe = (brand?.vibe || "").toLowerCase();
+  const vibeEmotionMap: Record<string, string[]> = {
+    cinematic: ["luxurious", "authoritative", "futuristic"],
+    minimal: ["calm", "authoritative"],
+    bold: ["energetic", "rebellious"],
+    playful: ["playful", "warm", "energetic"],
+    luxury: ["luxurious", "calm", "authoritative"],
+    corporate: ["authoritative", "calm"],
+  };
+  if (vibeEmotionMap[brandVibe]?.includes(genomeData.emotion)) brandScore += 15;
+  const tonePersonalityMap: Record<string, string[]> = {
+    professional: ["corporate", "editorial"],
+    humourous: ["friendly", "street"],
+    formal: ["corporate", "editorial"],
+    casual: ["friendly", "street"],
+    inspirational: ["editorial", "friendly"],
+  };
+  const brandTone = (brand?.tone_of_voice || "").toLowerCase();
+  if (tonePersonalityMap[brandTone]?.includes(genomeData.typography.font_personality)) brandScore += 10;
+  if (["high", "extreme"].includes(genomeData.color.contrast)) brandScore += 10;
+  if (genomeData.texture.distortion !== "none" && brandVibe !== "bold") brandScore -= 5;
+  scores.brand_alignment = Math.max(0, Math.min(100, brandScore + 5));
+
+  // 2. Trend Balance Score (0-100)
+  let trendScore = 70;
+  if (trend && trend !== "none") {
+    const intensity = trend_intensity ?? 40;
+    const trendExpectations: Record<string, Record<string, any>> = {
+      "tactile-rebellion": { texture_type: "paper", emotion: "warm", balance: "dynamic" },
+      "hyper-chromatic": { saturation: "neon", contrast: "extreme", emotion: "energetic" },
+      "technical-mono": { saturation: "muted", grid_type: "strict_grid", emotion: "futuristic" },
+      "neo-naturalism": { texture_type: "paper", emotion: "calm", contrast: "low" },
+      "kinetic-typography": { balance: "dynamic", hierarchy_logic: "strong_headline_dominance", emotion: "energetic" },
+    };
+    const expected = trendExpectations[trend] || {};
+    let matches = 0;
+    const total = Object.keys(expected).length;
+    for (const [key, val] of Object.entries(expected)) {
+      for (const cat of Object.values(genomeData)) {
+        if (typeof cat === "object" && cat !== null && (cat as any)[key] === val) matches++;
+      }
+      if (genomeData[key] === val) matches++;
+    }
+    const matchRatio = total > 0 ? matches / total : 0;
+    const idealMatchRatio = intensity / 100;
+    const deviation = Math.abs(matchRatio - idealMatchRatio);
+    trendScore = Math.round(85 - deviation * 60);
+  }
+  scores.trend_balance = Math.max(0, Math.min(100, trendScore));
+
+  // 3. Visual Clarity Score (0-100)
+  let clarityScore = 50;
+  if (["high", "extreme"].includes(genomeData.color.contrast)) clarityScore += 20;
+  else if (genomeData.color.contrast === "medium") clarityScore += 10;
+  if (genomeData.typography.hierarchy_logic === "strong_headline_dominance") clarityScore += 15;
+  else if (genomeData.typography.hierarchy_logic === "balanced_hierarchy") clarityScore += 10;
+  if (genomeData.layout.spacing_density === "minimal") clarityScore += 10;
+  else if (genomeData.layout.spacing_density === "balanced") clarityScore += 5;
+  if (genomeData.composition.focal_strategy === "single_focal_point") clarityScore += 10;
+  if (genomeData.texture.distortion !== "none") clarityScore -= 10;
+  if (genomeData.texture.intensity === "heavy") clarityScore -= 5;
+  scores.visual_clarity = Math.max(0, Math.min(100, clarityScore));
+
+  // 4. Conversion Score (0-100)
+  let conversionScore = 40;
+  if (copyStructure?.cta && copyStructure.cta.length > 0) conversionScore += 20;
+  if (genomeData.composition.focal_strategy === "single_focal_point") conversionScore += 15;
+  if (genomeData.typography.hierarchy_logic === "strong_headline_dominance") conversionScore += 10;
+  if (["energetic", "authoritative", "rebellious"].includes(genomeData.emotion)) conversionScore += 10;
+  if (genomeData.layout.content_ratio === "balanced") conversionScore += 5;
+  scores.conversion = Math.max(0, Math.min(100, conversionScore));
+
+  // 5. Visual Balance Score (0-100)
+  let balanceScore = 50;
+  if (genomeData.layout.balance === "symmetrical") balanceScore += 20;
+  else if (genomeData.layout.balance === "asymmetrical") balanceScore += 15;
+  else if (genomeData.layout.balance === "dynamic") balanceScore += 10;
+  if (genomeData.composition.layering_depth === "medium") balanceScore += 15;
+  else if (genomeData.composition.layering_depth === "flat") balanceScore += 10;
+  if (genomeData.layout.spacing_density === "balanced") balanceScore += 10;
+  if (genomeData.color.gradient_logic !== "multi_spectrum") balanceScore += 5;
+  scores.visual_balance = Math.max(0, Math.min(100, balanceScore));
+
+  // Overall score (weighted average)
+  scores.overall = Math.round(
+    scores.brand_alignment * 0.30 +
+    scores.trend_balance * 0.15 +
+    scores.visual_clarity * 0.25 +
+    scores.conversion * 0.15 +
+    scores.visual_balance * 0.15
+  );
+
+  return scores;
+}
+
+// --- BRAND COLOR ANALYSIS HELPER ---
+function analyzeBrandColors(primaryColors: string[]): { temperature: string; saturation: string } {
+  if (!primaryColors || primaryColors.length === 0) return { temperature: "neutral", saturation: "balanced" };
+  
+  // Simple heuristic: analyze hex colors for warmth/coolness and saturation
+  let warmCount = 0, coolCount = 0, highSat = 0, lowSat = 0;
+  for (const hex of primaryColors) {
+    const clean = hex.replace("#", "");
+    if (clean.length < 6) continue;
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    // Warm = reds/yellows/oranges dominate, Cool = blues/greens dominate
+    if (r > b) warmCount++;
+    else if (b > r) coolCount++;
+    // Saturation approximation
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const satRatio = max > 0 ? (max - min) / max : 0;
+    if (satRatio > 0.5) highSat++;
+    else if (satRatio < 0.2) lowSat++;
+  }
+  const temperature = warmCount > coolCount ? "warm" : coolCount > warmCount ? "cool" : "neutral";
+  const saturation = highSat > lowSat ? "vibrant" : lowSat > highSat ? "muted" : "balanced";
+  return { temperature, saturation };
+}
+
+// --- FONT-TO-PERSONALITY MAP ---
+function mapFontToPersonality(fontName: string): string | null {
+  if (!fontName) return null;
+  const lower = fontName.toLowerCase();
+  // Corporate fonts
+  if (/arial|helvetica|inter|roboto|open\s?sans|lato|source\s?sans|nunito\s?sans/i.test(lower)) return "corporate";
+  // Editorial/serif fonts
+  if (/playfair|merriweather|georgia|times|garamond|libre\s?baskerville|cormorant|lora|dm\s?serif/i.test(lower)) return "editorial";
+  // Friendly fonts
+  if (/poppins|nunito|quicksand|rounded|comic|baloo|fredoka|patrick/i.test(lower)) return "friendly";
+  // Street/display fonts
+  if (/impact|bebas|anton|black\s?ops|bangers|permanent\s?marker|rubik\s?mono/i.test(lower)) return "street";
+  // Futuristic fonts
+  if (/orbitron|rajdhani|exo|audiowide|space\s?grotesk|jost|outfit|syne/i.test(lower)) return "futuristic";
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,6 +212,112 @@ serve(async (req) => {
     }
 
     const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality } = await req.json();
+
+    // === CHAT ACTION (with brand context) ===
+    if (action === "chat") {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+      // Fetch brand context for chat
+      let chatBrandContext = "";
+      let chatAudienceContext = "";
+      let chatTrendContext = "";
+
+      if (brand?.id) {
+        // Build brand context
+        chatBrandContext = `
+BRAND CONTEXT (use this to give brand-aware advice):
+- Brand name: ${brand.name || "Unknown"}
+- Tagline: ${brand.tagline || "None"}
+- Description: ${brand.description || "None"}
+- Vibe: ${brand.vibe || "Modern"}
+- Tone of voice: ${brand.tone_of_voice || "Professional"}
+- Personality traits: ${(brand.personality_traits || []).join(", ") || "None"}
+- Primary colours: ${(brand.primary_colors || []).join(", ") || "None specified"}
+- Secondary colours: ${(brand.secondary_colors || []).join(", ") || "None specified"}
+- Primary font: ${brand.typography_primary || "Not set"}
+- Secondary font: ${brand.typography_secondary || "Not set"}`;
+
+        // Fetch audience data
+        try {
+          const { data: audienceData } = await adminClient
+            .from("target_audiences")
+            .select("jtbd_profile, label")
+            .eq("brand_id", brand.id)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (audienceData?.jtbd_profile) {
+            const p = audienceData.jtbd_profile as any;
+            chatAudienceContext = `
+AUDIENCE INTELLIGENCE:
+- Target persona: ${p.persona_summary || "N/A"}
+- Core job: ${p.core_job_statement || "N/A"}
+- Key struggles: ${(p.struggling_moments || []).slice(0, 3).join("; ")}
+- Emotional drivers: ${(p.emotional_outcomes || []).slice(0, 3).join("; ")}`;
+          }
+        } catch (e) {
+          console.log("Chat: audience fetch failed:", e);
+        }
+
+        // Fetch trend preferences
+        try {
+          const { data: trendPref } = await adminClient
+            .from("brand_trend_preferences")
+            .select("selected_trend, default_trend_intensity, trend_enabled")
+            .eq("brand_id", brand.id)
+            .maybeSingle();
+
+          if (trendPref?.trend_enabled && trendPref.selected_trend && trendPref.selected_trend !== "none") {
+            chatTrendContext = `
+TREND CONTEXT: The brand currently has "${trendPref.selected_trend}" trend active at ${trendPref.default_trend_intensity}% intensity.`;
+          }
+        } catch (e) {
+          console.log("Chat: trend fetch failed:", e);
+        }
+      }
+
+      const chatSystemPrompt = `You are Brandie, a senior creative director with deep brand strategy expertise. You help users refine their design ideas before generating. Be confident, professional, calm. Never apologise excessively. Suggest improvements. Keep responses concise (2-3 sentences max). When advising on designs, always recommend photorealistic imagery and clean, modern aesthetics unless the user explicitly wants something different. Prioritise the user's intent and their Brand Centre settings (colours, fonts, tone, personality, inspiration) above all else.${chatBrandContext}${chatAudienceContext}${chatTrendContext}
+
+When you have brand context, reference it naturally in your advice — suggest using specific brand colours, recommend copy that matches the tone of voice, and consider the target audience when discussing design strategy.`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: chatSystemPrompt },
+            ...messages,
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error("Chat failed");
+      }
+
+      const chatData = await response.json();
+      const content = chatData.choices?.[0]?.message?.content || "";
+
+      return new Response(JSON.stringify({ message: content }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (action === "generate" || action === "edit") {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -477,9 +763,6 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
                 const userEmail = userData?.user?.email;
                 
                 if (userEmail && profile.referral_code) {
-                  // Only send once per low-credits threshold (check if we haven't already this session)
-                  const cacheKey = `low_credits_email_${user.id}_${now.getMonth()}_${now.getFullYear()}`;
-                  // Simple approach: just log and send - in production you'd use a flag or cache
                   console.log(`Sending low credits warning to ${userEmail}, remaining: ${remainingCredits}`);
                   
                   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -621,7 +904,48 @@ ${brand.special_instructions}
           ]
         : userPrompt;
 
-      const briefResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      // --- PARALLEL: Brief Agent + Inspiration Style Analysis ---
+      // Launch inspiration analysis in parallel with brief if inspiration images exist
+      let inspirationStyleTagsPromise: Promise<string[]> | null = null;
+      if (inspirationUrls.length > 0) {
+        inspirationStyleTagsPromise = (async () => {
+          try {
+            const inspContent: any[] = [
+              { type: "text", text: "Analyze these brand inspiration images and extract 3-5 visual style tags that describe the aesthetic. Return ONLY a JSON array of strings, e.g. [\"luxurious\", \"minimal\", \"editorial\", \"warm tones\", \"high contrast\"]. Tags should be from this vocabulary when possible: luxurious, minimal, editorial, warm, cool, bold, playful, corporate, futuristic, organic, rebellious, calm, energetic, streetwear, retro, natural, dramatic, clean." },
+            ];
+            for (const url of inspirationUrls.slice(0, 2)) {
+              inspContent.push({ type: "image_url", image_url: { url } });
+            }
+            const inspResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-lite",
+                messages: [{ role: "user", content: inspContent }],
+              }),
+            });
+            if (inspResponse.ok) {
+              const inspData = await inspResponse.json();
+              const rawContent = inspData.choices?.[0]?.message?.content || "";
+              const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
+              if (jsonMatch) {
+                const tags = JSON.parse(jsonMatch[0]);
+                console.log("Inspiration style tags:", tags);
+                return tags as string[];
+              }
+            }
+          } catch (e) {
+            console.log("Inspiration analysis failed, proceeding without:", e);
+          }
+          return [];
+        })();
+      }
+
+      // Brief Agent call (with retry)
+      const briefResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -665,7 +989,6 @@ ${brand.special_instructions}
         : "I've crafted this design with your brand identity in mind.";
 
       // --- DETERMINISTIC GENOME COMPOSER ---
-      // Uses preset library + trend overrides instead of an LLM call (saves 1 AI call per generation)
       let genomeData: any = null;
       try {
         // 1. Pick a base genome preset from brand vibe
@@ -681,9 +1004,56 @@ ${brand.special_instructions}
           retro: "retro-futurism",
         };
         const brandVibeLower = (brand?.vibe || "").toLowerCase();
-        const basePresetId = vibePresetMap[brandVibeLower] || "bold-startup";
+        let basePresetId = vibePresetMap[brandVibeLower] || "bold-startup";
 
-        // Hardcoded genome presets (duplicated from src/lib/genomePresets.ts for edge function context)
+        // --- INSPIRATION IMAGE INFLUENCE ON GENOME ---
+        // If inspiration analysis ran, use tags to potentially override preset selection
+        if (inspirationStyleTagsPromise) {
+          const inspirationTags = await inspirationStyleTagsPromise;
+          if (inspirationTags.length > 0) {
+            // Map inspiration tags to preset candidates
+            const tagPresetMap: Record<string, string> = {
+              luxurious: "luxury-editorial",
+              luxury: "luxury-editorial",
+              editorial: "luxury-editorial",
+              minimal: "minimalist-modern",
+              minimalist: "minimalist-modern",
+              clean: "minimalist-modern",
+              bold: "bold-startup",
+              energetic: "bold-startup",
+              playful: "streetwear-alte",
+              streetwear: "streetwear-alte",
+              rebellious: "neo-brutalism",
+              futuristic: "tech-futurism",
+              corporate: "corporate-clean",
+              organic: "organic-natural",
+              natural: "organic-natural",
+              calm: "organic-natural",
+              retro: "retro-futurism",
+              dramatic: "luxury-editorial",
+              warm: "organic-natural",
+            };
+            // Count votes per preset from inspiration tags
+            const presetVotes: Record<string, number> = {};
+            for (const tag of inspirationTags) {
+              const lower = tag.toLowerCase();
+              const preset = tagPresetMap[lower];
+              if (preset) {
+                presetVotes[preset] = (presetVotes[preset] || 0) + 1;
+              }
+            }
+            // If inspiration suggests a different preset than vibe, and it has strong signal (2+ votes), override
+            const topInspirationPreset = Object.entries(presetVotes).sort((a, b) => b[1] - a[1])[0];
+            if (topInspirationPreset && topInspirationPreset[1] >= 2 && topInspirationPreset[0] !== basePresetId) {
+              console.log(`Inspiration override: "${basePresetId}" → "${topInspirationPreset[0]}" (${topInspirationPreset[1]} tag votes from: ${inspirationTags.join(", ")})`);
+              basePresetId = topInspirationPreset[0];
+            } else if (topInspirationPreset) {
+              console.log(`Inspiration tags (${inspirationTags.join(", ")}) align with or insufficient to override current preset "${basePresetId}"`);
+            }
+          }
+        }
+
+        // Hardcoded genome presets
         const GENOME_PRESETS: Record<string, any> = {
           "minimalist-modern": {
             color: { palette_type: "monochrome", temperature: "neutral", contrast: "medium", saturation: "muted", gradient_logic: "flat" },
@@ -830,11 +1200,9 @@ ${brand.special_instructions}
           const intensity = (trend_intensity ?? 40) / 100;
           for (const [category, values] of Object.entries(overrides)) {
             if (category === "emotion") {
-              // Apply emotion override if intensity > 0.3
               if (intensity > 0.3) genomeData.emotion = values;
             } else if (typeof values === "object" && values !== null && genomeData[category]) {
               for (const [field, val] of Object.entries(values as Record<string, string>)) {
-                // Apply override probabilistically based on intensity
                 if (Math.random() < intensity) {
                   genomeData[category][field] = val;
                 }
@@ -845,7 +1213,6 @@ ${brand.special_instructions}
         }
 
         // --- GENOME MUTATION ENGINE (15%) ---
-        // Randomly mutate FREE genes to keep outputs fresh
         const MUTATION_RATE = 0.15;
         const freeGeneOptions: Record<string, Record<string, string[]>> = {
           layout: {
@@ -930,6 +1297,41 @@ ${brand.special_instructions}
         if (mutationCount > 0) {
           console.log(`Genome Mutation: ${mutationCount} gene(s) mutated (preference-biased)`);
         }
+
+        // --- BRAND LOCK ENFORCEMENT ---
+        // Override locked genes with actual brand values to prevent genome contradicting brand
+        if (brand) {
+          let lockCount = 0;
+
+          // Lock color genes based on brand colors
+          if (brand.primary_colors && brand.primary_colors.length > 0) {
+            const colorAnalysis = analyzeBrandColors(brand.primary_colors);
+            // Lock temperature and saturation to match brand colors
+            if (genomeData.color.temperature !== colorAnalysis.temperature) {
+              genomeData.color.temperature = colorAnalysis.temperature;
+              lockCount++;
+            }
+            if (genomeData.color.saturation !== colorAnalysis.saturation && !["neon", "muted"].includes(genomeData.color.saturation)) {
+              // Only override if genome saturation strongly conflicts (neon/muted are trend-driven, allow those)
+              genomeData.color.saturation = colorAnalysis.saturation;
+              lockCount++;
+            }
+          }
+
+          // Lock typography personality based on brand font
+          if (brand.typography_primary) {
+            const mappedPersonality = mapFontToPersonality(brand.typography_primary);
+            if (mappedPersonality && genomeData.typography.font_personality !== mappedPersonality) {
+              genomeData.typography.font_personality = mappedPersonality;
+              lockCount++;
+            }
+          }
+
+          if (lockCount > 0) {
+            console.log(`Brand Lock: ${lockCount} gene(s) locked to brand values`);
+          }
+        }
+
         console.log("Final genome:", JSON.stringify(genomeData));
       } catch (e) {
         console.error("Genome Composer error, proceeding without:", e);
@@ -947,19 +1349,22 @@ VISUAL STYLE GENOME (follow these precise styling instructions):
 - Image Style: ${genomeData.image_style.lighting} lighting, ${genomeData.image_style.color_grading} grading, ${genomeData.image_style.framing.replace(/_/g, " ")} framing
 - Emotion: ${genomeData.emotion}` : "";
 
-      // --- COPYWRITER AGENT ---
-      // Produces exact, structured copy that the image renderer must use verbatim
+      // --- PARALLEL: COPYWRITER + CAPTION AGENTS ---
       let copyStructure: { headline: string; subheadline: string; cta: string; supporting_text: string } | null = null;
-      try {
-        const trendPresetForCopy = trend && trend !== "none" ? (({
-          "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
-          "hyper-chromatic": "High-energy promotional language — bold, punchy, exclamatory, confident",
-          "technical-mono": "Shorter and sharper copy — precise, technical, no-nonsense, data-driven",
-          "neo-naturalism": "Calm and soothing tone — gentle, reassuring, mindful, nurturing",
-          "kinetic-typography": "Energetic and dynamic — action-oriented verbs, short punchy phrases, momentum-building",
-        } as Record<string, string>)[trend] || "") : "";
+      let captionText: string | null = null;
 
-        const copywriterPrompt = `You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic.
+      const trendPresetForCopy = trend && trend !== "none" ? (({
+        "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
+        "hyper-chromatic": "High-energy promotional language — bold, punchy, exclamatory, confident",
+        "technical-mono": "Shorter and sharper copy — precise, technical, no-nonsense, data-driven",
+        "neo-naturalism": "Calm and soothing tone — gentle, reassuring, mindful, nurturing",
+        "kinetic-typography": "Energetic and dynamic — action-oriented verbs, short punchy phrases, momentum-building",
+      } as Record<string, string>)[trend] || "") : "";
+
+      // Copywriter Agent (runs in parallel with Caption)
+      const copywriterPromise = (async () => {
+        try {
+          const copywriterPrompt = `You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic.
 
 CONTEXT:
 - Design brief: ${designPrompt}
@@ -982,59 +1387,61 @@ RULES:
 7. Leave fields empty ("") if they are not needed for this design. Not every design needs all fields.
 8. The copy must sound like it was written by the brand, not by a generic AI`;
 
-        const copyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: copywriterPrompt },
-              { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "set_copy",
-                description: "Set the exact copy text for the social media graphic",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    headline: { type: "string", description: "Main headline text (required, 3-8 words)" },
-                    subheadline: { type: "string", description: "Supporting subheadline (optional, 3-10 words, empty string if not needed)" },
-                    cta: { type: "string", description: "Call to action text (optional, 2-5 words, empty string if not needed)" },
-                    supporting_text: { type: "string", description: "Any additional small text (optional, empty string if not needed)" },
+          const copyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-3-flash-preview",
+              messages: [
+                { role: "system", content: copywriterPrompt },
+                { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
+              ],
+              tools: [{
+                type: "function",
+                function: {
+                  name: "set_copy",
+                  description: "Set the exact copy text for the social media graphic",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      headline: { type: "string", description: "Main headline text (required, 3-8 words)" },
+                      subheadline: { type: "string", description: "Supporting subheadline (optional, 3-10 words, empty string if not needed)" },
+                      cta: { type: "string", description: "Call to action text (optional, 2-5 words, empty string if not needed)" },
+                      supporting_text: { type: "string", description: "Any additional small text (optional, empty string if not needed)" },
+                    },
+                    required: ["headline", "subheadline", "cta", "supporting_text"],
+                    additionalProperties: false,
                   },
-                  required: ["headline", "subheadline", "cta", "supporting_text"],
-                  additionalProperties: false,
                 },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "set_copy" } },
-          }),
-        });
+              }],
+              tool_choice: { type: "function", function: { name: "set_copy" } },
+            }),
+          });
 
-        if (copyResponse.ok) {
-          const copyData = await copyResponse.json();
-          const toolCall = copyData.choices?.[0]?.message?.tool_calls?.[0];
-          if (toolCall?.function?.arguments) {
-            copyStructure = JSON.parse(toolCall.function.arguments);
-            console.log("Copywriter output:", JSON.stringify(copyStructure));
+          if (copyResponse.ok) {
+            const copyData = await copyResponse.json();
+            const toolCall = copyData.choices?.[0]?.message?.tool_calls?.[0];
+            if (toolCall?.function?.arguments) {
+              const result = JSON.parse(toolCall.function.arguments);
+              console.log("Copywriter output:", JSON.stringify(result));
+              return result;
+            }
+          } else {
+            console.error("Copywriter agent failed, falling back to image model copy:", copyResponse.status);
           }
-        } else {
-          console.error("Copywriter agent failed, falling back to image model copy:", copyResponse.status);
+        } catch (e) {
+          console.error("Copywriter agent error, falling back:", e);
         }
-      } catch (e) {
-        console.error("Copywriter agent error, falling back:", e);
-      }
+        return null;
+      })();
 
-      // --- CAPTION AGENT ---
-      // Generate a social-media-optimised, brand-aligned caption with hashtags
-      let captionText: string | null = null;
-      try {
-        const captionSystemPrompt = `You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts.
+      // Caption Agent (runs in parallel with Copywriter — uses design brief directly, not copy output)
+      const captionPromise = (async () => {
+        try {
+          const captionSystemPrompt = `You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts.
 
 BRAND CONTEXT:
 - Brand: ${brand?.name || "Unknown"}
@@ -1052,174 +1459,84 @@ RULES:
 6. Do NOT use generic filler — every word must serve the brand
 7. If audience data is available, use emotional drivers and messaging angles`;
 
-        const captionUserPrompt = `Write a social media caption for this design:
+          // Caption uses design brief + user prompt directly (no dependency on copywriter)
+          const captionUserPrompt = `Write a social media caption for this design:
 Brief: ${designPrompt}
-${copyStructure ? `Copy on design — Headline: "${copyStructure.headline}"${copyStructure.subheadline ? `, Subheadline: "${copyStructure.subheadline}"` : ""}${copyStructure.cta ? `, CTA: "${copyStructure.cta}"` : ""}` : `User request: "${userPrompt}"`}`;
+User request: "${userPrompt}"`;
 
-        const captionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: captionSystemPrompt },
-              { role: "user", content: captionUserPrompt },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "set_caption",
-                description: "Set the social media caption and hashtags for the design",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
-                    hashtags: {
-                      type: "array",
-                      items: { type: "string" },
-                      description: "5-10 relevant hashtags including the # symbol",
+          const captionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-3-flash-preview",
+              messages: [
+                { role: "system", content: captionSystemPrompt },
+                { role: "user", content: captionUserPrompt },
+              ],
+              tools: [{
+                type: "function",
+                function: {
+                  name: "set_caption",
+                  description: "Set the social media caption and hashtags for the design",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
+                      hashtags: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "5-10 relevant hashtags including the # symbol",
+                      },
                     },
+                    required: ["caption", "hashtags"],
+                    additionalProperties: false,
                   },
-                  required: ["caption", "hashtags"],
-                  additionalProperties: false,
                 },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "set_caption" } },
-          }),
-        });
+              }],
+              tool_choice: { type: "function", function: { name: "set_caption" } },
+            }),
+          });
 
-        if (captionResponse.ok) {
-          const captionData = await captionResponse.json();
-          const toolCall = captionData.choices?.[0]?.message?.tool_calls?.[0];
-          if (toolCall?.function?.arguments) {
-            const parsed = JSON.parse(toolCall.function.arguments);
-            captionText = parsed.caption + "\n\n" + (parsed.hashtags || []).join(" ");
-            console.log("Caption Agent output:", captionText);
+          if (captionResponse.ok) {
+            const captionData = await captionResponse.json();
+            const toolCall = captionData.choices?.[0]?.message?.tool_calls?.[0];
+            if (toolCall?.function?.arguments) {
+              const parsed = JSON.parse(toolCall.function.arguments);
+              const result = parsed.caption + "\n\n" + (parsed.hashtags || []).join(" ");
+              console.log("Caption Agent output:", result);
+              return result;
+            }
+          } else {
+            console.error("Caption agent failed:", captionResponse.status);
           }
-        } else {
-          console.error("Caption agent failed:", captionResponse.status);
+        } catch (e) {
+          console.error("Caption agent error:", e);
         }
-      } catch (e) {
-        console.error("Caption agent error:", e);
-      }
+        return null;
+      })();
 
-      // --- GENOME SCORING ENGINE ---
-      // Deterministic scores based on genome alignment with brand, trend, and design principles
+      // Await both in parallel
+      const [copyResult, captionResult] = await Promise.all([copywriterPromise, captionPromise]);
+      copyStructure = copyResult;
+      captionText = captionResult;
+
+      // --- GENOME SCORING ENGINE (using extracted function) ---
       let genomeScores: Record<string, number> | null = null;
       if (genomeData) {
-        const scores: Record<string, number> = {};
-
-        // 1. Brand Alignment Score (0-100)
-        let brandScore = 60;
-        const brandVibe = (brand?.vibe || "").toLowerCase();
-        const vibeEmotionMap: Record<string, string[]> = {
-          cinematic: ["luxurious", "authoritative", "futuristic"],
-          minimal: ["calm", "authoritative"],
-          bold: ["energetic", "rebellious"],
-          playful: ["playful", "warm", "energetic"],
-          luxury: ["luxurious", "calm", "authoritative"],
-          corporate: ["authoritative", "calm"],
-        };
-        if (vibeEmotionMap[brandVibe]?.includes(genomeData.emotion)) brandScore += 15;
-        const tonePersonalityMap: Record<string, string[]> = {
-          professional: ["corporate", "editorial"],
-          humourous: ["friendly", "street"],
-          formal: ["corporate", "editorial"],
-          casual: ["friendly", "street"],
-          inspirational: ["editorial", "friendly"],
-        };
-        const brandTone = (brand?.tone_of_voice || "").toLowerCase();
-        if (tonePersonalityMap[brandTone]?.includes(genomeData.typography.font_personality)) brandScore += 10;
-        if (["high", "extreme"].includes(genomeData.color.contrast)) brandScore += 10;
-        if (genomeData.texture.distortion !== "none" && brandVibe !== "bold") brandScore -= 5;
-        scores.brand_alignment = Math.max(0, Math.min(100, brandScore + 5));
-
-        // 2. Trend Balance Score (0-100)
-        let trendScore = 70;
-        if (trend && trend !== "none") {
-          const intensity = trend_intensity ?? 40;
-          const trendExpectations: Record<string, Record<string, any>> = {
-            "tactile-rebellion": { texture_type: "paper", emotion: "warm", balance: "dynamic" },
-            "hyper-chromatic": { saturation: "neon", contrast: "extreme", emotion: "energetic" },
-            "technical-mono": { saturation: "muted", grid_type: "strict_grid", emotion: "futuristic" },
-            "neo-naturalism": { texture_type: "paper", emotion: "calm", contrast: "low" },
-            "kinetic-typography": { balance: "dynamic", hierarchy_logic: "strong_headline_dominance", emotion: "energetic" },
-          };
-          const expected = trendExpectations[trend] || {};
-          let matches = 0;
-          const total = Object.keys(expected).length;
-          for (const [key, val] of Object.entries(expected)) {
-            for (const cat of Object.values(genomeData)) {
-              if (typeof cat === "object" && cat !== null && (cat as any)[key] === val) matches++;
-            }
-            if (genomeData[key] === val) matches++;
-          }
-          const matchRatio = total > 0 ? matches / total : 0;
-          const idealMatchRatio = intensity / 100;
-          const deviation = Math.abs(matchRatio - idealMatchRatio);
-          trendScore = Math.round(85 - deviation * 60);
-        }
-        scores.trend_balance = Math.max(0, Math.min(100, trendScore));
-
-        // 3. Visual Clarity Score (0-100)
-        let clarityScore = 50;
-        if (["high", "extreme"].includes(genomeData.color.contrast)) clarityScore += 20;
-        else if (genomeData.color.contrast === "medium") clarityScore += 10;
-        if (genomeData.typography.hierarchy_logic === "strong_headline_dominance") clarityScore += 15;
-        else if (genomeData.typography.hierarchy_logic === "balanced_hierarchy") clarityScore += 10;
-        if (genomeData.layout.spacing_density === "minimal") clarityScore += 10;
-        else if (genomeData.layout.spacing_density === "balanced") clarityScore += 5;
-        if (genomeData.composition.focal_strategy === "single_focal_point") clarityScore += 10;
-        if (genomeData.texture.distortion !== "none") clarityScore -= 10;
-        if (genomeData.texture.intensity === "heavy") clarityScore -= 5;
-        scores.visual_clarity = Math.max(0, Math.min(100, clarityScore));
-
-        // 4. Conversion Score (0-100)
-        let conversionScore = 40;
-        if (copyStructure?.cta && copyStructure.cta.length > 0) conversionScore += 20;
-        if (genomeData.composition.focal_strategy === "single_focal_point") conversionScore += 15;
-        if (genomeData.typography.hierarchy_logic === "strong_headline_dominance") conversionScore += 10;
-        if (["energetic", "authoritative", "rebellious"].includes(genomeData.emotion)) conversionScore += 10;
-        if (genomeData.layout.content_ratio === "balanced") conversionScore += 5;
-        scores.conversion = Math.max(0, Math.min(100, conversionScore));
-
-        // 5. Visual Balance Score (0-100)
-        let balanceScore = 50;
-        if (genomeData.layout.balance === "symmetrical") balanceScore += 20;
-        else if (genomeData.layout.balance === "asymmetrical") balanceScore += 15;
-        else if (genomeData.layout.balance === "dynamic") balanceScore += 10;
-        if (genomeData.composition.layering_depth === "medium") balanceScore += 15;
-        else if (genomeData.composition.layering_depth === "flat") balanceScore += 10;
-        if (genomeData.layout.spacing_density === "balanced") balanceScore += 10;
-        if (genomeData.color.gradient_logic !== "multi_spectrum") balanceScore += 5;
-        scores.visual_balance = Math.max(0, Math.min(100, balanceScore));
-
-        // Overall score (weighted average)
-        scores.overall = Math.round(
-          scores.brand_alignment * 0.30 +
-          scores.trend_balance * 0.15 +
-          scores.visual_clarity * 0.25 +
-          scores.conversion * 0.15 +
-          scores.visual_balance * 0.15
-        );
-
-        genomeScores = scores;
+        genomeScores = computeGenomeScores(genomeData, brand, trend, trend_intensity, copyStructure);
         console.log("Genome Scores:", JSON.stringify(genomeScores));
         genomeData._scores = genomeScores;
 
-        // --- DESIGN STABILITY GATE (deterministic — no LLM call) ---
-        // If overall score < 55, apply deterministic fixes to the weakest dimension
+        // --- DESIGN STABILITY GATE ---
         let stabilityRefined = false;
-        if (scores.overall < 55) {
-          console.log(`Stability Gate triggered: overall=${scores.overall}, applying deterministic fixes...`);
+        if (genomeScores.overall < 55) {
+          console.log(`Stability Gate triggered: overall=${genomeScores.overall}, applying deterministic fixes...`);
           const dimensions = ["brand_alignment", "trend_balance", "visual_clarity", "conversion", "visual_balance"];
-          const weakest = dimensions.reduce((a, b) => (scores[a] < scores[b] ? a : b));
+          const weakest = dimensions.reduce((a, b) => (genomeScores![a] < genomeScores![b] ? a : b));
 
-          // Apply targeted fixes based on weakest dimension
           if (weakest === "visual_clarity") {
             genomeData.color.contrast = "high";
             genomeData.typography.hierarchy_logic = "strong_headline_dominance";
@@ -1227,7 +1544,6 @@ ${copyStructure ? `Copy on design — Headline: "${copyStructure.headline}"${cop
             genomeData.composition.focal_strategy = "single_focal_point";
             genomeData.texture.distortion = "none";
           } else if (weakest === "brand_alignment") {
-            // Re-align emotion with brand vibe
             const vibeEmotions: Record<string, string> = { cinematic: "luxurious", minimal: "calm", bold: "energetic", playful: "playful", luxury: "luxurious", corporate: "authoritative" };
             genomeData.emotion = vibeEmotions[(brand?.vibe || "").toLowerCase()] || genomeData.emotion;
             const toneFonts: Record<string, string> = { professional: "corporate", humourous: "friendly", formal: "corporate", casual: "friendly", inspirational: "editorial" };
@@ -1241,19 +1557,18 @@ ${copyStructure ? `Copy on design — Headline: "${copyStructure.headline}"${cop
             genomeData.composition.layering_depth = "medium";
             genomeData.layout.spacing_density = "balanced";
           }
-          // Trend balance is hard to fix deterministically — skip
 
           genomeData._refined = true;
           stabilityRefined = true;
           console.log("Stability Gate: genome refined deterministically for", weakest);
 
-          // Re-score after fix
-          // (simplified: just bump overall by estimated improvement)
-          scores.overall = Math.min(100, scores.overall + 15);
-          genomeScores = scores;
+          // Re-compute actual scores after fixes (instead of just +15)
+          genomeScores = computeGenomeScores(genomeData, brand, trend, trend_intensity, copyStructure);
+          console.log("Genome Scores (post-refinement):", JSON.stringify(genomeScores));
           genomeData._scores = genomeScores;
         }
       }
+
       const copyInjection = copyStructure
         ? `\n\nEXACT TEXT TO RENDER ON THE DESIGN (use these EXACT words, do NOT modify, rephrase, or add ANY other text):
 - Headline: "${copyStructure.headline}"${copyStructure.subheadline ? `\n- Subheadline: "${copyStructure.subheadline}"` : ""}${copyStructure.cta ? `\n- CTA: "${copyStructure.cta}"` : ""}${copyStructure.supporting_text ? `\n- Supporting text: "${copyStructure.supporting_text}"` : ""}
@@ -1277,12 +1592,9 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
       if (user_image_url) imageRefs.push({ type: "image_url", image_url: { url: user_image_url } });
       if (action === "edit" && previous_image_url) imageRefs.push({ type: "image_url", image_url: { url: previous_image_url } });
-      // Pass brand inspiration images as visual references (up to 2)
       for (const inspUrl of inspirationUrls.slice(0, 2)) {
         imageRefs.push({ type: "image_url", image_url: { url: inspUrl } });
       }
-      // Pass product images as supporting visual references when contextually relevant
-      // Check if the design brief or user prompt suggests product-related content
       const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
       const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
       if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
@@ -1299,7 +1611,8 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ]
         : imagePromptText;
 
-      const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      // Image Renderer (with retry)
+      const imageResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -1347,7 +1660,6 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       const targetW = parseInt(w);
       const targetH = parseInt(h);
       try {
-        // Read PNG IHDR chunk: width at bytes 16-19, height at bytes 20-23 (big-endian)
         if (binaryData.length > 24 && binaryData[1] === 0x50 && binaryData[2] === 0x4E && binaryData[3] === 0x47) {
           const view = new DataView(binaryData.buffer, binaryData.byteOffset, binaryData.byteLength);
           const actualW = view.getUint32(16, false);
@@ -1371,7 +1683,6 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
 
-      // Check if refined was set (variable is in genome scoring scope, re-check)
       const wasRefined = genomeData?._refined === true;
 
       return new Response(
@@ -1388,47 +1699,6 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    if (action === "chat") {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content: `You are Brandie, a senior creative director. You help users refine their design ideas before generating. Be confident, professional, calm. Never apologise excessively. Suggest improvements. Keep responses concise (2-3 sentences max). When advising on designs, always recommend photorealistic imagery and clean, modern aesthetics unless the user explicitly wants something different. Prioritise the user's intent and their Brand Centre settings (colours, fonts, tone, personality, inspiration) above all else.`,
-            },
-            ...messages,
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error("Chat failed");
-      }
-
-      const chatData = await response.json();
-      const content = chatData.choices?.[0]?.message?.content || "";
-
-      return new Response(JSON.stringify({ message: content }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     return new Response(JSON.stringify({ error: "Invalid action" }), {
