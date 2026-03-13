@@ -269,7 +269,7 @@ const BrandCentre = () => {
   };
 
   useEffect(() => {
-    if (brand) {
+    if (brand && !editing) {
       setName(brand.name || ""); setTagline(brand.tagline || ""); setDescription(brand.description || "");
       setVibe(brand.vibe || ""); setToneOfVoice((brand as any).tone_of_voice || "");
       setSpecialInstructions((brand as any).special_instructions || "");
@@ -278,7 +278,7 @@ const BrandCentre = () => {
       setAccentColors(brand.accent_colors || []);
       setTypPrimary(brand.typography_primary || ""); setTypSecondary(brand.typography_secondary || "");
     }
-  }, [brand]);
+  }, [brand, editing]);
 
   const saveField = async (field: EditingField) => {
     if (!brand) return;
