@@ -63,6 +63,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const consumedRef = useRef(false);
   const progressTimer = useRef<ReturnType<typeof setInterval>>();
   const abortRef = useRef<AbortController | null>(null);
