@@ -46,6 +46,7 @@ interface DesignGenerationContextValue {
   result: GenerationResult | null;
   error: string | null;
   progress: number;
+  currentDesignId: string | null;
   startGeneration: (params: GenerationParams) => void;
   stopGeneration: () => void;
   clearResult: () => void;
