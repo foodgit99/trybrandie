@@ -1458,7 +1458,8 @@ RULES:
 4. Generate 5-10 relevant hashtags mixing popular and niche
 5. Use line breaks between caption and hashtags
 6. Do NOT use generic filler — every word must serve the brand
-7. If audience data is available, use emotional drivers and messaging angles`;
+7. If audience data is available, use emotional drivers and messaging angles
+${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}`;
 
           // Caption uses design brief + user prompt directly (no dependency on copywriter)
           const captionUserPrompt = `Write a social media caption for this design:
