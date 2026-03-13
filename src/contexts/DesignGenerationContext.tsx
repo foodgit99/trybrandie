@@ -104,6 +104,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
     setResult(null);
     setError(null);
     setProgress(0);
+    setCurrentDesignId(null);
     stopProgressTimer(0);
     consumedRef.current = false;
   }, [stopProgressTimer]);
