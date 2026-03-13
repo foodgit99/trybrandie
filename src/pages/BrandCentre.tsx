@@ -521,15 +521,14 @@ const BrandCentre = () => {
           )}
 
           {/* Vibe */}
-          <Section title="Brand Vibe" field="vibe" editContent={
+          {renderSection("Brand Vibe", "vibe",
+            <span className="inline-block px-4 py-2 rounded-xl bg-secondary text-sm font-medium">{brand.vibe || "Not set"}</span>,
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {VIBES.map((v) => (
                 <button key={v} onClick={() => setVibe(v)} className={`px-4 py-3 rounded-xl border text-sm transition-all ${vibe === v ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{v}</button>
               ))}
             </div>
-          }>
-            <span className="inline-block px-4 py-2 rounded-xl bg-secondary text-sm font-medium">{brand.vibe || "Not set"}</span>
-          </Section>
+          )}
 
           {/* Colours */}
           <Section title="Colours" field="colors" editContent={
