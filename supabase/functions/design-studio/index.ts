@@ -919,8 +919,23 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
         ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Copy should follow a VERTICAL HIERARCHY — headline at top, supporting text in middle, CTA at bottom. You have vertical space so stacked text blocks work well, but keep each block concise."
         : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). You have more HORIZONTAL space. Copy can be slightly more expansive. Side-by-side text elements work well. Keep good horizontal balance.";
 
-      // Collect inspiration examples for context
-      const inspirationUrls: string[] = brand?.inspiration_examples || [];
+      // Collect inspiration examples — load from brand_inspiration table
+      let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
+        try {
+          const { data: inspirationData } = await adminClient
+            .from("brand_inspiration")
+            .select("image_url")
+            .eq("brand_id", brand.id)
+            .limit(10);
+          if (inspirationData && inspirationData.length > 0) {
+            inspirationUrls = inspirationData.map((i: any) => i.image_url);
+            console.log(`Loaded ${inspirationUrls.length} inspiration images from DB`);
+          }
+        } catch (e) {
+          console.log("Failed to load inspiration images:", e);
+        }
+      }
 
       // Fetch product images for contextual use
       let productImageUrls: string[] = [];
