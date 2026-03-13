@@ -380,6 +380,7 @@ const DesignStudio = () => {
 
     const brandPayload = brand
       ? {
+          id: brand.id,
           name: brand.name,
           tagline: brand.tagline,
           description: brand.description,
@@ -392,6 +393,7 @@ const DesignStudio = () => {
           logo_url: brand.logo_url,
           tone_of_voice: (brand as any).tone_of_voice,
           personality_traits: (brand as any).personality_traits,
+          special_instructions: (brand as any).special_instructions,
         }
       : null;
 
