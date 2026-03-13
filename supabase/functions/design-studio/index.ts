@@ -477,7 +477,7 @@ CONVERSION RULES:
           // Check cache: reuse if message count hasn't changed
           const { data: cached } = await adminClient
             .from("chat_preference_cache")
-            .select("tags, message_count")
+            .select("tags, message_count, edit_patterns")
             .eq("user_id", user.id)
             .maybeSingle();
 
