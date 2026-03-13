@@ -1060,9 +1060,8 @@ ${brand.special_instructions}
       })();
 
       // Genome Composer Promise (deterministic — no LLM dependency, runs in parallel with brief)
-
-      // --- DETERMINISTIC GENOME COMPOSER ---
-      let genomeData: any = null;
+      const genomePromise = (async () => {
+      let genomeResult: any = null;
       try {
         // 1. Pick a base genome preset from brand vibe
         const vibePresetMap: Record<string, string> = {
