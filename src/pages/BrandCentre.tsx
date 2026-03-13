@@ -641,18 +641,17 @@ const BrandCentre = () => {
           </div>
 
           {/* Special Instructions */}
-          <Section title="Special Instructions" field="special_instructions" editContent={
+          {renderSection("Special Instructions", "special_instructions",
+            (brand as any).special_instructions ? (
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{(brand as any).special_instructions}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No special instructions set. Add persistent rules that the AI will always follow.</p>
+            ),
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">These are persistent, high-priority rules the AI will always follow when generating designs. Use them for things like language preferences, content restrictions, or mandatory elements.</p>
               <Textarea value={specialInstructions} onChange={(e) => setSpecialInstructions(e.target.value)} placeholder='e.g. "Always include our website URL: www.example.com", "Use Yoruba language for headlines", "Never use stock photos of people"' maxLength={2000} className="min-h-[120px]" />
             </div>
-          }>
-            {(brand as any).special_instructions ? (
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{(brand as any).special_instructions}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">No special instructions set. Add persistent rules that the AI will always follow.</p>
-            )}
-          </Section>
+          )}
 
           {/* Target Audience Intelligence */}
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
