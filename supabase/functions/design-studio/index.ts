@@ -1263,7 +1263,7 @@ ${brand.special_instructions}
         };
 
         // 3. Deep clone the base preset
-        genomeData = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
+        genomeResult = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
         console.log(`Genome Composer (deterministic): base preset="${basePresetId}" for vibe="${brandVibeLower}"`);
 
         // 4. Apply trend overrides if trend is selected, blended by intensity
