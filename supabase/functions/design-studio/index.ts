@@ -1065,7 +1065,7 @@ ${brand.special_instructions}
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}` },
+              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}` },
               ...messages.slice(0, -1),
               { role: "user", content: briefUserContent },
             ],
