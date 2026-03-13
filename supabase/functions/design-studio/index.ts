@@ -1272,11 +1272,11 @@ ${brand.special_instructions}
           const intensity = (trend_intensity ?? 40) / 100;
           for (const [category, values] of Object.entries(overrides)) {
             if (category === "emotion") {
-              if (intensity > 0.3) genomeData.emotion = values;
-            } else if (typeof values === "object" && values !== null && genomeData[category]) {
+              if (intensity > 0.3) genomeResult.emotion = values;
+            } else if (typeof values === "object" && values !== null && genomeResult[category]) {
               for (const [field, val] of Object.entries(values as Record<string, string>)) {
                 if (Math.random() < intensity) {
-                  genomeData[category][field] = val;
+                  genomeResult[category][field] = val;
                 }
               }
             }
@@ -1341,7 +1341,7 @@ ${brand.special_instructions}
         for (const [category, fields] of Object.entries(freeGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
             if (Math.random() < MUTATION_RATE) {
-              genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+              genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
           }
@@ -1349,19 +1349,19 @@ ${brand.special_instructions}
         for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
             if (Math.random() < MUTATION_RATE / 2) {
-              genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+              genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
           }
         }
         if (Math.random() < MUTATION_RATE / 2) {
-          const currentEmotion = genomeData.emotion;
+          const currentEmotion = genomeResult.emotion;
           const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
           if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
-            genomeData.emotion = prefEmotion;
+            genomeResult.emotion = prefEmotion;
           } else {
             const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
-            genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+            genomeResult.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
           }
           mutationCount++;
         }
@@ -1378,14 +1378,12 @@ ${brand.special_instructions}
           // Lock color genes based on brand colors
           if (brand.primary_colors && brand.primary_colors.length > 0) {
             const colorAnalysis = analyzeBrandColors(brand.primary_colors);
-            // Lock temperature and saturation to match brand colors
-            if (genomeData.color.temperature !== colorAnalysis.temperature) {
-              genomeData.color.temperature = colorAnalysis.temperature;
+            if (genomeResult.color.temperature !== colorAnalysis.temperature) {
+              genomeResult.color.temperature = colorAnalysis.temperature;
               lockCount++;
             }
-            if (genomeData.color.saturation !== colorAnalysis.saturation && !["neon", "muted"].includes(genomeData.color.saturation)) {
-              // Only override if genome saturation strongly conflicts (neon/muted are trend-driven, allow those)
-              genomeData.color.saturation = colorAnalysis.saturation;
+            if (genomeResult.color.saturation !== colorAnalysis.saturation && !["neon", "muted"].includes(genomeResult.color.saturation)) {
+              genomeResult.color.saturation = colorAnalysis.saturation;
               lockCount++;
             }
           }
@@ -1393,8 +1391,8 @@ ${brand.special_instructions}
           // Lock typography personality based on brand font
           if (brand.typography_primary) {
             const mappedPersonality = mapFontToPersonality(brand.typography_primary);
-            if (mappedPersonality && genomeData.typography.font_personality !== mappedPersonality) {
-              genomeData.typography.font_personality = mappedPersonality;
+            if (mappedPersonality && genomeResult.typography.font_personality !== mappedPersonality) {
+              genomeResult.typography.font_personality = mappedPersonality;
               lockCount++;
             }
           }
