@@ -202,6 +202,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
                 ...(selected_trend && selected_trend !== "none" && { trend_used: selected_trend, trend_intensity: params.trend_intensity }),
                 ...(data.genome && { genome: data.genome }),
                 ...(data.caption && { caption: data.caption }),
+                ...(data.copy_structure && { copy_structure: data.copy_structure }),
               } as any).select("id").single();
 
               if (!saveErr && designData?.id) {
