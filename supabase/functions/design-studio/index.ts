@@ -635,7 +635,7 @@ Be concise. Only include tags with clear evidence from multiple messages. Output
       // Reuse edit_patterns already fetched from cache (line 480) instead of a second DB query
       let editBiasContext = "";
       try {
-        const cachedEditPatterns = cached?.edit_patterns;
+        const cachedEditPatterns = cachedPrefs?.edit_patterns;
 
         if (cachedEditPatterns && Array.isArray(cachedEditPatterns) && cachedEditPatterns.length >= 3) {
           const patterns = cachedEditPatterns as Array<{ type: string; timestamp: string }>;
