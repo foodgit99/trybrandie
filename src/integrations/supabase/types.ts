@@ -344,6 +344,7 @@ export type Database = {
       }
       chat_preference_cache: {
         Row: {
+          edit_patterns: Json | null
           id: string
           message_count: number
           tags: Json
@@ -351,6 +352,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          edit_patterns?: Json | null
           id?: string
           message_count?: number
           tags?: Json
@@ -358,6 +360,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          edit_patterns?: Json | null
           id?: string
           message_count?: number
           tags?: Json
