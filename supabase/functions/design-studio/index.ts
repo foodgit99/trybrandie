@@ -629,17 +629,13 @@ Be concise. Only include tags with clear evidence from multiple messages. Output
       }
 
       // --- EDIT PATTERN BIAS ---
-      // Read edit_patterns from cache to bias future generations
+      // Reuse edit_patterns already fetched from cache (line 480) instead of a second DB query
       let editBiasContext = "";
       try {
-        const { data: editCache } = await adminClient
-          .from("chat_preference_cache")
-          .select("edit_patterns")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const cachedEditPatterns = cached?.edit_patterns;
 
-        if (editCache?.edit_patterns && Array.isArray(editCache.edit_patterns) && editCache.edit_patterns.length >= 3) {
-          const patterns = editCache.edit_patterns as Array<{ type: string; timestamp: string }>;
+        if (cachedEditPatterns && Array.isArray(cachedEditPatterns) && cachedEditPatterns.length >= 3) {
+          const patterns = cachedEditPatterns as Array<{ type: string; timestamp: string }>;
           // Count pattern types from recent edits (last 20)
           const recentPatterns = patterns.slice(-20);
           const patternCounts: Record<string, number> = {};
