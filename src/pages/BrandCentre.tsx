@@ -503,13 +503,7 @@ const BrandCentre = () => {
           )}
 
           {/* Personality Traits */}
-          <Section title="Personality Traits" field="personality" editContent={
-            <div className="flex flex-wrap gap-2">
-              {PERSONALITY_OPTIONS.map((trait) => (
-                <button key={trait} onClick={() => togglePersonalityTrait(trait)} className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${personalityTraits.includes(trait) ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{trait}</button>
-              ))}
-            </div>
-          }>
+          {renderSection("Personality Traits", "personality",
             <div className="flex flex-wrap gap-2">
               {((brand as any).personality_traits || []).length > 0 ? (
                 ((brand as any).personality_traits as string[]).map((trait) => (
@@ -518,8 +512,13 @@ const BrandCentre = () => {
               ) : (
                 <span className="text-sm text-muted-foreground">Not set</span>
               )}
+            </div>,
+            <div className="flex flex-wrap gap-2">
+              {PERSONALITY_OPTIONS.map((trait) => (
+                <button key={trait} onClick={() => togglePersonalityTrait(trait)} className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${personalityTraits.includes(trait) ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{trait}</button>
+              ))}
             </div>
-          </Section>
+          )}
 
           {/* Vibe */}
           <Section title="Brand Vibe" field="vibe" editContent={
