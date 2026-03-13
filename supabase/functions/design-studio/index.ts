@@ -463,6 +463,7 @@ CONVERSION RULES:
 
       // --- CHAT HISTORY RAG (cached LLM-summarised preference tags) ---
       let chatHistoryContext = "";
+      let cachedPrefs: any = null; // Hoisted so edit pattern bias can reuse it
       try {
         // Count current user messages to check against cache
         const { count: currentMsgCount } = await adminClient
@@ -473,13 +474,15 @@ CONVERSION RULES:
 
         const msgCount = currentMsgCount ?? 0;
 
+        // Always fetch cache (needed for edit_patterns even if msgCount < 3)
+        const { data: cached } = await adminClient
+          .from("chat_preference_cache")
+          .select("tags, message_count, edit_patterns")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        cachedPrefs = cached;
+
         if (msgCount >= 3) {
-          // Check cache: reuse if message count hasn't changed
-          const { data: cached } = await adminClient
-            .from("chat_preference_cache")
-            .select("tags, message_count, edit_patterns")
-            .eq("user_id", user.id)
-            .maybeSingle();
 
           let tags: any = null;
           let cacheHit = false;
@@ -572,15 +575,16 @@ Be concise. Only include tags with clear evidence from multiple messages. Output
                   if (jsonMatch) tags = JSON.parse(jsonMatch[0]);
                 } catch { /* ignore parse errors */ }
 
-                // Persist to cache (upsert by user_id)
+                // Persist to cache (upsert by user_id) — preserve existing edit_patterns
                 if (tags && typeof tags === "object") {
+                  const existingEditPatterns = cached?.edit_patterns || [];
                   await adminClient
                     .from("chat_preference_cache")
                     .upsert(
-                      { user_id: user.id, tags, message_count: msgCount, updated_at: new Date().toISOString() },
+                      { user_id: user.id, tags, message_count: msgCount, edit_patterns: existingEditPatterns, updated_at: new Date().toISOString() },
                       { onConflict: "user_id" }
                     );
-                  console.log("Chat RAG: extracted and cached preference tags");
+                  console.log("Chat RAG: extracted and cached preference tags (edit_patterns preserved)");
                 }
               } else {
                 console.log("Chat RAG extraction call failed:", extractResponse.status);
@@ -628,17 +632,13 @@ Be concise. Only include tags with clear evidence from multiple messages. Output
       }
 
       // --- EDIT PATTERN BIAS ---
-      // Read edit_patterns from cache to bias future generations
+      // Reuse edit_patterns already fetched from cache (line 480) instead of a second DB query
       let editBiasContext = "";
       try {
-        const { data: editCache } = await adminClient
-          .from("chat_preference_cache")
-          .select("edit_patterns")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const cachedEditPatterns = cachedPrefs?.edit_patterns;
 
-        if (editCache?.edit_patterns && Array.isArray(editCache.edit_patterns) && editCache.edit_patterns.length >= 3) {
-          const patterns = editCache.edit_patterns as Array<{ type: string; timestamp: string }>;
+        if (cachedEditPatterns && Array.isArray(cachedEditPatterns) && cachedEditPatterns.length >= 3) {
+          const patterns = cachedEditPatterns as Array<{ type: string; timestamp: string }>;
           // Count pattern types from recent edits (last 20)
           const recentPatterns = patterns.slice(-20);
           const patternCounts: Record<string, number> = {};
@@ -922,8 +922,23 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
         ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Copy should follow a VERTICAL HIERARCHY — headline at top, supporting text in middle, CTA at bottom. You have vertical space so stacked text blocks work well, but keep each block concise."
         : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). You have more HORIZONTAL space. Copy can be slightly more expansive. Side-by-side text elements work well. Keep good horizontal balance.";
 
-      // Collect inspiration examples for context
-      const inspirationUrls: string[] = brand?.inspiration_examples || [];
+      // Collect inspiration examples — load from brand_inspiration table
+      let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
+        try {
+          const { data: inspirationData } = await adminClient
+            .from("brand_inspiration")
+            .select("image_url")
+            .eq("brand_id", brand.id)
+            .limit(10);
+          if (inspirationData && inspirationData.length > 0) {
+            inspirationUrls = inspirationData.map((i: any) => i.image_url);
+            console.log(`Loaded ${inspirationUrls.length} inspiration images from DB`);
+          }
+        } catch (e) {
+          console.log("Failed to load inspiration images:", e);
+        }
+      }
 
       // Fetch product images for contextual use
       let productImageUrls: string[] = [];
@@ -1542,7 +1557,6 @@ CONTEXT:
 - Composition goal: ${briefResult.composition_goal}
 - Design focus: ${briefResult.design_focus}
 - Emotional tone: ${briefResult.emotional_tone}
-- User's original request: "${userPrompt}"
 - User's original request: "${userPrompt}"
 - Brand name: ${brand?.name || "Unknown"}
 - Brand tone of voice: ${brand?.tone_of_voice || "Professional"}
