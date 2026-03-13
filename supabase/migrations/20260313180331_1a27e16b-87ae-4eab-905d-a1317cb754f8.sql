@@ -1,0 +1,1 @@
+ALTER TABLE public.designs ADD COLUMN IF NOT EXISTS copy_structure jsonb DEFAULT NULL;

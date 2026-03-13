@@ -366,10 +366,11 @@ CONVERSION RULES:
       // Query user's top-rated past designs with genomes to build preference signals
       let preferenceContext = "";
       let preferenceWeights: Record<string, Record<string, number>> = {};
+      let copyPreferenceContext = "";
       try {
         const { data: pastDesigns } = await adminClient
           .from("designs")
-          .select("genome, vote")
+          .select("genome, vote, copy_structure, trend_used")
           .eq("user_id", user.id)
           .not("genome", "is", null)
           .order("vote", { ascending: false })
@@ -384,7 +385,7 @@ CONVERSION RULES:
             if (!g) continue;
             const weight = d.vote === 1 ? 3 : d.vote === -1 ? 0 : 1;
             for (const [cat, val] of Object.entries(g)) {
-              if (cat === "_scores" || cat === "emotion") continue;
+              if (cat === "_scores" || cat === "emotion" || cat === "_refined") continue;
               if (typeof val === "object" && val !== null) {
                 if (!tally[cat]) tally[cat] = {};
                 for (const [field, fv] of Object.entries(val as any)) {
@@ -421,6 +422,39 @@ CONVERSION RULES:
           if (topGenes.length > 0) {
             preferenceContext = `\n\nUSER STYLE PREFERENCES (from ${pastDesigns.length} past designs, weighted by upvotes — bias toward these when appropriate but don't force them):\n${topGenes.join(", ")}`;
             console.log("RAG preference context:", preferenceContext);
+          }
+
+          // --- COPY PATTERN LEARNING ---
+          // Track copy density preferences from upvoted designs
+          const upvotedWithCopy = pastDesigns.filter(d => d.vote === 1 && d.copy_structure);
+          if (upvotedWithCopy.length >= 2) {
+            let headlineOnly = 0;
+            let fullCopy = 0;
+            let avgFieldsUsed = 0;
+            for (const d of upvotedWithCopy) {
+              const cs = d.copy_structure as any;
+              if (!cs) continue;
+              const fieldsUsed = [cs.headline, cs.subheadline, cs.cta, cs.supporting_text].filter(f => f && f.trim() !== "").length;
+              avgFieldsUsed += fieldsUsed;
+              if (fieldsUsed <= 1) headlineOnly++;
+              else if (fieldsUsed >= 3) fullCopy++;
+            }
+            avgFieldsUsed = Math.round(avgFieldsUsed / upvotedWithCopy.length);
+            const copyDensity = headlineOnly > fullCopy ? "minimal (headline-focused)" : fullCopy > headlineOnly ? "rich (headline + subheadline + CTA)" : "balanced";
+            copyPreferenceContext = `\nUSER COPY PREFERENCE: User tends to prefer ${copyDensity} copy density (avg ${avgFieldsUsed} text fields used in upvoted designs).`;
+            console.log("Copy preference context:", copyPreferenceContext);
+          }
+
+          // --- TREND AFFINITY LEARNING ---
+          const trendCounts: Record<string, number> = {};
+          for (const d of pastDesigns) {
+            if (d.vote === 1 && d.trend_used && d.trend_used !== "none") {
+              trendCounts[d.trend_used] = (trendCounts[d.trend_used] || 0) + 1;
+            }
+          }
+          const topTrend = Object.entries(trendCounts).sort((a, b) => b[1] - a[1])[0];
+          if (topTrend && topTrend[1] >= 2) {
+            preferenceContext += `\nPREFERRED TREND: User's upvoted designs frequently use "${topTrend[0]}" trend.`;
           }
         }
       } catch (e) {
@@ -944,52 +978,90 @@ ${brand.special_instructions}
         })();
       }
 
-      // Brief Agent call (with retry)
-      const briefResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nThe user's request is below.\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific. IMPORTANT: Your layout and composition directions MUST be optimised for the canvas format specified above.${user_image_url ? " CRITICAL: The user provided a reference image — describe how to incorporate it prominently into the design as the user instructs." : ""}\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
-            ...messages.slice(0, -1),
-            { role: "user", content: briefUserContent },
-          ],
-        }),
-      });
+      // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis ---
+      // Brief Agent and Genome Composer are independent — run them in parallel for latency savings
 
-      if (!briefResponse.ok) {
-        if (briefResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+      // Brief Agent Promise (structured tool calling)
+      const briefPromise = (async () => {
+        const briefResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}` },
+              ...messages.slice(0, -1),
+              { role: "user", content: briefUserContent },
+            ],
+            tools: [{
+              type: "function",
+              function: {
+                name: "set_brief",
+                description: "Set the strategic creative direction for this design",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    creative_direction: { type: "string", description: "Detailed visual and conceptual direction for the design (3-4 sentences). Describe WHAT to create, the scene, the mood, the visual approach. Be extremely specific about colours (use exact hex codes from brand), fonts, and composition." },
+                    composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
+                    emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
+                    design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
+                    explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
+                  },
+                  required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
+                  additionalProperties: false,
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "set_brief" } },
+          }),
+        });
+
+        if (!briefResponse.ok) {
+          if (briefResponse.status === 429) throw new Error("RATE_LIMIT");
+          if (briefResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
+          const errText = await briefResponse.text();
+          console.error("Brief generation error:", briefResponse.status, errText);
+          throw new Error("Failed to generate design brief");
         }
-        if (briefResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in workspace settings." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+
+        const briefData = await briefResponse.json();
+        const toolCall = briefData.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          const parsed = JSON.parse(toolCall.function.arguments);
+          console.log("Brief Agent (structured):", JSON.stringify(parsed));
+          return parsed as {
+            creative_direction: string;
+            composition_goal: string;
+            emotional_tone: string;
+            design_focus: string;
+            explanation: string;
+          };
         }
-        const errText = await briefResponse.text();
-        console.error("Brief generation error:", briefResponse.status, errText);
-        throw new Error("Failed to generate design brief");
-      }
 
-      const briefData = await briefResponse.json();
-      const briefContent = briefData.choices?.[0]?.message?.content || "";
+        // Fallback: if tool call fails, try parsing from content
+        const briefContent = briefData.choices?.[0]?.message?.content || "";
+        console.log("Brief Agent fallback to content parsing");
+        const designPromptFallback = briefContent.includes("DESIGN BRIEF:")
+          ? briefContent.split("DESIGN BRIEF:")[1].split("EXPLANATION:")[0].trim()
+          : briefContent.split("\n")[0];
+        const explanationFallback = briefContent.includes("EXPLANATION:")
+          ? briefContent.split("EXPLANATION:")[1].trim()
+          : "I've crafted this design with your brand identity in mind.";
+        return {
+          creative_direction: designPromptFallback,
+          composition_goal: "balanced composition",
+          emotional_tone: brand?.vibe || "modern",
+          design_focus: "the headline",
+          explanation: explanationFallback,
+        };
+      })();
 
-      const designPrompt = briefContent.includes("DESIGN BRIEF:")
-        ? briefContent.split("DESIGN BRIEF:")[1].split("EXPLANATION:")[0].trim()
-        : briefContent.split("\n")[0];
-
-      const explanation = briefContent.includes("EXPLANATION:")
-        ? briefContent.split("EXPLANATION:")[1].trim()
-        : "I've crafted this design with your brand identity in mind.";
-
-      // --- DETERMINISTIC GENOME COMPOSER ---
-      let genomeData: any = null;
+      // Genome Composer Promise (deterministic — no LLM dependency, runs in parallel with brief)
+      const genomePromise = (async () => {
+      let genomeResult: any = null;
       try {
         // 1. Pick a base genome preset from brand vibe
         const vibePresetMap: Record<string, string> = {
@@ -1191,7 +1263,7 @@ ${brand.special_instructions}
         };
 
         // 3. Deep clone the base preset
-        genomeData = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
+        genomeResult = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
         console.log(`Genome Composer (deterministic): base preset="${basePresetId}" for vibe="${brandVibeLower}"`);
 
         // 4. Apply trend overrides if trend is selected, blended by intensity
@@ -1200,11 +1272,11 @@ ${brand.special_instructions}
           const intensity = (trend_intensity ?? 40) / 100;
           for (const [category, values] of Object.entries(overrides)) {
             if (category === "emotion") {
-              if (intensity > 0.3) genomeData.emotion = values;
-            } else if (typeof values === "object" && values !== null && genomeData[category]) {
+              if (intensity > 0.3) genomeResult.emotion = values;
+            } else if (typeof values === "object" && values !== null && genomeResult[category]) {
               for (const [field, val] of Object.entries(values as Record<string, string>)) {
                 if (Math.random() < intensity) {
-                  genomeData[category][field] = val;
+                  genomeResult[category][field] = val;
                 }
               }
             }
@@ -1269,7 +1341,7 @@ ${brand.special_instructions}
         for (const [category, fields] of Object.entries(freeGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
             if (Math.random() < MUTATION_RATE) {
-              genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+              genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
           }
@@ -1277,19 +1349,19 @@ ${brand.special_instructions}
         for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
             if (Math.random() < MUTATION_RATE / 2) {
-              genomeData[category][field] = pickMutationValue(category, field, options, genomeData[category]?.[field]);
+              genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
           }
         }
         if (Math.random() < MUTATION_RATE / 2) {
-          const currentEmotion = genomeData.emotion;
+          const currentEmotion = genomeResult.emotion;
           const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
           if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
-            genomeData.emotion = prefEmotion;
+            genomeResult.emotion = prefEmotion;
           } else {
             const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
-            genomeData.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+            genomeResult.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
           }
           mutationCount++;
         }
@@ -1306,14 +1378,12 @@ ${brand.special_instructions}
           // Lock color genes based on brand colors
           if (brand.primary_colors && brand.primary_colors.length > 0) {
             const colorAnalysis = analyzeBrandColors(brand.primary_colors);
-            // Lock temperature and saturation to match brand colors
-            if (genomeData.color.temperature !== colorAnalysis.temperature) {
-              genomeData.color.temperature = colorAnalysis.temperature;
+            if (genomeResult.color.temperature !== colorAnalysis.temperature) {
+              genomeResult.color.temperature = colorAnalysis.temperature;
               lockCount++;
             }
-            if (genomeData.color.saturation !== colorAnalysis.saturation && !["neon", "muted"].includes(genomeData.color.saturation)) {
-              // Only override if genome saturation strongly conflicts (neon/muted are trend-driven, allow those)
-              genomeData.color.saturation = colorAnalysis.saturation;
+            if (genomeResult.color.saturation !== colorAnalysis.saturation && !["neon", "muted"].includes(genomeResult.color.saturation)) {
+              genomeResult.color.saturation = colorAnalysis.saturation;
               lockCount++;
             }
           }
@@ -1321,8 +1391,8 @@ ${brand.special_instructions}
           // Lock typography personality based on brand font
           if (brand.typography_primary) {
             const mappedPersonality = mapFontToPersonality(brand.typography_primary);
-            if (mappedPersonality && genomeData.typography.font_personality !== mappedPersonality) {
-              genomeData.typography.font_personality = mappedPersonality;
+            if (mappedPersonality && genomeResult.typography.font_personality !== mappedPersonality) {
+              genomeResult.typography.font_personality = mappedPersonality;
               lockCount++;
             }
           }
@@ -1332,10 +1402,38 @@ ${brand.special_instructions}
           }
         }
 
-        console.log("Final genome:", JSON.stringify(genomeData));
+        console.log("Final genome:", JSON.stringify(genomeResult));
       } catch (e) {
         console.error("Genome Composer error, proceeding without:", e);
       }
+      return genomeResult;
+      })();
+
+      // --- AWAIT BRIEF + GENOME IN PARALLEL ---
+      let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; explanation: string };
+      let genomeData: any = null;
+      try {
+        const results = await Promise.all([briefPromise, genomePromise]);
+        briefResult = results[0];
+        genomeData = results[1];
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        if (errMsg === "RATE_LIMIT") {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (errMsg === "CREDITS_EXHAUSTED") {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in workspace settings." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw e;
+      }
+
+      // Assemble designPrompt from structured brief (used by downstream agents)
+      const designPrompt = briefResult.creative_direction;
+      const explanation = briefResult.explanation;
 
       // Serialize genome into a human-readable styling block for the image prompt
       const genomeContext = genomeData ? `
@@ -1367,7 +1465,11 @@ VISUAL STYLE GENOME (follow these precise styling instructions):
           const copywriterPrompt = `You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic.
 
 CONTEXT:
-- Design brief: ${designPrompt}
+- Creative direction: ${designPrompt}
+- Composition goal: ${briefResult.composition_goal}
+- Design focus: ${briefResult.design_focus}
+- Emotional tone: ${briefResult.emotional_tone}
+- User's original request: "${userPrompt}"
 - User's original request: "${userPrompt}"
 - Brand name: ${brand?.name || "Unknown"}
 - Brand tone of voice: ${brand?.tone_of_voice || "Professional"}
