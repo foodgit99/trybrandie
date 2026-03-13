@@ -366,10 +366,11 @@ CONVERSION RULES:
       // Query user's top-rated past designs with genomes to build preference signals
       let preferenceContext = "";
       let preferenceWeights: Record<string, Record<string, number>> = {};
+      let copyPreferenceContext = "";
       try {
         const { data: pastDesigns } = await adminClient
           .from("designs")
-          .select("genome, vote")
+          .select("genome, vote, copy_structure, trend_used")
           .eq("user_id", user.id)
           .not("genome", "is", null)
           .order("vote", { ascending: false })
@@ -384,7 +385,7 @@ CONVERSION RULES:
             if (!g) continue;
             const weight = d.vote === 1 ? 3 : d.vote === -1 ? 0 : 1;
             for (const [cat, val] of Object.entries(g)) {
-              if (cat === "_scores" || cat === "emotion") continue;
+              if (cat === "_scores" || cat === "emotion" || cat === "_refined") continue;
               if (typeof val === "object" && val !== null) {
                 if (!tally[cat]) tally[cat] = {};
                 for (const [field, fv] of Object.entries(val as any)) {
@@ -421,6 +422,39 @@ CONVERSION RULES:
           if (topGenes.length > 0) {
             preferenceContext = `\n\nUSER STYLE PREFERENCES (from ${pastDesigns.length} past designs, weighted by upvotes — bias toward these when appropriate but don't force them):\n${topGenes.join(", ")}`;
             console.log("RAG preference context:", preferenceContext);
+          }
+
+          // --- COPY PATTERN LEARNING ---
+          // Track copy density preferences from upvoted designs
+          const upvotedWithCopy = pastDesigns.filter(d => d.vote === 1 && d.copy_structure);
+          if (upvotedWithCopy.length >= 2) {
+            let headlineOnly = 0;
+            let fullCopy = 0;
+            let avgFieldsUsed = 0;
+            for (const d of upvotedWithCopy) {
+              const cs = d.copy_structure as any;
+              if (!cs) continue;
+              const fieldsUsed = [cs.headline, cs.subheadline, cs.cta, cs.supporting_text].filter(f => f && f.trim() !== "").length;
+              avgFieldsUsed += fieldsUsed;
+              if (fieldsUsed <= 1) headlineOnly++;
+              else if (fieldsUsed >= 3) fullCopy++;
+            }
+            avgFieldsUsed = Math.round(avgFieldsUsed / upvotedWithCopy.length);
+            const copyDensity = headlineOnly > fullCopy ? "minimal (headline-focused)" : fullCopy > headlineOnly ? "rich (headline + subheadline + CTA)" : "balanced";
+            copyPreferenceContext = `\nUSER COPY PREFERENCE: User tends to prefer ${copyDensity} copy density (avg ${avgFieldsUsed} text fields used in upvoted designs).`;
+            console.log("Copy preference context:", copyPreferenceContext);
+          }
+
+          // --- TREND AFFINITY LEARNING ---
+          const trendCounts: Record<string, number> = {};
+          for (const d of pastDesigns) {
+            if (d.vote === 1 && d.trend_used && d.trend_used !== "none") {
+              trendCounts[d.trend_used] = (trendCounts[d.trend_used] || 0) + 1;
+            }
+          }
+          const topTrend = Object.entries(trendCounts).sort((a, b) => b[1] - a[1])[0];
+          if (topTrend && topTrend[1] >= 2) {
+            preferenceContext += `\nPREFERRED TREND: User's upvoted designs frequently use "${topTrend[0]}" trend.`;
           }
         }
       } catch (e) {
