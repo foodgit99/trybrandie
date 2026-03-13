@@ -262,7 +262,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   }, [status, startProgressTimer, stopProgressTimer]);
 
   return (
-    <DesignGenerationContext.Provider value={{ status, result, error, progress, startGeneration, stopGeneration, clearResult, consumeResult }}>
+    <DesignGenerationContext.Provider value={{ status, result, error, progress, currentDesignId, startGeneration, stopGeneration, clearResult, consumeResult }}>
       {children}
     </DesignGenerationContext.Provider>
   );

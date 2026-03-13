@@ -62,7 +62,7 @@ export default function FloatingDesignStatus() {
       navigate(`/studio?design=${result.design_id}`);
       clearResult();
     } else if (status === "generating") {
-      navigate("/studio");
+      navigate(currentDesignId ? `/studio?design=${currentDesignId}` : "/studio");
     }
   };
 
