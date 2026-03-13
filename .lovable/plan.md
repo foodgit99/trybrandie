@@ -1,101 +1,128 @@
 
 
-## Visual Style Genome System (VSGS) — Implementation Plan
+# Architectural Refactoring — Analysis and Implementation Plan
 
-The VSGS introduces a structured "design DNA" layer between the user's intent and the image renderer. Instead of passing loose style descriptions, Brandie will decompose every design into atomic **style genes** across 8 categories, enabling precise control, trend adaptation, and brand consistency enforcement.
+## Assessment of the Four Risks
 
-### Architecture Overview
+### Risk 1: Brief Agent Is Too Powerful — AGREE (Medium Priority)
+
+The current Brief Agent (line 948-962) receives the entire brand context, audience, trends, preferences, chat history, and user prompt as a single massive system prompt (~2000+ tokens of context). It outputs both a `DESIGN BRIEF` (which becomes the image prompt seed) and an `EXPLANATION`. This is problematic because:
+
+- If the brief hallucinates a colour or layout direction, every downstream agent inherits the mistake
+- The brief is simultaneously trying to be a creative strategist AND an image prompt writer
+
+**Recommendation**: Split the Brief Agent into two concerns — a **Strategic Director** (outputs creative_direction, emotional_tone, composition_goal, design_focus as structured JSON) and let the image prompt be assembled deterministically from structured outputs. This is the highest-impact change.
+
+### Risk 2: No Orchestrator Layer — PARTIALLY AGREE (Low Priority for now)
+
+The current code already has implicit orchestration via the `action` switch (`chat` / `generate` / `edit`) at line 217-322. Adding a formal Orchestrator class would be cleaner but the current code is a single edge function — the routing logic is simple enough that a formal orchestrator adds abstraction without significant functional gain at this stage.
+
+**Recommendation**: Skip a formal Orchestrator for now. The action-based routing is adequate. Revisit when adding new action types (e.g., `batch`, `template`, `remix`).
+
+### Risk 3: Genome Runs Too Early — DISAGREE
+
+The genome currently runs AFTER the brief (line 991), and this is actually correct for Brandie's architecture. The genome is **deterministic** — it's computed from brand vibe + trend + preferences + mutation, NOT from the brief content. The brief and genome are independent branches that merge at the image prompt. Moving genome before the brief would not change the brief's output because the brief doesn't read the genome.
+
+However, the brief SHOULD be genome-aware so its creative direction doesn't conflict with genome decisions. The fix is not to reorder, but to **run them in parallel** and then validate compatibility.
+
+**Recommendation**: Run Genome Composer in parallel with Brief Agent (saves ~1-2s latency), then inject genome context into the Copywriter (already done) and use the Scoring Engine to catch conflicts.
+
+### Risk 4: No Learning Layer — AGREE (Medium Priority)
+
+The RAG Preference Engine (line 366-428) already reads past genomes weighted by votes, and the Mutation Engine (line 1258-1295) uses preference bias. But this only affects genome gene selection. It does NOT feed back into:
+- Copy tone preferences
+- Layout density preferences  
+- Trend affinity
+
+**Recommendation**: Extend the preference cache to track copy and layout patterns from upvoted designs.
+
+### Visual Composition Agent — DISAGREE (for now)
+
+Adding a layout schema agent between Copywriter and Renderer would add another LLM call (~2-3s latency) and the image generation models (Gemini image models) don't reliably follow precise pixel-level layout instructions. The genome's layout/composition genes already serve this purpose at the right abstraction level. A composition agent would be valuable if Brandie moved to a canvas-based renderer (HTML/CSS or Figma), but not with current image generation.
+
+---
+
+## Implementation Plan (Phased)
+
+### Phase 1: Strategic Brief Refactoring (High Impact)
+
+**File**: `supabase/functions/design-studio/index.ts`
+
+Split the Brief Agent output from a free-text `DESIGN BRIEF + EXPLANATION` into structured JSON via tool calling:
 
 ```text
-User Prompt
-  ↓
-Brief Agent (existing)
-  ↓
-Genome Composer (NEW) ← Brand data + Trend tokens + Audience signals
-  ↓ outputs structured genome JSON
-Copywriter Agent (existing, receives genome context)
-  ↓
-Image Renderer (existing, receives genome as structured styling instructions)
-  ↓
-Design Output + Genome stored alongside design
+Current:  Brief Agent → free text → parsed by string splitting
+Proposed: Brief Agent → tool call → { creative_direction, composition_goal, emotional_tone, design_focus, explanation }
 ```
 
-### What Gets Built
+Changes:
+- Convert Brief Agent to use structured tool calling (like Copywriter already does)
+- Output fields: `creative_direction` (2-3 sentences), `composition_goal` (layout intent), `emotional_tone` (single word), `design_focus` (what's the hero element), `explanation` (for user)
+- Remove the brittle `.split("DESIGN BRIEF:")[1].split("EXPLANATION:")` parsing (line 983-989)
+- The `creative_direction` replaces `designPrompt` in downstream usage
+- Include genome context in the Brief Agent prompt so it can align creative direction with the visual system
 
-**1. Genome Type Definitions** (`src/lib/genomeTypes.ts` — new file)
+### Phase 2: Parallel Genome + Brief (Latency Optimization)
 
-Define TypeScript interfaces for the full genome structure: `ColorGenome`, `TypographyGenome`, `LayoutGenome`, `CompositionGenome`, `TextureGenome`, `IllustrationGenome`, `ImageStyleGenome`, `EmotionGenome`, and the top-level `VisualStyleGenome` that combines them all. Each gene has enumerated parameter values (e.g., palette_type: "monochrome" | "complementary" | "analogous" | ...).
+**File**: `supabase/functions/design-studio/index.ts`
 
-**2. Genome Preset Library** (`src/lib/genomePresets.ts` — new file)
+Currently genome runs sequentially after brief. Since genome is deterministic (doesn't depend on brief output), run them in parallel:
 
-Define 9 complete genome presets matching the spec: Minimalist Modern, Luxury Editorial, Streetwear Alte, Neo Brutalism, Retro Futurism, Organic Natural, Tech Futurism, Bold Startup, Corporate Clean. Each is a full `VisualStyleGenome` object.
-
-Also define a mapping from existing Trend Lab presets to genome overrides — so selecting "Hyper Chromatic" in Trend Lab automatically sets the relevant genes (color saturation → neon, contrast → extreme, texture → light leaks, etc.).
-
-**3. Genome Composer Agent** (inside `supabase/functions/design-studio/index.ts`)
-
-Add a new agent step between the Brief Agent and Copywriter. The Genome Composer:
-- Receives: the design brief, brand data, audience JTBD profile, selected trend, trend intensity
-- Uses a structured tool call (like the Copywriter) to output a `VisualStyleGenome` JSON
-- Applies **gene locking rules**: brand primary colors and fonts are "locked" genes that cannot be overridden; texture, layout, composition are "free" genes
-- Applies **mutation** (15% randomization on free genes) to keep outputs fresh
-- The genome is then serialized into the Copywriter prompt (for tone/density awareness) and the image prompt (as precise styling instructions)
-
-This replaces the current loose `trendContext` string with structured, precise gene instructions.
-
-**4. Genome-Aware Prompts** (inside `supabase/functions/design-studio/index.ts`)
-
-Refactor the image generation prompt to include structured genome instructions instead of (or in addition to) the current free-text trend/brand descriptions. Example output injected into the renderer:
-
-```
-VISUAL STYLE GENOME:
-- Color: Analogous palette, warm temperature, high contrast, vibrant saturation, soft gradient
-- Typography: Friendly personality, bold weight, strong headline dominance, centered layout
-- Layout: Modular grid, asymmetrical balance, balanced density, image dominant
-- Composition: Diagonal direction, single focal point, medium layering
-- Texture: Paper grain, medium intensity, no distortion
-- Image Style: Natural lighting, vibrant grading, wide framing
-- Emotion: Energetic
+```text
+Current:  Brief Agent (sequential) → Genome Composer → Copywriter+Caption (parallel) → Scorer → Renderer
+Proposed: Brief Agent + Genome Composer (parallel) → Copywriter+Caption (parallel) → Scorer → Renderer
 ```
 
-**5. Store Genome with Design** (database migration)
+This saves 0-1s (genome is fast but currently blocks the pipeline).
 
-Add a `genome` JSONB column to the `designs` table to store the genome used for each design. This enables:
-- Learning from upvoted/downvoted genomes over time
-- Reproducing exact styles
-- Future genome analytics
+### Phase 3: Extended Learning Layer
 
+**File**: `supabase/functions/design-studio/index.ts`
+
+Extend the RAG Preference Engine to also track:
+- **Copy density patterns**: From upvoted designs, track whether the user prefers headline-only vs full copy structures
+- **Trend affinity**: Track which trends appear in upvoted designs to influence trend recommendations
+
+Changes:
+- When building `preferenceContext`, also extract copy_structure patterns from past designs (requires storing copy_structure in the designs table)
+- Add a `copy_structure` JSONB column to the designs table
+
+**Database migration**:
 ```sql
-ALTER TABLE public.designs ADD COLUMN genome jsonb DEFAULT NULL;
+ALTER TABLE public.designs ADD COLUMN IF NOT EXISTS copy_structure jsonb DEFAULT NULL;
 ```
 
-**6. Brand Consistency Layer** (inside Genome Composer logic)
+### Phase 4: Special Instructions — Full Pipeline Coverage (Already Done)
 
-Before finalizing the genome, enforce brand locks:
-- **Locked genes**: color primary values, font families — pulled directly from Brand Centre, never overridden
-- **Semi-flexible genes**: typography weight/effects, color temperature — can shift within brand-compatible range
-- **Free genes**: texture, layout grid, composition, illustration style — fully controlled by trend/prompt/mutation
+Special Instructions are now injected into:
+- Brief Agent system prompt (line 870) ✓
+- Copywriter Agent (line 1389) ✓
+- Caption Agent (line 1462) ✓
+- Image Renderer prompt (line 1590) ✓
 
-### What Does NOT Change
+No further changes needed here.
 
-- The existing Trend Lab UI and presets remain — trends now map to genome overrides internally
-- The Copywriter Agent and image renderer pipelines stay the same — they just receive richer, structured context
-- No new UI pages or components needed for MVP — the genome operates as an invisible intelligence layer
-- The feedback engine (upvote/downvote) continues working — genome data stored alongside enables future learning
+---
 
-### File Changes Summary
+## File Changes Summary
 
-| File | Action |
+| File | Phase | Change |
+|---|---|---|
+| `supabase/functions/design-studio/index.ts` | 1 | Refactor Brief Agent to structured tool call output |
+| `supabase/functions/design-studio/index.ts` | 2 | Parallelize Brief + Genome execution |
+| `supabase/functions/design-studio/index.ts` | 3 | Extend RAG preference engine for copy patterns |
+| Database migration | 3 | Add `copy_structure` JSONB column to designs |
+
+## What I Recommend We Skip
+
+| Suggestion | Reason |
 |---|---|
-| `src/lib/genomeTypes.ts` | Create — genome interfaces |
-| `src/lib/genomePresets.ts` | Create — 9 presets + trend-to-genome mapping |
-| `supabase/functions/design-studio/index.ts` | Edit — add Genome Composer agent step, refactor prompt injection |
-| Database migration | Add `genome` JSONB column to `designs` table |
+| Formal Orchestrator Controller | Current action routing is sufficient; adds abstraction without functional gain |
+| Visual Composition Agent | Image models don't follow pixel-level layout specs; genome layout genes are the right abstraction |
+| Reordering Genome before Brief | They're independent; parallel execution is better than reordering |
+| Feedback updating mutation weights in real-time | Already implemented via RAG preference bias in mutation engine |
 
-### Risk Mitigation
+## Execution Order
 
-- The Genome Composer uses a structured tool call (like the existing Copywriter), so output is always valid JSON
-- If the Genome Composer fails, fall back to the current prompt-based approach (no regression)
-- Gene locking prevents brand drift even with high trend intensity or mutation
-- No additional API calls beyond one extra LLM call for the Genome Composer (lightweight, uses flash model)
+I recommend implementing Phase 1 first (Brief Agent refactoring) as it has the highest impact on design quality and pipeline reliability. Phases 2-3 can follow incrementally.
 
