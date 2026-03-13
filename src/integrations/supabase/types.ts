@@ -475,6 +475,7 @@ export type Database = {
           brand_id: string
           canvas_size: string
           caption: string | null
+          copy_structure: Json | null
           created_at: string
           genome: Json | null
           id: string
@@ -490,6 +491,7 @@ export type Database = {
           brand_id: string
           canvas_size?: string
           caption?: string | null
+          copy_structure?: Json | null
           created_at?: string
           genome?: Json | null
           id?: string
@@ -505,6 +507,7 @@ export type Database = {
           brand_id?: string
           canvas_size?: string
           caption?: string | null
+          copy_structure?: Json | null
           created_at?: string
           genome?: Json | null
           id?: string
