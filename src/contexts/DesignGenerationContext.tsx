@@ -46,6 +46,7 @@ interface DesignGenerationContextValue {
   result: GenerationResult | null;
   error: string | null;
   progress: number;
+  currentDesignId: string | null;
   startGeneration: (params: GenerationParams) => void;
   stopGeneration: () => void;
   clearResult: () => void;
@@ -62,6 +63,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const consumedRef = useRef(false);
   const progressTimer = useRef<ReturnType<typeof setInterval>>();
   const abortRef = useRef<AbortController | null>(null);
@@ -93,6 +95,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
     setResult(null);
     setError(null);
     setProgress(0);
+    setCurrentDesignId(null);
     consumedRef.current = false;
   }, [stopProgressTimer]);
 
@@ -101,6 +104,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
     setResult(null);
     setError(null);
     setProgress(0);
+    setCurrentDesignId(null);
     stopProgressTimer(0);
     consumedRef.current = false;
   }, [stopProgressTimer]);
@@ -122,6 +126,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
     setStatus("generating");
     setResult(null);
     setError(null);
+    setCurrentDesignId(params.current_design_id || null);
     consumedRef.current = false;
     startProgressTimer();
 
@@ -257,7 +262,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
   }, [status, startProgressTimer, stopProgressTimer]);
 
   return (
-    <DesignGenerationContext.Provider value={{ status, result, error, progress, startGeneration, stopGeneration, clearResult, consumeResult }}>
+    <DesignGenerationContext.Provider value={{ status, result, error, progress, currentDesignId, startGeneration, stopGeneration, clearResult, consumeResult }}>
       {children}
     </DesignGenerationContext.Provider>
   );

@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export default function FloatingDesignStatus() {
-  const { status, result, error, progress, clearResult, stopGeneration } = useDesignGeneration();
+  const { status, result, error, progress, clearResult, stopGeneration, currentDesignId } = useDesignGeneration();
   const navigate = useNavigate();
   const location = useLocation();
   const toastFired = useRef(false);
@@ -62,7 +62,7 @@ export default function FloatingDesignStatus() {
       navigate(`/studio?design=${result.design_id}`);
       clearResult();
     } else if (status === "generating") {
-      navigate("/studio");
+      navigate(currentDesignId ? `/studio?design=${currentDesignId}` : "/studio");
     }
   };
 
