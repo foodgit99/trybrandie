@@ -531,7 +531,23 @@ const BrandCentre = () => {
           )}
 
           {/* Colours */}
-          <Section title="Colours" field="colors" editContent={
+          {renderSection("Colours", "colors",
+            <div className="space-y-3">
+              {([["Primary", brand.primary_colors], ["Secondary", brand.secondary_colors], ["Accent", brand.accent_colors]] as const).map(([label, colors]) => (
+                <div key={label} className="space-y-1">
+                  <label className="text-xs text-muted-foreground">{label}</label>
+                  <div className="flex gap-2">
+                    {(colors || []).map((c, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <div className="w-8 h-8 rounded-lg border border-border" style={{ backgroundColor: c }} />
+                        <span className="text-xs font-mono text-muted-foreground">{c}</span>
+                      </div>
+                    ))}
+                    {(!colors || colors.length === 0) && <span className="text-xs text-muted-foreground">Not set</span>}
+                  </div>
+                </div>
+              ))}
+            </div>,
             <div className="space-y-5">
               {([["Primary", primaryColors, setPrimaryColors], ["Secondary", secondaryColors, setSecondaryColors], ["Accent", accentColors, setAccentColors]] as const).map(([label, arr, setter]) => (
                 <div key={label} className="space-y-2">
@@ -550,24 +566,7 @@ const BrandCentre = () => {
                 </div>
               ))}
             </div>
-          }>
-            <div className="space-y-3">
-              {([["Primary", brand.primary_colors], ["Secondary", brand.secondary_colors], ["Accent", brand.accent_colors]] as const).map(([label, colors]) => (
-                <div key={label} className="space-y-1">
-                  <label className="text-xs text-muted-foreground">{label}</label>
-                  <div className="flex gap-2">
-                    {(colors || []).map((c, i) => (
-                      <div key={i} className="flex items-center gap-1.5">
-                        <div className="w-8 h-8 rounded-lg border border-border" style={{ backgroundColor: c }} />
-                        <span className="text-xs font-mono text-muted-foreground">{c}</span>
-                      </div>
-                    ))}
-                    {(!colors || colors.length === 0) && <span className="text-xs text-muted-foreground">Not set</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
+          )}
 
           {/* Typography */}
           <Section title="Typography" field="typography" editContent={
