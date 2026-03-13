@@ -477,7 +477,7 @@ CONVERSION RULES:
           // Check cache: reuse if message count hasn't changed
           const { data: cached } = await adminClient
             .from("chat_preference_cache")
-            .select("tags, message_count")
+            .select("tags, message_count, edit_patterns")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -627,6 +627,43 @@ Be concise. Only include tags with clear evidence from multiple messages. Output
         console.log("Chat history RAG failed, proceeding without:", e);
       }
 
+      // --- EDIT PATTERN BIAS ---
+      // Read edit_patterns from cache to bias future generations
+      let editBiasContext = "";
+      try {
+        const { data: editCache } = await adminClient
+          .from("chat_preference_cache")
+          .select("edit_patterns")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (editCache?.edit_patterns && Array.isArray(editCache.edit_patterns) && editCache.edit_patterns.length >= 3) {
+          const patterns = editCache.edit_patterns as Array<{ type: string; timestamp: string }>;
+          // Count pattern types from recent edits (last 20)
+          const recentPatterns = patterns.slice(-20);
+          const patternCounts: Record<string, number> = {};
+          for (const p of recentPatterns) {
+            patternCounts[p.type] = (patternCounts[p.type] || 0) + 1;
+          }
+          // Build bias string for patterns that appear 3+ times
+          const biases: string[] = [];
+          if ((patternCounts["less_text"] || 0) >= 3) biases.push("User frequently requests LESS text — prefer minimal, headline-focused copy");
+          if ((patternCounts["more_text"] || 0) >= 3) biases.push("User frequently requests MORE text — include subheadline and supporting text");
+          if ((patternCounts["bigger_text"] || 0) >= 3) biases.push("User frequently requests BIGGER text — use larger, bolder typography");
+          if ((patternCounts["smaller_text"] || 0) >= 3) biases.push("User frequently requests SMALLER text — use more refined, smaller typography");
+          if ((patternCounts["layout_change"] || 0) >= 3) biases.push("User frequently changes layout — try more varied compositions");
+          if ((patternCounts["color_change"] || 0) >= 3) biases.push("User frequently changes colors — ensure strong color contrast and bold palette");
+          if ((patternCounts["style_change"] || 0) >= 3) biases.push("User frequently changes visual style — be more experimental with visual direction");
+
+          if (biases.length > 0) {
+            editBiasContext = `\n\nEDIT PATTERN INSIGHTS (learned from user's frequent edit requests — pre-apply these preferences):\n- ${biases.join("\n- ")}`;
+            console.log("Edit bias context:", editBiasContext);
+          }
+        }
+      } catch (e) {
+        console.log("Edit pattern bias retrieval failed, proceeding without:", e);
+      }
+
       // Build trend context
       let trendContext = "";
       if (trend && trend !== "none") {
@@ -743,6 +780,42 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
           const classification = (classifyData.choices?.[0]?.message?.content || "").trim().toUpperCase();
           isFreeEdit = classification === "MINOR";
           console.log(`Intent classification: ${classification} (isFreeEdit: ${isFreeEdit})`);
+
+          // --- EDIT PATTERN TRACKING ---
+          // Classify the edit type and store it for future bias
+          try {
+            const editPromptLower = userPrompt.toLowerCase();
+            let editType: string | null = null;
+            if (/less text|fewer words|shorter|remove text|too much text|reduce copy/i.test(editPromptLower)) editType = "less_text";
+            else if (/more text|add text|longer|more copy|more detail|add description/i.test(editPromptLower)) editType = "more_text";
+            else if (/bigger text|larger text|bigger font|increase.*size|make.*text.*big/i.test(editPromptLower)) editType = "bigger_text";
+            else if (/smaller text|reduce.*size|make.*text.*small|subtle.*text/i.test(editPromptLower)) editType = "smaller_text";
+            else if (/layout|move|reposition|rearrange|alignment|spacing|composition/i.test(editPromptLower)) editType = "layout_change";
+            else if (/colou?r|palette|shade|hue|darker|lighter|brighter/i.test(editPromptLower)) editType = "color_change";
+            else if (/style|aesthetic|vibe|look|feel|mood|theme|visual/i.test(editPromptLower)) editType = "style_change";
+
+            if (editType) {
+              // Read current patterns, append, and save (keep last 50)
+              const { data: existingCache } = await adminClient
+                .from("chat_preference_cache")
+                .select("edit_patterns")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+              const existingPatterns = (existingCache?.edit_patterns as any[] || []).slice(-49);
+              existingPatterns.push({ type: editType, timestamp: new Date().toISOString() });
+
+              await adminClient
+                .from("chat_preference_cache")
+                .upsert(
+                  { user_id: user.id, edit_patterns: existingPatterns, updated_at: new Date().toISOString() },
+                  { onConflict: "user_id" }
+                );
+              console.log(`Edit pattern tracked: ${editType}`);
+            }
+          } catch (e) {
+            console.log("Edit pattern tracking failed, proceeding:", e);
+          }
         }
       }
 
@@ -992,7 +1065,7 @@ ${brand.special_instructions}
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}` },
+              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}` },
               ...messages.slice(0, -1),
               { role: "user", content: briefUserContent },
             ],

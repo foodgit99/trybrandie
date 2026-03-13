@@ -1,0 +1,1 @@
+ALTER TABLE public.chat_preference_cache ADD COLUMN IF NOT EXISTS edit_patterns jsonb DEFAULT '[]'::jsonb;
