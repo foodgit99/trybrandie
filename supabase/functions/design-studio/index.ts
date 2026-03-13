@@ -1385,7 +1385,8 @@ RULES:
 5. NEVER use generic filler like "Elevate your brand" or "Take it to the next level" unless that's what the user asked for
 6. The headline is the most important element — make it punchy, specific, and on-topic
 7. Leave fields empty ("") if they are not needed for this design. Not every design needs all fields.
-8. The copy must sound like it was written by the brand, not by a generic AI`;
+8. The copy must sound like it was written by the brand, not by a generic AI
+${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}`;
 
           const copyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
