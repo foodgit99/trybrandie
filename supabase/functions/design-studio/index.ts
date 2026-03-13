@@ -978,49 +978,88 @@ ${brand.special_instructions}
         })();
       }
 
-      // Brief Agent call (with retry)
-      const briefResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nThe user's request is below.\n\nRespond with TWO parts clearly separated:\n\nPART 1 - DESIGN BRIEF: A detailed image generation prompt (3-4 sentences) describing EXACTLY what to create. The design MUST match the user's request topic. Specify the exact hex colour codes from the brand system, the font names, layout details, and composition. Be extremely specific. IMPORTANT: Your layout and composition directions MUST be optimised for the canvas format specified above.${user_image_url ? " CRITICAL: The user provided a reference image — describe how to incorporate it prominently into the design as the user instructs." : ""}\n\nPART 2 - EXPLANATION: A brief, confident explanation (1-2 sentences) of your design choices referencing the brand colours and fonts by name. Speak like a creative director.` },
-            ...messages.slice(0, -1),
-            { role: "user", content: briefUserContent },
-          ],
-        }),
-      });
+      // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis ---
+      // Brief Agent and Genome Composer are independent — run them in parallel for latency savings
 
-      if (!briefResponse.ok) {
-        if (briefResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+      // Brief Agent Promise (structured tool calling)
+      const briefPromise = (async () => {
+        const briefResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}` },
+              ...messages.slice(0, -1),
+              { role: "user", content: briefUserContent },
+            ],
+            tools: [{
+              type: "function",
+              function: {
+                name: "set_brief",
+                description: "Set the strategic creative direction for this design",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    creative_direction: { type: "string", description: "Detailed visual and conceptual direction for the design (3-4 sentences). Describe WHAT to create, the scene, the mood, the visual approach. Be extremely specific about colours (use exact hex codes from brand), fonts, and composition." },
+                    composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
+                    emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
+                    design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
+                    explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
+                  },
+                  required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
+                  additionalProperties: false,
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "set_brief" } },
+          }),
+        });
+
+        if (!briefResponse.ok) {
+          if (briefResponse.status === 429) throw new Error("RATE_LIMIT");
+          if (briefResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
+          const errText = await briefResponse.text();
+          console.error("Brief generation error:", briefResponse.status, errText);
+          throw new Error("Failed to generate design brief");
         }
-        if (briefResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in workspace settings." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+
+        const briefData = await briefResponse.json();
+        const toolCall = briefData.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          const parsed = JSON.parse(toolCall.function.arguments);
+          console.log("Brief Agent (structured):", JSON.stringify(parsed));
+          return parsed as {
+            creative_direction: string;
+            composition_goal: string;
+            emotional_tone: string;
+            design_focus: string;
+            explanation: string;
+          };
         }
-        const errText = await briefResponse.text();
-        console.error("Brief generation error:", briefResponse.status, errText);
-        throw new Error("Failed to generate design brief");
-      }
 
-      const briefData = await briefResponse.json();
-      const briefContent = briefData.choices?.[0]?.message?.content || "";
+        // Fallback: if tool call fails, try parsing from content
+        const briefContent = briefData.choices?.[0]?.message?.content || "";
+        console.log("Brief Agent fallback to content parsing");
+        const designPromptFallback = briefContent.includes("DESIGN BRIEF:")
+          ? briefContent.split("DESIGN BRIEF:")[1].split("EXPLANATION:")[0].trim()
+          : briefContent.split("\n")[0];
+        const explanationFallback = briefContent.includes("EXPLANATION:")
+          ? briefContent.split("EXPLANATION:")[1].trim()
+          : "I've crafted this design with your brand identity in mind.";
+        return {
+          creative_direction: designPromptFallback,
+          composition_goal: "balanced composition",
+          emotional_tone: brand?.vibe || "modern",
+          design_focus: "the headline",
+          explanation: explanationFallback,
+        };
+      })();
 
-      const designPrompt = briefContent.includes("DESIGN BRIEF:")
-        ? briefContent.split("DESIGN BRIEF:")[1].split("EXPLANATION:")[0].trim()
-        : briefContent.split("\n")[0];
-
-      const explanation = briefContent.includes("EXPLANATION:")
-        ? briefContent.split("EXPLANATION:")[1].trim()
-        : "I've crafted this design with your brand identity in mind.";
+      // Genome Composer Promise (deterministic — no LLM dependency, runs in parallel with brief)
 
       // --- DETERMINISTIC GENOME COMPOSER ---
       let genomeData: any = null;
