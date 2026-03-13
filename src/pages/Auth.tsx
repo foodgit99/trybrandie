@@ -68,6 +68,7 @@ const Auth = () => {
       options: {
         data: {
           full_name: fullName,
+          whatsapp_number: whatsappNumber || undefined,
           ...(referralCode && { referred_by: referralCode }),
           ...(affiliateCode && { affiliate_code: affiliateCode }),
         },
