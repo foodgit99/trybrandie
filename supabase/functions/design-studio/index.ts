@@ -780,6 +780,42 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
           const classification = (classifyData.choices?.[0]?.message?.content || "").trim().toUpperCase();
           isFreeEdit = classification === "MINOR";
           console.log(`Intent classification: ${classification} (isFreeEdit: ${isFreeEdit})`);
+
+          // --- EDIT PATTERN TRACKING ---
+          // Classify the edit type and store it for future bias
+          try {
+            const editPromptLower = userPrompt.toLowerCase();
+            let editType: string | null = null;
+            if (/less text|fewer words|shorter|remove text|too much text|reduce copy/i.test(editPromptLower)) editType = "less_text";
+            else if (/more text|add text|longer|more copy|more detail|add description/i.test(editPromptLower)) editType = "more_text";
+            else if (/bigger text|larger text|bigger font|increase.*size|make.*text.*big/i.test(editPromptLower)) editType = "bigger_text";
+            else if (/smaller text|reduce.*size|make.*text.*small|subtle.*text/i.test(editPromptLower)) editType = "smaller_text";
+            else if (/layout|move|reposition|rearrange|alignment|spacing|composition/i.test(editPromptLower)) editType = "layout_change";
+            else if (/colou?r|palette|shade|hue|darker|lighter|brighter/i.test(editPromptLower)) editType = "color_change";
+            else if (/style|aesthetic|vibe|look|feel|mood|theme|visual/i.test(editPromptLower)) editType = "style_change";
+
+            if (editType) {
+              // Read current patterns, append, and save (keep last 50)
+              const { data: existingCache } = await adminClient
+                .from("chat_preference_cache")
+                .select("edit_patterns")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+              const existingPatterns = (existingCache?.edit_patterns as any[] || []).slice(-49);
+              existingPatterns.push({ type: editType, timestamp: new Date().toISOString() });
+
+              await adminClient
+                .from("chat_preference_cache")
+                .upsert(
+                  { user_id: user.id, edit_patterns: existingPatterns, updated_at: new Date().toISOString() },
+                  { onConflict: "user_id" }
+                );
+              console.log(`Edit pattern tracked: ${editType}`);
+            }
+          } catch (e) {
+            console.log("Edit pattern tracking failed, proceeding:", e);
+          }
         }
       }
 
