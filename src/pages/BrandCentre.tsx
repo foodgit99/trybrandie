@@ -497,11 +497,10 @@ const BrandCentre = () => {
           </div>
 
           {/* Tone of Voice */}
-          <Section title="Tone of Voice" field="tone" editContent={
+          {renderSection("Tone of Voice", "tone",
+            <p className="text-sm text-muted-foreground leading-relaxed">{(brand as any).tone_of_voice || "Not set"}</p>,
             <Textarea value={toneOfVoice} onChange={(e) => setToneOfVoice(e.target.value)} placeholder="e.g. Friendly and warm, with a touch of humour..." maxLength={500} />
-          }>
-            <p className="text-sm text-muted-foreground leading-relaxed">{(brand as any).tone_of_voice || "Not set"}</p>
-          </Section>
+          )}
 
           {/* Personality Traits */}
           <Section title="Personality Traits" field="personality" editContent={
