@@ -467,19 +467,18 @@ const BrandCentre = () => {
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
           {/* Brand Info */}
-          <Section title="Brand Info" field="info" editContent={
+          {renderSection("Brand Info", "info",
+            <div className="space-y-2">
+              <h2 className="text-2xl font-serif">{brand.name}</h2>
+              {brand.tagline && <p className="text-muted-foreground">{brand.tagline}</p>}
+              {brand.description && <p className="text-sm text-muted-foreground leading-relaxed">{brand.description}</p>}
+            </div>,
             <div className="space-y-4">
               <div className="space-y-1"><label className="text-sm font-medium">Name</label><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} /></div>
               <div className="space-y-1"><label className="text-sm font-medium">Tagline</label><Input value={tagline} onChange={(e) => setTagline(e.target.value)} maxLength={200} /></div>
               <div className="space-y-1"><label className="text-sm font-medium">Description</label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} /></div>
             </div>
-          }>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-serif">{brand.name}</h2>
-              {brand.tagline && <p className="text-muted-foreground">{brand.tagline}</p>}
-              {brand.description && <p className="text-sm text-muted-foreground leading-relaxed">{brand.description}</p>}
-            </div>
-          </Section>
+          )}
 
           {/* Logo */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
