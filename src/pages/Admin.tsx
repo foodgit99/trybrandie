@@ -580,6 +580,13 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
                 {emailLoading ? <span className="text-muted-foreground italic">Loading...</span> : email || <span className="text-muted-foreground italic">—</span>}
               </p>
             </div>
+            {/* WhatsApp number */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">whatsapp number</p>
+              <p className="text-sm mt-0.5 break-all">
+                {detailItem.whatsapp_number ? String(detailItem.whatsapp_number) : <span className="text-muted-foreground italic">—</span>}
+              </p>
+            </div>
             {Object.entries(detailItem).map(([key, value]) => (
               <div key={key}>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{key.replace(/_/g, " ")}</p>

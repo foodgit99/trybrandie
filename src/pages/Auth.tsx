@@ -15,6 +15,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -67,6 +68,7 @@ const Auth = () => {
       options: {
         data: {
           full_name: fullName,
+          whatsapp_number: whatsappNumber || undefined,
           ...(referralCode && { referred_by: referralCode }),
           ...(affiliateCode && { affiliate_code: affiliateCode }),
         },
@@ -147,16 +149,28 @@ const Auth = () => {
               className="space-y-5"
             >
               {mode === "signup" && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full name</Label>
-                  <Input
-                    id="fullName"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Jane Smith"
-                    required
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full name</Label>
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Jane Smith"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp">WhatsApp number</Label>
+                    <Input
+                      id="whatsapp"
+                      type="tel"
+                      value={whatsappNumber}
+                      onChange={(e) => setWhatsappNumber(e.target.value)}
+                      placeholder="+234 800 000 0000"
+                    />
+                  </div>
+                </>
               )}
 
               <div className="space-y-2">
