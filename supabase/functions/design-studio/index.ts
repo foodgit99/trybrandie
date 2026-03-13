@@ -463,6 +463,7 @@ CONVERSION RULES:
 
       // --- CHAT HISTORY RAG (cached LLM-summarised preference tags) ---
       let chatHistoryContext = "";
+      let cachedPrefs: any = null; // Hoisted so edit pattern bias can reuse it
       try {
         // Count current user messages to check against cache
         const { count: currentMsgCount } = await adminClient
@@ -473,13 +474,15 @@ CONVERSION RULES:
 
         const msgCount = currentMsgCount ?? 0;
 
+        // Always fetch cache (needed for edit_patterns even if msgCount < 3)
+        const { data: cached } = await adminClient
+          .from("chat_preference_cache")
+          .select("tags, message_count, edit_patterns")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        cachedPrefs = cached;
+
         if (msgCount >= 3) {
-          // Check cache: reuse if message count hasn't changed
-          const { data: cached } = await adminClient
-            .from("chat_preference_cache")
-            .select("tags, message_count, edit_patterns")
-            .eq("user_id", user.id)
-            .maybeSingle();
 
           let tags: any = null;
           let cacheHit = false;
