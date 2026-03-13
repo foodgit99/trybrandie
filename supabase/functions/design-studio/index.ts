@@ -796,13 +796,7 @@ Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
 
             if (editType) {
               // Read current patterns, append, and save (keep last 50)
-              const { data: existingCache } = await adminClient
-                .from("chat_preference_cache")
-                .select("edit_patterns")
-                .eq("user_id", user.id)
-                .maybeSingle();
-
-              const existingPatterns = (existingCache?.edit_patterns as any[] || []).slice(-49);
+              const existingPatterns = ((cachedPrefs?.edit_patterns as any[]) || []).slice(-49);
               existingPatterns.push({ type: editType, timestamp: new Date().toISOString() });
 
               await adminClient
