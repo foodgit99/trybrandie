@@ -344,7 +344,7 @@ const BrandCentre = () => {
 
   if (!brand) return null;
 
-  const Section = ({ title, field, children, editContent }: { title: string; field: EditingField; children: React.ReactNode; editContent: React.ReactNode }) => (
+  const renderSection = (title: string, field: EditingField, children: React.ReactNode, editContent: React.ReactNode) => (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{title}</h3>
