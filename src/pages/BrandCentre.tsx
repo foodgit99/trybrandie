@@ -569,7 +569,11 @@ const BrandCentre = () => {
           )}
 
           {/* Typography */}
-          <Section title="Typography" field="typography" editContent={
+          {renderSection("Typography", "typography",
+            <div className="flex gap-6">
+              <div><label className="text-xs text-muted-foreground">Body</label><p className="text-sm font-medium">{brand.typography_primary || "Not set"}</p></div>
+              <div><label className="text-xs text-muted-foreground">Headings</label><p className="text-sm font-medium">{brand.typography_secondary || "Not set"}</p></div>
+            </div>,
             <div className="space-y-5">
               {([["Body font", typPrimary, setTypPrimary], ["Heading font", typSecondary, setTypSecondary]] as const).map(([label, val, setter]) => (
                 <div key={label} className="space-y-2">
@@ -582,12 +586,7 @@ const BrandCentre = () => {
                 </div>
               ))}
             </div>
-          }>
-            <div className="flex gap-6">
-              <div><label className="text-xs text-muted-foreground">Body</label><p className="text-sm font-medium">{brand.typography_primary || "Not set"}</p></div>
-              <div><label className="text-xs text-muted-foreground">Headings</label><p className="text-sm font-medium">{brand.typography_secondary || "Not set"}</p></div>
-            </div>
-          </Section>
+          )}
 
           {/* Product Images */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
