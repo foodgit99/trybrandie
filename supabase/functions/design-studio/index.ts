@@ -1404,10 +1404,38 @@ ${brand.special_instructions}
           }
         }
 
-        console.log("Final genome:", JSON.stringify(genomeData));
+        console.log("Final genome:", JSON.stringify(genomeResult));
       } catch (e) {
         console.error("Genome Composer error, proceeding without:", e);
       }
+      return genomeResult;
+      })();
+
+      // --- AWAIT BRIEF + GENOME IN PARALLEL ---
+      let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; explanation: string };
+      let genomeData: any = null;
+      try {
+        const results = await Promise.all([briefPromise, genomePromise]);
+        briefResult = results[0];
+        genomeData = results[1];
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        if (errMsg === "RATE_LIMIT") {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (errMsg === "CREDITS_EXHAUSTED") {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in workspace settings." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw e;
+      }
+
+      // Assemble designPrompt from structured brief (used by downstream agents)
+      const designPrompt = briefResult.creative_direction;
+      const explanation = briefResult.explanation;
 
       // Serialize genome into a human-readable styling block for the image prompt
       const genomeContext = genomeData ? `
