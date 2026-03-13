@@ -344,7 +344,7 @@ const BrandCentre = () => {
 
   if (!brand) return null;
 
-  const Section = ({ title, field, children, editContent }: { title: string; field: EditingField; children: React.ReactNode; editContent: React.ReactNode }) => (
+  const renderSection = (title: string, field: EditingField, children: React.ReactNode, editContent: React.ReactNode) => (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{title}</h3>
@@ -467,19 +467,18 @@ const BrandCentre = () => {
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
           {/* Brand Info */}
-          <Section title="Brand Info" field="info" editContent={
+          {renderSection("Brand Info", "info",
+            <div className="space-y-2">
+              <h2 className="text-2xl font-serif">{brand.name}</h2>
+              {brand.tagline && <p className="text-muted-foreground">{brand.tagline}</p>}
+              {brand.description && <p className="text-sm text-muted-foreground leading-relaxed">{brand.description}</p>}
+            </div>,
             <div className="space-y-4">
               <div className="space-y-1"><label className="text-sm font-medium">Name</label><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} /></div>
               <div className="space-y-1"><label className="text-sm font-medium">Tagline</label><Input value={tagline} onChange={(e) => setTagline(e.target.value)} maxLength={200} /></div>
               <div className="space-y-1"><label className="text-sm font-medium">Description</label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} /></div>
             </div>
-          }>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-serif">{brand.name}</h2>
-              {brand.tagline && <p className="text-muted-foreground">{brand.tagline}</p>}
-              {brand.description && <p className="text-sm text-muted-foreground leading-relaxed">{brand.description}</p>}
-            </div>
-          </Section>
+          )}
 
           {/* Logo */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
@@ -498,20 +497,13 @@ const BrandCentre = () => {
           </div>
 
           {/* Tone of Voice */}
-          <Section title="Tone of Voice" field="tone" editContent={
+          {renderSection("Tone of Voice", "tone",
+            <p className="text-sm text-muted-foreground leading-relaxed">{(brand as any).tone_of_voice || "Not set"}</p>,
             <Textarea value={toneOfVoice} onChange={(e) => setToneOfVoice(e.target.value)} placeholder="e.g. Friendly and warm, with a touch of humour..." maxLength={500} />
-          }>
-            <p className="text-sm text-muted-foreground leading-relaxed">{(brand as any).tone_of_voice || "Not set"}</p>
-          </Section>
+          )}
 
           {/* Personality Traits */}
-          <Section title="Personality Traits" field="personality" editContent={
-            <div className="flex flex-wrap gap-2">
-              {PERSONALITY_OPTIONS.map((trait) => (
-                <button key={trait} onClick={() => togglePersonalityTrait(trait)} className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${personalityTraits.includes(trait) ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{trait}</button>
-              ))}
-            </div>
-          }>
+          {renderSection("Personality Traits", "personality",
             <div className="flex flex-wrap gap-2">
               {((brand as any).personality_traits || []).length > 0 ? (
                 ((brand as any).personality_traits as string[]).map((trait) => (
@@ -520,22 +512,42 @@ const BrandCentre = () => {
               ) : (
                 <span className="text-sm text-muted-foreground">Not set</span>
               )}
+            </div>,
+            <div className="flex flex-wrap gap-2">
+              {PERSONALITY_OPTIONS.map((trait) => (
+                <button key={trait} onClick={() => togglePersonalityTrait(trait)} className={`px-4 py-2.5 rounded-xl text-sm border transition-all ${personalityTraits.includes(trait) ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{trait}</button>
+              ))}
             </div>
-          </Section>
+          )}
 
           {/* Vibe */}
-          <Section title="Brand Vibe" field="vibe" editContent={
+          {renderSection("Brand Vibe", "vibe",
+            <span className="inline-block px-4 py-2 rounded-xl bg-secondary text-sm font-medium">{brand.vibe || "Not set"}</span>,
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {VIBES.map((v) => (
                 <button key={v} onClick={() => setVibe(v)} className={`px-4 py-3 rounded-xl border text-sm transition-all ${vibe === v ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-muted-foreground/40"}`}>{v}</button>
               ))}
             </div>
-          }>
-            <span className="inline-block px-4 py-2 rounded-xl bg-secondary text-sm font-medium">{brand.vibe || "Not set"}</span>
-          </Section>
+          )}
 
           {/* Colours */}
-          <Section title="Colours" field="colors" editContent={
+          {renderSection("Colours", "colors",
+            <div className="space-y-3">
+              {([["Primary", brand.primary_colors], ["Secondary", brand.secondary_colors], ["Accent", brand.accent_colors]] as const).map(([label, colors]) => (
+                <div key={label} className="space-y-1">
+                  <label className="text-xs text-muted-foreground">{label}</label>
+                  <div className="flex gap-2">
+                    {(colors || []).map((c, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <div className="w-8 h-8 rounded-lg border border-border" style={{ backgroundColor: c }} />
+                        <span className="text-xs font-mono text-muted-foreground">{c}</span>
+                      </div>
+                    ))}
+                    {(!colors || colors.length === 0) && <span className="text-xs text-muted-foreground">Not set</span>}
+                  </div>
+                </div>
+              ))}
+            </div>,
             <div className="space-y-5">
               {([["Primary", primaryColors, setPrimaryColors], ["Secondary", secondaryColors, setSecondaryColors], ["Accent", accentColors, setAccentColors]] as const).map(([label, arr, setter]) => (
                 <div key={label} className="space-y-2">
@@ -554,27 +566,14 @@ const BrandCentre = () => {
                 </div>
               ))}
             </div>
-          }>
-            <div className="space-y-3">
-              {([["Primary", brand.primary_colors], ["Secondary", brand.secondary_colors], ["Accent", brand.accent_colors]] as const).map(([label, colors]) => (
-                <div key={label} className="space-y-1">
-                  <label className="text-xs text-muted-foreground">{label}</label>
-                  <div className="flex gap-2">
-                    {(colors || []).map((c, i) => (
-                      <div key={i} className="flex items-center gap-1.5">
-                        <div className="w-8 h-8 rounded-lg border border-border" style={{ backgroundColor: c }} />
-                        <span className="text-xs font-mono text-muted-foreground">{c}</span>
-                      </div>
-                    ))}
-                    {(!colors || colors.length === 0) && <span className="text-xs text-muted-foreground">Not set</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
+          )}
 
           {/* Typography */}
-          <Section title="Typography" field="typography" editContent={
+          {renderSection("Typography", "typography",
+            <div className="flex gap-6">
+              <div><label className="text-xs text-muted-foreground">Body</label><p className="text-sm font-medium">{brand.typography_primary || "Not set"}</p></div>
+              <div><label className="text-xs text-muted-foreground">Headings</label><p className="text-sm font-medium">{brand.typography_secondary || "Not set"}</p></div>
+            </div>,
             <div className="space-y-5">
               {([["Body font", typPrimary, setTypPrimary], ["Heading font", typSecondary, setTypSecondary]] as const).map(([label, val, setter]) => (
                 <div key={label} className="space-y-2">
@@ -587,12 +586,7 @@ const BrandCentre = () => {
                 </div>
               ))}
             </div>
-          }>
-            <div className="flex gap-6">
-              <div><label className="text-xs text-muted-foreground">Body</label><p className="text-sm font-medium">{brand.typography_primary || "Not set"}</p></div>
-              <div><label className="text-xs text-muted-foreground">Headings</label><p className="text-sm font-medium">{brand.typography_secondary || "Not set"}</p></div>
-            </div>
-          </Section>
+          )}
 
           {/* Product Images */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
@@ -647,18 +641,17 @@ const BrandCentre = () => {
           </div>
 
           {/* Special Instructions */}
-          <Section title="Special Instructions" field="special_instructions" editContent={
+          {renderSection("Special Instructions", "special_instructions",
+            (brand as any).special_instructions ? (
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{(brand as any).special_instructions}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No special instructions set. Add persistent rules that the AI will always follow.</p>
+            ),
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">These are persistent, high-priority rules the AI will always follow when generating designs. Use them for things like language preferences, content restrictions, or mandatory elements.</p>
               <Textarea value={specialInstructions} onChange={(e) => setSpecialInstructions(e.target.value)} placeholder='e.g. "Always include our website URL: www.example.com", "Use Yoruba language for headlines", "Never use stock photos of people"' maxLength={2000} className="min-h-[120px]" />
             </div>
-          }>
-            {(brand as any).special_instructions ? (
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{(brand as any).special_instructions}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">No special instructions set. Add persistent rules that the AI will always follow.</p>
-            )}
-          </Section>
+          )}
 
           {/* Target Audience Intelligence */}
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
