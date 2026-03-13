@@ -1465,7 +1465,11 @@ VISUAL STYLE GENOME (follow these precise styling instructions):
           const copywriterPrompt = `You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic.
 
 CONTEXT:
-- Design brief: ${designPrompt}
+- Creative direction: ${designPrompt}
+- Composition goal: ${briefResult.composition_goal}
+- Design focus: ${briefResult.design_focus}
+- Emotional tone: ${briefResult.emotional_tone}
+- User's original request: "${userPrompt}"
 - User's original request: "${userPrompt}"
 - Brand name: ${brand?.name || "Unknown"}
 - Brand tone of voice: ${brand?.tone_of_voice || "Professional"}
