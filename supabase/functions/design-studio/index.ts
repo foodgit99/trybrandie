@@ -627,6 +627,43 @@ Be concise. Only include tags with clear evidence from multiple messages. Output
         console.log("Chat history RAG failed, proceeding without:", e);
       }
 
+      // --- EDIT PATTERN BIAS ---
+      // Read edit_patterns from cache to bias future generations
+      let editBiasContext = "";
+      try {
+        const { data: editCache } = await adminClient
+          .from("chat_preference_cache")
+          .select("edit_patterns")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (editCache?.edit_patterns && Array.isArray(editCache.edit_patterns) && editCache.edit_patterns.length >= 3) {
+          const patterns = editCache.edit_patterns as Array<{ type: string; timestamp: string }>;
+          // Count pattern types from recent edits (last 20)
+          const recentPatterns = patterns.slice(-20);
+          const patternCounts: Record<string, number> = {};
+          for (const p of recentPatterns) {
+            patternCounts[p.type] = (patternCounts[p.type] || 0) + 1;
+          }
+          // Build bias string for patterns that appear 3+ times
+          const biases: string[] = [];
+          if ((patternCounts["less_text"] || 0) >= 3) biases.push("User frequently requests LESS text — prefer minimal, headline-focused copy");
+          if ((patternCounts["more_text"] || 0) >= 3) biases.push("User frequently requests MORE text — include subheadline and supporting text");
+          if ((patternCounts["bigger_text"] || 0) >= 3) biases.push("User frequently requests BIGGER text — use larger, bolder typography");
+          if ((patternCounts["smaller_text"] || 0) >= 3) biases.push("User frequently requests SMALLER text — use more refined, smaller typography");
+          if ((patternCounts["layout_change"] || 0) >= 3) biases.push("User frequently changes layout — try more varied compositions");
+          if ((patternCounts["color_change"] || 0) >= 3) biases.push("User frequently changes colors — ensure strong color contrast and bold palette");
+          if ((patternCounts["style_change"] || 0) >= 3) biases.push("User frequently changes visual style — be more experimental with visual direction");
+
+          if (biases.length > 0) {
+            editBiasContext = `\n\nEDIT PATTERN INSIGHTS (learned from user's frequent edit requests — pre-apply these preferences):\n- ${biases.join("\n- ")}`;
+            console.log("Edit bias context:", editBiasContext);
+          }
+        }
+      } catch (e) {
+        console.log("Edit pattern bias retrieval failed, proceeding without:", e);
+      }
+
       // Build trend context
       let trendContext = "";
       if (trend && trend !== "none") {
