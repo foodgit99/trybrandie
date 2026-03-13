@@ -1555,7 +1555,6 @@ CONTEXT:
 - Design focus: ${briefResult.design_focus}
 - Emotional tone: ${briefResult.emotional_tone}
 - User's original request: "${userPrompt}"
-- User's original request: "${userPrompt}"
 - Brand name: ${brand?.name || "Unknown"}
 - Brand tone of voice: ${brand?.tone_of_voice || "Professional"}
 - Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
