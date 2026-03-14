@@ -1831,11 +1831,51 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         throw new Error("Failed to generate image");
       }
 
-      const imageData = await imageResponse.json();
-      const imageBase64 = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      let imageBase64: string | undefined;
+
+      // Retry up to 2 more times if model returns no image (text-only response)
+      const maxImageRetries = 2;
+      let imageAttempt = 0;
+      let lastImageData: any = null;
+
+      while (imageAttempt <= maxImageRetries) {
+        let resp: Response;
+        if (imageAttempt === 0) {
+          // Use the already-fetched response on first attempt
+          resp = imageResponse;
+        } else {
+          console.log(`Image retry ${imageAttempt}/${maxImageRetries}: model returned no image, retrying...`);
+          await new Promise(r => setTimeout(r, 1500 * imageAttempt));
+          resp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+              messages: [{ role: "user", content: imageContent }],
+              modalities: ["image", "text"],
+            }),
+          });
+          if (!resp.ok) {
+            console.error(`Image retry ${imageAttempt} failed with status ${resp.status}`);
+            imageAttempt++;
+            continue;
+          }
+        }
+
+        lastImageData = await resp.json();
+        imageBase64 = lastImageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (imageBase64) break;
+
+        console.warn(`Image attempt ${imageAttempt}: no image in response. Text: ${lastImageData.choices?.[0]?.message?.content?.substring(0, 200)}`);
+        imageAttempt++;
+      }
 
       if (!imageBase64) {
-        throw new Error("No image was generated. Try a different prompt.");
+        console.error("All image generation attempts returned no image. Last response:", JSON.stringify(lastImageData?.choices?.[0]?.message || {}).substring(0, 500));
+        throw new Error("No image was generated. The AI model returned text instead of an image. Please try again or simplify your prompt.");
       }
 
       let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
