@@ -375,7 +375,7 @@ CONVERSION RULES:
           .not("genome", "is", null)
           .order("vote", { ascending: false })
           .order("created_at", { ascending: false })
-          .limit(8);
+          .limit(20);
 
         if (pastDesigns && pastDesigns.length >= 2) {
           // Tally gene values weighted by vote: upvoted=3, neutral=1, downvoted=0
@@ -971,7 +971,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Primary font: ${brand.typography_primary || "Clean sans-serif"}
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? `- Brand inspiration/style references: The brand has ${inspirationUrls.length} inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.` : ""}
-${brand.image_style_preferences?.length ? `- Image style preferences: ${brand.image_style_preferences.join(", ")}` : ""}
+${brand.special_instructions ? `- Special instructions: ${brand.special_instructions}` : ""}
 ${audienceContext}${trendContext}${productImageContext}${preferenceContext}${chatHistoryContext}
 
 DESIGN PHILOSOPHY (ALWAYS APPLY):
