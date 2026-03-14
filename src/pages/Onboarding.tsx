@@ -258,7 +258,7 @@ const Onboarding = () => {
         );
       case 3:
         return (
-          <div className="space-y-4">
+           <div className="space-y-4">
             {data.logoPreview ? (
               <div className="relative w-32 h-32 mx-auto">
                 <img src={data.logoPreview} alt="Logo" className="w-full h-full object-contain rounded-xl border border-border" />
@@ -270,12 +270,33 @@ const Onboarding = () => {
                 </button>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-muted-foreground/40 transition-colors">
-                <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                <span className="text-sm text-muted-foreground">Click to upload your logo</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
-              </label>
+              <>
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-muted-foreground/40 transition-colors">
+                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground">Click to upload your logo</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <Button variant="outline" className="w-full gap-2" onClick={() => setLogoDesignerOpen(true)}>
+                  <Sparkles className="h-4 w-4" /> Create with AI
+                </Button>
+              </>
             )}
+            <LogoDesignerDialog
+              open={logoDesignerOpen}
+              onOpenChange={setLogoDesignerOpen}
+              brandId={null}
+              brandName={data.name}
+              brandContext={{ name: data.name, tagline: data.tagline, description: data.description, vibe: data.vibe }}
+              onLogoCreated={(imageData) => {
+                update("logoPreview", imageData);
+                update("logoFile", null);
+              }}
+            />
           </div>
         );
       case 4:
