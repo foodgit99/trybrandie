@@ -44,6 +44,8 @@ const BrandCentre = () => {
   const navigate = useNavigate();
   const [editing, setEditing] = useState<EditingField>(null);
   const [saving, setSaving] = useState(false);
+  const productInputRef = useRef<HTMLInputElement>(null);
+  const inspirationInputRef = useRef<HTMLInputElement>(null);
 
   // Editable state
   const [name, setName] = useState("");
