@@ -45,16 +45,20 @@ export default function LogoDesignerDialog({
   const [saving, setSaving] = useState(false);
 
   const handleGenerate = async () => {
-    if (!brandId) {
-      toast({ title: "No brand found", description: "Please complete onboarding first.", variant: "destructive" });
+    if (!brandId && !brandContext) {
+      toast({ title: "No brand info", description: "Please add your brand name first.", variant: "destructive" });
       return;
     }
     setGenerating(true);
     setGeneratedImage(null);
     try {
-      const { data, error } = await supabase.functions.invoke("logo-designer", {
-        body: { brand_id: brandId, style, visual_feel: feel, notes },
-      });
+      const body: Record<string, unknown> = { style, visual_feel: feel, notes };
+      if (brandId) {
+        body.brand_id = brandId;
+      } else {
+        body.brand_context = brandContext;
+      }
+      const { data, error } = await supabase.functions.invoke("logo-designer", { body });
       if (error) throw error;
       if (data?.error) {
         if (data.error.includes("Rate limit")) {
