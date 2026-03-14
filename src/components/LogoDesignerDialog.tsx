@@ -153,7 +153,9 @@ export default function LogoDesignerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!generatedImage ? (
+        {generating ? (
+          <GeneratingState />
+        ) : !generatedImage ? (
           <div className="space-y-5 pt-2">
             {/* Logo Style */}
             <div className="space-y-2">
@@ -206,18 +208,9 @@ export default function LogoDesignerDialog({
               />
             </div>
 
-            <Button onClick={handleGenerate} disabled={generating} className="w-full gap-2">
-              {generating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating your logo...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate Logo
-                </>
-              )}
+            <Button onClick={handleGenerate} className="w-full gap-2">
+              <Sparkles className="h-4 w-4" />
+              Generate Logo
             </Button>
           </div>
         ) : (
