@@ -487,10 +487,15 @@ const BrandCentre = () => {
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Logo</h3>
-              <label className="cursor-pointer">
-                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground pointer-events-none"><Upload className="h-3 w-3" /> Replace</Button>
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-              </label>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => setLogoDesignerOpen(true)}>
+                  <Sparkles className="h-3 w-3" /> Create with AI
+                </Button>
+                <label className="cursor-pointer">
+                  <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground pointer-events-none"><Upload className="h-3 w-3" /> {brand.logo_url ? "Replace" : "Upload"}</Button>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                </label>
+              </div>
             </div>
             {brand.logo_url ? (
               <img src={brand.logo_url} alt="Brand logo" className="h-20 object-contain" />
@@ -498,6 +503,13 @@ const BrandCentre = () => {
               <div className="h-20 w-20 rounded-xl bg-secondary flex items-center justify-center"><span className="text-xs text-muted-foreground">No logo</span></div>
             )}
           </div>
+          <LogoDesignerDialog
+            open={logoDesignerOpen}
+            onOpenChange={setLogoDesignerOpen}
+            brandId={brand.id}
+            brandName={brand.name}
+            onLogoCreated={() => refetch()}
+          />
 
           {/* Tone of Voice */}
           {renderSection("Tone of Voice", "tone",
