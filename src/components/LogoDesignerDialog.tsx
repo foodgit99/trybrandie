@@ -23,6 +23,8 @@ interface LogoDesignerDialogProps {
   onOpenChange: (open: boolean) => void;
   brandId: string | null;
   brandName?: string;
+  /** Pass brand context directly (for onboarding when brand doesn't exist yet) */
+  brandContext?: { name?: string; tagline?: string; description?: string; vibe?: string };
   onLogoCreated: (logoUrl: string) => void;
 }
 
