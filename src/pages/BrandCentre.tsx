@@ -48,6 +48,7 @@ const BrandCentre = () => {
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
   const inspirationInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Editable state
   const [name, setName] = useState("");
