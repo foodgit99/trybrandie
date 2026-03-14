@@ -33,6 +33,7 @@ export default function LogoDesignerDialog({
   onOpenChange,
   brandId,
   brandName,
+  brandContext,
   onLogoCreated,
 }: LogoDesignerDialogProps) {
   const { toast } = useToast();
