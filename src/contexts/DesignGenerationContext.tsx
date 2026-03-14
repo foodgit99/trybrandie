@@ -163,7 +163,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
 
         if (data.image_url && user_id && brand_id) {
           try {
-            const userMsg = full_messages[full_messages.length - 2];
+            const userMsg = full_messages[full_messages.length - 1];
             const assistantMsg = {
               role: "assistant",
               content: (data.explanation || "Here's your design.") + (data.free_edit ? " (free edit — no credit used)" : ""),
