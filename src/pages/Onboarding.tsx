@@ -166,6 +166,20 @@ const Onboarding = () => {
         if (uploadErr) throw uploadErr;
         const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(path);
         logoUrl = urlData.publicUrl;
+      } else if (data.logoPreview && data.logoPreview.startsWith("data:")) {
+        // AI-generated base64 logo
+        const base64 = data.logoPreview.replace(/^data:image\/\w+;base64,/, "");
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: "image/png" });
+        const path = `${user.id}/${crypto.randomUUID()}.png`;
+        const { error: uploadErr } = await supabase.storage
+          .from("brand-logos")
+          .upload(path, blob);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(path);
+        logoUrl = urlData.publicUrl;
       }
 
       // Insert brand
