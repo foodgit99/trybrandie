@@ -1,10 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, RotateCcw, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const FUN_MESSAGES = [
+  "Sketching your brand vision ✏️",
+  "Mixing the perfect colours 🎨",
+  "Consulting the creative director 🧠",
+  "Polishing every pixel ✨",
+  "Making it look expensive 💎",
+  "Adding that special something 🪄",
+  "Almost there, patience pays off 🎯",
+  "Your logo is worth the wait ⏳",
+  "Crafting something memorable 🏆",
+  "Fine-tuning the details 🔍",
+];
 
 const LOGO_STYLES = [
   { id: "wordmark", label: "Wordmark" },
@@ -26,6 +40,63 @@ interface LogoDesignerDialogProps {
   /** Pass brand context directly (for onboarding when brand doesn't exist yet) */
   brandContext?: { name?: string; tagline?: string; description?: string; vibe?: string };
   onLogoCreated: (logoUrl: string) => void;
+}
+function GeneratingState() {
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMsgIndex((prev) => (prev + 1) % FUN_MESSAGES.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-10 space-y-6">
+      {/* Pulsing skeleton logo placeholder */}
+      <div className="relative">
+        <div className="w-28 h-28 rounded-2xl bg-secondary animate-pulse" />
+        <motion.div
+          className="absolute inset-0 rounded-2xl border-2 border-primary/30"
+          animate={{ scale: [1, 1.08, 1], opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+        >
+          <Sparkles className="h-6 w-6 text-primary/60" />
+        </motion.div>
+      </div>
+
+      {/* Rotating fun messages */}
+      <div className="h-6 flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={msgIndex}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+            className="text-sm text-muted-foreground text-center"
+          >
+            {FUN_MESSAGES[msgIndex]}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-48 h-1 rounded-full bg-secondary overflow-hidden">
+        <motion.div
+          className="h-full bg-primary/50 rounded-full"
+          initial={{ width: "0%" }}
+          animate={{ width: "90%" }}
+          transition={{ duration: 18, ease: "easeOut" }}
+        />
+      </div>
+    </div>
+  );
 }
 
 export default function LogoDesignerDialog({
@@ -139,7 +210,9 @@ export default function LogoDesignerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!generatedImage ? (
+        {generating ? (
+          <GeneratingState />
+        ) : !generatedImage ? (
           <div className="space-y-5 pt-2">
             {/* Logo Style */}
             <div className="space-y-2">
@@ -192,18 +265,9 @@ export default function LogoDesignerDialog({
               />
             </div>
 
-            <Button onClick={handleGenerate} disabled={generating} className="w-full gap-2">
-              {generating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating your logo...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate Logo
-                </>
-              )}
+            <Button onClick={handleGenerate} className="w-full gap-2">
+              <Sparkles className="h-4 w-4" />
+              Generate Logo
             </Button>
           </div>
         ) : (
