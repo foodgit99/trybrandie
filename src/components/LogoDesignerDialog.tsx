@@ -280,6 +280,13 @@ export default function LogoDesignerDialog({
               />
             </div>
 
+            {logoGenUsed !== null && logoGenUsed > 0 && (
+              <p className="text-xs text-muted-foreground text-center">This will use 1 credit from your balance.</p>
+            )}
+            {logoGenUsed === 0 && (
+              <p className="text-xs text-muted-foreground text-center">✨ Your first logo generation is free!</p>
+            )}
+
             <Button onClick={handleGenerate} className="w-full gap-2">
               <Sparkles className="h-4 w-4" />
               Generate Logo
