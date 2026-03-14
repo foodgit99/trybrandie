@@ -149,8 +149,8 @@ export default function LogoDesignerDialog({
       if (data?.error) {
         if (data.error.includes("Rate limit")) {
           toast({ title: "Too many requests", description: "Please wait a moment and try again.", variant: "destructive" });
-        } else if (data.error.includes("Payment")) {
-          toast({ title: "Credits required", description: "Please top up your workspace credits.", variant: "destructive" });
+        } else if (data.error.includes("No credits") || data.error.includes("Payment")) {
+          toast({ title: "No credits", description: data.error, variant: "destructive" });
         } else {
           throw new Error(data.error);
         }
@@ -158,6 +158,8 @@ export default function LogoDesignerDialog({
       }
       if (!data?.image) throw new Error("No image returned");
       setGeneratedImage(data.image);
+      // Update local credit state
+      setLogoGenUsed((prev) => (prev ?? 0) + 1);
     } catch (e: any) {
       toast({ title: "Generation failed", description: e.message || "Please try again.", variant: "destructive" });
     } finally {
