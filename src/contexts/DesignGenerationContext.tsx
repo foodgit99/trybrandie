@@ -209,7 +209,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
               if (!saveErr && designData?.id) {
                 designId = designData.id;
                 setCurrentDesignId(designData.id);
-                const allMsgs = [...full_messages.slice(0, -1), {
+                const allMsgs = [...full_messages, {
                   role: "assistant",
                   content: assistantMsg.content,
                   imageUrl: data.image_url,
