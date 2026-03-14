@@ -485,23 +485,42 @@ const BrandCentre = () => {
           )}
 
           {/* Logo */}
-          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Logo</h3>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => setLogoDesignerOpen(true)}>
-                  <Sparkles className="h-3 w-3" /> Create with AI
-                </Button>
-                <label className="cursor-pointer">
-                  <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground pointer-events-none"><Upload className="h-3 w-3" /> {brand.logo_url ? "Replace" : "Upload"}</Button>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                </label>
-              </div>
             </div>
             {brand.logo_url ? (
-              <img src={brand.logo_url} alt="Brand logo" className="h-20 object-contain" />
+              <div className="flex items-center gap-4">
+                <img src={brand.logo_url} alt="Brand logo" className="h-20 object-contain rounded-lg" />
+                <div className="flex flex-col gap-2">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setLogoDesignerOpen(true)}>
+                    <Sparkles className="h-3 w-3" /> Regenerate with AI
+                  </Button>
+                  <label className="cursor-pointer">
+                    <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground pointer-events-none w-full">
+                      <Upload className="h-3 w-3" /> Upload New
+                    </Button>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                  </label>
+                </div>
+              </div>
             ) : (
-              <div className="h-20 w-20 rounded-xl bg-secondary flex items-center justify-center"><span className="text-xs text-muted-foreground">No logo</span></div>
+              <div className="flex flex-col items-center gap-3 py-4">
+                <div className="h-20 w-20 rounded-xl bg-secondary flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">No logo</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="default" size="sm" className="gap-1.5 text-xs" onClick={() => setLogoDesignerOpen(true)}>
+                    <Sparkles className="h-3 w-3" /> Create with AI
+                  </Button>
+                  <label className="cursor-pointer">
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs pointer-events-none">
+                      <Upload className="h-3 w-3" /> Upload
+                    </Button>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                  </label>
+                </div>
+              </div>
             )}
           </div>
           <LogoDesignerDialog
