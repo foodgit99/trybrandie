@@ -206,7 +206,28 @@ Requirements:
       });
     }
 
-    return new Response(JSON.stringify({ image: imageUrl }), {
+    // Deduct credit and increment logo_generations_used
+    if (isFirstFree) {
+      await adminSupabase
+        .from("profiles")
+        .update({ logo_generations_used: 1 })
+        .eq("user_id", user.id);
+    } else {
+      // Deduct from bonus first, then from generation credits
+      if (profile.bonus_credits > 0) {
+        await adminSupabase
+          .from("profiles")
+          .update({ bonus_credits: profile.bonus_credits - 1, logo_generations_used: profile.logo_generations_used + 1 })
+          .eq("user_id", user.id);
+      } else {
+        await adminSupabase
+          .from("profiles")
+          .update({ generations_count: profile.generations_count + 1, logo_generations_used: profile.logo_generations_used + 1 })
+          .eq("user_id", user.id);
+      }
+    }
+
+    return new Response(JSON.stringify({ image: imageUrl, was_free: isFirstFree }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
