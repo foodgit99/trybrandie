@@ -303,6 +303,7 @@ export default function LogoDesignerDialog({
                 className="max-h-48 object-contain"
               />
             </div>
+            <p className="text-xs text-muted-foreground text-center">Trying again will use 1 credit.</p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => { setGeneratedImage(null); handleGenerate(); }} disabled={generating} className="flex-1 gap-1">
                 {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
