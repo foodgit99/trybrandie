@@ -109,12 +109,26 @@ export default function LogoDesignerDialog({
   onLogoCreated,
 }: LogoDesignerDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [style, setStyle] = useState<string>("wordmark");
   const [feel, setFeel] = useState<string>("Minimal");
   const [notes, setNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [logoGenUsed, setLogoGenUsed] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    supabase
+      .from("profiles")
+      .select("logo_generations_used")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setLogoGenUsed(data?.logo_generations_used ?? 0);
+      });
+  }, [open, user]);
 
   const handleGenerate = async () => {
     if (!brandId && !brandContext) {
