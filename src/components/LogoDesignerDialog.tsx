@@ -179,7 +179,7 @@ export default function LogoDesignerDialog({
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         const blob = new Blob([bytes], { type: "image/png" });
 
-        const filePath = `${brandId}/logo-${Date.now()}.png`;
+        const filePath = `${user!.id}/${brandId}-logo-${Date.now()}.png`;
         const { error: uploadError } = await supabase.storage
           .from("brand-logos")
           .upload(filePath, blob, { upsert: true });
