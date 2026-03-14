@@ -7,8 +7,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ArrowRight, Upload, X, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Upload, X, Check, Sparkles } from "lucide-react";
 import brandieLogo from "@/assets/brandie-logo.png";
+import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 
 const VIBES = ["Minimal", "Bold", "Luxury", "Playful", "Corporate", "Cinematic"] as const;
 
