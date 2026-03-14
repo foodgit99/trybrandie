@@ -594,12 +594,10 @@ const BrandCentre = () => {
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Images</h3>
-              <label className="cursor-pointer">
-                <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
-                  <span><Upload className="h-3 w-3" /> Add</span>
-                </Button>
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleProductUpload} />
-              </label>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => productInputRef.current?.click()}>
+                <Upload className="h-3 w-3" /> Add
+              </Button>
+              <input ref={productInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleProductUpload} />
             </div>
             <p className="text-xs text-muted-foreground">Upload photos of your products. They'll be used contextually in designs when relevant (promotions, launches, showcases).</p>
             {productImages && productImages.length > 0 ? (
