@@ -100,7 +100,7 @@ function GeneratingState() {
 }
 
 
-  open,
+  export default function LogoDesignerDialog({
   onOpenChange,
   brandId,
   brandName,
