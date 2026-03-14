@@ -34,51 +34,61 @@ serve(async (req) => {
       });
     }
 
-    const { brand_id, style, visual_feel, notes } = await req.json();
-    if (!brand_id) {
-      return new Response(JSON.stringify({ error: "brand_id required" }), {
+    const { brand_id, style, visual_feel, notes, brand_context: passedContext } = await req.json();
+
+    let brandContext = "";
+
+    if (brand_id) {
+      // Load brand context from DB
+      const { data: brand, error: brandError } = await supabase
+        .from("brands")
+        .select("*")
+        .eq("id", brand_id)
+        .maybeSingle();
+
+      if (brandError || !brand) {
+        return new Response(JSON.stringify({ error: "Brand not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const colorInfo = [
+        brand.primary_colors?.length ? `Primary colors: ${brand.primary_colors.join(", ")}` : "",
+        brand.secondary_colors?.length ? `Secondary colors: ${brand.secondary_colors.join(", ")}` : "",
+        brand.accent_colors?.length ? `Accent colors: ${brand.accent_colors.join(", ")}` : "",
+      ].filter(Boolean).join(". ");
+
+      const typographyInfo = [
+        brand.typography_primary ? `Primary font: ${brand.typography_primary}` : "",
+        brand.typography_display ? `Display font: ${brand.typography_display}` : "",
+      ].filter(Boolean).join(". ");
+
+      brandContext = [
+        `Brand name: "${brand.name}"`,
+        brand.tagline ? `Tagline: "${brand.tagline}"` : "",
+        brand.description ? `Description: ${brand.description}` : "",
+        brand.vibe ? `Brand vibe: ${brand.vibe}` : "",
+        brand.tone_of_voice ? `Tone: ${brand.tone_of_voice}` : "",
+        brand.personality_traits?.length ? `Personality: ${brand.personality_traits.join(", ")}` : "",
+        colorInfo,
+        typographyInfo,
+        brand.special_instructions ? `Special instructions: ${brand.special_instructions}` : "",
+      ].filter(Boolean).join("\n");
+    } else if (passedContext) {
+      // Use passed context (e.g. during onboarding before brand is saved)
+      brandContext = [
+        passedContext.name ? `Brand name: "${passedContext.name}"` : "",
+        passedContext.tagline ? `Tagline: "${passedContext.tagline}"` : "",
+        passedContext.description ? `Description: ${passedContext.description}` : "",
+        passedContext.vibe ? `Brand vibe: ${passedContext.vibe}` : "",
+      ].filter(Boolean).join("\n");
+    } else {
+      return new Response(JSON.stringify({ error: "brand_id or brand_context required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Load brand context
-    const { data: brand, error: brandError } = await supabase
-      .from("brands")
-      .select("*")
-      .eq("id", brand_id)
-      .maybeSingle();
-
-    if (brandError || !brand) {
-      return new Response(JSON.stringify({ error: "Brand not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Build prompt from brand context
-    const colorInfo = [
-      brand.primary_colors?.length ? `Primary colors: ${brand.primary_colors.join(", ")}` : "",
-      brand.secondary_colors?.length ? `Secondary colors: ${brand.secondary_colors.join(", ")}` : "",
-      brand.accent_colors?.length ? `Accent colors: ${brand.accent_colors.join(", ")}` : "",
-    ].filter(Boolean).join(". ");
-
-    const typographyInfo = [
-      brand.typography_primary ? `Primary font: ${brand.typography_primary}` : "",
-      brand.typography_display ? `Display font: ${brand.typography_display}` : "",
-    ].filter(Boolean).join(". ");
-
-    const brandContext = [
-      `Brand name: "${brand.name}"`,
-      brand.tagline ? `Tagline: "${brand.tagline}"` : "",
-      brand.description ? `Description: ${brand.description}` : "",
-      brand.vibe ? `Brand vibe: ${brand.vibe}` : "",
-      brand.tone_of_voice ? `Tone: ${brand.tone_of_voice}` : "",
-      brand.personality_traits?.length ? `Personality: ${brand.personality_traits.join(", ")}` : "",
-      colorInfo,
-      typographyInfo,
-      brand.special_instructions ? `Special instructions: ${brand.special_instructions}` : "",
-    ].filter(Boolean).join("\n");
 
     const styleMap: Record<string, string> = {
       wordmark: "a wordmark logo (text-based, the brand name styled as the logo)",
