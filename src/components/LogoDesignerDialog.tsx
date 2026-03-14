@@ -80,33 +80,39 @@ export default function LogoDesignerDialog({
   };
 
   const handleUseLogo = async () => {
-    if (!generatedImage || !brandId) return;
+    if (!generatedImage) return;
     setSaving(true);
     try {
-      // Convert base64 to blob
-      const base64 = generatedImage.replace(/^data:image\/\w+;base64,/, "");
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: "image/png" });
+      if (brandId) {
+        // Brand exists — upload to storage and update DB
+        const base64 = generatedImage.replace(/^data:image\/\w+;base64,/, "");
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: "image/png" });
 
-      const filePath = `${brandId}/logo-${Date.now()}.png`;
-      const { error: uploadError } = await supabase.storage
-        .from("brand-logos")
-        .upload(filePath, blob, { upsert: true });
-      if (uploadError) throw uploadError;
+        const filePath = `${brandId}/logo-${Date.now()}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from("brand-logos")
+          .upload(filePath, blob, { upsert: true });
+        if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(filePath);
-      const logoUrl = urlData.publicUrl;
+        const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(filePath);
+        const logoUrl = urlData.publicUrl;
 
-      const { error: updateError } = await supabase
-        .from("brands")
-        .update({ logo_url: logoUrl })
-        .eq("id", brandId);
-      if (updateError) throw updateError;
+        const { error: updateError } = await supabase
+          .from("brands")
+          .update({ logo_url: logoUrl })
+          .eq("id", brandId);
+        if (updateError) throw updateError;
 
-      onLogoCreated(logoUrl);
-      toast({ title: "Logo saved!", description: "Your new logo is live." });
+        onLogoCreated(logoUrl);
+        toast({ title: "Logo saved!", description: "Your new logo is live." });
+      } else {
+        // Onboarding mode — pass base64 back to parent
+        onLogoCreated(generatedImage);
+        toast({ title: "Logo ready!", description: "Your logo will be saved with your brand." });
+      }
       handleClose();
     } catch (e: any) {
       toast({ title: "Failed to save logo", description: e.message, variant: "destructive" });
