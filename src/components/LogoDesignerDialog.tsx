@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,12 +109,26 @@ export default function LogoDesignerDialog({
   onLogoCreated,
 }: LogoDesignerDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [style, setStyle] = useState<string>("wordmark");
   const [feel, setFeel] = useState<string>("Minimal");
   const [notes, setNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [logoGenUsed, setLogoGenUsed] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    supabase
+      .from("profiles")
+      .select("logo_generations_used")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setLogoGenUsed(data?.logo_generations_used ?? 0);
+      });
+  }, [open, user]);
 
   const handleGenerate = async () => {
     if (!brandId && !brandContext) {
@@ -134,8 +149,8 @@ export default function LogoDesignerDialog({
       if (data?.error) {
         if (data.error.includes("Rate limit")) {
           toast({ title: "Too many requests", description: "Please wait a moment and try again.", variant: "destructive" });
-        } else if (data.error.includes("Payment")) {
-          toast({ title: "Credits required", description: "Please top up your workspace credits.", variant: "destructive" });
+        } else if (data.error.includes("No credits") || data.error.includes("Payment")) {
+          toast({ title: "No credits", description: data.error, variant: "destructive" });
         } else {
           throw new Error(data.error);
         }
@@ -143,6 +158,8 @@ export default function LogoDesignerDialog({
       }
       if (!data?.image) throw new Error("No image returned");
       setGeneratedImage(data.image);
+      // Update local credit state
+      setLogoGenUsed((prev) => (prev ?? 0) + 1);
     } catch (e: any) {
       toast({ title: "Generation failed", description: e.message || "Please try again.", variant: "destructive" });
     } finally {
@@ -265,6 +282,13 @@ export default function LogoDesignerDialog({
               />
             </div>
 
+            {logoGenUsed !== null && logoGenUsed > 0 && (
+              <p className="text-xs text-muted-foreground text-center">This will use 1 credit from your balance.</p>
+            )}
+            {logoGenUsed === 0 && (
+              <p className="text-xs text-muted-foreground text-center">✨ Your first logo generation is free!</p>
+            )}
+
             <Button onClick={handleGenerate} className="w-full gap-2">
               <Sparkles className="h-4 w-4" />
               Generate Logo
@@ -279,6 +303,7 @@ export default function LogoDesignerDialog({
                 className="max-h-48 object-contain"
               />
             </div>
+            <p className="text-xs text-muted-foreground text-center">Trying again will use 1 credit.</p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => { setGeneratedImage(null); handleGenerate(); }} disabled={generating} className="flex-1 gap-1">
                 {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}

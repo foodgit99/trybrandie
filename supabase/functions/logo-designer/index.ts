@@ -25,9 +25,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,6 +34,46 @@ serve(async (req) => {
     }
 
     const { brand_id, style, visual_feel, notes, brand_context: passedContext } = await req.json();
+
+    // --- Credit / free generation logic ---
+    const adminSupabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: profile, error: profileError } = await adminSupabase
+      .from("profiles")
+      .select("logo_generations_used, bonus_credits, generations_count, generations_reset_at, subscription_tier")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (profileError || !profile) {
+      return new Response(JSON.stringify({ error: "Profile not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const isFirstFree = profile.logo_generations_used === 0;
+
+    if (!isFirstFree) {
+      // Check credit availability (bonus first, then generation credits)
+      const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
+      const limit = tierLimits[profile.subscription_tier] || 10;
+      const resetAt = new Date(profile.generations_reset_at);
+      const now = new Date();
+      let availableGen = (resetAt < new Date(now.getFullYear(), now.getMonth(), 1))
+        ? limit
+        : Math.max(0, limit - profile.generations_count);
+      const totalAvailable = profile.bonus_credits + availableGen;
+
+      if (totalAvailable < 1) {
+        return new Response(JSON.stringify({ error: "No credits remaining. Please upgrade your plan or wait for your monthly reset.", requires_credits: true }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     let brandContext = "";
 
@@ -167,7 +206,28 @@ Requirements:
       });
     }
 
-    return new Response(JSON.stringify({ image: imageUrl }), {
+    // Deduct credit and increment logo_generations_used
+    if (isFirstFree) {
+      await adminSupabase
+        .from("profiles")
+        .update({ logo_generations_used: 1 })
+        .eq("user_id", user.id);
+    } else {
+      // Deduct from bonus first, then from generation credits
+      if (profile.bonus_credits > 0) {
+        await adminSupabase
+          .from("profiles")
+          .update({ bonus_credits: profile.bonus_credits - 1, logo_generations_used: profile.logo_generations_used + 1 })
+          .eq("user_id", user.id);
+      } else {
+        await adminSupabase
+          .from("profiles")
+          .update({ generations_count: profile.generations_count + 1, logo_generations_used: profile.logo_generations_used + 1 })
+          .eq("user_id", user.id);
+      }
+    }
+
+    return new Response(JSON.stringify({ image: imageUrl, was_free: isFirstFree }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
