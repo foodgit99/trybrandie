@@ -73,6 +73,7 @@ type BrandData = {
 const Onboarding = () => {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
