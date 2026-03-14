@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
