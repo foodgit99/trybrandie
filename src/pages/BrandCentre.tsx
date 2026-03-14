@@ -619,12 +619,10 @@ const BrandCentre = () => {
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Inspiration</h3>
-              <label className="cursor-pointer">
-                <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
-                  <span><Upload className="h-3 w-3" /> Add</span>
-                </Button>
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleInspirationUpload} />
-              </label>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => inspirationInputRef.current?.click()}>
+                <Upload className="h-3 w-3" /> Add
+              </Button>
+              <input ref={inspirationInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleInspirationUpload} />
             </div>
             {inspiration && inspiration.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
