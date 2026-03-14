@@ -1,10 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, RotateCcw, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const FUN_MESSAGES = [
+  "Sketching your brand vision ✏️",
+  "Mixing the perfect colours 🎨",
+  "Consulting the creative director 🧠",
+  "Polishing every pixel ✨",
+  "Making it look expensive 💎",
+  "Adding that special something 🪄",
+  "Almost there, patience pays off 🎯",
+  "Your logo is worth the wait ⏳",
+  "Crafting something memorable 🏆",
+  "Fine-tuning the details 🔍",
+];
 
 const LOGO_STYLES = [
   { id: "wordmark", label: "Wordmark" },
