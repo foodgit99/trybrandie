@@ -48,6 +48,7 @@ const BrandCentre = () => {
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
   const inspirationInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Editable state
   const [name, setName] = useState("");
@@ -492,10 +493,10 @@ const BrandCentre = () => {
                 <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => setLogoDesignerOpen(true)}>
                   <Sparkles className="h-3 w-3" /> Create with AI
                 </Button>
-                <label className="cursor-pointer">
-                  <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground pointer-events-none"><Upload className="h-3 w-3" /> {brand.logo_url ? "Replace" : "Upload"}</Button>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                </label>
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => logoInputRef.current?.click()}>
+                  <Upload className="h-3 w-3" /> {brand.logo_url ? "Replace" : "Upload"}
+                </Button>
+                <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
               </div>
             </div>
             {brand.logo_url ? (
