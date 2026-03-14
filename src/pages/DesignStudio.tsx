@@ -755,27 +755,41 @@ const DesignStudio = () => {
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div className={`max-w-[85%] ${msg.role === "user" ? "" : ""}`}>
-                <div
-                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground"
-                  }`}
-                >
-                  {msg.attachedImageUrl && (
-                    <img
-                      src={msg.attachedImageUrl}
-                      alt="Attached reference"
-                      className="mb-2 rounded-lg w-20 h-20 object-cover border border-border"
-                    />
-                  )}
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-                    }}
+                <div className="relative group">
+                  <div
+                    className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
+                    }`}
                   >
-                    {msg.content}
-                  </ReactMarkdown>
+                    {msg.attachedImageUrl && (
+                      <img
+                        src={msg.attachedImageUrl}
+                        alt="Attached reference"
+                        className="mb-2 rounded-lg w-20 h-20 object-cover border border-border"
+                      />
+                    )}
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                  {msg.role === "user" && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(msg.content);
+                        toast({ title: "Prompt copied" });
+                      }}
+                      className="absolute -bottom-1 -left-1 translate-y-full opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-150"
+                      title="Copy prompt"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Inline image with action icons beneath */}
