@@ -375,7 +375,7 @@ CONVERSION RULES:
           .not("genome", "is", null)
           .order("vote", { ascending: false })
           .order("created_at", { ascending: false })
-          .limit(8);
+          .limit(20);
 
         if (pastDesigns && pastDesigns.length >= 2) {
           // Tally gene values weighted by vote: upvoted=3, neutral=1, downvoted=0
