@@ -99,8 +99,8 @@ function GeneratingState() {
   );
 }
 
-
-  export default function LogoDesignerDialog({
+export default function LogoDesignerDialog({
+  open,
   onOpenChange,
   brandId,
   brandName,
