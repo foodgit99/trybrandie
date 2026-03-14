@@ -163,7 +163,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
 
         if (data.image_url && user_id && brand_id) {
           try {
-            const userMsg = full_messages[full_messages.length - 2];
+            const userMsg = full_messages[full_messages.length - 1];
             const assistantMsg = {
               role: "assistant",
               content: (data.explanation || "Here's your design.") + (data.free_edit ? " (free edit — no credit used)" : ""),
@@ -209,7 +209,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
               if (!saveErr && designData?.id) {
                 designId = designData.id;
                 setCurrentDesignId(designData.id);
-                const allMsgs = [...full_messages.slice(0, -1), {
+                const allMsgs = [...full_messages, {
                   role: "assistant",
                   content: assistantMsg.content,
                   imageUrl: data.image_url,
