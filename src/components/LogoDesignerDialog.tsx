@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, RotateCcw, Check } from "lucide-react";
+import { Loader2, Sparkles, RotateCcw, Check, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const FUN_MESSAGES = [
@@ -296,7 +296,19 @@ export default function LogoDesignerDialog({
           </div>
         ) : (
           <div className="space-y-4 pt-2">
-            <div className="rounded-xl border border-border bg-secondary/30 p-4 flex items-center justify-center">
+            <div className="relative rounded-xl border border-border bg-secondary/30 p-4 flex items-center justify-center">
+              <button
+                onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = generatedImage!;
+                  a.download = "logo.png";
+                  a.click();
+                }}
+                className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors"
+                title="Download logo"
+              >
+                <Download className="h-4 w-4" />
+              </button>
               <img
                 src={generatedImage}
                 alt="Generated logo"
