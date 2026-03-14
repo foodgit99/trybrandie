@@ -7,8 +7,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ArrowRight, Upload, X, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Upload, X, Check, Sparkles } from "lucide-react";
 import brandieLogo from "@/assets/brandie-logo.png";
+import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 
 const VIBES = ["Minimal", "Bold", "Luxury", "Playful", "Corporate", "Cinematic"] as const;
 
@@ -72,6 +73,7 @@ type BrandData = {
 const Onboarding = () => {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -161,6 +163,20 @@ const Onboarding = () => {
         const { error: uploadErr } = await supabase.storage
           .from("brand-logos")
           .upload(path, data.logoFile);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(path);
+        logoUrl = urlData.publicUrl;
+      } else if (data.logoPreview && data.logoPreview.startsWith("data:")) {
+        // AI-generated base64 logo
+        const base64 = data.logoPreview.replace(/^data:image\/\w+;base64,/, "");
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: "image/png" });
+        const path = `${user.id}/${crypto.randomUUID()}.png`;
+        const { error: uploadErr } = await supabase.storage
+          .from("brand-logos")
+          .upload(path, blob);
         if (uploadErr) throw uploadErr;
         const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(path);
         logoUrl = urlData.publicUrl;
@@ -256,7 +272,7 @@ const Onboarding = () => {
         );
       case 3:
         return (
-          <div className="space-y-4">
+           <div className="space-y-4">
             {data.logoPreview ? (
               <div className="relative w-32 h-32 mx-auto">
                 <img src={data.logoPreview} alt="Logo" className="w-full h-full object-contain rounded-xl border border-border" />
@@ -268,12 +284,33 @@ const Onboarding = () => {
                 </button>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-muted-foreground/40 transition-colors">
-                <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                <span className="text-sm text-muted-foreground">Click to upload your logo</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
-              </label>
+              <>
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-muted-foreground/40 transition-colors">
+                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground">Click to upload your logo</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <Button variant="outline" className="w-full gap-2" onClick={() => setLogoDesignerOpen(true)}>
+                  <Sparkles className="h-4 w-4" /> Create with AI
+                </Button>
+              </>
             )}
+            <LogoDesignerDialog
+              open={logoDesignerOpen}
+              onOpenChange={setLogoDesignerOpen}
+              brandId={null}
+              brandName={data.name}
+              brandContext={{ name: data.name, tagline: data.tagline, description: data.description, vibe: data.vibe }}
+              onLogoCreated={(imageData) => {
+                update("logoPreview", imageData);
+                update("logoFile", null);
+              }}
+            />
           </div>
         );
       case 4:
