@@ -543,6 +543,7 @@ export type Database = {
           generations_count: number
           generations_reset_at: string
           id: string
+          logo_generations_used: number
           referral_code: string | null
           referred_by: string | null
           subscription_tier: string
@@ -560,6 +561,7 @@ export type Database = {
           generations_count?: number
           generations_reset_at?: string
           id?: string
+          logo_generations_used?: number
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
@@ -577,6 +579,7 @@ export type Database = {
           generations_count?: number
           generations_reset_at?: string
           id?: string
+          logo_generations_used?: number
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
