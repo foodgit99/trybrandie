@@ -501,10 +501,7 @@ const ContentHub = () => {
 
   // --- Idea CRUD ---
   const getDateForDay = (day: string) => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    const monday = getWeekMonday(weekOffset);
     const dayIndex = DAYS.indexOf(day);
     const date = new Date(monday);
     date.setDate(monday.getDate() + dayIndex);
