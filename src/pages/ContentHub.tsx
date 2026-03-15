@@ -68,6 +68,14 @@ interface SeriesForm {
 }
 const emptySeries: SeriesForm = { name: "", description: "", recurrence: "weekly", preferred_day: "", visual_style_notes: "", pillar_id: "" };
 
+// --- Campaign form state ---
+interface CampaignForm {
+  name: string;
+  description: string;
+  post_count: number;
+}
+const emptyCampaign: CampaignForm = { name: "", description: "", post_count: 5 };
+
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
 const ContentHub = () => {
@@ -91,6 +99,12 @@ const ContentHub = () => {
   const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
   const [seriesForm, setSeriesForm] = useState<SeriesForm>(emptySeries);
   const [seriesSaving, setSeriesSaving] = useState(false);
+
+  // Campaign dialog
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [campaignForm, setCampaignForm] = useState<CampaignForm>(emptyCampaign);
+  const [campaignSaving, setCampaignSaving] = useState(false);
 
   const brandId = brand?.id;
 
@@ -353,6 +367,56 @@ const ContentHub = () => {
       toast({ title: "Failed to save", description: e.message, variant: "destructive" });
     } finally {
       setSeriesSaving(false);
+    }
+  };
+
+  // --- Campaign CRUD ---
+  const openCreateCampaign = () => {
+    setCampaignForm(emptyCampaign);
+    setEditingCampaignId(null);
+    setCampaignDialogOpen(true);
+  };
+
+  const openEditCampaign = (c: any) => {
+    setCampaignForm({ name: c.name, description: c.description || "", post_count: c.post_count || 5 });
+    setEditingCampaignId(c.id);
+    setCampaignDialogOpen(true);
+  };
+
+  const saveCampaign = async () => {
+    if (!campaignForm.name.trim() || !brandId || !user) return;
+    setCampaignSaving(true);
+    try {
+      const payload = {
+        name: campaignForm.name.trim(),
+        description: campaignForm.description.trim(),
+        post_count: campaignForm.post_count,
+      };
+      if (editingCampaignId) {
+        const { error } = await supabase.from("campaigns").update(payload).eq("id", editingCampaignId);
+        if (error) throw error;
+        toast({ title: "Campaign updated" });
+      } else {
+        const { error } = await supabase.from("campaigns").insert({ ...payload, brand_id: brandId, user_id: user.id });
+        if (error) throw error;
+        toast({ title: "Campaign created" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
+      setCampaignDialogOpen(false);
+    } catch (e: any) {
+      toast({ title: "Failed to save", description: e.message, variant: "destructive" });
+    } finally {
+      setCampaignSaving(false);
+    }
+  };
+
+  const deleteCampaign = async (id: string) => {
+    const { error } = await supabase.from("campaigns").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
+      toast({ title: "Campaign deleted" });
     }
   };
 
@@ -651,13 +715,22 @@ const ContentHub = () => {
           </section>
 
           {/* Campaigns */}
-          {campaigns && campaigns.length > 0 && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Megaphone className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold">Campaigns</h2>
-                </div>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold">Campaigns</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={openCreateCampaign}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -666,9 +739,11 @@ const ContentHub = () => {
                   disabled={!!generating}
                 >
                   {generating === "generate_campaigns" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  Refresh
+                  AI Generate
                 </Button>
               </div>
+            </div>
+            {campaigns && campaigns.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {campaigns.map((c: any, i: number) => (
                   <motion.div
@@ -677,7 +752,7 @@ const ContentHub = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                   >
-                    <Card className="hover:border-primary/30 transition-colors">
+                    <Card className="hover:border-primary/30 transition-colors group relative">
                       <CardContent className="p-4 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-semibold">{c.name}</h3>
@@ -685,12 +760,34 @@ const ContentHub = () => {
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
                       </CardContent>
+                      <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
+                        <button
+                          onClick={() => openEditCampaign(c)}
+                          className="p-1 rounded-md hover:bg-muted transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => deleteCampaign(c.id)}
+                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive/70" />
+                        </button>
+                      </div>
                     </Card>
                   </motion.div>
                 ))}
               </div>
-            </section>
-          )}
+            ) : !generating && (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No campaigns yet. Add one manually or let AI generate them.</p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
         </motion.div>
       </main>
 
@@ -825,6 +922,52 @@ const ContentHub = () => {
             <Button size="sm" onClick={saveSeries} disabled={!seriesForm.name.trim() || seriesSaving}>
               {seriesSaving && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
               {editingSeriesId ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- Campaign Dialog --- */}
+      <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingCampaignId ? "Edit Campaign" : "Add Campaign"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Name</Label>
+              <Input
+                placeholder="e.g. Summer Launch"
+                value={campaignForm.name}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
+              <Textarea
+                placeholder="What is this campaign about?"
+                className="resize-none"
+                rows={2}
+                value={campaignForm.description}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Number of Posts</Label>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={campaignForm.post_count}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, post_count: parseInt(e.target.value) || 1 }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setCampaignDialogOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={saveCampaign} disabled={!campaignForm.name.trim() || campaignSaving}>
+              {campaignSaving && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+              {editingCampaignId ? "Save" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>

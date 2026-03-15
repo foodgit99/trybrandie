@@ -339,7 +339,7 @@ const DesignStudio = () => {
   useEffect(() => {
     const promptParam = searchParams.get("prompt");
     if (promptParam && messages.length === 0 && !searchParams.get("design")) {
-      setInput(decodeURIComponent(promptParam));
+      setInput(promptParam);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
