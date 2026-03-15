@@ -770,9 +770,11 @@ const ContentHub = () => {
               <CardContent className="p-0 divide-y divide-border">
                 {DAYS.map((day) => {
                   const dayIdeas = ideasByDay[day] || [];
+                  const todayIndex = (new Date().getDay() + 6) % 7;
+                  const isToday = DAYS[todayIndex] === day;
                   return (
-                    <div key={day} className="flex items-center gap-3 px-4 py-3 group/day">
-                      <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">
+                    <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
+                      <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
                         {DAY_LABELS[day]}
                       </span>
                       <div className="flex-1 min-w-0">
