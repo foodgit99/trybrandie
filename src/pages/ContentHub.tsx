@@ -7,8 +7,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -21,7 +38,9 @@ import {
   Megaphone,
   Lightbulb,
   Check,
-  SkipForward,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -29,6 +48,27 @@ const DAY_LABELS: Record<string, string> = {
   monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu",
   friday: "Fri", saturday: "Sat", sunday: "Sun",
 };
+
+// --- Pillar form state ---
+interface PillarForm {
+  name: string;
+  description: string;
+  icon_emoji: string;
+}
+const emptyPillar: PillarForm = { name: "", description: "", icon_emoji: "📌" };
+
+// --- Series form state ---
+interface SeriesForm {
+  name: string;
+  description: string;
+  recurrence: string;
+  preferred_day: string;
+  visual_style_notes: string;
+  pillar_id: string;
+}
+const emptySeries: SeriesForm = { name: "", description: "", recurrence: "weekly", preferred_day: "", visual_style_notes: "", pillar_id: "" };
+
+const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
 const ContentHub = () => {
   const { user } = useAuth();
@@ -39,6 +79,18 @@ const ContentHub = () => {
 
   const [generating, setGenerating] = useState<string | null>(null);
   const [initialSetupDone, setInitialSetupDone] = useState(false);
+
+  // Pillar dialog
+  const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
+  const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
+  const [pillarForm, setPillarForm] = useState<PillarForm>(emptyPillar);
+  const [pillarSaving, setPillarSaving] = useState(false);
+
+  // Series dialog
+  const [seriesDialogOpen, setSeriesDialogOpen] = useState(false);
+  const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
+  const [seriesForm, setSeriesForm] = useState<SeriesForm>(emptySeries);
+  const [seriesSaving, setSeriesSaving] = useState(false);
 
   const brandId = brand?.id;
 
@@ -114,7 +166,7 @@ const ContentHub = () => {
     }
   }, [brandId, pillarsLoading, pillars, initialSetupDone, generating]);
 
-  // --- Actions ---
+  // --- Engine Actions ---
   const callEngine = async (action: string, extra: Record<string, any> = {}) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
@@ -191,6 +243,129 @@ const ContentHub = () => {
     navigate(`/studio?${params.toString()}`);
   };
 
+  // --- Pillar CRUD ---
+  const openCreatePillar = () => {
+    setPillarForm(emptyPillar);
+    setEditingPillarId(null);
+    setPillarDialogOpen(true);
+  };
+
+  const openEditPillar = (p: any) => {
+    setPillarForm({ name: p.name, description: p.description || "", icon_emoji: p.icon_emoji || "📌" });
+    setEditingPillarId(p.id);
+    setPillarDialogOpen(true);
+  };
+
+  const savePillar = async () => {
+    if (!pillarForm.name.trim() || !brandId || !user) return;
+    setPillarSaving(true);
+    try {
+      if (editingPillarId) {
+        const { error } = await supabase
+          .from("content_pillars")
+          .update({ name: pillarForm.name.trim(), description: pillarForm.description.trim(), icon_emoji: pillarForm.icon_emoji })
+          .eq("id", editingPillarId);
+        if (error) throw error;
+        toast({ title: "Pillar updated" });
+      } else {
+        const maxOrder = pillars ? Math.max(0, ...pillars.map((p: any) => p.sort_order || 0)) : 0;
+        const { error } = await supabase
+          .from("content_pillars")
+          .insert({
+            brand_id: brandId,
+            user_id: user.id,
+            name: pillarForm.name.trim(),
+            description: pillarForm.description.trim(),
+            icon_emoji: pillarForm.icon_emoji,
+            sort_order: maxOrder + 1,
+          });
+        if (error) throw error;
+        toast({ title: "Pillar created" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["content-pillars", brandId] });
+      setPillarDialogOpen(false);
+    } catch (e: any) {
+      toast({ title: "Failed to save", description: e.message, variant: "destructive" });
+    } finally {
+      setPillarSaving(false);
+    }
+  };
+
+  const deletePillar = async (id: string) => {
+    const { error } = await supabase.from("content_pillars").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["content-pillars", brandId] });
+      toast({ title: "Pillar deleted" });
+    }
+  };
+
+  // --- Series CRUD ---
+  const openCreateSeries = () => {
+    setSeriesForm(emptySeries);
+    setEditingSeriesId(null);
+    setSeriesDialogOpen(true);
+  };
+
+  const openEditSeries = (s: any) => {
+    setSeriesForm({
+      name: s.name,
+      description: s.description || "",
+      recurrence: s.recurrence || "weekly",
+      preferred_day: s.preferred_day || "",
+      visual_style_notes: s.visual_style_notes || "",
+      pillar_id: s.pillar_id || "",
+    });
+    setEditingSeriesId(s.id);
+    setSeriesDialogOpen(true);
+  };
+
+  const saveSeries = async () => {
+    if (!seriesForm.name.trim() || !brandId || !user) return;
+    setSeriesSaving(true);
+    try {
+      const payload: any = {
+        name: seriesForm.name.trim(),
+        description: seriesForm.description.trim(),
+        recurrence: seriesForm.recurrence,
+        preferred_day: seriesForm.preferred_day || null,
+        visual_style_notes: seriesForm.visual_style_notes.trim() || null,
+        pillar_id: seriesForm.pillar_id || null,
+      };
+
+      if (editingSeriesId) {
+        const { error } = await supabase.from("post_series").update(payload).eq("id", editingSeriesId);
+        if (error) throw error;
+        toast({ title: "Series updated" });
+      } else {
+        const { error } = await supabase.from("post_series").insert({
+          ...payload,
+          brand_id: brandId,
+          user_id: user.id,
+        });
+        if (error) throw error;
+        toast({ title: "Series created" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["post-series", brandId] });
+      setSeriesDialogOpen(false);
+    } catch (e: any) {
+      toast({ title: "Failed to save", description: e.message, variant: "destructive" });
+    } finally {
+      setSeriesSaving(false);
+    }
+  };
+
+  const deleteSeries = async (id: string) => {
+    const { error } = await supabase.from("post_series").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["post-series", brandId] });
+      toast({ title: "Series deleted" });
+    }
+  };
+
   const isLoading = pillarsLoading || seriesLoading || campaignsLoading || ideasLoading;
   const hasPillars = pillars && pillars.length > 0;
 
@@ -199,7 +374,7 @@ const ContentHub = () => {
     acc[day] = (weeklyIdeas || []).filter((i: any) => {
       if (!i.scheduled_for) return false;
       const d = new Date(i.scheduled_for);
-      const dayIndex = (d.getDay() + 6) % 7; // Mon=0
+      const dayIndex = (d.getDay() + 6) % 7;
       return DAYS[dayIndex] === day;
     });
     return acc;
@@ -251,13 +426,22 @@ const ContentHub = () => {
           )}
 
           {/* Pillars */}
-          {hasPillars && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold">Content Pillars</h2>
-                </div>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold">Content Pillars</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={openCreatePillar}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -266,9 +450,11 @@ const ContentHub = () => {
                   disabled={!!generating}
                 >
                   {generating === "generate_pillars" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  Refresh
+                  AI Generate
                 </Button>
               </div>
+            </div>
+            {hasPillars ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                 {pillars!.map((p: any, i: number) => (
                   <motion.div
@@ -277,18 +463,41 @@ const ContentHub = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                   >
-                    <Card className="h-full hover:border-primary/30 transition-colors">
+                    <Card className="h-full hover:border-primary/30 transition-colors group relative">
                       <CardContent className="p-3 text-center space-y-1">
                         <span className="text-2xl">{p.icon_emoji}</span>
                         <p className="text-xs font-medium leading-tight">{p.name}</p>
                         <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
                       </CardContent>
+                      {/* Hover actions */}
+                      <div className="absolute top-1 right-1 hidden group-hover:flex gap-0.5">
+                        <button
+                          onClick={() => openEditPillar(p)}
+                          className="p-1 rounded-md hover:bg-muted transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => deletePillar(p.id)}
+                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive/70" />
+                        </button>
+                      </div>
                     </Card>
                   </motion.div>
                 ))}
               </div>
-            </section>
-          )}
+            ) : !generating && (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No pillars yet. Add one manually or let AI generate them.</p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
 
           {/* This Week */}
           {hasPillars && (
@@ -364,13 +573,22 @@ const ContentHub = () => {
           )}
 
           {/* Series */}
-          {series && series.length > 0 && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Repeat className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold">Recurring Series</h2>
-                </div>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Repeat className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold">Recurring Series</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={openCreateSeries}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -379,9 +597,11 @@ const ContentHub = () => {
                   disabled={!!generating}
                 >
                   {generating === "generate_series" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  Refresh
+                  AI Generate
                 </Button>
               </div>
+            </div>
+            {series && series.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {series.map((s: any, i: number) => (
                   <motion.div
@@ -390,7 +610,7 @@ const ContentHub = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                   >
-                    <Card className="hover:border-primary/30 transition-colors">
+                    <Card className="hover:border-primary/30 transition-colors group relative">
                       <CardContent className="p-4 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-semibold">{s.name}</h3>
@@ -400,12 +620,35 @@ const ContentHub = () => {
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
                       </CardContent>
+                      {/* Hover actions */}
+                      <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
+                        <button
+                          onClick={() => openEditSeries(s)}
+                          className="p-1 rounded-md hover:bg-muted transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => deleteSeries(s.id)}
+                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive/70" />
+                        </button>
+                      </div>
                     </Card>
                   </motion.div>
                 ))}
               </div>
-            </section>
-          )}
+            ) : !generating && (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No series yet. Add one manually or let AI generate them.</p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
 
           {/* Campaigns */}
           {campaigns && campaigns.length > 0 && (
@@ -450,6 +693,142 @@ const ContentHub = () => {
           )}
         </motion.div>
       </main>
+
+      {/* --- Pillar Dialog --- */}
+      <Dialog open={pillarDialogOpen} onOpenChange={setPillarDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingPillarId ? "Edit Pillar" : "Add Content Pillar"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Icon</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {EMOJI_OPTIONS.map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => setPillarForm((f) => ({ ...f, icon_emoji: e }))}
+                    className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center transition-colors
+                      ${pillarForm.icon_emoji === e ? "bg-primary/15 ring-1 ring-primary" : "hover:bg-muted"}`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Name</Label>
+              <Input
+                placeholder="e.g. Skincare Education"
+                value={pillarForm.name}
+                onChange={(e) => setPillarForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
+              <Textarea
+                placeholder="What kind of content falls under this pillar?"
+                className="resize-none"
+                rows={2}
+                value={pillarForm.description}
+                onChange={(e) => setPillarForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setPillarDialogOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={savePillar} disabled={!pillarForm.name.trim() || pillarSaving}>
+              {pillarSaving && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+              {editingPillarId ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- Series Dialog --- */}
+      <Dialog open={seriesDialogOpen} onOpenChange={setSeriesDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingSeriesId ? "Edit Series" : "Add Recurring Series"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Name</Label>
+              <Input
+                placeholder="e.g. Tip Tuesday"
+                value={seriesForm.name}
+                onChange={(e) => setSeriesForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
+              <Textarea
+                placeholder="What is this series about?"
+                className="resize-none"
+                rows={2}
+                value={seriesForm.description}
+                onChange={(e) => setSeriesForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Recurrence</Label>
+                <Select value={seriesForm.recurrence} onValueChange={(v) => setSeriesForm((f) => ({ ...f, recurrence: v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="biweekly">Biweekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Preferred Day</Label>
+                <Select value={seriesForm.preferred_day || "none"} onValueChange={(v) => setSeriesForm((f) => ({ ...f, preferred_day: v === "none" ? "" : v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Any</SelectItem>
+                    {DAYS.map((d) => (
+                      <SelectItem key={d} value={d}>{DAY_LABELS[d]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {pillars && pillars.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Content Pillar (optional)</Label>
+                <Select value={seriesForm.pillar_id || "none"} onValueChange={(v) => setSeriesForm((f) => ({ ...f, pillar_id: v === "none" ? "" : v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {pillars.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>{p.icon_emoji} {p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Visual Style Notes (optional)</Label>
+              <Textarea
+                placeholder="e.g. Use a consistent blue gradient background with bold headline"
+                className="resize-none"
+                rows={2}
+                value={seriesForm.visual_style_notes}
+                onChange={(e) => setSeriesForm((f) => ({ ...f, visual_style_notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setSeriesDialogOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={saveSeries} disabled={!seriesForm.name.trim() || seriesSaving}>
+              {seriesSaving && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+              {editingSeriesId ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
