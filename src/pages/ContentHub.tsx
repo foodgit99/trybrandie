@@ -651,13 +651,22 @@ const ContentHub = () => {
           </section>
 
           {/* Campaigns */}
-          {campaigns && campaigns.length > 0 && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Megaphone className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold">Campaigns</h2>
-                </div>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold">Campaigns</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={openCreateCampaign}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -666,9 +675,11 @@ const ContentHub = () => {
                   disabled={!!generating}
                 >
                   {generating === "generate_campaigns" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  Refresh
+                  AI Generate
                 </Button>
               </div>
+            </div>
+            {campaigns && campaigns.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {campaigns.map((c: any, i: number) => (
                   <motion.div
@@ -677,7 +688,7 @@ const ContentHub = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                   >
-                    <Card className="hover:border-primary/30 transition-colors">
+                    <Card className="hover:border-primary/30 transition-colors group relative">
                       <CardContent className="p-4 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-semibold">{c.name}</h3>
@@ -685,12 +696,34 @@ const ContentHub = () => {
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
                       </CardContent>
+                      <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
+                        <button
+                          onClick={() => openEditCampaign(c)}
+                          className="p-1 rounded-md hover:bg-muted transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => deleteCampaign(c.id)}
+                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive/70" />
+                        </button>
+                      </div>
                     </Card>
                   </motion.div>
                 ))}
               </div>
-            </section>
-          )}
+            ) : !generating && (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No campaigns yet. Add one manually or let AI generate them.</p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
         </motion.div>
       </main>
 
