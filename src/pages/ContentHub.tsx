@@ -100,6 +100,12 @@ const ContentHub = () => {
   const [seriesForm, setSeriesForm] = useState<SeriesForm>(emptySeries);
   const [seriesSaving, setSeriesSaving] = useState(false);
 
+  // Campaign dialog
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [campaignForm, setCampaignForm] = useState<CampaignForm>(emptyCampaign);
+  const [campaignSaving, setCampaignSaving] = useState(false);
+
   const brandId = brand?.id;
 
   // --- Queries ---
