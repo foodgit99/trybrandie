@@ -156,6 +156,24 @@ const DesignStudio = () => {
     enabled: !!brand,
   });
 
+  // Content ideas for ChatSuggestions
+  const { data: contentIdeas = [] } = useQuery({
+    queryKey: ["content_ideas_studio", brand?.id],
+    queryFn: async () => {
+      if (!brand) return [];
+      const { data, error } = await supabase
+        .from("content_ideas")
+        .select("id, title, prompt, status")
+        .eq("brand_id", brand.id)
+        .in("status", ["suggested", "scheduled"])
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as { id: string; title: string; prompt: string; status: string }[];
+    },
+    enabled: !!brand,
+  });
+
   // Trend preferences for the current brand
   const { data: trendPrefs } = useQuery({
     queryKey: ["brand_trend_prefs_studio", brand?.id],
@@ -766,6 +784,7 @@ const DesignStudio = () => {
                 onSelect={(text) => setInput(text)}
                 hasMessages={false}
                 hasImage={false}
+                contentIdeas={contentIdeas}
               />
             </div>
           )}
@@ -1012,6 +1031,7 @@ const DesignStudio = () => {
                 onSelect={(text) => setInput(text)}
                 hasMessages={true}
                 hasImage={!!currentImage}
+                contentIdeas={contentIdeas}
               />
             </div>
           )}
