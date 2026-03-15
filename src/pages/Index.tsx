@@ -78,6 +78,10 @@ const Index = () => {
                 <Plus className="h-4 w-4" />
                 Create New Design
               </Button>
+              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/content")}>
+                <Layers className="h-4 w-4" />
+                Content Hub
+              </Button>
               <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/brand")}>
                 <Palette className="h-4 w-4" />
                 Brand Centre
