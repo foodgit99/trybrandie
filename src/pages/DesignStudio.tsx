@@ -116,8 +116,22 @@ const DesignStudio = () => {
   const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const currentAspect = CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight) || 24;
+    const maxHeight = lineHeight * 6;
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [input]);
 
   // Credit counter
   const { data: profile, refetch: refetchProfile } = useQuery({
@@ -1019,12 +1033,13 @@ const DesignStudio = () => {
 
             {/* Text input */}
             <textarea
+              ref={textareaRef}
               rows={1}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={currentImage ? "Edit your design…" : "Describe your design"}
-              className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none resize-none max-h-[9rem] overflow-y-auto break-words"
+              className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none resize-none overflow-y-hidden break-words"
               disabled={loading}
               maxLength={2000}
             />
