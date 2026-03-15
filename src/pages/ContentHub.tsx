@@ -68,6 +68,14 @@ interface SeriesForm {
 }
 const emptySeries: SeriesForm = { name: "", description: "", recurrence: "weekly", preferred_day: "", visual_style_notes: "", pillar_id: "" };
 
+// --- Campaign form state ---
+interface CampaignForm {
+  name: string;
+  description: string;
+  post_count: number;
+}
+const emptyCampaign: CampaignForm = { name: "", description: "", post_count: 5 };
+
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
 const ContentHub = () => {
