@@ -50,8 +50,8 @@
     --brandie-gold: 38 60% 62%;
     --brandie-charcoal: 220 16% 16%;
     --brandie-stone: 36 10% 60%;
+    --brandie-neon: 110 100% 60%;
   }
-
   .dark {
     --background: 220 20% 6%;
     --foreground: 40 20% 96%;
