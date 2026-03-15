@@ -22,6 +22,7 @@ import Plans from "./pages/Plans";
 import AffiliateSignup from "./pages/AffiliateSignup";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import Admin from "./pages/Admin";
+import ContentHub from "./pages/ContentHub";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
