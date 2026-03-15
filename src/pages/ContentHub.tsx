@@ -773,8 +773,8 @@ const ContentHub = () => {
                   const todayIndex = (new Date().getDay() + 6) % 7;
                   const isToday = DAYS[todayIndex] === day;
                   return (
-                    <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-[#39FF14]/5" : ""}`}>
-                      <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-[#39FF14] font-bold" : "text-muted-foreground"}`}>
+                    <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
+                      <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
                         {DAY_LABELS[day]}
                       </span>
                       <div className="flex-1 min-w-0">
