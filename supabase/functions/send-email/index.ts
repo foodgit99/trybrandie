@@ -451,6 +451,49 @@ function affiliateBroadcastHtml(headline: string, message: string, ctaText: stri
 </body></html>`;
 }
 
+function dailyContentReminderHtml(name: string, dateStr: string, ideas: Array<{ title: string; pillar?: string; series?: string }>): string {
+  const ideaRows = ideas.map((idea) => {
+    let label = idea.title;
+    const tags: string[] = [];
+    if (idea.pillar) tags.push(idea.pillar);
+    if (idea.series) tags.push(idea.series);
+    const tagStr = tags.length > 0 ? ` <span style="color:#9ca3af;font-size:13px;">(${tags.join(" · ")})</span>` : "";
+    return `<li style="font-size:16px;color:#1a1a2e;line-height:1.8;">${label}${tagStr}</li>`;
+  }).join("");
+
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Today's Content 📅</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Hey ${name || "there"},
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      You have <strong>${ideas.length} content idea${ideas.length === 1 ? "" : "s"}</strong> scheduled for today, <strong>${dateStr}</strong>:
+    </p>
+    <ul style="margin:0 0 24px;padding-left:20px;">
+      ${ideaRows}
+    </ul>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/content" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Open Content Hub
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because you have content scheduled on Brandie today.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -533,6 +576,10 @@ Deno.serve(async (req) => {
           data?.cta_text || "",
           data?.cta_url || ""
         );
+        break;
+      case "daily_content_reminder":
+        subject = `Your content plan for today — ${data?.date || "today"} 📅`;
+        html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
         break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
