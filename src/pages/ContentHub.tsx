@@ -688,7 +688,7 @@ const ContentHub = () => {
                         <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
                       </CardContent>
                       {/* Hover actions */}
-                      <div className="absolute top-1 right-1 hidden group-hover:flex gap-0.5">
+                      <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
                         <button
                           onClick={() => openEditPillar(p)}
                           className="p-1 rounded-md hover:bg-muted transition-colors"
@@ -896,7 +896,7 @@ const ContentHub = () => {
                         <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
                       </CardContent>
                       {/* Hover actions */}
-                      <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
+                      <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
                         <button
                           onClick={() => openEditSeries(s)}
                           className="p-1 rounded-md hover:bg-muted transition-colors"
@@ -971,7 +971,7 @@ const ContentHub = () => {
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
                       </CardContent>
-                      <div className="absolute top-2 right-2 hidden group-hover:flex gap-0.5">
+                      <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
                         <button
                           onClick={() => openEditCampaign(c)}
                           className="p-1 rounded-md hover:bg-muted transition-colors"
