@@ -22,6 +22,7 @@ import Plans from "./pages/Plans";
 import AffiliateSignup from "./pages/AffiliateSignup";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import Admin from "./pages/Admin";
+import ContentHub from "./pages/ContentHub";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -119,6 +120,7 @@ const App = () => (
           <Route path="/brand" element={<ProtectedRoute><BrandCentre /></ProtectedRoute>} />
           <Route path="/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
+          <Route path="/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />

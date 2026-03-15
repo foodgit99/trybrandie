@@ -22,6 +22,7 @@ import {
   CreditCard,
   LogOut,
   Shield,
+  Layers,
 } from "lucide-react";
 
 const FREE_TIER_LIMIT = 10;
@@ -98,6 +99,13 @@ const AppHeader = () => {
             >
               <Palette className="h-4 w-4" />
               Brand Centre
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 rounded-lg cursor-pointer"
+              onClick={() => navigate("/content")}
+            >
+              <Layers className="h-4 w-4" />
+              Content Hub
             </DropdownMenuItem>
             <DropdownMenuItem
               className="gap-2 rounded-lg cursor-pointer"

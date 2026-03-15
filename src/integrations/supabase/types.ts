@@ -342,6 +342,44 @@ export type Database = {
         }
         Relationships: []
       }
+      campaigns: {
+        Row: {
+          brand_id: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          post_count: number
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          post_count?: number
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          post_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_preference_cache: {
         Row: {
           edit_patterns: Json | null
@@ -368,6 +406,134 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      content_ideas: {
+        Row: {
+          brand_id: string
+          campaign_id: string | null
+          created_at: string
+          design_id: string | null
+          id: string
+          idea_type: string
+          pillar_id: string | null
+          prompt: string
+          scheduled_for: string | null
+          series_id: string | null
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          campaign_id?: string | null
+          created_at?: string
+          design_id?: string | null
+          id?: string
+          idea_type?: string
+          pillar_id?: string | null
+          prompt: string
+          scheduled_for?: string | null
+          series_id?: string | null
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          campaign_id?: string | null
+          created_at?: string
+          design_id?: string | null
+          id?: string
+          idea_type?: string
+          pillar_id?: string | null
+          prompt?: string
+          scheduled_for?: string | null
+          series_id?: string | null
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_ideas_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_pillar_id_fkey"
+            columns: ["pillar_id"]
+            isOneToOne: false
+            referencedRelation: "content_pillars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "post_series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_pillars: {
+        Row: {
+          brand_id: string
+          created_at: string
+          description: string
+          icon_emoji: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          description?: string
+          icon_emoji?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          description?: string
+          icon_emoji?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_pillars_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       design_folder_assignments: {
         Row: {
@@ -528,6 +694,63 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_series: {
+        Row: {
+          brand_id: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          pillar_id: string | null
+          preferred_day: string | null
+          recurrence: string
+          updated_at: string
+          user_id: string
+          visual_style_notes: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          pillar_id?: string | null
+          preferred_day?: string | null
+          recurrence?: string
+          updated_at?: string
+          user_id: string
+          visual_style_notes?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          pillar_id?: string | null
+          preferred_day?: string | null
+          recurrence?: string
+          updated_at?: string
+          user_id?: string
+          visual_style_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_series_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_series_pillar_id_fkey"
+            columns: ["pillar_id"]
+            isOneToOne: false
+            referencedRelation: "content_pillars"
             referencedColumns: ["id"]
           },
         ]

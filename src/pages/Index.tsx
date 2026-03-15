@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -77,6 +77,10 @@ const Index = () => {
               <Button size="lg" className="h-12 px-8 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/studio")}>
                 <Plus className="h-4 w-4" />
                 Create New Design
+              </Button>
+              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/content")}>
+                <Layers className="h-4 w-4" />
+                Content Hub
               </Button>
               <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/brand")}>
                 <Palette className="h-4 w-4" />
