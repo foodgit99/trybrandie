@@ -1018,12 +1018,13 @@ const DesignStudio = () => {
             </AnimatePresence>
 
             {/* Text input */}
-            <input
+            <textarea
+              rows={1}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={currentImage ? "Edit your design…" : "Describe your design"}
-              className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none"
+              className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none resize-none max-h-[4.5rem] overflow-y-auto break-words"
               disabled={loading}
               maxLength={2000}
             />
