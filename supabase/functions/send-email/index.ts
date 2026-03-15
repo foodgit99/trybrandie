@@ -577,6 +577,10 @@ Deno.serve(async (req) => {
           data?.cta_url || ""
         );
         break;
+      case "daily_content_reminder":
+        subject = `Your content plan for today — ${data?.date || "today"} 📅`;
+        html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
+        break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
           status: 400,
