@@ -36,7 +36,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { action, brand_id, pillar_ids, series_ids } = await req.json();
+    const { action, brand_id, pillar_ids, series_ids, week_offset } = await req.json();
 
     if (!brand_id) {
       return new Response(JSON.stringify({ error: "brand_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
