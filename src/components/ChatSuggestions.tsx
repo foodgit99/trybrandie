@@ -44,6 +44,7 @@ const ChatSuggestions = ({
   onSelect,
   hasMessages,
   hasImage,
+  contentIdeas,
 }: ChatSuggestionsProps) => {
   const suggestions = useMemo(() => {
     const { season, events } = getSeasonalContext();
@@ -51,7 +52,6 @@ const ChatSuggestions = ({
     const event = events[Math.floor(Math.random() * events.length)];
 
     if (hasImage) {
-      // Post-generation edit suggestions
       return [
         "Make the headline bolder",
         "Try a different colour palette",
@@ -61,7 +61,6 @@ const ChatSuggestions = ({
     }
 
     if (hasMessages) {
-      // Mid-conversation suggestions
       return [
         "Try a completely different layout",
         `Create a ${event} version`,
@@ -70,7 +69,16 @@ const ChatSuggestions = ({
       ];
     }
 
-    // Empty state — brand + season aware
+    // Use content ideas if available (filter to suggested/scheduled only)
+    const availableIdeas = contentIdeas?.filter(
+      (idea) => idea.status === "suggested" || idea.status === "scheduled"
+    );
+    if (availableIdeas && availableIdeas.length > 0) {
+      const shuffled = [...availableIdeas].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, 4).map((idea) => idea.prompt);
+    }
+
+    // Fallback — brand + season aware
     const pool = [
       `Create a ${event} promo for ${name}`,
       `Design a ${season.toLowerCase()} announcement post`,
@@ -87,10 +95,9 @@ const ChatSuggestions = ({
       pool.push(`Design a post highlighting what ${name} does best`);
     }
 
-    // Pick 4 unique suggestions
     const shuffled = pool.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 4);
-  }, [brandName, brandVibe, brandDescription, hasMessages, hasImage]);
+  }, [brandName, brandVibe, brandDescription, hasMessages, hasImage, contentIdeas]);
 
   return (
     <motion.div
