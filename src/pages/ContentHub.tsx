@@ -926,6 +926,52 @@ const ContentHub = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* --- Campaign Dialog --- */}
+      <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingCampaignId ? "Edit Campaign" : "Add Campaign"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Name</Label>
+              <Input
+                placeholder="e.g. Summer Launch"
+                value={campaignForm.name}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
+              <Textarea
+                placeholder="What is this campaign about?"
+                className="resize-none"
+                rows={2}
+                value={campaignForm.description}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Number of Posts</Label>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={campaignForm.post_count}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, post_count: parseInt(e.target.value) || 1 }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setCampaignDialogOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={saveCampaign} disabled={!campaignForm.name.trim() || campaignSaving}>
+              {campaignSaving && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+              {editingCampaignId ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
