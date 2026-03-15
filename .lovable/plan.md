@@ -1,8 +1,4 @@
-
-
 ## System Audit Fixes — Completed
-
-
 
 ### Completed Changes
 
@@ -97,3 +93,45 @@ User Request
 | `supabase/functions/design-studio/index.ts` | Brief Agent structured tool calls, parallel execution, extended RAG learning, edit pattern tracking + bias |
 | Database migration | Added `copy_structure` JSONB column to `designs` table |
 | Database migration | Added `edit_patterns` JSONB column to `chat_preference_cache` table |
+
+## Brand Engine — Implemented
+
+### What Was Built
+
+#### Database Tables
+- `content_pillars` — 5 AI-generated content themes per brand
+- `post_series` — Recurring content formats (e.g. "Tip Tuesday")
+- `campaigns` — Campaign ideas with multi-post breakdowns
+- `content_ideas` — Weekly post ideas with ready-to-use Studio prompts
+
+All tables have RLS policies scoped to brand ownership.
+
+#### Edge Function: `brand-engine`
+Actions: `generate_pillars`, `generate_series`, `generate_campaigns`, `generate_weekly_ideas`
+Uses `google/gemini-3-flash-preview` with structured tool calling.
+Inputs: brand data, audience JTBD profiles, past designs, trend preferences.
+
+#### Content Hub Page (`/content`)
+- Auto-generates full content strategy on first visit
+- Displays: Content Pillars, Weekly Calendar, Recurring Series, Campaigns
+- Each idea has a `→` button that navigates to Studio with pre-filled prompt
+- Regenerate buttons for each section individually or all at once
+
+#### Integrations
+- **Studio**: Reads `prompt` and `content_idea_id` from URL params; marks idea as "created" after design generation
+- **Dashboard**: Content Hub CTA button added alongside Create New Design
+- **Navigation**: "Content Hub" added to hamburger menu
+- **Auto-setup**: First visit triggers sequential generation (pillars → series → campaigns → weekly ideas)
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| `supabase/functions/brand-engine/index.ts` | New edge function with 4 AI-powered actions |
+| `src/pages/ContentHub.tsx` | New Content Hub page |
+| `src/App.tsx` | Added `/content` route |
+| `src/components/AppHeader.tsx` | Added Content Hub nav item |
+| `src/pages/Index.tsx` | Added Content Hub CTA to dashboard |
+| `src/pages/DesignStudio.tsx` | URL param prompt auto-fill + content_idea_id tracking |
+| `supabase/config.toml` | Added brand-engine function config |
+| Database migration | Created 4 new tables with RLS |
