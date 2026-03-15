@@ -1,137 +1,42 @@
-## System Audit Fixes — Completed
+# Content Hub — Status Audit
 
-### Completed Changes
+## Working Perfectly
 
-#### Phase 1: Brief Agent Refactoring ✅
-- Converted Brief Agent from free-text output (`DESIGN BRIEF: ... EXPLANATION: ...`) to **structured tool calling**
-- Now outputs: `{ creative_direction, composition_goal, emotional_tone, design_focus, explanation }`
-- Removed brittle string splitting (`split("DESIGN BRIEF:")[1].split("EXPLANATION:")`)
-- Structured brief fields injected into Copywriter Agent for richer context
-- Fallback to content parsing if tool call fails (graceful degradation)
+1. **Frontend UI structure** — The Content Hub page renders correctly with all sections: pillars, weekly calendar, series, campaigns. Layout, animations, and responsive design are solid.
+2. **Manual CRUD for pillars and series** — Create, edit, and delete dialogs work correctly. Forms have proper validation, emoji picker, and all fields map to the database schema. RLS policies are properly configured for all four tables.
+3. **Data queries** — All four `useQuery` hooks (pillars, series, campaigns, weekly ideas) are correctly structured with proper `enabled` guards and `brandId` scoping.
+4. **Studio deep-link navigation** — `handleIdeaAction` correctly builds URL params with `prompt` and `content_idea_id`, and the Studio picks them up to pre-fill the input.
+5. **Weekly calendar rendering** — Day-by-day layout with idea status indicators (lightbulb vs checkmark), series badges, and arrow buttons to create designs.
+6. **Content idea status tracking** — After a design is created from a content idea, the Studio updates the idea's status to "created" and links the `design_id`.
+7. **ChatSuggestions integration** — Content ideas are fetched in the Studio and passed to ChatSuggestions, which prioritizes them over random seasonal suggestions.
 
-#### Phase 2: Parallel Brief + Genome Execution ✅
-- Brief Agent and Genome Composer now run in **parallel** via `Promise.all`
-- Saves ~1-2s latency per generation (genome is deterministic, no LLM dependency)
-- Error handling preserves rate limit (429) and credit exhaustion (402) responses
+---
 
-#### Phase 3: Extended Learning Layer ✅
-- Added `copy_structure` JSONB column to `designs` table
-- RAG Preference Engine now tracks:
-  - **Copy density patterns**: headline-only vs full copy from upvoted designs
-  - **Trend affinity**: which trends appear most in upvoted designs
-- Copy preference context injected into Brief Agent and Copywriter
+## Working Partially
 
-#### Phase 4: Special Instructions — Full Pipeline Coverage ✅
-- Special Instructions injected into all agents:
-  - Brief Agent system prompt ✓
-  - Copywriter Agent ✓
-  - Caption Agent ✓
-  - Image Renderer prompt ✓
+1. **Studio auto-fill only sets input, does not auto-send** — When navigating from Content Hub with `?prompt=...`, the prompt is placed in the textarea but the user must manually press Send. The plan called for auto-send. This is a UX friction point but not broken.
+2. **Campaigns section has no manual CRUD** — Pillars and series have Add/Edit/Delete, but campaigns only have AI regeneration. Users cannot manually create, edit, or delete campaigns. The section also hides entirely when empty (line 654: `campaigns && campaigns.length > 0`), so new users with no campaigns see nothing — not even an empty state with an "Add" button.
 
-#### Phase 5: Edit Pattern Learning ✅
-- Added `edit_patterns` JSONB column to `chat_preference_cache` table
-- After each edit action, the system classifies the edit type using keyword matching:
-  - `less_text`, `more_text`, `bigger_text`, `smaller_text`, `layout_change`, `color_change`, `style_change`
-- Edit patterns stored in cache (last 50 edits retained)
-- RAG Preference Engine reads edit patterns and builds `editBiasContext` when a pattern appears 3+ times
-- Edit bias injected into Brief Agent prompt to pre-apply learned preferences
-- Example: If user frequently requests "less text", future designs will default to minimal, headline-focused copy
+---
 
-### Architecture (Current)
+## Not Working At All
 
-```text
-User Request
-  ↓
-[0] Action Router (chat / generate / edit)
-  ↓
-[1] Context Assembly (parallel)
-  - Brand Centre data
-  - Audience Intelligence (JTBD)
-  - Trend Lab context
-  - Product images
-  - Inspiration images
-  - RAG Preference Engine (genome + copy + trend patterns)
-  - Chat History RAG
-  - Edit Pattern Bias (learned from frequent edits)
-  ↓
-[2] Intent Classifier (edits: MINOR/MAJOR)
-  → Edit Pattern Tracker (stores edit type for future bias)
-  ↓
-[3] Credit Gate
-  ↓
-[4] PARALLEL: Brief Agent + Genome Composer
-  - Brief Agent → structured JSON (creative_direction, composition_goal, emotional_tone, design_focus)
-  - Genome Composer → deterministic Visual Style Genome (brand locks + trend overrides + mutation)
-  ↓
-[5] PARALLEL: Copywriter Agent + Caption Agent
-  - Both receive: brief context, genome density hints, brand data, audience, special instructions
-  ↓
-[6] Genome Scoring Engine
-  - Scores: brand_alignment, trend_balance, visual_clarity, conversion, visual_balance
-  - Stability Gate: if overall < 55, apply deterministic fixes + re-score
-  ↓
-[7] Image Renderer (Fast: gemini-2.5-flash-image / HD: gemini-3-pro-image-preview)
-  - Input: creative_direction + visual genome + structured copy + brand tokens + image refs
-  ↓
-[8] Auto-Save (design, genome, copy_structure, caption, scores)
-```
+1. **Edge function auth is broken** — The `brand-engine` function uses `supabase.auth.getClaims(token)` (line 32), which **does not exist** in the Supabase JS client. Every other edge function in the project uses `supabase.auth.getUser()`. This means every call to the Brand Engine will fail with a runtime error, making **all AI generation non-functional**: pillars, series, campaigns, and weekly ideas.
+2. **Auto-generate on first visit fails silently** — Because the edge function crashes, the `useEffect` that triggers `handleFullGenerate()` when no pillars exist (line 162-167) will fire, fail, show an error toast, and leave the user with an empty Content Hub and no clear path forward.
 
-### What Was Skipped (and Why)
+---
 
-| Suggestion | Reason |
-|---|---|
-| Formal Orchestrator Controller | Current action routing is sufficient |
-| Visual Composition Agent | Image models don't follow pixel-level layout specs |
-| Reordering Genome before Brief | They're independent; parallel is better |
-| Feedback updating mutation weights in real-time | Already implemented via RAG preference bias |
-| Brand Strategist Agent | Brand Centre UI is the right approach — user control, not LLM hallucination |
+## Fixes Required
 
-### Files Changed
+### Critical (blocks all AI generation)
 
-| File | Change |
-|---|---|
-| `supabase/functions/design-studio/index.ts` | Brief Agent structured tool calls, parallel execution, extended RAG learning, edit pattern tracking + bias |
-| Database migration | Added `copy_structure` JSONB column to `designs` table |
-| Database migration | Added `edit_patterns` JSONB column to `chat_preference_cache` table |
+- **Fix `brand-engine` edge function auth**: Replace `getClaims(token)` with `getUser()` pattern used by all other functions. Extract `userId` from the user object instead of claims.
 
-## Brand Engine — Implemented
+### Important (UX gaps)
 
-### What Was Built
+- **Add campaign manual CRUD**: Add create/edit/delete dialogs for campaigns, matching the pillar and series pattern. Show empty state with "Add" button when no campaigns exist.
+  &nbsp;
 
-#### Database Tables
-- `content_pillars` — 5 AI-generated content themes per brand
-- `post_series` — Recurring content formats (e.g. "Tip Tuesday")
-- `campaigns` — Campaign ideas with multi-post breakdowns
-- `content_ideas` — Weekly post ideas with ready-to-use Studio prompts
+### Minor
 
-All tables have RLS policies scoped to brand ownership.
-
-#### Edge Function: `brand-engine`
-Actions: `generate_pillars`, `generate_series`, `generate_campaigns`, `generate_weekly_ideas`
-Uses `google/gemini-3-flash-preview` with structured tool calling.
-Inputs: brand data, audience JTBD profiles, past designs, trend preferences.
-
-#### Content Hub Page (`/content`)
-- Auto-generates full content strategy on first visit
-- Displays: Content Pillars, Weekly Calendar, Recurring Series, Campaigns
-- Each idea has a `→` button that navigates to Studio with pre-filled prompt
-- Regenerate buttons for each section individually or all at once
-
-#### Integrations
-- **Studio**: Reads `prompt` and `content_idea_id` from URL params; marks idea as "created" after design generation
-- **Dashboard**: Content Hub CTA button added alongside Create New Design
-- **Navigation**: "Content Hub" added to hamburger menu
-- **Auto-setup**: First visit triggers sequential generation (pillars → series → campaigns → weekly ideas)
-
-### Files Changed
-
-| File | Change |
-|---|---|
-| `supabase/functions/brand-engine/index.ts` | New edge function with 4 AI-powered actions |
-| `src/pages/ContentHub.tsx` | New Content Hub page |
-| `src/App.tsx` | Added `/content` route |
-| `src/components/AppHeader.tsx` | Added Content Hub nav item |
-| `src/pages/Index.tsx` | Added Content Hub CTA to dashboard |
-| `src/pages/DesignStudio.tsx` | URL param prompt auto-fill + content_idea_id tracking |
-| `supabase/config.toml` | Added brand-engine function config |
-| Database migration | Created 4 new tables with RLS |
+- The `decodeURIComponent` on line 342 of DesignStudio is redundant — `URLSearchParams.get()` already decodes, which could cause double-decoding issues with special characters.
