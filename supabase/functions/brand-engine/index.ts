@@ -263,7 +263,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       });
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show.`,
+        system: `You are a social media content planner. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.`,
         user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}`,
         tool: {
           name: "create_weekly_ideas",
@@ -281,6 +281,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
                     day: { type: "string", enum: days },
                     pillar_name: { type: "string" },
                     series_name: { type: "string" },
+                    campaign_name: { type: "string" },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post"] },
                   },
                   required: ["title", "prompt", "day", "pillar_name", "idea_type"],
@@ -308,6 +309,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
 
       const pillarMap = new Map(pillars.map((p: any) => [p.name.toLowerCase(), p.id]));
       const seriesMap = new Map(series.map((s: any) => [s.name.toLowerCase(), s.id]));
+      const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
       const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
 
       const ideasToInsert = result.data.ideas.map((idea: any) => ({
@@ -315,7 +317,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         user_id: userId,
         pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
         series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
-        campaign_id: null,
+        campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
         title: idea.title,
         prompt: idea.prompt,
         idea_type: idea.idea_type,
