@@ -1,6 +1,13 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 
+interface ContentIdea {
+  id: string;
+  title: string;
+  prompt: string;
+  status: string;
+}
+
 interface ChatSuggestionsProps {
   brandName?: string;
   brandVibe?: string | null;
@@ -8,6 +15,7 @@ interface ChatSuggestionsProps {
   onSelect: (text: string) => void;
   hasMessages: boolean;
   hasImage: boolean;
+  contentIdeas?: ContentIdea[];
 }
 
 const getSeasonalContext = () => {
