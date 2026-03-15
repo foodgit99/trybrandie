@@ -22,6 +22,7 @@ import {
   CreditCard,
   LogOut,
   Shield,
+  Layers,
 } from "lucide-react";
 
 const FREE_TIER_LIMIT = 10;
