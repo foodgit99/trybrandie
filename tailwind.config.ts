@@ -66,6 +66,7 @@ export default {
           gold: "hsl(var(--brandie-gold))",
           charcoal: "hsl(var(--brandie-charcoal))",
           stone: "hsl(var(--brandie-stone))",
+          neon: "hsl(var(--brandie-neon))",
         },
       },
       borderRadius: {
