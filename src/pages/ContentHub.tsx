@@ -41,6 +41,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -98,6 +100,7 @@ const ContentHub = () => {
   const [generating, setGenerating] = useState<string | null>(null);
   const [initialSetupDone, setInitialSetupDone] = useState(false);
   const [regenPending, setRegenPending] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // Pillar dialog
   const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
@@ -167,13 +170,31 @@ const ContentHub = () => {
     enabled: !!brandId,
   });
 
+  // Compute Monday of the selected week
+  const getWeekMonday = useCallback((offset: number) => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7) + offset * 7);
+    return monday;
+  }, []);
+
+  const selectedMonday = getWeekMonday(weekOffset);
+  const selectedSunday = new Date(selectedMonday);
+  selectedSunday.setDate(selectedMonday.getDate() + 6);
+
+  const weekLabel = weekOffset === 0
+    ? "This Week"
+    : weekOffset === 1
+      ? "Next Week"
+      : weekOffset === -1
+        ? "Last Week"
+        : `${selectedMonday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${selectedSunday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
   const { data: weeklyIdeas, isLoading: ideasLoading } = useQuery({
-    queryKey: ["weekly-ideas", brandId],
+    queryKey: ["weekly-ideas", brandId, weekOffset],
     queryFn: async () => {
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+      const monday = getWeekMonday(weekOffset);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
 
@@ -480,10 +501,7 @@ const ContentHub = () => {
 
   // --- Idea CRUD ---
   const getDateForDay = (day: string) => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    const monday = getWeekMonday(weekOffset);
     const dayIndex = DAYS.indexOf(day);
     const date = new Date(monday);
     date.setDate(monday.getDate() + dayIndex);
@@ -695,24 +713,54 @@ const ContentHub = () => {
             )}
           </section>
 
-          {/* This Week — always visible */}
+          {/* Weekly Calendar — always visible */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">This Week</h2>
+                <h2 className="text-base font-semibold">{weekLabel}</h2>
                 {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 text-xs"
-                onClick={() => handleGenerate("generate_weekly_ideas")}
-                disabled={!!generating}
-              >
-                {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                Generate Ideas
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setWeekOffset((o) => o - 1)}
+                  title="Previous week"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {weekOffset !== 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setWeekOffset(0)}
+                  >
+                    Today
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setWeekOffset((o) => o + 1)}
+                  title="Next week"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => handleGenerate("generate_weekly_ideas")}
+                  disabled={!!generating}
+                >
+                  {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  Generate Ideas
+                </Button>
+              </div>
             </div>
             <Card>
               <CardContent className="p-0 divide-y divide-border">
