@@ -799,7 +799,7 @@ const ContentHub = () => {
                                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
                                 )}
                                 {/* Hover edit/delete for ideas */}
-                                <div className="hidden group-hover/idea:flex gap-0.5 ml-auto shrink-0">
+                                <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
                                   <button
                                     onClick={() => openEditIdea(idea)}
                                     className="p-0.5 rounded hover:bg-muted transition-colors"
