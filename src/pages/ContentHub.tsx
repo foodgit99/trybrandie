@@ -100,6 +100,7 @@ const ContentHub = () => {
   const [generating, setGenerating] = useState<string | null>(null);
   const [initialSetupDone, setInitialSetupDone] = useState(false);
   const [regenPending, setRegenPending] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // Pillar dialog
   const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
