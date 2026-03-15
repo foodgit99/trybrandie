@@ -713,24 +713,54 @@ const ContentHub = () => {
             )}
           </section>
 
-          {/* This Week — always visible */}
+          {/* Weekly Calendar — always visible */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">This Week</h2>
+                <h2 className="text-base font-semibold">{weekLabel}</h2>
                 {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 text-xs"
-                onClick={() => handleGenerate("generate_weekly_ideas")}
-                disabled={!!generating}
-              >
-                {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                Generate Ideas
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setWeekOffset((o) => o - 1)}
+                  title="Previous week"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {weekOffset !== 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setWeekOffset(0)}
+                  >
+                    Today
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setWeekOffset((o) => o + 1)}
+                  title="Next week"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => handleGenerate("generate_weekly_ideas")}
+                  disabled={!!generating}
+                >
+                  {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  Generate Ideas
+                </Button>
+              </div>
             </div>
             <Card>
               <CardContent className="p-0 divide-y divide-border">
