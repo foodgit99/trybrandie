@@ -370,6 +370,56 @@ const ContentHub = () => {
     }
   };
 
+  // --- Campaign CRUD ---
+  const openCreateCampaign = () => {
+    setCampaignForm(emptyCampaign);
+    setEditingCampaignId(null);
+    setCampaignDialogOpen(true);
+  };
+
+  const openEditCampaign = (c: any) => {
+    setCampaignForm({ name: c.name, description: c.description || "", post_count: c.post_count || 5 });
+    setEditingCampaignId(c.id);
+    setCampaignDialogOpen(true);
+  };
+
+  const saveCampaign = async () => {
+    if (!campaignForm.name.trim() || !brandId || !user) return;
+    setCampaignSaving(true);
+    try {
+      const payload = {
+        name: campaignForm.name.trim(),
+        description: campaignForm.description.trim(),
+        post_count: campaignForm.post_count,
+      };
+      if (editingCampaignId) {
+        const { error } = await supabase.from("campaigns").update(payload).eq("id", editingCampaignId);
+        if (error) throw error;
+        toast({ title: "Campaign updated" });
+      } else {
+        const { error } = await supabase.from("campaigns").insert({ ...payload, brand_id: brandId, user_id: user.id });
+        if (error) throw error;
+        toast({ title: "Campaign created" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
+      setCampaignDialogOpen(false);
+    } catch (e: any) {
+      toast({ title: "Failed to save", description: e.message, variant: "destructive" });
+    } finally {
+      setCampaignSaving(false);
+    }
+  };
+
+  const deleteCampaign = async (id: string) => {
+    const { error } = await supabase.from("campaigns").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
+      toast({ title: "Campaign deleted" });
+    }
+  };
+
   const deleteSeries = async (id: string) => {
     const { error } = await supabase.from("post_series").delete().eq("id", id);
     if (error) {
