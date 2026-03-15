@@ -1031,6 +1031,7 @@ const DesignStudio = () => {
                 onSelect={(text) => setInput(text)}
                 hasMessages={true}
                 hasImage={!!currentImage}
+                contentIdeas={contentIdeas}
               />
             </div>
           )}
