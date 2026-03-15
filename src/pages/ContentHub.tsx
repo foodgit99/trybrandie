@@ -170,13 +170,31 @@ const ContentHub = () => {
     enabled: !!brandId,
   });
 
+  // Compute Monday of the selected week
+  const getWeekMonday = useCallback((offset: number) => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7) + offset * 7);
+    return monday;
+  }, []);
+
+  const selectedMonday = getWeekMonday(weekOffset);
+  const selectedSunday = new Date(selectedMonday);
+  selectedSunday.setDate(selectedMonday.getDate() + 6);
+
+  const weekLabel = weekOffset === 0
+    ? "This Week"
+    : weekOffset === 1
+      ? "Next Week"
+      : weekOffset === -1
+        ? "Last Week"
+        : `${selectedMonday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${selectedSunday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
   const { data: weeklyIdeas, isLoading: ideasLoading } = useQuery({
-    queryKey: ["weekly-ideas", brandId],
+    queryKey: ["weekly-ideas", brandId, weekOffset],
     queryFn: async () => {
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+      const monday = getWeekMonday(weekOffset);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
 
