@@ -102,6 +102,13 @@ const AppHeader = () => {
             </DropdownMenuItem>
             <DropdownMenuItem
               className="gap-2 rounded-lg cursor-pointer"
+              onClick={() => navigate("/content")}
+            >
+              <Layers className="h-4 w-4" />
+              Content Hub
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 rounded-lg cursor-pointer"
               onClick={() => navigate("/history")}
             >
               <Clock className="h-4 w-4" />
