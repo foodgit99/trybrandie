@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
@@ -76,6 +76,16 @@ interface CampaignForm {
 }
 const emptyCampaign: CampaignForm = { name: "", description: "", post_count: 5 };
 
+// --- Idea form state ---
+interface IdeaForm {
+  title: string;
+  prompt: string;
+  pillar_id: string;
+  series_id: string;
+  campaign_id: string;
+}
+const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "" };
+
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
 const ContentHub = () => {
@@ -87,6 +97,7 @@ const ContentHub = () => {
 
   const [generating, setGenerating] = useState<string | null>(null);
   const [initialSetupDone, setInitialSetupDone] = useState(false);
+  const [regenPending, setRegenPending] = useState(false);
 
   // Pillar dialog
   const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
@@ -105,6 +116,13 @@ const ContentHub = () => {
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [campaignForm, setCampaignForm] = useState<CampaignForm>(emptyCampaign);
   const [campaignSaving, setCampaignSaving] = useState(false);
+
+  // Idea dialog
+  const [ideaDialogOpen, setIdeaDialogOpen] = useState(false);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [ideaForm, setIdeaForm] = useState<IdeaForm>(emptyIdea);
+  const [ideaDay, setIdeaDay] = useState<string>("");
+  const [ideaSaving, setIdeaSaving] = useState(false);
 
   const brandId = brand?.id;
 
@@ -213,6 +231,29 @@ const ContentHub = () => {
     return res.json();
   };
 
+  // Silent auto-regen of weekly ideas after strategy changes
+  const silentRegenWeeklyIdeas = useCallback(async () => {
+    // Skip if nothing to generate from
+    const hasPillarsData = pillars && pillars.length > 0;
+    const hasSeriesData = series && series.length > 0;
+    const hasCampaignsData = campaigns && campaigns.length > 0;
+    if (!hasPillarsData && !hasSeriesData && !hasCampaignsData) return;
+    if (regenPending || generating) return;
+
+    setRegenPending(true);
+    toast({ title: "Updating your weekly plan..." });
+    try {
+      await callEngine("generate_weekly_ideas");
+      queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+      toast({ title: "Weekly plan updated" });
+    } catch (e: any) {
+      // Silent fail — don't block the user
+      console.error("Silent regen failed:", e);
+    } finally {
+      setRegenPending(false);
+    }
+  }, [brandId, pillars, series, campaigns, regenPending, generating]);
+
   const handleGenerate = async (action: string) => {
     setGenerating(action);
     try {
@@ -298,6 +339,8 @@ const ContentHub = () => {
       }
       queryClient.invalidateQueries({ queryKey: ["content-pillars", brandId] });
       setPillarDialogOpen(false);
+      // Auto-regen weekly ideas
+      setTimeout(() => silentRegenWeeklyIdeas(), 500);
     } catch (e: any) {
       toast({ title: "Failed to save", description: e.message, variant: "destructive" });
     } finally {
@@ -312,6 +355,7 @@ const ContentHub = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ["content-pillars", brandId] });
       toast({ title: "Pillar deleted" });
+      setTimeout(() => silentRegenWeeklyIdeas(), 500);
     }
   };
 
@@ -363,6 +407,7 @@ const ContentHub = () => {
       }
       queryClient.invalidateQueries({ queryKey: ["post-series", brandId] });
       setSeriesDialogOpen(false);
+      setTimeout(() => silentRegenWeeklyIdeas(), 500);
     } catch (e: any) {
       toast({ title: "Failed to save", description: e.message, variant: "destructive" });
     } finally {
@@ -403,6 +448,7 @@ const ContentHub = () => {
       }
       queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
       setCampaignDialogOpen(false);
+      setTimeout(() => silentRegenWeeklyIdeas(), 500);
     } catch (e: any) {
       toast({ title: "Failed to save", description: e.message, variant: "destructive" });
     } finally {
@@ -417,6 +463,7 @@ const ContentHub = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
       toast({ title: "Campaign deleted" });
+      setTimeout(() => silentRegenWeeklyIdeas(), 500);
     }
   };
 
@@ -427,6 +474,91 @@ const ContentHub = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ["post-series", brandId] });
       toast({ title: "Series deleted" });
+      setTimeout(() => silentRegenWeeklyIdeas(), 500);
+    }
+  };
+
+  // --- Idea CRUD ---
+  const getDateForDay = (day: string) => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    const dayIndex = DAYS.indexOf(day);
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + dayIndex);
+    return date.toISOString().split("T")[0];
+  };
+
+  const openCreateIdea = (day: string) => {
+    setIdeaForm(emptyIdea);
+    setEditingIdeaId(null);
+    setIdeaDay(day);
+    setIdeaDialogOpen(true);
+  };
+
+  const openEditIdea = (idea: any) => {
+    setIdeaForm({
+      title: idea.title,
+      prompt: idea.prompt,
+      pillar_id: idea.pillar_id || "",
+      series_id: idea.series_id || "",
+      campaign_id: idea.campaign_id || "",
+    });
+    setEditingIdeaId(idea.id);
+    // Determine day from scheduled_for
+    if (idea.scheduled_for) {
+      const d = new Date(idea.scheduled_for);
+      const dayIndex = (d.getDay() + 6) % 7;
+      setIdeaDay(DAYS[dayIndex]);
+    }
+    setIdeaDialogOpen(true);
+  };
+
+  const saveIdea = async () => {
+    if (!ideaForm.title.trim() || !ideaForm.prompt.trim() || !brandId || !user) return;
+    setIdeaSaving(true);
+    try {
+      const payload: any = {
+        title: ideaForm.title.trim(),
+        prompt: ideaForm.prompt.trim(),
+        pillar_id: ideaForm.pillar_id || null,
+        series_id: ideaForm.series_id || null,
+        campaign_id: ideaForm.campaign_id || null,
+      };
+
+      if (editingIdeaId) {
+        const { error } = await supabase.from("content_ideas").update(payload).eq("id", editingIdeaId);
+        if (error) throw error;
+        toast({ title: "Idea updated" });
+      } else {
+        const { error } = await supabase.from("content_ideas").insert({
+          ...payload,
+          brand_id: brandId,
+          user_id: user.id,
+          status: "scheduled",
+          idea_type: "single",
+          scheduled_for: getDateForDay(ideaDay),
+        });
+        if (error) throw error;
+        toast({ title: "Idea added" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+      setIdeaDialogOpen(false);
+    } catch (e: any) {
+      toast({ title: "Failed to save", description: e.message, variant: "destructive" });
+    } finally {
+      setIdeaSaving(false);
+    }
+  };
+
+  const deleteIdea = async (id: string) => {
+    const { error } = await supabase.from("content_ideas").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+      toast({ title: "Idea removed" });
     }
   };
 
@@ -563,78 +695,105 @@ const ContentHub = () => {
             )}
           </section>
 
-          {/* This Week */}
-          {hasPillars && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold">This Week</h2>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => handleGenerate("generate_weekly_ideas")}
-                  disabled={!!generating}
-                >
-                  {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                  Generate Ideas
-                </Button>
+          {/* This Week — always visible */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold">This Week</h2>
+                {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
               </div>
-              <Card>
-                <CardContent className="p-0 divide-y divide-border">
-                  {DAYS.map((day) => {
-                    const dayIdeas = ideasByDay[day] || [];
-                    return (
-                      <div key={day} className="flex items-center gap-3 px-4 py-3">
-                        <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">
-                          {DAY_LABELS[day]}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          {dayIdeas.length === 0 ? (
-                            <span className="text-xs text-muted-foreground/50">—</span>
-                          ) : (
-                            <div className="space-y-1.5">
-                              {dayIdeas.map((idea: any) => (
-                                <div key={idea.id} className="flex items-center gap-2">
-                                  {idea.status === "created" ? (
-                                    <Check className="h-3 w-3 text-green-500 shrink-0" />
-                                  ) : (
-                                    <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-                                  )}
-                                  <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                                    {idea.title}
-                                  </span>
-                                  {idea.idea_type === "series_post" && (
-                                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
-                                  )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => handleGenerate("generate_weekly_ideas")}
+                disabled={!!generating}
+              >
+                {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Generate Ideas
+              </Button>
+            </div>
+            <Card>
+              <CardContent className="p-0 divide-y divide-border">
+                {DAYS.map((day) => {
+                  const dayIdeas = ideasByDay[day] || [];
+                  return (
+                    <div key={day} className="flex items-center gap-3 px-4 py-3 group/day">
+                      <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">
+                        {DAY_LABELS[day]}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        {dayIdeas.length === 0 ? (
+                          <span className="text-xs text-muted-foreground/50">—</span>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {dayIdeas.map((idea: any) => (
+                              <div key={idea.id} className="flex items-center gap-2 group/idea">
+                                {idea.status === "created" ? (
+                                  <Check className="h-3 w-3 text-green-500 shrink-0" />
+                                ) : (
+                                  <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                                )}
+                                <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                                  {idea.title}
+                                </span>
+                                {idea.idea_type === "series_post" && (
+                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
+                                )}
+                                {idea.idea_type === "campaign_post" && (
+                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
+                                )}
+                                {/* Hover edit/delete for ideas */}
+                                <div className="hidden group-hover/idea:flex gap-0.5 ml-auto shrink-0">
+                                  <button
+                                    onClick={() => openEditIdea(idea)}
+                                    className="p-0.5 rounded hover:bg-muted transition-colors"
+                                    title="Edit idea"
+                                  >
+                                    <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteIdea(idea.id)}
+                                    className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
+                                    title="Delete idea"
+                                  >
+                                    <Trash2 className="h-2.5 w-2.5 text-destructive/70" />
+                                  </button>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="shrink-0 flex gap-1">
-                          {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => (
-                            <Button
-                              key={idea.id}
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleIdeaAction(idea)}
-                              title="Create this design"
-                            >
-                              <ArrowRight className="h-3.5 w-3.5" />
-                            </Button>
-                          ))}
-                        </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </section>
-          )}
+                      <div className="shrink-0 flex gap-1 items-center">
+                        {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => (
+                          <Button
+                            key={idea.id}
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleIdeaAction(idea)}
+                            title="Create this design"
+                          >
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        ))}
+                        {/* Add idea button per day */}
+                        <button
+                          onClick={() => openCreateIdea(day)}
+                          className="p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 sm:opacity-0 max-sm:opacity-100"
+                          title="Add idea"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </section>
 
           {/* Series */}
           <section className="space-y-3">
@@ -968,6 +1127,86 @@ const ContentHub = () => {
             <Button size="sm" onClick={saveCampaign} disabled={!campaignForm.name.trim() || campaignSaving}>
               {campaignSaving && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
               {editingCampaignId ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- Idea Dialog --- */}
+      <Dialog open={ideaDialogOpen} onOpenChange={setIdeaDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingIdeaId ? "Edit Idea" : `Add Idea — ${DAY_LABELS[ideaDay] || ideaDay}`}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Title</Label>
+              <Input
+                placeholder="e.g. Product spotlight post"
+                value={ideaForm.title}
+                onChange={(e) => setIdeaForm((f) => ({ ...f, title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Design Prompt</Label>
+              <Textarea
+                placeholder="Describe the graphic you want to create…"
+                className="resize-none"
+                rows={3}
+                value={ideaForm.prompt}
+                onChange={(e) => setIdeaForm((f) => ({ ...f, prompt: e.target.value }))}
+              />
+            </div>
+            {pillars && pillars.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Pillar (optional)</Label>
+                <Select value={ideaForm.pillar_id || "none"} onValueChange={(v) => setIdeaForm((f) => ({ ...f, pillar_id: v === "none" ? "" : v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {pillars.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>{p.icon_emoji} {p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {series && series.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Series (optional)</Label>
+                <Select value={ideaForm.series_id || "none"} onValueChange={(v) => setIdeaForm((f) => ({ ...f, series_id: v === "none" ? "" : v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {series.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {campaigns && campaigns.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Campaign (optional)</Label>
+                <Select value={ideaForm.campaign_id || "none"} onValueChange={(v) => setIdeaForm((f) => ({ ...f, campaign_id: v === "none" ? "" : v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {campaigns.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIdeaDialogOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={saveIdea} disabled={!ideaForm.title.trim() || !ideaForm.prompt.trim() || ideaSaving}>
+              {ideaSaving && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+              {editingIdeaId ? "Save" : "Add"}
             </Button>
           </DialogFooter>
         </DialogContent>

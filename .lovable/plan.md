@@ -1,57 +1,137 @@
+## System Audit Fixes — Completed
 
+### Completed Changes
 
-# Content Hub Gap Fixes
+#### Phase 1: Brief Agent Refactoring ✅
+- Converted Brief Agent from free-text output (`DESIGN BRIEF: ... EXPLANATION: ...`) to **structured tool calling**
+- Now outputs: `{ creative_direction, composition_goal, emotional_tone, design_focus, explanation }`
+- Removed brittle string splitting (`split("DESIGN BRIEF:")[1].split("EXPLANATION:")`)
+- Structured brief fields injected into Copywriter Agent for richer context
+- Fallback to content parsing if tool call fails (graceful degradation)
 
-## Gaps to Address
+#### Phase 2: Parallel Brief + Genome Execution ✅
+- Brief Agent and Genome Composer now run in **parallel** via `Promise.all`
+- Saves ~1-2s latency per generation (genome is deterministic, no LLM dependency)
+- Error handling preserves rate limit (429) and credit exhaustion (402) responses
 
-1. **Strategy changes don't refresh the calendar** — Creating/editing/deleting a pillar, series, or campaign has no effect on weekly ideas. The calendar stays stale.
-2. **No manual content idea creation** — Users can't add their own ideas to specific days on the calendar.
-3. **Campaign ideas not linked** — `campaign_id` is hardcoded to `null` in `generate_weekly_ideas` (line 318 of edge function).
-4. **Weekly calendar hidden when no pillars exist** — The "This Week" section is gated behind `hasPillars`, so users with only manual ideas or campaigns see nothing.
+#### Phase 3: Extended Learning Layer ✅
+- Added `copy_structure` JSONB column to `designs` table
+- RAG Preference Engine now tracks:
+  - **Copy density patterns**: headline-only vs full copy from upvoted designs
+  - **Trend affinity**: which trends appear most in upvoted designs
+- Copy preference context injected into Brief Agent and Copywriter
 
-## Plan
+#### Phase 4: Special Instructions — Full Pipeline Coverage ✅
+- Special Instructions injected into all agents:
+  - Brief Agent system prompt ✓
+  - Copywriter Agent ✓
+  - Caption Agent ✓
+  - Image Renderer prompt ✓
 
-### 1. Auto-regenerate weekly ideas after strategy changes
+#### Phase 5: Edit Pattern Learning ✅
+- Added `edit_patterns` JSONB column to `chat_preference_cache` table
+- After each edit action, the system classifies the edit type using keyword matching:
+  - `less_text`, `more_text`, `bigger_text`, `smaller_text`, `layout_change`, `color_change`, `style_change`
+- Edit patterns stored in cache (last 50 edits retained)
+- RAG Preference Engine reads edit patterns and builds `editBiasContext` when a pattern appears 3+ times
+- Edit bias injected into Brief Agent prompt to pre-apply learned preferences
+- Example: If user frequently requests "less text", future designs will default to minimal, headline-focused copy
 
-After any successful pillar/series/campaign save or delete in `ContentHub.tsx`, automatically call `generate_weekly_ideas` in the background. This keeps the calendar in sync with the user's strategy without requiring a manual click.
+### Architecture (Current)
 
-- In `savePillar`, `deletePillar`, `saveSeries`, `deleteSeries`, `saveCampaign`, `deleteCampaign`: after the query invalidation, trigger `callEngine("generate_weekly_ideas")` silently (no blocking spinner, just a subtle refresh).
-- Show a small toast: "Updating your weekly plan..." → "Weekly plan updated."
-- Skip auto-regen if no pillars and no series and no campaigns exist (nothing to generate from).
+```text
+User Request
+  ↓
+[0] Action Router (chat / generate / edit)
+  ↓
+[1] Context Assembly (parallel)
+  - Brand Centre data
+  - Audience Intelligence (JTBD)
+  - Trend Lab context
+  - Product images
+  - Inspiration images
+  - RAG Preference Engine (genome + copy + trend patterns)
+  - Chat History RAG
+  - Edit Pattern Bias (learned from frequent edits)
+  ↓
+[2] Intent Classifier (edits: MINOR/MAJOR)
+  → Edit Pattern Tracker (stores edit type for future bias)
+  ↓
+[3] Credit Gate
+  ↓
+[4] PARALLEL: Brief Agent + Genome Composer
+  - Brief Agent → structured JSON (creative_direction, composition_goal, emotional_tone, design_focus)
+  - Genome Composer → deterministic Visual Style Genome (brand locks + trend overrides + mutation)
+  ↓
+[5] PARALLEL: Copywriter Agent + Caption Agent
+  - Both receive: brief context, genome density hints, brand data, audience, special instructions
+  ↓
+[6] Genome Scoring Engine
+  - Scores: brand_alignment, trend_balance, visual_clarity, conversion, visual_balance
+  - Stability Gate: if overall < 55, apply deterministic fixes + re-score
+  ↓
+[7] Image Renderer (Fast: gemini-2.5-flash-image / HD: gemini-3-pro-image-preview)
+  - Input: creative_direction + visual genome + structured copy + brand tokens + image refs
+  ↓
+[8] Auto-Save (design, genome, copy_structure, caption, scores)
+```
 
-### 2. Manual content idea creation on the calendar
+### What Was Skipped (and Why)
 
-Add an "Add idea" capability per day on the weekly calendar:
+| Suggestion | Reason |
+|---|---|
+| Formal Orchestrator Controller | Current action routing is sufficient |
+| Visual Composition Agent | Image models don't follow pixel-level layout specs |
+| Reordering Genome before Brief | They're independent; parallel is better |
+| Feedback updating mutation weights in real-time | Already implemented via RAG preference bias |
+| Brand Strategist Agent | Brand Centre UI is the right approach — user control, not LLM hallucination |
 
-- A small `+` button on each day row that opens a lightweight dialog.
-- Dialog fields: **Title** (required), **Prompt** (required, the Studio instruction), **Pillar** (optional dropdown), **Series** (optional dropdown), **Campaign** (optional dropdown).
-- On save, insert into `content_ideas` with `status: "scheduled"`, `scheduled_for` set to that day's date, `idea_type: "single"`.
-- Add edit and delete actions on individual ideas (pencil/trash icons on hover, matching pillar/series card pattern).
-- New state: `IdeaForm` interface, `ideaDialogOpen`, `editingIdeaId`, `ideaForm`, `ideaDay` (to track which day).
-
-### 3. Fix campaign_id linking in edge function
-
-In `supabase/functions/brand-engine/index.ts`, the `generate_weekly_ideas` action:
-
-- Add `campaign_name` to the AI tool schema (alongside `series_name`).
-- Build a `campaignMap` like `pillarMap` and `seriesMap`.
-- Map `campaign_id` from the AI response instead of hardcoding `null`.
-
-### 4. Show calendar regardless of pillars
-
-Remove the `hasPillars` gate on the "This Week" section. The calendar should always be visible so users can manually add ideas even without AI-generated pillars. Keep the "Generate Ideas" button but show it alongside a "+" manual add option.
-
-## Files Changed
+### Files Changed
 
 | File | Change |
 |---|---|
-| `src/pages/ContentHub.tsx` | Auto-regen after CRUD, manual idea CRUD dialogs, ungated calendar |
-| `supabase/functions/brand-engine/index.ts` | campaign_id mapping fix |
+| `supabase/functions/design-studio/index.ts` | Brief Agent structured tool calls, parallel execution, extended RAG learning, edit pattern tracking + bias |
+| Database migration | Added `copy_structure` JSONB column to `designs` table |
+| Database migration | Added `edit_patterns` JSONB column to `chat_preference_cache` table |
 
-## UX Notes
+## Brand Engine — Implemented
 
-- Auto-regen runs silently — no full-screen loader, just a subtle "Updating weekly plan..." toast so the user isn't blocked.
-- Manual idea dialog is minimal: title + prompt + optional associations. No clutter.
-- Calendar day rows gain a `+` button (visible on hover on desktop, always visible on mobile) for quick manual additions.
-- Ideas gain hover edit/delete icons matching the existing pillar/series pattern.
+### What Was Built
 
+#### Database Tables
+- `content_pillars` — 5 AI-generated content themes per brand
+- `post_series` — Recurring content formats (e.g. "Tip Tuesday")
+- `campaigns` — Campaign ideas with multi-post breakdowns
+- `content_ideas` — Weekly post ideas with ready-to-use Studio prompts
+
+All tables have RLS policies scoped to brand ownership.
+
+#### Edge Function: `brand-engine`
+Actions: `generate_pillars`, `generate_series`, `generate_campaigns`, `generate_weekly_ideas`
+Uses `google/gemini-3-flash-preview` with structured tool calling.
+Inputs: brand data, audience JTBD profiles, past designs, trend preferences.
+
+#### Content Hub Page (`/content`)
+- Auto-generates full content strategy on first visit
+- Displays: Content Pillars, Weekly Calendar, Recurring Series, Campaigns
+- Each idea has a `→` button that navigates to Studio with pre-filled prompt
+- Regenerate buttons for each section individually or all at once
+
+#### Integrations
+- **Studio**: Reads `prompt` and `content_idea_id` from URL params; marks idea as "created" after design generation
+- **Dashboard**: Content Hub CTA button added alongside Create New Design
+- **Navigation**: "Content Hub" added to hamburger menu
+- **Auto-setup**: First visit triggers sequential generation (pillars → series → campaigns → weekly ideas)
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| `supabase/functions/brand-engine/index.ts` | New edge function with 4 AI-powered actions |
+| `src/pages/ContentHub.tsx` | New Content Hub page |
+| `src/App.tsx` | Added `/content` route |
+| `src/components/AppHeader.tsx` | Added Content Hub nav item |
+| `src/pages/Index.tsx` | Added Content Hub CTA to dashboard |
+| `src/pages/DesignStudio.tsx` | URL param prompt auto-fill + content_idea_id tracking |
+| `supabase/config.toml` | Added brand-engine function config |
+| Database migration | Created 4 new tables with RLS |
