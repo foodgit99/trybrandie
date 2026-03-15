@@ -278,7 +278,11 @@ const ContentHub = () => {
   const handleGenerate = async (action: string) => {
     setGenerating(action);
     try {
-      await callEngine(action);
+      const extra: Record<string, any> = {};
+      if (action === "generate_weekly_ideas") {
+        extra.week_offset = weekOffset;
+      }
+      await callEngine(action, extra);
       queryClient.invalidateQueries({ queryKey: ["content-pillars", brandId] });
       queryClient.invalidateQueries({ queryKey: ["post-series", brandId] });
       queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });

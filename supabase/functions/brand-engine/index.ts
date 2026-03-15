@@ -255,6 +255,9 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const dayOfWeek = today.getDay(); // 0=Sun
       const monday = new Date(today);
       monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+      // Apply week_offset if provided
+      const offset = typeof week_offset === "number" ? week_offset : 0;
+      monday.setDate(monday.getDate() + offset * 7);
       const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
       const weekDates = days.map((d, i) => {
         const date = new Date(monday);
