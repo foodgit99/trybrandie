@@ -467,7 +467,14 @@ const DesignStudio = () => {
       setWasRefined(r.refined);
       setShowScores(false);
       setSaved(true);
-      if (r.design_id) setCurrentDesignId(r.design_id);
+      if (r.design_id) {
+        setCurrentDesignId(r.design_id);
+        // Mark content idea as created if navigated from Content Hub
+        const contentIdeaId = searchParams.get("content_idea_id");
+        if (contentIdeaId) {
+          supabase.from("content_ideas").update({ status: "created", design_id: r.design_id } as any).eq("id", contentIdeaId).then(() => {});
+        }
+      }
       setLoading(false);
       refetchProfile();
     } else if (generation.status === "error") {
