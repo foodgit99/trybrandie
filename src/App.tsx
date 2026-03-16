@@ -130,6 +130,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         <FloatingDesignStatus />
+        <FloatingCreateButton />
       </BrowserRouter>
       </DesignGenerationProvider>
     </TooltipProvider>
