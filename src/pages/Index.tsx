@@ -6,7 +6,8 @@ import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, Ar
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import confetti from "canvas-confetti";
 import { useToast } from "@/hooks/use-toast";
 import { useBrand } from "@/hooks/useBrand";
 import { Badge } from "@/components/ui/badge";
