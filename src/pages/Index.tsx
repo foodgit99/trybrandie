@@ -308,7 +308,7 @@ const Index = () => {
 
           {/* Quick Actions */}
           <section className="space-y-4">
-            <h3 className="text-lg font-medium text-foreground">Quick actions</h3>
+            
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {quickActions.map((action) => (
                 <button
