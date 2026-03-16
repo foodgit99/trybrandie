@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -38,7 +38,7 @@ const Index = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("referral_code, bonus_credits, full_name")
+        .select("referral_code, bonus_credits, full_name, generations_count, generations_reset_at, subscription_tier")
         .eq("user_id", user!.id)
         .single();
       if (error) throw error;
@@ -130,6 +130,56 @@ const Index = () => {
               </Button>
             </div>
           </section>
+
+          {/* Credit Summary */}
+          {profile && (() => {
+            const FREE_TIER_LIMIT = 10;
+            const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
+            const tier = profile.subscription_tier || "free";
+            const limit = tierLimits[tier] || FREE_TIER_LIMIT;
+            const resetAt = new Date(profile.generations_reset_at);
+            const now = new Date();
+            const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+            const used = isCurrentMonth ? profile.generations_count : 0;
+            const bonus = profile.bonus_credits ?? 0;
+            const remaining = limit + bonus - used;
+            const percentage = Math.max(0, Math.min(100, (remaining / (limit + bonus)) * 100));
+
+            return (
+              <motion.section
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Credits This Month</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-xs h-7 rounded-lg" onClick={() => navigate("/plans")}>
+                    Upgrade
+                  </Button>
+                </div>
+                <div className="flex items-end gap-3 mb-3">
+                  <span className="text-3xl font-serif font-semibold tracking-tight">{remaining}</span>
+                  <span className="text-sm text-muted-foreground mb-1">/ {limit + bonus} remaining</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+                {bonus > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    <Gift className="h-3 w-3" />
+                    Includes {bonus} bonus credits from referrals
+                  </p>
+                )}
+              </motion.section>
+            );
+          })()}
 
           {/* Today's Content */}
           <motion.section
