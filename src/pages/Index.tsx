@@ -261,6 +261,28 @@ const Index = () => {
             )}
           </motion.section>
 
+          {/* Quick Actions */}
+          <section className="space-y-4">
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {quickActions.map((action) => (
+                <button
+                  key={action.path}
+                  onClick={() => navigate(action.path)}
+                  className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-5 hover:bg-secondary/60 hover:border-primary/30 transition-all text-center"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                    <action.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{action.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{action.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
           {/* Weekly Streak */}
           <motion.section
             initial={{ opacity: 0, y: 8 }}
@@ -305,28 +327,6 @@ const Index = () => {
               </p>
             )}
           </motion.section>
-
-          {/* Quick Actions */}
-          <section className="space-y-4">
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {quickActions.map((action) => (
-                <button
-                  key={action.path}
-                  onClick={() => navigate(action.path)}
-                  className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-5 hover:bg-secondary/60 hover:border-primary/30 transition-all text-center"
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
-                    <action.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{action.label}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{action.description}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
 
           {/* Credit Summary */}
           {profile && (() => {
