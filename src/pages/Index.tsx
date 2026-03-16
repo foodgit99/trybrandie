@@ -115,16 +115,16 @@ const Index = () => {
             <p className="text-muted-foreground max-w-md mx-auto text-sm sm:text-base">
               Describe what you need and your AI creative director will bring it to life — always on brand.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
-              <Button size="lg" className="h-12 px-8 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/studio")}>
+            <div className="hidden sm:flex flex-row items-center justify-center gap-3 mt-4">
+              <Button size="lg" className="h-12 px-8 rounded-xl gap-2" onClick={() => navigate("/studio")}>
                 <Plus className="h-4 w-4" />
                 Create New Design
               </Button>
-              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/content")}>
+              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2" onClick={() => navigate("/content")}>
                 <Layers className="h-4 w-4" />
                 Content Hub
               </Button>
-              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2 w-full sm:w-auto" onClick={() => navigate("/brand")}>
+              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2" onClick={() => navigate("/brand")}>
                 <Palette className="h-4 w-4" />
                 Brand Centre
               </Button>
