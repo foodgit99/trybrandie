@@ -65,6 +65,57 @@ const Index = () => {
     enabled: !!brand,
   });
 
+  // Weekly activity: fetch designs from the last 7 days
+  const weekDates = useMemo(() => {
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      days.push(d);
+    }
+    return days;
+  }, []);
+
+  const weekStart = weekDates[0].toISOString();
+
+  const { data: weeklyDesigns } = useQuery({
+    queryKey: ["weekly-activity", user?.id, weekStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("designs")
+        .select("created_at")
+        .gte("created_at", weekStart)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const weeklyActivity = useMemo(() => {
+    const activeDays = new Set<string>();
+    weeklyDesigns?.forEach((d) => {
+      activeDays.add(new Date(d.created_at).toISOString().split("T")[0]);
+    });
+    return weekDates.map((date) => ({
+      date,
+      label: date.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2),
+      active: activeDays.has(date.toISOString().split("T")[0]),
+      isToday: date.toDateString() === new Date().toDateString(),
+    }));
+  }, [weekDates, weeklyDesigns]);
+
+  const streakCount = useMemo(() => {
+    let count = 0;
+    for (let i = weeklyActivity.length - 1; i >= 0; i--) {
+      if (weeklyActivity[i].active) count++;
+      else if (weeklyActivity[i].isToday) continue;
+      else break;
+    }
+    return count;
+  }, [weeklyActivity]);
+
   const referralLink = profile?.referral_code
     ? `https://trybrandie.com/auth?ref=${profile.referral_code}`
     : "";
