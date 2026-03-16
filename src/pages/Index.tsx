@@ -185,7 +185,7 @@ const Index = () => {
             </p>
             <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">What will you design today?</h2>
             <p className="text-muted-foreground max-w-md mx-auto text-sm sm:text-base">
-              Describe what you need and your AI creative director will bring it to life — always on brand.
+              Describe what you need and your AI creative director will bring it to life, always on brand.
             </p>
             <div className="hidden sm:flex flex-row items-center justify-center gap-3 mt-4">
               <Button size="lg" className="h-12 px-8 rounded-xl gap-2" onClick={() => navigate("/studio")}>
