@@ -2,11 +2,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap, Flame } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useBrand } from "@/hooks/useBrand";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,57 @@ const Index = () => {
     },
     enabled: !!brand,
   });
+
+  // Weekly activity: fetch designs from the last 7 days
+  const weekDates = useMemo(() => {
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      days.push(d);
+    }
+    return days;
+  }, []);
+
+  const weekStart = weekDates[0].toISOString();
+
+  const { data: weeklyDesigns } = useQuery({
+    queryKey: ["weekly-activity", user?.id, weekStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("designs")
+        .select("created_at")
+        .gte("created_at", weekStart)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const weeklyActivity = useMemo(() => {
+    const activeDays = new Set<string>();
+    weeklyDesigns?.forEach((d) => {
+      activeDays.add(new Date(d.created_at).toISOString().split("T")[0]);
+    });
+    return weekDates.map((date) => ({
+      date,
+      label: date.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2),
+      active: activeDays.has(date.toISOString().split("T")[0]),
+      isToday: date.toDateString() === new Date().toDateString(),
+    }));
+  }, [weekDates, weeklyDesigns]);
+
+  const streakCount = useMemo(() => {
+    let count = 0;
+    for (let i = weeklyActivity.length - 1; i >= 0; i--) {
+      if (weeklyActivity[i].active) count++;
+      else if (weeklyActivity[i].isToday) continue;
+      else break;
+    }
+    return count;
+  }, [weeklyActivity]);
 
   const referralLink = profile?.referral_code
     ? `https://trybrandie.com/auth?ref=${profile.referral_code}`
@@ -260,6 +311,51 @@ const Index = () => {
               </motion.section>
             );
           })()}
+
+          {/* Weekly Streak */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Weekly Activity</span>
+              </div>
+              {streakCount > 0 && (
+                <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                  {streakCount}-day streak 🔥
+                </span>
+              )}
+            </div>
+            <div className="flex items-end justify-between gap-1.5">
+              {weeklyActivity.map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                  <div
+                    className={`w-full aspect-square max-w-[40px] rounded-xl flex items-center justify-center text-xs font-medium transition-colors ${
+                      day.active
+                        ? "bg-primary text-primary-foreground"
+                        : day.isToday
+                        ? "border-2 border-primary/40 bg-primary/5 text-foreground"
+                        : "bg-secondary/60 text-muted-foreground"
+                    }`}
+                  >
+                    {day.active ? "✓" : day.date.getDate()}
+                  </div>
+                  <span className={`text-[10px] ${day.isToday ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                    {day.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {streakCount === 0 && (
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Create a design today to start your streak!
+              </p>
+            )}
+          </motion.section>
 
           {/* Referral Banner */}
           {profile?.referral_code && !bannerDismissed && (
