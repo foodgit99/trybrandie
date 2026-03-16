@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
+import FloatingCreateButton from "@/components/FloatingCreateButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -129,6 +130,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         <FloatingDesignStatus />
+        <FloatingCreateButton />
       </BrowserRouter>
       </DesignGenerationProvider>
     </TooltipProvider>
