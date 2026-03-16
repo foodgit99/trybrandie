@@ -2,17 +2,20 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useBrand } from "@/hooks/useBrand";
+import { Badge } from "@/components/ui/badge";
 
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { brand } = useBrand();
   const [copied, setCopied] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(() => sessionStorage.getItem("referral-banner-dismissed") === "true");
 
@@ -44,6 +47,24 @@ const Index = () => {
     enabled: !!user,
   });
 
+  const todayISO = new Date().toISOString().split("T")[0];
+
+  const { data: todaysContent } = useQuery({
+    queryKey: ["todays-content", brand?.id, todayISO],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("content_ideas")
+        .select("id, title, prompt, idea_type, status")
+        .eq("brand_id", brand!.id)
+        .eq("scheduled_for", todayISO)
+        .in("status", ["suggested", "scheduled"])
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!brand,
+  });
+
   const referralLink = profile?.referral_code
     ? `https://trybrandie.com/auth?ref=${profile.referral_code}`
     : "";
@@ -55,6 +76,19 @@ const Index = () => {
     toast({ title: "Link copied!", description: "Share it with friends to earn 5 bonus credits each." });
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const todayFormatted = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  const quickActions = [
+    { label: "New Design", icon: Plus, path: "/studio", description: "Start creating" },
+    { label: "Content Hub", icon: Layers, path: "/content", description: "Plan your posts" },
+    { label: "Brand Centre", icon: Palette, path: "/brand", description: "Manage identity" },
+    { label: "Design History", icon: Clock, path: "/history", description: "Past creations" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,6 +122,64 @@ const Index = () => {
               </Button>
             </div>
           </section>
+
+          {/* Today's Content */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                  <CalendarDays className="h-4.5 w-4.5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Today's Content</h3>
+                  <p className="text-xs text-muted-foreground">{todayFormatted}</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" className="text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => navigate("/content")}>
+                Content Hub
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </div>
+
+            {(!todaysContent || todaysContent.length === 0) ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
+                <Sparkles className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No content scheduled for today</p>
+                <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => navigate("/content")}>
+                  Plan content in Hub
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {todaysContent.map((idea) => (
+                  <div
+                    key={idea.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 group hover:bg-secondary/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Badge variant="secondary" className="shrink-0 text-[10px] uppercase tracking-wider font-medium">
+                        {idea.idea_type}
+                      </Badge>
+                      <span className="text-sm font-medium text-foreground truncate">{idea.title}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="shrink-0 rounded-lg gap-1.5 h-8 text-xs"
+                      onClick={() => navigate(`/studio?prompt=${encodeURIComponent(idea.prompt)}`)}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Create
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.section>
 
           {/* Referral Banner */}
           {profile?.referral_code && !bannerDismissed && (
@@ -184,6 +276,40 @@ const Index = () => {
                   </div>
                 ))
               )}
+            </div>
+            {designs && designs.length > 0 && (
+              <div className="flex justify-center pt-1">
+                <Button
+                  variant="outline"
+                  className="rounded-xl gap-2 text-sm"
+                  onClick={() => navigate("/history")}
+                >
+                  View All Designs
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {/* Quick Actions */}
+          <section className="space-y-4">
+            <h3 className="text-lg font-medium text-foreground">Quick actions</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {quickActions.map((action) => (
+                <button
+                  key={action.path}
+                  onClick={() => navigate(action.path)}
+                  className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-5 hover:bg-secondary/60 hover:border-primary/30 transition-all text-center"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                    <action.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{action.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{action.description}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           </section>
         </motion.div>
