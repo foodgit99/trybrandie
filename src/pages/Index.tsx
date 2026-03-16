@@ -261,6 +261,51 @@ const Index = () => {
             )}
           </motion.section>
 
+          {/* Weekly Streak */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Weekly Activity</span>
+              </div>
+              {streakCount > 0 && (
+                <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                  {streakCount}-day streak 🔥
+                </span>
+              )}
+            </div>
+            <div className="flex items-end justify-between gap-1.5">
+              {weeklyActivity.map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                  <div
+                    className={`w-full aspect-square max-w-[40px] rounded-xl flex items-center justify-center text-xs font-medium transition-colors ${
+                      day.active
+                        ? "bg-primary text-primary-foreground"
+                        : day.isToday
+                        ? "border-2 border-primary/40 bg-primary/5 text-foreground"
+                        : "bg-secondary/60 text-muted-foreground"
+                    }`}
+                  >
+                    {day.active ? "✓" : day.date.getDate()}
+                  </div>
+                  <span className={`text-[10px] ${day.isToday ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                    {day.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {streakCount === 0 && (
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Create a design today to start your streak!
+              </p>
+            )}
+          </motion.section>
+
           {/* Quick Actions */}
           <section className="space-y-4">
             <h3 className="text-lg font-medium text-foreground">Quick actions</h3>
@@ -332,51 +377,6 @@ const Index = () => {
               </motion.section>
             );
           })()}
-
-          {/* Weekly Streak */}
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="rounded-2xl border border-border bg-card p-5 sm:p-6"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Flame className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Weekly Activity</span>
-              </div>
-              {streakCount > 0 && (
-                <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
-                  {streakCount}-day streak 🔥
-                </span>
-              )}
-            </div>
-            <div className="flex items-end justify-between gap-1.5">
-              {weeklyActivity.map((day, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 flex-1">
-                  <div
-                    className={`w-full aspect-square max-w-[40px] rounded-xl flex items-center justify-center text-xs font-medium transition-colors ${
-                      day.active
-                        ? "bg-primary text-primary-foreground"
-                        : day.isToday
-                        ? "border-2 border-primary/40 bg-primary/5 text-foreground"
-                        : "bg-secondary/60 text-muted-foreground"
-                    }`}
-                  >
-                    {day.active ? "✓" : day.date.getDate()}
-                  </div>
-                  <span className={`text-[10px] ${day.isToday ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                    {day.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {streakCount === 0 && (
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Create a design today to start your streak!
-              </p>
-            )}
-          </motion.section>
 
           {/* Referral Banner */}
           {profile?.referral_code && !bannerDismissed && (
