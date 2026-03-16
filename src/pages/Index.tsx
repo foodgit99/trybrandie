@@ -117,6 +117,26 @@ const Index = () => {
     return count;
   }, [weeklyActivity]);
 
+  const streakCelebrated = useRef(false);
+  useEffect(() => {
+    if (streakCount >= 7 && !streakCelebrated.current) {
+      streakCelebrated.current = true;
+      const key = `streak-celebrated-${new Date().toISOString().split("T")[0]}`;
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "true");
+      toast({
+        title: "🎉 7-day streak!",
+        description: "You've been creating every day this week. Keep it up!",
+      });
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ["hsl(var(--primary))", "#FFD700", "#FF6B6B", "#4ECDC4"],
+      });
+    }
+  }, [streakCount, toast]);
+
   const referralLink = profile?.referral_code
     ? `https://trybrandie.com/auth?ref=${profile.referral_code}`
     : "";
