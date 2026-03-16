@@ -131,61 +131,11 @@ const Index = () => {
             </div>
           </section>
 
-          {/* Credit Summary */}
-          {profile && (() => {
-            const FREE_TIER_LIMIT = 10;
-            const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
-            const tier = profile.subscription_tier || "free";
-            const limit = tierLimits[tier] || FREE_TIER_LIMIT;
-            const resetAt = new Date(profile.generations_reset_at);
-            const now = new Date();
-            const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
-            const used = isCurrentMonth ? profile.generations_count : 0;
-            const bonus = profile.bonus_credits ?? 0;
-            const remaining = limit + bonus - used;
-            const percentage = Math.max(0, Math.min(100, (remaining / (limit + bonus)) * 100));
-
-            return (
-              <motion.section
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                className="rounded-2xl border border-border bg-card p-5 sm:p-6"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Credits This Month</span>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-xs h-7 rounded-lg" onClick={() => navigate("/plans")}>
-                    Upgrade
-                  </Button>
-                </div>
-                <div className="flex items-end gap-3 mb-3">
-                  <span className="text-3xl font-serif font-semibold tracking-tight">{remaining}</span>
-                  <span className="text-sm text-muted-foreground mb-1">/ {limit + bonus} remaining</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-                {bonus > 0 && (
-                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                    <Gift className="h-3 w-3" />
-                    Includes {bonus} bonus credits from referrals
-                  </p>
-                )}
-              </motion.section>
-            );
-          })()}
-
           {/* Today's Content */}
           <motion.section
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
             className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4"
           >
             <div className="flex items-center justify-between">
@@ -238,6 +188,78 @@ const Index = () => {
               </div>
             )}
           </motion.section>
+
+          {/* Quick Actions */}
+          <section className="space-y-4">
+            <h3 className="text-lg font-medium text-foreground">Quick actions</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {quickActions.map((action) => (
+                <button
+                  key={action.path}
+                  onClick={() => navigate(action.path)}
+                  className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-5 hover:bg-secondary/60 hover:border-primary/30 transition-all text-center"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                    <action.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{action.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{action.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Credit Summary */}
+          {profile && (() => {
+            const FREE_TIER_LIMIT = 10;
+            const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
+            const tier = profile.subscription_tier || "free";
+            const limit = tierLimits[tier] || FREE_TIER_LIMIT;
+            const resetAt = new Date(profile.generations_reset_at);
+            const now = new Date();
+            const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+            const used = isCurrentMonth ? profile.generations_count : 0;
+            const bonus = profile.bonus_credits ?? 0;
+            const remaining = limit + bonus - used;
+            const percentage = Math.max(0, Math.min(100, (remaining / (limit + bonus)) * 100));
+
+            return (
+              <motion.section
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+                className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Credits This Month</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-xs h-7 rounded-lg" onClick={() => navigate("/plans")}>
+                    Upgrade
+                  </Button>
+                </div>
+                <div className="flex items-end gap-3 mb-3">
+                  <span className="text-3xl font-serif font-semibold tracking-tight">{remaining}</span>
+                  <span className="text-sm text-muted-foreground mb-1">/ {limit + bonus} remaining</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+                {bonus > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    <Gift className="h-3 w-3" />
+                    Includes {bonus} bonus credits from referrals
+                  </p>
+                )}
+              </motion.section>
+            );
+          })()}
 
           {/* Referral Banner */}
           {profile?.referral_code && !bannerDismissed && (
@@ -347,28 +369,6 @@ const Index = () => {
                 </Button>
               </div>
             )}
-          </section>
-
-          {/* Quick Actions */}
-          <section className="space-y-4">
-            <h3 className="text-lg font-medium text-foreground">Quick actions</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {quickActions.map((action) => (
-                <button
-                  key={action.path}
-                  onClick={() => navigate(action.path)}
-                  className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-5 hover:bg-secondary/60 hover:border-primary/30 transition-all text-center"
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
-                    <action.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{action.label}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{action.description}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
           </section>
         </motion.div>
       </main>
