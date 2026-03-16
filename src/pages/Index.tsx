@@ -103,6 +103,14 @@ const Index = () => {
         >
           {/* Hero CTA */}
           <section className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {(() => {
+                const hour = new Date().getHours();
+                const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+                const firstName = profile?.full_name?.split(" ")[0];
+                return firstName ? `${greeting}, ${firstName} 👋` : `${greeting} 👋`;
+              })()}
+            </p>
             <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">What will you design today?</h2>
             <p className="text-muted-foreground max-w-md mx-auto text-sm sm:text-base">
               Describe what you need and your AI creative director will bring it to life — always on brand.
