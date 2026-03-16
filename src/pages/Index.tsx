@@ -38,7 +38,7 @@ const Index = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("referral_code, bonus_credits")
+        .select("referral_code, bonus_credits, full_name")
         .eq("user_id", user!.id)
         .single();
       if (error) throw error;
