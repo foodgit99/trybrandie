@@ -765,6 +765,16 @@ const ContentHub = () => {
                   {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                   Generate Ideas
                 </Button>
+                <CalendarExport
+                  weeklyIdeas={weeklyIdeas}
+                  brand={brand}
+                  pillars={pillars}
+                  series={series}
+                  campaigns={campaigns}
+                  weekLabel={weekLabel}
+                  selectedMonday={selectedMonday}
+                  selectedSunday={selectedSunday}
+                />
               </div>
             </div>
             <Card>
