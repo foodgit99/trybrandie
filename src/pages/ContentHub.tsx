@@ -44,6 +44,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import CalendarExport from "@/components/CalendarExport";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
