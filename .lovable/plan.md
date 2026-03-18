@@ -1,137 +1,43 @@
-## System Audit Fixes — Completed
 
-### Completed Changes
 
-#### Phase 1: Brief Agent Refactoring ✅
-- Converted Brief Agent from free-text output (`DESIGN BRIEF: ... EXPLANATION: ...`) to **structured tool calling**
-- Now outputs: `{ creative_direction, composition_goal, emotional_tone, design_focus, explanation }`
-- Removed brittle string splitting (`split("DESIGN BRIEF:")[1].split("EXPLANATION:")`)
-- Structured brief fields injected into Copywriter Agent for richer context
-- Fallback to content parsing if tool call fails (graceful degradation)
+## Multi-Format Calendar Export
 
-#### Phase 2: Parallel Brief + Genome Execution ✅
-- Brief Agent and Genome Composer now run in **parallel** via `Promise.all`
-- Saves ~1-2s latency per generation (genome is deterministic, no LLM dependency)
-- Error handling preserves rate limit (429) and credit exhaustion (402) responses
+### Overview
+Add an export dropdown to the weekly calendar section header in ContentHub, supporting three formats: PDF, CSV, and Image (PNG). Both PDF and Image exports will be branded with the user's colors and logo, and include a "Planned with Brandie" footer. Two view modes: **Strategy View** (compact day-by-type) and **Execution View** (full details with prompt, status, series/campaign tags).
 
-#### Phase 3: Extended Learning Layer ✅
-- Added `copy_structure` JSONB column to `designs` table
-- RAG Preference Engine now tracks:
-  - **Copy density patterns**: headline-only vs full copy from upvoted designs
-  - **Trend affinity**: which trends appear most in upvoted designs
-- Copy preference context injected into Brief Agent and Copywriter
+### Architecture
 
-#### Phase 4: Special Instructions — Full Pipeline Coverage ✅
-- Special Instructions injected into all agents:
-  - Brief Agent system prompt ✓
-  - Copywriter Agent ✓
-  - Caption Agent ✓
-  - Image Renderer prompt ✓
+**New file: `src/components/CalendarExport.tsx`**
+- A dropdown menu button (using existing `DropdownMenu` component) placed next to the "Generate Ideas" button in the weekly calendar header
+- Export options: PDF, CSV, Image (PNG)
+- Before exporting, opens a small dialog to choose between Strategy View and Execution View
 
-#### Phase 5: Edit Pattern Learning ✅
-- Added `edit_patterns` JSONB column to `chat_preference_cache` table
-- After each edit action, the system classifies the edit type using keyword matching:
-  - `less_text`, `more_text`, `bigger_text`, `smaller_text`, `layout_change`, `color_change`, `style_change`
-- Edit patterns stored in cache (last 50 edits retained)
-- RAG Preference Engine reads edit patterns and builds `editBiasContext` when a pattern appears 3+ times
-- Edit bias injected into Brief Agent prompt to pre-apply learned preferences
-- Example: If user frequently requests "less text", future designs will default to minimal, headline-focused copy
+**Export implementation (all client-side):**
 
-### Architecture (Current)
+1. **CSV Export** — Pure JS. Build a CSV string from `weeklyIdeas` data. Strategy view: `Day, Type, Title`. Execution view: `Day, Title, Prompt, Series, Campaign, Pillar, Status`. Trigger download via `Blob` + `URL.createObjectURL`.
 
-```text
-User Request
-  ↓
-[0] Action Router (chat / generate / edit)
-  ↓
-[1] Context Assembly (parallel)
-  - Brand Centre data
-  - Audience Intelligence (JTBD)
-  - Trend Lab context
-  - Product images
-  - Inspiration images
-  - RAG Preference Engine (genome + copy + trend patterns)
-  - Chat History RAG
-  - Edit Pattern Bias (learned from frequent edits)
-  ↓
-[2] Intent Classifier (edits: MINOR/MAJOR)
-  → Edit Pattern Tracker (stores edit type for future bias)
-  ↓
-[3] Credit Gate
-  ↓
-[4] PARALLEL: Brief Agent + Genome Composer
-  - Brief Agent → structured JSON (creative_direction, composition_goal, emotional_tone, design_focus)
-  - Genome Composer → deterministic Visual Style Genome (brand locks + trend overrides + mutation)
-  ↓
-[5] PARALLEL: Copywriter Agent + Caption Agent
-  - Both receive: brief context, genome density hints, brand data, audience, special instructions
-  ↓
-[6] Genome Scoring Engine
-  - Scores: brand_alignment, trend_balance, visual_clarity, conversion, visual_balance
-  - Stability Gate: if overall < 55, apply deterministic fixes + re-score
-  ↓
-[7] Image Renderer (Fast: gemini-2.5-flash-image / HD: gemini-3-pro-image-preview)
-  - Input: creative_direction + visual genome + structured copy + brand tokens + image refs
-  ↓
-[8] Auto-Save (design, genome, copy_structure, caption, scores)
-```
+2. **PDF Export** — Use `jspdf` library. Render a branded calendar layout:
+   - Header: brand logo (if available) + brand name + week range
+   - Body: table rows per day with ideas
+   - Footer: "Planned with Brandie" + brandie logo
+   - Use brand primary color for accents
 
-### What Was Skipped (and Why)
+3. **Image Export (PNG)** — Use a hidden HTML div rendered with brand styling, then capture with `html2canvas`. Same layout as PDF. Download as PNG.
 
-| Suggestion | Reason |
-|---|---|
-| Formal Orchestrator Controller | Current action routing is sufficient |
-| Visual Composition Agent | Image models don't follow pixel-level layout specs |
-| Reordering Genome before Brief | They're independent; parallel is better |
-| Feedback updating mutation weights in real-time | Already implemented via RAG preference bias |
-| Brand Strategist Agent | Brand Centre UI is the right approach — user control, not LLM hallucination |
+**Dependencies to add:** `jspdf`, `html2canvas`
+
+### Component Integration
+- `CalendarExport` receives: `weeklyIdeas`, `brand`, `pillars`, `series`, `campaigns`, `weekLabel`, `selectedMonday`, `selectedSunday`
+- Placed in the calendar section header alongside existing navigation and generate buttons
+
+### Branded Styling
+- Use `brand.primary_colors[0]` as accent color for headers/borders
+- Display `brand.logo_url` in header if available
+- Brand name from `brand.name`
+- Footer: "Planned with Brandie" with subtle styling
 
 ### Files Changed
+1. **`src/components/CalendarExport.tsx`** (new) — Export dropdown + view mode dialog + all three export functions
+2. **`src/pages/ContentHub.tsx`** — Import and render `CalendarExport` in the calendar section header
+3. **`package.json`** — Add `jspdf` and `html2canvas` dependencies
 
-| File | Change |
-|---|---|
-| `supabase/functions/design-studio/index.ts` | Brief Agent structured tool calls, parallel execution, extended RAG learning, edit pattern tracking + bias |
-| Database migration | Added `copy_structure` JSONB column to `designs` table |
-| Database migration | Added `edit_patterns` JSONB column to `chat_preference_cache` table |
-
-## Brand Engine — Implemented
-
-### What Was Built
-
-#### Database Tables
-- `content_pillars` — 5 AI-generated content themes per brand
-- `post_series` — Recurring content formats (e.g. "Tip Tuesday")
-- `campaigns` — Campaign ideas with multi-post breakdowns
-- `content_ideas` — Weekly post ideas with ready-to-use Studio prompts
-
-All tables have RLS policies scoped to brand ownership.
-
-#### Edge Function: `brand-engine`
-Actions: `generate_pillars`, `generate_series`, `generate_campaigns`, `generate_weekly_ideas`
-Uses `google/gemini-3-flash-preview` with structured tool calling.
-Inputs: brand data, audience JTBD profiles, past designs, trend preferences.
-
-#### Content Hub Page (`/content`)
-- Auto-generates full content strategy on first visit
-- Displays: Content Pillars, Weekly Calendar, Recurring Series, Campaigns
-- Each idea has a `→` button that navigates to Studio with pre-filled prompt
-- Regenerate buttons for each section individually or all at once
-
-#### Integrations
-- **Studio**: Reads `prompt` and `content_idea_id` from URL params; marks idea as "created" after design generation
-- **Dashboard**: Content Hub CTA button added alongside Create New Design
-- **Navigation**: "Content Hub" added to hamburger menu
-- **Auto-setup**: First visit triggers sequential generation (pillars → series → campaigns → weekly ideas)
-
-### Files Changed
-
-| File | Change |
-|---|---|
-| `supabase/functions/brand-engine/index.ts` | New edge function with 4 AI-powered actions |
-| `src/pages/ContentHub.tsx` | New Content Hub page |
-| `src/App.tsx` | Added `/content` route |
-| `src/components/AppHeader.tsx` | Added Content Hub nav item |
-| `src/pages/Index.tsx` | Added Content Hub CTA to dashboard |
-| `src/pages/DesignStudio.tsx` | URL param prompt auto-fill + content_idea_id tracking |
-| `supabase/config.toml` | Added brand-engine function config |
-| Database migration | Created 4 new tables with RLS |
