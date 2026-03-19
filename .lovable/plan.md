@@ -135,3 +135,26 @@ Inputs: brand data, audience JTBD profiles, past designs, trend preferences.
 | `src/pages/DesignStudio.tsx` | URL param prompt auto-fill + content_idea_id tracking |
 | `supabase/config.toml` | Added brand-engine function config |
 | Database migration | Created 4 new tables with RLS |
+
+## Brand Strategist Agent — Implemented
+
+### What Was Built
+- **"Plan" chat mode toggle** in the Design Studio input area (lightbulb icon pill)
+- Toggles between "Create" (design generation) and "Plan" (brand strategy chat)
+- In Plan mode: design controls (canvas size, quality, trends, image attach) are hidden
+- Separate `planMessages` state — switching modes preserves both conversations
+- Streaming SSE responses with token-by-token rendering and abort/stop support
+
+### Edge Function: `brand-strategist`
+- Fetches full brand context: brand profile, audiences (JTBD), content pillars, series, campaigns, inspiration/product counts, recent designs
+- System prompt: seasoned branding expert with knowledge of all major frameworks (Archetypes, StoryBrand, JTBD, Blue Ocean, Kapferer, Keller, etc.)
+- Friendly + supportive tone, references user's actual brand data naturally
+- Hard boundary: refuses any topic not related to branding for the user's brand
+- No credit consumption — advisory only
+
+### Files Changed
+| File | Change |
+|---|---|
+| `supabase/functions/brand-strategist/index.ts` | New streaming edge function |
+| `src/pages/DesignStudio.tsx` | Plan mode toggle, separate message state, conditional UI |
+| `supabase/config.toml` | Added brand-strategist function config |
