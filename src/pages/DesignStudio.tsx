@@ -90,6 +90,9 @@ const DesignStudio = () => {
   const [searchParams] = useSearchParams();
   const generation = useDesignGeneration();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [planMessages, setPlanMessages] = useState<Message[]>([]);
+  const [chatMode, setChatMode] = useState<"create" | "plan">("create");
+  const [planLoading, setPlanLoading] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -114,9 +117,11 @@ const DesignStudio = () => {
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
+  const planAbortRef = useRef<AbortController | null>(null);
   const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const planChatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const currentAspect = CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
