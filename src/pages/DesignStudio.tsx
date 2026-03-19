@@ -185,6 +185,24 @@ const DesignStudio = () => {
     enabled: !!brand,
   });
 
+  // Strategy conversations
+  const { data: strategyConversations = [], refetch: refetchConversations } = useQuery({
+    queryKey: ["strategy_conversations", brand?.id],
+    queryFn: async () => {
+      if (!brand) return [];
+      const { data, error } = await supabase
+        .from("strategy_conversations" as any)
+        .select("id, title, updated_at")
+        .eq("brand_id", brand.id)
+        .eq("user_id", user!.id)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as { id: string; title: string; updated_at: string }[];
+    },
+    enabled: !!brand && !!user,
+  });
+
   // Trend preferences for the current brand
   const { data: trendPrefs } = useQuery({
     queryKey: ["brand_trend_prefs_studio", brand?.id],
