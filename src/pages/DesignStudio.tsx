@@ -50,6 +50,7 @@ import {
   MoreHorizontal,
   BarChart3,
   Info,
+  Lightbulb,
 } from "lucide-react";
 import {
   Popover,
