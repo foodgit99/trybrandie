@@ -1,137 +1,61 @@
-## System Audit Fixes — Completed
 
-### Completed Changes
 
-#### Phase 1: Brief Agent Refactoring ✅
-- Converted Brief Agent from free-text output (`DESIGN BRIEF: ... EXPLANATION: ...`) to **structured tool calling**
-- Now outputs: `{ creative_direction, composition_goal, emotional_tone, design_focus, explanation }`
-- Removed brittle string splitting (`split("DESIGN BRIEF:")[1].split("EXPLANATION:")`)
-- Structured brief fields injected into Copywriter Agent for richer context
-- Fallback to content parsing if tool call fails (graceful degradation)
+## Brand Strategist Agent — "Plan" Chat Mode
 
-#### Phase 2: Parallel Brief + Genome Execution ✅
-- Brief Agent and Genome Composer now run in **parallel** via `Promise.all`
-- Saves ~1-2s latency per generation (genome is deterministic, no LLM dependency)
-- Error handling preserves rate limit (429) and credit exhaustion (402) responses
+### Overview
+Add a toggleable "Plan" mode to the Design Studio chat that switches from the design generation pipeline to a conversational Brand Strategist agent. This agent is a seasoned branding expert with full context of the user's brand and audience data. It helps users think through brand strategy, answer branding questions, and give recommendations — but strictly refuses to discuss anything outside branding as it relates to the user's brand.
 
-#### Phase 3: Extended Learning Layer ✅
-- Added `copy_structure` JSONB column to `designs` table
-- RAG Preference Engine now tracks:
-  - **Copy density patterns**: headline-only vs full copy from upvoted designs
-  - **Trend affinity**: which trends appear most in upvoted designs
-- Copy preference context injected into Brief Agent and Copywriter
-
-#### Phase 4: Special Instructions — Full Pipeline Coverage ✅
-- Special Instructions injected into all agents:
-  - Brief Agent system prompt ✓
-  - Copywriter Agent ✓
-  - Caption Agent ✓
-  - Image Renderer prompt ✓
-
-#### Phase 5: Edit Pattern Learning ✅
-- Added `edit_patterns` JSONB column to `chat_preference_cache` table
-- After each edit action, the system classifies the edit type using keyword matching:
-  - `less_text`, `more_text`, `bigger_text`, `smaller_text`, `layout_change`, `color_change`, `style_change`
-- Edit patterns stored in cache (last 50 edits retained)
-- RAG Preference Engine reads edit patterns and builds `editBiasContext` when a pattern appears 3+ times
-- Edit bias injected into Brief Agent prompt to pre-apply learned preferences
-- Example: If user frequently requests "less text", future designs will default to minimal, headline-focused copy
-
-### Architecture (Current)
+### Architecture
 
 ```text
-User Request
-  ↓
-[0] Action Router (chat / generate / edit)
-  ↓
-[1] Context Assembly (parallel)
-  - Brand Centre data
-  - Audience Intelligence (JTBD)
-  - Trend Lab context
-  - Product images
-  - Inspiration images
-  - RAG Preference Engine (genome + copy + trend patterns)
-  - Chat History RAG
-  - Edit Pattern Bias (learned from frequent edits)
-  ↓
-[2] Intent Classifier (edits: MINOR/MAJOR)
-  → Edit Pattern Tracker (stores edit type for future bias)
-  ↓
-[3] Credit Gate
-  ↓
-[4] PARALLEL: Brief Agent + Genome Composer
-  - Brief Agent → structured JSON (creative_direction, composition_goal, emotional_tone, design_focus)
-  - Genome Composer → deterministic Visual Style Genome (brand locks + trend overrides + mutation)
-  ↓
-[5] PARALLEL: Copywriter Agent + Caption Agent
-  - Both receive: brief context, genome density hints, brand data, audience, special instructions
-  ↓
-[6] Genome Scoring Engine
-  - Scores: brand_alignment, trend_balance, visual_clarity, conversion, visual_balance
-  - Stability Gate: if overall < 55, apply deterministic fixes + re-score
-  ↓
-[7] Image Renderer (Fast: gemini-2.5-flash-image / HD: gemini-3-pro-image-preview)
-  - Input: creative_direction + visual genome + structured copy + brand tokens + image refs
-  ↓
-[8] Auto-Save (design, genome, copy_structure, caption, scores)
+Studio Chat
+  ├── Mode: "Create" (default) → existing generate/edit pipeline
+  └── Mode: "Plan" (toggle) → Brand Strategist agent (chat-only, no image generation)
 ```
 
-### What Was Skipped (and Why)
+### Implementation
 
-| Suggestion | Reason |
-|---|---|
-| Formal Orchestrator Controller | Current action routing is sufficient |
-| Visual Composition Agent | Image models don't follow pixel-level layout specs |
-| Reordering Genome before Brief | They're independent; parallel is better |
-| Feedback updating mutation weights in real-time | Already implemented via RAG preference bias |
-| Brand Strategist Agent | Brand Centre UI is the right approach — user control, not LLM hallucination |
+#### 1. New Edge Function: `supabase/functions/brand-strategist/index.ts`
+- Dedicated function (not shoehorned into design-studio) for clean separation
+- Fetches full brand context: `brands`, `target_audiences`, `brand_trend_preferences`, `content_pillars`, `post_series`, `campaigns`, `special_instructions`, `brand_inspiration` count, `brand_products` count, recent design themes
+- System prompt encodes:
+  - Expert branding knowledge (positioning, messaging, differentiation, brand architecture, storytelling frameworks)
+  - Friendly + supportive tone (team member meets seasoned consultant)
+  - Hard boundary: refuses any topic not related to branding for the user's brand (e.g., coding, recipes, general knowledge)
+  - References user's actual brand data naturally in responses
+- Uses `google/gemini-3-flash-preview` (fast, capable)
+- Sends full conversation history for multi-turn context
 
-### Files Changed
+#### 2. UI Changes: `src/pages/DesignStudio.tsx`
+- Add `chatMode` state: `"create" | "plan"`
+- Add a toggle pill/button in the input area (next to the audience selector) labeled "Plan" with a lightbulb or brain icon
+- When `chatMode === "plan"`:
+  - Hide design-specific controls (canvas size, quality toggle, trend selector, image attachment)
+  - Change placeholder text to "Ask your brand strategist..."
+  - Change empty state messaging to strategist-specific welcome
+  - Send messages directly to `brand-strategist` function via `supabase.functions.invoke()` (no design generation context needed)
+  - Render responses as markdown chat bubbles (no image rendering, no genome scores)
+  - Separate message history from design messages (use `planMessages` state)
+- When toggling back to "create", design messages remain intact
 
-| File | Change |
-|---|---|
-| `supabase/functions/design-studio/index.ts` | Brief Agent structured tool calls, parallel execution, extended RAG learning, edit pattern tracking + bias |
-| Database migration | Added `copy_structure` JSONB column to `designs` table |
-| Database migration | Added `edit_patterns` JSONB column to `chat_preference_cache` table |
+#### 3. System Prompt Core Directives
+- "You are a Brand Strategist — a seasoned branding expert who has studied and applied frameworks used by the world's most successful brands (Brand Archetypes, StoryBrand, Jobs-to-be-Done, Blue Ocean, Brand Pyramid, etc.)"
+- "You have full context of the user's brand. Reference their specific colors, tone, audience, pillars, and strategy naturally."
+- "Your tone is friendly and supportive — like a trusted team member who also happens to be a world-class branding consultant."
+- "CRITICAL: You must ONLY discuss topics related to branding as it pertains to the user's brand. If asked about anything else (coding, recipes, general knowledge, other brands not in competitive context), politely decline and redirect to branding."
 
-## Brand Engine — Implemented
-
-### What Was Built
-
-#### Database Tables
-- `content_pillars` — 5 AI-generated content themes per brand
-- `post_series` — Recurring content formats (e.g. "Tip Tuesday")
-- `campaigns` — Campaign ideas with multi-post breakdowns
-- `content_ideas` — Weekly post ideas with ready-to-use Studio prompts
-
-All tables have RLS policies scoped to brand ownership.
-
-#### Edge Function: `brand-engine`
-Actions: `generate_pillars`, `generate_series`, `generate_campaigns`, `generate_weekly_ideas`
-Uses `google/gemini-3-flash-preview` with structured tool calling.
-Inputs: brand data, audience JTBD profiles, past designs, trend preferences.
-
-#### Content Hub Page (`/content`)
-- Auto-generates full content strategy on first visit
-- Displays: Content Pillars, Weekly Calendar, Recurring Series, Campaigns
-- Each idea has a `→` button that navigates to Studio with pre-filled prompt
-- Regenerate buttons for each section individually or all at once
-
-#### Integrations
-- **Studio**: Reads `prompt` and `content_idea_id` from URL params; marks idea as "created" after design generation
-- **Dashboard**: Content Hub CTA button added alongside Create New Design
-- **Navigation**: "Content Hub" added to hamburger menu
-- **Auto-setup**: First visit triggers sequential generation (pillars → series → campaigns → weekly ideas)
+#### 4. Config Updates
+- `supabase/config.toml`: Add `brand-strategist` function entry with `verify_jwt = false`
 
 ### Files Changed
-
 | File | Change |
 |---|---|
-| `supabase/functions/brand-engine/index.ts` | New edge function with 4 AI-powered actions |
-| `src/pages/ContentHub.tsx` | New Content Hub page |
-| `src/App.tsx` | Added `/content` route |
-| `src/components/AppHeader.tsx` | Added Content Hub nav item |
-| `src/pages/Index.tsx` | Added Content Hub CTA to dashboard |
-| `src/pages/DesignStudio.tsx` | URL param prompt auto-fill + content_idea_id tracking |
-| `supabase/config.toml` | Added brand-engine function config |
-| Database migration | Created 4 new tables with RLS |
+| `supabase/functions/brand-strategist/index.ts` | New edge function with full brand context assembly and strategist system prompt |
+| `src/pages/DesignStudio.tsx` | Add `chatMode` toggle, separate plan message state, conditional UI rendering, plan mode send logic |
+| `supabase/config.toml` | Add brand-strategist function config |
+
+### What This Does NOT Do
+- No database changes needed (chat is ephemeral, no persistence for plan conversations)
+- No credit consumption for Plan mode (it's advisory, not generative)
+- No changes to the existing design generation pipeline
+
