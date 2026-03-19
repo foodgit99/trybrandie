@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.brand-engine]
 verify_jwt = false
+
+[functions.brand-strategist]
+verify_jwt = false
