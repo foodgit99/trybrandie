@@ -1253,30 +1253,32 @@ const DesignStudio = () => {
         {/* Input — unified card */}
         <div className="px-3 sm:px-4 py-3 sm:py-4">
           <div className="rounded-2xl border border-border bg-card shadow-sm p-3 sm:p-4 space-y-3">
-            {/* Attached image preview */}
-            <AnimatePresence>
-              {attachedImage && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <div className="relative inline-block mb-1">
-                    <img
-                      src={attachedImage}
-                      alt="Attached"
-                      className="w-16 h-16 object-cover rounded-xl border border-border"
-                    />
-                    <button
-                      onClick={() => setAttachedImage(null)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Attached image preview — only in create mode */}
+            {chatMode === "create" && (
+              <AnimatePresence>
+                {attachedImage && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <div className="relative inline-block mb-1">
+                      <img
+                        src={attachedImage}
+                        alt="Attached"
+                        className="w-16 h-16 object-cover rounded-xl border border-border"
+                      />
+                      <button
+                        onClick={() => setAttachedImage(null)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
 
             {/* Text input */}
             <textarea
@@ -1285,122 +1287,141 @@ const DesignStudio = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={currentImage ? "Edit your design…" : "Describe your design"}
+              placeholder={chatMode === "plan" ? "Ask your brand strategist…" : currentImage ? "Edit your design…" : "Describe your design"}
               className="w-full bg-transparent text-sm sm:text-base placeholder:text-muted-foreground/50 focus:outline-none resize-none overflow-y-hidden break-words"
-              disabled={loading}
+              disabled={loading || planLoading}
               maxLength={2000}
             />
 
             {/* Bottom row */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
+                {/* Plan mode toggle */}
                 <button
-                  className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading || uploadingImage}
+                  onClick={() => setChatMode(chatMode === "plan" ? "create" : "plan")}
+                  className={`h-8 flex items-center gap-1.5 px-3 rounded-full text-xs font-medium border transition-all ${
+                    chatMode === "plan"
+                      ? "border-primary/30 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
                 >
-                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  Plan
                 </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="h-8 flex items-center gap-1 px-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-                      <Users className="h-4 w-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-[180px]">
-                    <DropdownMenuItem
-                      onClick={() => setSelectedAudienceId("none")}
-                      className={selectedAudienceId === "none" ? "bg-accent" : ""}
+
+                {chatMode === "create" && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                    <button
+                      className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={loading || uploadingImage}
                     >
-                      <span className="text-muted-foreground">No audience</span>
-                    </DropdownMenuItem>
-                    {audiences.map((a: any) => (
-                      <DropdownMenuItem
-                        key={a.id}
-                        onClick={() => setSelectedAudienceId(a.id)}
-                        className={selectedAudienceId === a.id ? "bg-accent" : ""}
-                      >
-                        {a.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                {(() => {
-                  const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
-                  return activeAudience ? (
-                    <span className="text-xs text-primary font-medium truncate max-w-[140px]">
-                      {activeAudience.label}
-                    </span>
-                  ) : null;
-                })()}
+                      {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="h-8 flex items-center gap-1 px-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+                          <Users className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-[180px]">
+                        <DropdownMenuItem
+                          onClick={() => setSelectedAudienceId("none")}
+                          className={selectedAudienceId === "none" ? "bg-accent" : ""}
+                        >
+                          <span className="text-muted-foreground">No audience</span>
+                        </DropdownMenuItem>
+                        {audiences.map((a: any) => (
+                          <DropdownMenuItem
+                            key={a.id}
+                            onClick={() => setSelectedAudienceId(a.id)}
+                            className={selectedAudienceId === a.id ? "bg-accent" : ""}
+                          >
+                            {a.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {(() => {
+                      const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
+                      return activeAudience ? (
+                        <span className="text-xs text-primary font-medium truncate max-w-[140px]">
+                          {activeAudience.label}
+                        </span>
+                      ) : null;
+                    })()}
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    {(() => {
-                      const activeTrend = getTrendById(selectedTrend);
-                      return (
-                        <button
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                            activeTrend
-                              ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                              : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
-                          }`}
-                        >
-                          <span>{activeTrend?.name || "Trend"}</span>
-                          <ChevronDown className="h-3 w-3 opacity-60" />
-                        </button>
-                      );
-                    })()}
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-[220px] space-y-1 p-2">
-                    <DropdownMenuItem
-                      onClick={() => setSelectedTrend("none")}
-                      className={selectedTrend === "none" ? "bg-accent" : ""}
-                    >
-                      <span className="text-muted-foreground">No trend</span>
-                    </DropdownMenuItem>
-                    {TREND_PRESETS.map((t) => (
+                {chatMode === "create" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      {(() => {
+                        const activeTrend = getTrendById(selectedTrend);
+                        return (
+                          <button
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                              activeTrend
+                                ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                                : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
+                            }`}
+                          >
+                            <span>{activeTrend?.name || "Trend"}</span>
+                            <ChevronDown className="h-3 w-3 opacity-60" />
+                          </button>
+                        );
+                      })()}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[220px] space-y-1 p-2">
                       <DropdownMenuItem
-                        key={t.id}
-                        onClick={() => setSelectedTrend(t.id)}
-                        className={selectedTrend === t.id ? "bg-accent" : ""}
+                        onClick={() => setSelectedTrend("none")}
+                        className={selectedTrend === "none" ? "bg-accent" : ""}
                       >
-                        <div>
-                          <p className="text-sm font-medium">{t.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{t.description}</p>
-                        </div>
+                        <span className="text-muted-foreground">No trend</span>
                       </DropdownMenuItem>
-                    ))}
-                    {selectedTrend !== "none" && (
-                      <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground">Intensity</span>
-                          <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
+                      {TREND_PRESETS.map((t) => (
+                        <DropdownMenuItem
+                          key={t.id}
+                          onClick={() => setSelectedTrend(t.id)}
+                          className={selectedTrend === t.id ? "bg-accent" : ""}
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{t.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{t.description}</p>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                      {selectedTrend !== "none" && (
+                        <div className="px-2 py-2 space-y-1.5 border-t border-border mt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground">Intensity</span>
+                            <span className="text-[10px] font-mono text-muted-foreground">{trendIntensity}%</span>
+                          </div>
+                          <Slider
+                            value={[trendIntensity]}
+                            onValueChange={([val]) => setTrendIntensity(val)}
+                            min={0}
+                            max={100}
+                            step={5}
+                            className="w-full"
+                          />
                         </div>
-                        <Slider
-                          value={[trendIntensity]}
-                          onValueChange={([val]) => setTrendIntensity(val)}
-                          min={0}
-                          max={100}
-                          step={5}
-                          className="w-full"
-                        />
-                      </div>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 <button
                   className="h-9 w-9 rounded-full border border-border flex items-center justify-center text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                  onClick={sendMessage}
-                  disabled={loading || !input.trim()}
+                  onClick={chatMode === "plan" ? sendPlanMessage : sendMessage}
+                  disabled={(chatMode === "plan" ? planLoading : loading) || !input.trim()}
                 >
                   <Send className="h-4 w-4" />
                 </button>
