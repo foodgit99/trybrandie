@@ -22,13 +22,16 @@ const Index = () => {
   const [bannerDismissed, setBannerDismissed] = useState(() => sessionStorage.getItem("referral-banner-dismissed") === "true");
 
   const { data: designs } = useQuery({
-    queryKey: ["recent-designs", user?.id],
+    queryKey: ["recent-designs", user?.id, showAllDesigns],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("designs")
         .select("*")
-        .order("created_at", { ascending: false })
-        .limit(6);
+        .order("created_at", { ascending: false });
+      if (!showAllDesigns) {
+        query = query.limit(6);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
