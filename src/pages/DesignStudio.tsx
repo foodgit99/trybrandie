@@ -261,8 +261,12 @@ const DesignStudio = () => {
   };
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (chatMode === "plan") {
+      planChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, planMessages, chatMode]);
 
   // Reset state when opening studio fresh (no design param)
   useEffect(() => {
