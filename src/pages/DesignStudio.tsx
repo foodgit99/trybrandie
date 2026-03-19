@@ -983,6 +983,59 @@ const DesignStudio = () => {
                       </button>
                     ))}
                   </div>
+
+                  {/* Past conversations */}
+                  {strategyConversations.length > 0 && (
+                    <div className="w-full max-w-[340px] mt-2">
+                      <button
+                        onClick={() => setShowConversationList(!showConversationList)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>{strategyConversations.length} past conversation{strategyConversations.length !== 1 ? "s" : ""}</span>
+                        <ChevronDown className={`h-3 w-3 transition-transform ${showConversationList ? "rotate-180" : ""}`} />
+                      </button>
+                      <AnimatePresence>
+                        {showConversationList && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden mt-2"
+                          >
+                            <div className="space-y-1 max-h-[200px] overflow-y-auto rounded-xl border border-border bg-card p-2">
+                              {strategyConversations.map((conv) => (
+                                <div
+                                  key={conv.id}
+                                  className="flex items-center gap-2 group"
+                                >
+                                  <button
+                                    onClick={() => loadConversation(conv.id)}
+                                    className="flex-1 text-left text-xs px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors truncate"
+                                  >
+                                    <span className="font-medium">{conv.title}</span>
+                                    <span className="text-muted-foreground ml-2">
+                                      {new Date(conv.updated_at).toLocaleDateString()}
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteConversation(conv.id);
+                                    }}
+                                    className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
                 </div>
               )}
               {planMessages.map((msg, i) => (
