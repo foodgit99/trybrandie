@@ -844,6 +844,8 @@ const DesignStudio = () => {
               </PopoverContent>
             </Popover>
           </div>
+            </>
+          )}
           {/* Audience selector removed from header — now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}
