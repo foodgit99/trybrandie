@@ -673,15 +673,77 @@ const DesignStudio = () => {
     }
   };
 
+  const loadConversation = async (convId: string) => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("strategy_messages" as any)
+      .select("role, content")
+      .eq("conversation_id", convId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    if (error) {
+      toast({ title: "Failed to load conversation", variant: "destructive" });
+      return;
+    }
+    const msgs = ((data || []) as unknown as { role: string; content: string }[]).map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+    setPlanMessages(msgs);
+    setCurrentConversationId(convId);
+    setShowConversationList(false);
+  };
+
+  const startNewConversation = () => {
+    setPlanMessages([]);
+    setCurrentConversationId(null);
+    setShowConversationList(false);
+  };
+
+  const deleteConversation = async (convId: string) => {
+    if (!user) return;
+    await supabase.from("strategy_conversations" as any).delete().eq("id", convId).eq("user_id", user.id);
+    if (currentConversationId === convId) {
+      startNewConversation();
+    }
+    refetchConversations();
+  };
+
   const sendPlanMessage = async () => {
     const trimmed = input.trim();
-    if (!trimmed || planLoading || !brand) return;
+    if (!trimmed || planLoading || !brand || !user) return;
 
     const userMsg: Message = { role: "user", content: trimmed };
     const newPlanMessages = [...planMessages, userMsg];
     setPlanMessages(newPlanMessages);
     setInput("");
     setPlanLoading(true);
+
+    // Create conversation if needed
+    let convId = currentConversationId;
+    if (!convId) {
+      const title = trimmed.slice(0, 80);
+      const { data: convData, error: convError } = await supabase
+        .from("strategy_conversations" as any)
+        .insert({ user_id: user.id, brand_id: brand.id, title } as any)
+        .select("id")
+        .single();
+      if (convError || !convData) {
+        toast({ title: "Failed to create conversation", variant: "destructive" });
+        setPlanLoading(false);
+        return;
+      }
+      convId = (convData as any).id;
+      setCurrentConversationId(convId);
+    }
+
+    // Save user message
+    await supabase.from("strategy_messages" as any).insert({
+      conversation_id: convId,
+      user_id: user.id,
+      role: "user",
+      content: trimmed,
+    } as any);
 
     const abortController = new AbortController();
     planAbortRef.current = abortController;
@@ -776,6 +838,20 @@ const DesignStudio = () => {
             if (content) upsertAssistant(content);
           } catch { /* ignore */ }
         }
+      }
+
+      // Save assistant message + update conversation timestamp
+      if (assistantSoFar && convId) {
+        await Promise.all([
+          supabase.from("strategy_messages" as any).insert({
+            conversation_id: convId,
+            user_id: user.id,
+            role: "assistant",
+            content: assistantSoFar,
+          } as any),
+          supabase.from("strategy_conversations" as any).update({ updated_at: new Date().toISOString() } as any).eq("id", convId),
+        ]);
+        refetchConversations();
       }
     } catch (e: any) {
       if (e.name !== "AbortError") {
