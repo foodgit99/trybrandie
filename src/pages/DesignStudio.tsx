@@ -857,6 +857,84 @@ const DesignStudio = () => {
       <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
+          {chatMode === "plan" ? (
+            <>
+              {planMessages.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Lightbulb className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-serif">Brand Strategist</h3>
+                  <p className="text-sm text-muted-foreground max-w-[300px]">
+                    I'm your seasoned branding expert. Ask me anything about your brand strategy, positioning, messaging, or growth.
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2 max-w-[340px]">
+                    {[
+                      "How strong is my brand positioning?",
+                      "What's my brand archetype?",
+                      "How can I differentiate more?",
+                      "Review my content strategy",
+                    ].map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => setInput(q)}
+                        className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {planMessages.map((msg, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div className="max-w-[85%]">
+                    <div
+                      className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-secondary-foreground"
+                      }`}
+                    >
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                          h3: ({ children }) => <h3 className="font-semibold mt-2 mb-1">{children}</h3>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+              {planLoading && planMessages[planMessages.length - 1]?.role !== "assistant" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                  <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Thinking…
+                    <button
+                      onClick={() => planAbortRef.current?.abort()}
+                      className="ml-2 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive px-2 py-0.5 text-xs font-medium transition-colors"
+                    >
+                      Stop
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={planChatEndRef} />
+            </>
+          ) : (
+            <>
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
@@ -1168,6 +1246,8 @@ const DesignStudio = () => {
             </div>
           )}
           <div ref={chatEndRef} />
+            </>
+          )}
         </div>
 
         {/* Input — unified card */}
