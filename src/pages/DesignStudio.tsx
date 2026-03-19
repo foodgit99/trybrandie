@@ -1038,6 +1038,17 @@ const DesignStudio = () => {
                   )}
                 </div>
               )}
+              {planMessages.length > 0 && (
+                <div className="flex justify-center pb-2">
+                  <button
+                    onClick={startNewConversation}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full border border-border hover:bg-muted/50"
+                  >
+                    <Plus className="h-3 w-3" />
+                    New conversation
+                  </button>
+                </div>
+              )}
               {planMessages.map((msg, i) => (
                 <motion.div
                   key={i}
