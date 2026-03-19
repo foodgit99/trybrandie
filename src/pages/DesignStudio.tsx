@@ -51,6 +51,9 @@ import {
   BarChart3,
   Info,
   Lightbulb,
+  MessageSquare,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import {
   Popover,
@@ -93,6 +96,8 @@ const DesignStudio = () => {
   const [planMessages, setPlanMessages] = useState<Message[]>([]);
   const [chatMode, setChatMode] = useState<"create" | "plan">("create");
   const [planLoading, setPlanLoading] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showConversationList, setShowConversationList] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -178,6 +183,24 @@ const DesignStudio = () => {
       return (data || []) as { id: string; title: string; prompt: string; status: string }[];
     },
     enabled: !!brand,
+  });
+
+  // Strategy conversations
+  const { data: strategyConversations = [], refetch: refetchConversations } = useQuery({
+    queryKey: ["strategy_conversations", brand?.id],
+    queryFn: async () => {
+      if (!brand) return [];
+      const { data, error } = await supabase
+        .from("strategy_conversations" as any)
+        .select("id, title, updated_at")
+        .eq("brand_id", brand.id)
+        .eq("user_id", user!.id)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as unknown as { id: string; title: string; updated_at: string }[];
+    },
+    enabled: !!brand && !!user,
   });
 
   // Trend preferences for the current brand
@@ -650,15 +673,77 @@ const DesignStudio = () => {
     }
   };
 
+  const loadConversation = async (convId: string) => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("strategy_messages" as any)
+      .select("role, content")
+      .eq("conversation_id", convId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    if (error) {
+      toast({ title: "Failed to load conversation", variant: "destructive" });
+      return;
+    }
+    const msgs = ((data || []) as unknown as { role: string; content: string }[]).map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+    setPlanMessages(msgs);
+    setCurrentConversationId(convId);
+    setShowConversationList(false);
+  };
+
+  const startNewConversation = () => {
+    setPlanMessages([]);
+    setCurrentConversationId(null);
+    setShowConversationList(false);
+  };
+
+  const deleteConversation = async (convId: string) => {
+    if (!user) return;
+    await supabase.from("strategy_conversations" as any).delete().eq("id", convId).eq("user_id", user.id);
+    if (currentConversationId === convId) {
+      startNewConversation();
+    }
+    refetchConversations();
+  };
+
   const sendPlanMessage = async () => {
     const trimmed = input.trim();
-    if (!trimmed || planLoading || !brand) return;
+    if (!trimmed || planLoading || !brand || !user) return;
 
     const userMsg: Message = { role: "user", content: trimmed };
     const newPlanMessages = [...planMessages, userMsg];
     setPlanMessages(newPlanMessages);
     setInput("");
     setPlanLoading(true);
+
+    // Create conversation if needed
+    let convId = currentConversationId;
+    if (!convId) {
+      const title = trimmed.slice(0, 80);
+      const { data: convData, error: convError } = await supabase
+        .from("strategy_conversations" as any)
+        .insert({ user_id: user.id, brand_id: brand.id, title } as any)
+        .select("id")
+        .single();
+      if (convError || !convData) {
+        toast({ title: "Failed to create conversation", variant: "destructive" });
+        setPlanLoading(false);
+        return;
+      }
+      convId = (convData as any).id;
+      setCurrentConversationId(convId);
+    }
+
+    // Save user message
+    await supabase.from("strategy_messages" as any).insert({
+      conversation_id: convId,
+      user_id: user.id,
+      role: "user",
+      content: trimmed,
+    } as any);
 
     const abortController = new AbortController();
     planAbortRef.current = abortController;
@@ -753,6 +838,20 @@ const DesignStudio = () => {
             if (content) upsertAssistant(content);
           } catch { /* ignore */ }
         }
+      }
+
+      // Save assistant message + update conversation timestamp
+      if (assistantSoFar && convId) {
+        await Promise.all([
+          supabase.from("strategy_messages" as any).insert({
+            conversation_id: convId,
+            user_id: user.id,
+            role: "assistant",
+            content: assistantSoFar,
+          } as any),
+          supabase.from("strategy_conversations" as any).update({ updated_at: new Date().toISOString() } as any).eq("id", convId),
+        ]);
+        refetchConversations();
       }
     } catch (e: any) {
       if (e.name !== "AbortError") {
@@ -884,6 +983,70 @@ const DesignStudio = () => {
                       </button>
                     ))}
                   </div>
+
+                  {/* Past conversations */}
+                  {strategyConversations.length > 0 && (
+                    <div className="w-full max-w-[340px] mt-2">
+                      <button
+                        onClick={() => setShowConversationList(!showConversationList)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>{strategyConversations.length} past conversation{strategyConversations.length !== 1 ? "s" : ""}</span>
+                        <ChevronDown className={`h-3 w-3 transition-transform ${showConversationList ? "rotate-180" : ""}`} />
+                      </button>
+                      <AnimatePresence>
+                        {showConversationList && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden mt-2"
+                          >
+                            <div className="space-y-1 max-h-[200px] overflow-y-auto rounded-xl border border-border bg-card p-2">
+                              {strategyConversations.map((conv) => (
+                                <div
+                                  key={conv.id}
+                                  className="flex items-center gap-2 group"
+                                >
+                                  <button
+                                    onClick={() => loadConversation(conv.id)}
+                                    className="flex-1 text-left text-xs px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors truncate"
+                                  >
+                                    <span className="font-medium">{conv.title}</span>
+                                    <span className="text-muted-foreground ml-2">
+                                      {new Date(conv.updated_at).toLocaleDateString()}
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteConversation(conv.id);
+                                    }}
+                                    className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </div>
+              )}
+              {planMessages.length > 0 && (
+                <div className="flex justify-center pb-2">
+                  <button
+                    onClick={startNewConversation}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full border border-border hover:bg-muted/50"
+                  >
+                    <Plus className="h-3 w-3" />
+                    New conversation
+                  </button>
                 </div>
               )}
               {planMessages.map((msg, i) => (
