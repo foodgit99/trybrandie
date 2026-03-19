@@ -198,7 +198,7 @@ const DesignStudio = () => {
         .order("updated_at", { ascending: false })
         .limit(20);
       if (error) throw error;
-      return (data || []) as { id: string; title: string; updated_at: string }[];
+      return (data || []) as unknown as { id: string; title: string; updated_at: string }[];
     },
     enabled: !!brand && !!user,
   });
