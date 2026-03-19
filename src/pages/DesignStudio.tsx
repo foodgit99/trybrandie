@@ -51,6 +51,9 @@ import {
   BarChart3,
   Info,
   Lightbulb,
+  MessageSquare,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import {
   Popover,
