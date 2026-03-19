@@ -96,6 +96,8 @@ const DesignStudio = () => {
   const [planMessages, setPlanMessages] = useState<Message[]>([]);
   const [chatMode, setChatMode] = useState<"create" | "plan">("create");
   const [planLoading, setPlanLoading] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showConversationList, setShowConversationList] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
