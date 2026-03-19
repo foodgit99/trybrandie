@@ -451,7 +451,20 @@ const Index = () => {
 
           {/* Recent Designs */}
           <section className="space-y-4">
-            <h3 className="text-lg font-medium text-foreground">Recent designs</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-foreground">Recent designs</h3>
+              {designs && designs.length >= 6 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs gap-1 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowAllDesigns(!showAllDesigns)}
+                >
+                  {showAllDesigns ? "Show less" : "Show all"}
+                  {showAllDesigns ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {(!designs || designs.length === 0) ? (
                 [1, 2, 3].map((i) => (
@@ -464,8 +477,12 @@ const Index = () => {
                 ))
               ) : (
                 designs.map((design) => (
-                  <div
+                  <motion.div
                     key={design.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
                     className="aspect-square rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
                     onClick={() => navigate(`/studio?design=${design.id}`)}
                   >
@@ -473,23 +490,12 @@ const Index = () => {
                       src={design.image_url}
                       alt={design.title || design.prompt}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
-                  </div>
+                  </motion.div>
                 ))
               )}
             </div>
-            {designs && designs.length > 0 && (
-              <div className="flex justify-center pt-1">
-                <Button
-                  variant="outline"
-                  className="rounded-xl gap-2 text-sm"
-                  onClick={() => navigate("/history")}
-                >
-                  View All Designs
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
           </section>
         </motion.div>
       </main>
