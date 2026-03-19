@@ -18,6 +18,7 @@ const Index = () => {
   const { toast } = useToast();
   const { brand } = useBrand();
   const [copied, setCopied] = useState(false);
+  const [showAllDesigns, setShowAllDesigns] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(() => sessionStorage.getItem("referral-banner-dismissed") === "true");
 
   const { data: designs } = useQuery({
