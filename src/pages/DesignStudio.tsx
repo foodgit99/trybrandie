@@ -791,6 +791,8 @@ const DesignStudio = () => {
             <span className="font-medium">{getCreditsRemaining()}</span>
             <span className="text-muted-foreground hidden sm:inline">left</span>
           </div>
+          {chatMode === "create" && (
+            <>
           <Select value={canvasSize} onValueChange={setCanvasSize}>
             <SelectTrigger className="w-[120px] sm:w-[180px] h-8 sm:h-9 rounded-xl text-xs sm:text-sm">
               <SelectValue />
