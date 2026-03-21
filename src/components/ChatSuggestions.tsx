@@ -115,7 +115,7 @@ const ChatSuggestions = ({
           onClick={() => onSelect(text)}
           className="px-3 py-1.5 text-[11px] rounded-full border border-border/60 text-muted-foreground/70 
             hover:text-foreground hover:border-border hover:bg-muted/40 
-            transition-all duration-200 cursor-pointer leading-tight"
+            transition-all duration-200 cursor-pointer leading-tight max-w-[200px] line-clamp-3 text-left"
         >
           {text}
         </motion.button>
