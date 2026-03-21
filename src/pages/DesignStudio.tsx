@@ -1465,9 +1465,9 @@ const DesignStudio = () => {
             />
 
             {/* Bottom row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                {/* Plan mode toggle */}
+            <div className="flex items-center justify-between gap-2">
+              {/* Left group */}
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => setChatMode(chatMode === "plan" ? "create" : "plan")}
                   className={`h-8 flex items-center gap-1.5 px-3 rounded-full text-xs font-medium border transition-all ${
@@ -1490,7 +1490,7 @@ const DesignStudio = () => {
                       onChange={handleImageUpload}
                     />
                     <button
-                      className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      className="h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={loading || uploadingImage}
                     >
@@ -1498,8 +1498,17 @@ const DesignStudio = () => {
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="h-8 flex items-center gap-1 px-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-                          <Users className="h-4 w-4" />
+                        <button
+                          className={`h-8 flex items-center gap-1 px-2 rounded-full text-xs font-medium border transition-all ${
+                            selectedAudienceId !== "none"
+                              ? "border-primary/30 bg-primary/5 text-primary"
+                              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          }`}
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline max-w-[80px] truncate">
+                            {audiences.find((a: any) => a.id === selectedAudienceId)?.label || "Audience"}
+                          </span>
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="min-w-[180px]">
@@ -1520,18 +1529,12 @@ const DesignStudio = () => {
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    {(() => {
-                      const activeAudience = audiences.find((a: any) => a.id === selectedAudienceId);
-                      return activeAudience ? (
-                        <span className="text-xs text-primary font-medium truncate max-w-[140px]">
-                          {activeAudience.label}
-                        </span>
-                      ) : null;
-                    })()}
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Right group */}
+              <div className="flex items-center gap-1.5">
                 {chatMode === "create" && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -1539,13 +1542,15 @@ const DesignStudio = () => {
                         const activeTrend = getTrendById(selectedTrend);
                         return (
                           <button
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            className={`h-8 flex items-center gap-1 px-2.5 rounded-full text-xs font-medium border transition-all ${
                               activeTrend
                                 ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
                                 : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50"
                             }`}
                           >
-                            <span>{activeTrend?.name || "Trend"}</span>
+                            <Palette className="h-3.5 w-3.5 sm:hidden" />
+                            <span className="hidden sm:inline">{activeTrend?.name || "Trend"}</span>
+                            <span className="sm:hidden">{activeTrend ? "" : ""}</span>
                             <ChevronDown className="h-3 w-3 opacity-60" />
                           </button>
                         );
@@ -1590,7 +1595,7 @@ const DesignStudio = () => {
                   </DropdownMenu>
                 )}
                 <button
-                  className="h-9 w-9 rounded-full border border-border flex items-center justify-center text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                  className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                   onClick={chatMode === "plan" ? sendPlanMessage : sendMessage}
                   disabled={(chatMode === "plan" ? planLoading : loading) || !input.trim()}
                 >
