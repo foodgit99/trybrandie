@@ -113,7 +113,7 @@ const ChatSuggestions = ({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2, delay: 0.05 * i }}
           onClick={() => onSelect(text)}
-          className="w-full px-3 py-2 text-[11px] rounded-xl border border-border/60 text-muted-foreground/70 
+          className="w-full px-3 py-2 text-[9.5px] rounded-xl border border-border/60 text-muted-foreground/70 
             hover:text-foreground hover:border-border hover:bg-muted/40 
             transition-all duration-200 cursor-pointer leading-tight line-clamp-3 text-left"
         >
