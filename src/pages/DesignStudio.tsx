@@ -1423,7 +1423,7 @@ const DesignStudio = () => {
 
         {/* Input — unified card */}
         <div className="px-3 sm:px-4 py-3 sm:py-4">
-          <div className="rounded-2xl border border-border bg-card shadow-sm p-3 sm:p-4 space-y-3">
+          <div className="rounded-2xl border border-border bg-card shadow-[0_0_15px_-3px_hsl(var(--primary)/0.15),0_0_30px_-5px_hsl(var(--primary)/0.08)] p-3 sm:p-4 space-y-3">
             {/* Attached image preview — only in create mode */}
             {chatMode === "create" && (
               <AnimatePresence>
