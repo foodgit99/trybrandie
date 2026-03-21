@@ -1606,6 +1606,7 @@ const DesignStudio = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
 
       {/* Fullscreen image preview overlay */}
