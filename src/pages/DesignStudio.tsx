@@ -883,9 +883,9 @@ const DesignStudio = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
+    <div className="h-screen flex flex-col bg-background relative">
+      {/* Top bar — fixed */}
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
