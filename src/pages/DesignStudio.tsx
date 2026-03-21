@@ -960,8 +960,8 @@ const DesignStudio = () => {
         </div>
       </header>
 
-      {/* Single-column chat layout */}
-      <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full">
+      {/* Single-column chat layout — scrollable between fixed header and input */}
+      <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
           {chatMode === "plan" ? (
