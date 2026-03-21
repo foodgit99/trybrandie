@@ -883,9 +883,9 @@ const DesignStudio = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
+    <div className="h-screen flex flex-col bg-background relative">
+      {/* Top bar — fixed */}
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
@@ -960,10 +960,10 @@ const DesignStudio = () => {
         </div>
       </header>
 
-      {/* Single-column chat layout */}
-      <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full">
+      {/* Single-column chat layout — scrollable between fixed header and input */}
+      <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 pb-[180px] space-y-4">
           {chatMode === "plan" ? (
             <>
               {planMessages.length === 0 && (
@@ -1421,8 +1421,9 @@ const DesignStudio = () => {
           )}
         </div>
 
-        {/* Input — unified card */}
-        <div className="px-3 sm:px-4 py-3 sm:py-4">
+        {/* Input — fixed at bottom */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm">
+          <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="rounded-2xl border border-border bg-card shadow-[0_0_15px_-3px_hsl(var(--primary)/0.15),0_0_30px_-5px_hsl(var(--primary)/0.08)] p-3 sm:p-4 space-y-3">
             {/* Attached image preview — only in create mode */}
             {chatMode === "create" && (
@@ -1604,6 +1605,7 @@ const DesignStudio = () => {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
