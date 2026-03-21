@@ -104,7 +104,7 @@ const ChatSuggestions = ({
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.1 }}
-      className="flex flex-wrap gap-1.5 justify-center"
+      className="flex flex-col gap-1.5 w-full"
     >
       {suggestions.map((text, i) => (
         <motion.button
@@ -113,9 +113,9 @@ const ChatSuggestions = ({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2, delay: 0.05 * i }}
           onClick={() => onSelect(text)}
-          className="px-3 py-1.5 text-[11px] rounded-full border border-border/60 text-muted-foreground/70 
+          className="w-full px-3 py-2 text-[11px] rounded-xl border border-border/60 text-muted-foreground/70 
             hover:text-foreground hover:border-border hover:bg-muted/40 
-            transition-all duration-200 cursor-pointer leading-tight max-w-[200px] line-clamp-3 text-left"
+            transition-all duration-200 cursor-pointer leading-tight line-clamp-3 text-left"
         >
           {text}
         </motion.button>
