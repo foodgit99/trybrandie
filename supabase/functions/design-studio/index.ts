@@ -736,50 +736,41 @@ TREND RULES:
       const userPrompt = messages[messages.length - 1]?.content || "";
 
       if (action === "edit" && previous_prompt) {
-        // Use a fast LLM call to classify intent
-        const classifyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            messages: [
-              {
-                role: "system",
-                content: `You are an intent classifier for a design tool. Classify the user's edit request as either MINOR or MAJOR.
+        // Deterministic rule-based intent classification (replaces non-deterministic LLM call)
+        const editPromptLowerClassify = userPrompt.toLowerCase();
 
-MINOR edits (free, no credit cost):
-- Changing headline text, CTA text, or subheadline text
-- Fixing a typo
-- Changing the wording of existing text
-- Making text shorter or longer
-- Changing tone of existing copy (e.g. "make it more casual")
+        // MINOR (free) patterns: text-only changes
+        const minorPatterns = [
+          /change\s+(the\s+)?(headline|title|heading|text|copy|cta|call.to.action|subhead|caption|wording|slogan)/i,
+          /rewrite|rephrase|reword|shorten|lengthen|make\s+(it\s+)?(shorter|longer|punchier|snappier|casual|formal|friendly|professional)/i,
+          /fix\s+(the\s+)?(typo|spelling|grammar|text)/i,
+          /update\s+(the\s+)?(text|copy|headline|cta|wording)/i,
+          /less\s+text|fewer\s+words|more\s+text|add\s+text|remove\s+text|reduce\s+copy/i,
+          /change\s+(the\s+)?tone/i,
+          /^(make|change|update|edit|fix)\s+(the\s+)?(headline|title|text|copy|cta|caption)\s/i,
+        ];
 
-MAJOR edits (costs 1 credit):
-- Changing the layout or composition
-- Changing colours or colour scheme
-- Changing the background image or visual style
-- Adding or removing visual elements
-- Changing the overall design direction
-- Requesting a completely different design
-- Adding images or changing imagery
-- Changing font/typography style
-- Resizing or repositioning elements
+        // MAJOR (costs credit) patterns: visual/layout changes
+        const majorPatterns = [
+          /layout|composition|reposition|rearrange|move\s+(the\s+)?/i,
+          /colou?r|palette|shade|hue|darker|lighter|brighter|background/i,
+          /style|aesthetic|vibe|look|feel|mood|theme|visual|design/i,
+          /font|typography|typeface/i,
+          /image|photo|picture|illustration|icon|graphic|logo\s/i,
+          /resize|bigger|smaller|larger|scale/i,
+          /completely\s+different|start\s+over|redesign|new\s+design/i,
+          /add\s+(a\s+)?(border|shadow|gradient|texture|element|shape|icon|image)/i,
+          /remove\s+(the\s+)?(border|shadow|gradient|texture|element|shape|icon|image)/i,
+        ];
 
-Respond with ONLY the word "MINOR" or "MAJOR". Nothing else.`,
-              },
-              { role: "user", content: `Previous design brief: "${previous_prompt}"\n\nUser's edit request: "${userPrompt}"` },
-            ],
-          }),
-        });
+        const matchesMinor = minorPatterns.some((p) => p.test(editPromptLowerClassify));
+        const matchesMajor = majorPatterns.some((p) => p.test(editPromptLowerClassify));
 
-        if (classifyResponse.ok) {
-          const classifyData = await classifyResponse.json();
-          const classification = (classifyData.choices?.[0]?.message?.content || "").trim().toUpperCase();
-          isFreeEdit = classification === "MINOR";
-          console.log(`Intent classification: ${classification} (isFreeEdit: ${isFreeEdit})`);
+        // If it matches minor patterns and NOT major patterns, it's free
+        // If ambiguous (matches both or neither), charge to be safe
+        isFreeEdit = matchesMinor && !matchesMajor;
+        const classification = isFreeEdit ? "MINOR" : "MAJOR";
+        console.log(`Intent classification (rule-based): ${classification} (isFreeEdit: ${isFreeEdit})`);
 
           // --- EDIT PATTERN TRACKING ---
           // Classify the edit type and store it for future bias

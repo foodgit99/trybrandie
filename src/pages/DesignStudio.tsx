@@ -390,7 +390,8 @@ const DesignStudio = () => {
       return true;
     }
     const limit = getTierLimit((data as any).subscription_tier);
-    const creditCost = renderQuality === "hd" ? 2 : 1;
+    const lockedQuality = renderQuality;
+    const creditCost = lockedQuality === "hd" ? 2 : 1;
     const bonus = (data as any).bonus_credits ?? 0;
     if (data.generations_count + creditCost > limit + bonus) {
       setShowLimitModal(true);
