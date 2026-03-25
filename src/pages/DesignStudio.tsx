@@ -968,7 +968,9 @@ const DesignStudio = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="hidden sm:block text-lg font-serif tracking-tight">Studio</h1>
+          <h1 className="hidden sm:block text-lg font-serif tracking-tight">
+            {isVideoMode ? "Video Studio" : "Studio"}
+          </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
