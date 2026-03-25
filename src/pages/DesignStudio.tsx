@@ -515,6 +515,68 @@ const DesignStudio = () => {
     });
   };
 
+  // Video generation handler
+  const handleVideoGenerate = async (intent: VideoIntent) => {
+    if (!user || !brand) return;
+    setVideoFlowComplete(true);
+    setVideoLoading(true);
+    setVideoStatus("processing");
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      setVideoStatus("scripting");
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-studio`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            intent,
+            brand_id: brand.id,
+            audience_id: selectedAudienceId !== "none" ? selectedAudienceId : undefined,
+            content_idea_id: searchParams.get("content_idea_id") || undefined,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: "Request failed" }));
+        if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Insufficient credits", description: "Video generation requires 3 credits. Upgrade your plan for more.", variant: "destructive" });
+          setShowLimitModal(true);
+        } else {
+          toast({ title: "Video generation failed", description: errData.error, variant: "destructive" });
+        }
+        setVideoLoading(false);
+        return;
+      }
+
+      const result = await res.json();
+      setVideoScenes(result.scenes || []);
+      setVideoVariations(result.variations || []);
+      setVideoCaption(result.caption || null);
+      setVideoHashtags(result.hashtags || []);
+      setVideoProjectId(result.project_id || null);
+      setSelectedVideoVariation("a");
+      refetchProfile();
+      toast({ title: "Video created!", description: `${result.credits_used} credits used` });
+    } catch (e: any) {
+      toast({ title: "Video generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setVideoLoading(false);
+      setVideoStatus("");
+    }
+  };
+
   // Sync generation results back to local state
   useEffect(() => {
     if (generation.status === "complete" && generation.result) {
