@@ -965,6 +965,122 @@ export type Database = {
         }
         Relationships: []
       }
+      video_projects: {
+        Row: {
+          brand_id: string
+          caption: string | null
+          content_idea_id: string | null
+          created_at: string
+          credits_used: number
+          hashtags: string[] | null
+          id: string
+          intent: Json
+          script: Json | null
+          selected_variation: number | null
+          status: string
+          storyboard: Json | null
+          timeline: Json | null
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          brand_id: string
+          caption?: string | null
+          content_idea_id?: string | null
+          created_at?: string
+          credits_used?: number
+          hashtags?: string[] | null
+          id?: string
+          intent?: Json
+          script?: Json | null
+          selected_variation?: number | null
+          status?: string
+          storyboard?: Json | null
+          timeline?: Json | null
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          brand_id?: string
+          caption?: string | null
+          content_idea_id?: string | null
+          created_at?: string
+          credits_used?: number
+          hashtags?: string[] | null
+          id?: string
+          intent?: Json
+          script?: Json | null
+          selected_variation?: number | null
+          status?: string
+          storyboard?: Json | null
+          timeline?: Json | null
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_projects_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_projects_content_idea_id_fkey"
+            columns: ["content_idea_id"]
+            isOneToOne: false
+            referencedRelation: "content_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_scenes: {
+        Row: {
+          created_at: string
+          description: string
+          duration_ms: number
+          id: string
+          image_url: string | null
+          scene_index: number
+          text_overlay: Json | null
+          transition: string
+          video_project_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          duration_ms?: number
+          id?: string
+          image_url?: string | null
+          scene_index?: number
+          text_overlay?: Json | null
+          transition?: string
+          video_project_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          duration_ms?: number
+          id?: string
+          image_url?: string | null
+          scene_index?: number
+          text_overlay?: Json | null
+          transition?: string
+          video_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_scenes_video_project_id_fkey"
+            columns: ["video_project_id"]
+            isOneToOne: false
+            referencedRelation: "video_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

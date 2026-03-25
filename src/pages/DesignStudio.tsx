@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import VideoGuidedFlow, { type VideoIntent } from "@/components/VideoGuidedFlow";
+import VideoPreview from "@/components/VideoPreview";
 import {
   Select,
   SelectContent,
@@ -122,6 +124,19 @@ const DesignStudio = () => {
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
+
+  // Video mode state
+  const isVideoMode = searchParams.get("mode") === "video";
+  const [videoFlowComplete, setVideoFlowComplete] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoStatus, setVideoStatus] = useState<string>("");
+  const [videoScenes, setVideoScenes] = useState<any[]>([]);
+  const [videoVariations, setVideoVariations] = useState<any[]>([]);
+  const [selectedVideoVariation, setSelectedVideoVariation] = useState<string>("a");
+  const [videoCaption, setVideoCaption] = useState<string | null>(null);
+  const [videoHashtags, setVideoHashtags] = useState<string[]>([]);
+  const [videoProjectId, setVideoProjectId] = useState<string | null>(null);
+
   const planAbortRef = useRef<AbortController | null>(null);
   const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -498,6 +513,68 @@ const DesignStudio = () => {
         attachedImageUrl: m.attachedImageUrl,
       })),
     });
+  };
+
+  // Video generation handler
+  const handleVideoGenerate = async (intent: VideoIntent) => {
+    if (!user || !brand) return;
+    setVideoFlowComplete(true);
+    setVideoLoading(true);
+    setVideoStatus("processing");
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      setVideoStatus("scripting");
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-studio`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            intent,
+            brand_id: brand.id,
+            audience_id: selectedAudienceId !== "none" ? selectedAudienceId : undefined,
+            content_idea_id: searchParams.get("content_idea_id") || undefined,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: "Request failed" }));
+        if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Insufficient credits", description: "Video generation requires 3 credits. Upgrade your plan for more.", variant: "destructive" });
+          setShowLimitModal(true);
+        } else {
+          toast({ title: "Video generation failed", description: errData.error, variant: "destructive" });
+        }
+        setVideoLoading(false);
+        return;
+      }
+
+      const result = await res.json();
+      setVideoScenes(result.scenes || []);
+      setVideoVariations(result.variations || []);
+      setVideoCaption(result.caption || null);
+      setVideoHashtags(result.hashtags || []);
+      setVideoProjectId(result.project_id || null);
+      setSelectedVideoVariation("a");
+      refetchProfile();
+      toast({ title: "Video created!", description: `${result.credits_used} credits used` });
+    } catch (e: any) {
+      toast({ title: "Video generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setVideoLoading(false);
+      setVideoStatus("");
+    }
   };
 
   // Sync generation results back to local state
@@ -891,7 +968,9 @@ const DesignStudio = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="hidden sm:block text-lg font-serif tracking-tight">Studio</h1>
+          <h1 className="hidden sm:block text-lg font-serif tracking-tight">
+            {isVideoMode ? "Video Studio" : "Studio"}
+          </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
@@ -961,7 +1040,30 @@ const DesignStudio = () => {
         </div>
       </header>
 
-      {/* Single-column chat layout — scrollable between fixed header and input */}
+      {/* Video Mode */}
+      {isVideoMode ? (
+        <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
+          {!videoFlowComplete ? (
+            <VideoGuidedFlow
+              onComplete={handleVideoGenerate}
+              onCancel={() => navigate("/content")}
+              initialPrompt={searchParams.get("prompt") || ""}
+            />
+          ) : (
+            <VideoPreview
+              scenes={videoScenes}
+              variations={videoVariations}
+              selectedVariation={selectedVideoVariation}
+              onSelectVariation={setSelectedVideoVariation}
+              caption={videoCaption}
+              hashtags={videoHashtags}
+              loading={videoLoading}
+              status={videoStatus}
+            />
+          )}
+        </div>
+      ) : (
+      /* Single-column chat layout — scrollable between fixed header and input */
       <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 pb-[180px] space-y-4">
@@ -1609,6 +1711,7 @@ const DesignStudio = () => {
         </div>
         </div>
       </div>
+      )}
 
       {/* Fullscreen image preview overlay */}
       <AnimatePresence>
