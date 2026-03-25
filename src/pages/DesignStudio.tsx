@@ -1040,7 +1040,30 @@ const DesignStudio = () => {
         </div>
       </header>
 
-      {/* Single-column chat layout — scrollable between fixed header and input */}
+      {/* Video Mode */}
+      {isVideoMode ? (
+        <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
+          {!videoFlowComplete ? (
+            <VideoGuidedFlow
+              onComplete={handleVideoGenerate}
+              onCancel={() => navigate("/content")}
+              initialPrompt={searchParams.get("prompt") || ""}
+            />
+          ) : (
+            <VideoPreview
+              scenes={videoScenes}
+              variations={videoVariations}
+              selectedVariation={selectedVideoVariation}
+              onSelectVariation={setSelectedVideoVariation}
+              caption={videoCaption}
+              hashtags={videoHashtags}
+              loading={videoLoading}
+              status={videoStatus}
+            />
+          )}
+        </div>
+      ) : (
+      /* Single-column chat layout — scrollable between fixed header and input */
       <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 pb-[180px] space-y-4">
