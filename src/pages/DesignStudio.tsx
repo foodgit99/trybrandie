@@ -1711,6 +1711,7 @@ const DesignStudio = () => {
         </div>
         </div>
       </div>
+      )}
 
       {/* Fullscreen image preview overlay */}
       <AnimatePresence>
