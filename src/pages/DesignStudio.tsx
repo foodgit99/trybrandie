@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import VideoGuidedFlow, { type VideoIntent } from "@/components/VideoGuidedFlow";
+import VideoPreview from "@/components/VideoPreview";
 import {
   Select,
   SelectContent,
@@ -122,6 +124,19 @@ const DesignStudio = () => {
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
+
+  // Video mode state
+  const isVideoMode = searchParams.get("mode") === "video";
+  const [videoFlowComplete, setVideoFlowComplete] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoStatus, setVideoStatus] = useState<string>("");
+  const [videoScenes, setVideoScenes] = useState<any[]>([]);
+  const [videoVariations, setVideoVariations] = useState<any[]>([]);
+  const [selectedVideoVariation, setSelectedVideoVariation] = useState<string>("a");
+  const [videoCaption, setVideoCaption] = useState<string | null>(null);
+  const [videoHashtags, setVideoHashtags] = useState<string[]>([]);
+  const [videoProjectId, setVideoProjectId] = useState<string | null>(null);
+
   const planAbortRef = useRef<AbortController | null>(null);
   const recommendationFetched = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
