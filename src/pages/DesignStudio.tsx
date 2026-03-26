@@ -706,7 +706,9 @@ const DesignStudio = () => {
         canvas.height = img.naturalHeight;
         const ctx = canvas.getContext("2d")!;
         ctx.drawImage(img, 0, 0);
-        addWatermark(ctx, canvas.width, canvas.height);
+        if (!profile || (profile as any)?.subscription_tier === "free") {
+          addWatermark(ctx, canvas.width, canvas.height);
+        }
         canvas.toBlob((pngBlob) => {
           if (!pngBlob) return;
           const url = URL.createObjectURL(pngBlob);
@@ -732,7 +734,9 @@ const DesignStudio = () => {
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        addWatermark(ctx, canvas.width, canvas.height);
+        if (!profile || (profile as any)?.subscription_tier === "free") {
+          addWatermark(ctx, canvas.width, canvas.height);
+        }
         canvas.toBlob((jpgBlob) => {
           if (!jpgBlob) return;
           const url = URL.createObjectURL(jpgBlob);
