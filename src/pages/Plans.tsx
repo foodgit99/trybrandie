@@ -105,6 +105,10 @@ const Plans = () => {
             currency: data.currency,
           });
           setCurrentTier(data.plan);
+          // Invalidate all profile caches so credit displays refresh
+          queryClient.invalidateQueries({ queryKey: ["profile-studio"] });
+          queryClient.invalidateQueries({ queryKey: ["profile"] });
+          queryClient.invalidateQueries({ queryKey: ["header-profile"] });
         }
         // Clean URL params
         setSearchParams({}, { replace: true });
