@@ -1,0 +1,1 @@
+UPDATE profiles SET generations_count = 2, generations_reset_at = now() WHERE user_id = '5aabab23-b6e0-4127-a6ca-b7a4edc82a71' AND subscription_tier = 'entrepreneur';
