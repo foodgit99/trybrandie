@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -79,6 +80,7 @@ const Plans = () => {
     amount: number;
     currency: string;
   } | null>(null);
+  const queryClient = useQueryClient();
   const [verifying, setVerifying] = useState(false);
 
   // Verify Paystack callback
@@ -103,6 +105,10 @@ const Plans = () => {
             currency: data.currency,
           });
           setCurrentTier(data.plan);
+          // Invalidate all profile caches so credit displays refresh
+          queryClient.invalidateQueries({ queryKey: ["profile-studio"] });
+          queryClient.invalidateQueries({ queryKey: ["profile"] });
+          queryClient.invalidateQueries({ queryKey: ["header-profile"] });
         }
         // Clean URL params
         setSearchParams({}, { replace: true });
