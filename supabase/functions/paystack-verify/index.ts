@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
 
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ subscription_tier: plan })
+        .update({ subscription_tier: plan, generations_count: 0, generations_reset_at: new Date().toISOString() })
         .eq("user_id", user_id);
 
       if (updateError) {
