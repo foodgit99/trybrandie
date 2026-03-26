@@ -80,6 +80,7 @@ const Plans = () => {
     amount: number;
     currency: string;
   } | null>(null);
+  const queryClient = useQueryClient();
   const [verifying, setVerifying] = useState(false);
 
   // Verify Paystack callback
