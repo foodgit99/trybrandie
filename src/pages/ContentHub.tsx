@@ -301,7 +301,6 @@ const ContentHub = () => {
 
   // Silent auto-regen of weekly ideas after strategy changes
   const silentRegenWeeklyIdeas = useCallback(async () => {
-    // Skip if nothing to generate from
     const hasPillarsData = pillars && pillars.length > 0;
     const hasSeriesData = series && series.length > 0;
     const hasCampaignsData = campaigns && campaigns.length > 0;
@@ -311,18 +310,24 @@ const ContentHub = () => {
     setRegenPending(true);
     toast({ title: "Updating your weekly plan..." });
     try {
+      // Check if free first; if not free, skip silently (don't charge without user consent)
+      const status = await callEngine("check_content_gen_status");
+      if (!status.is_free) {
+        console.log("Silent regen skipped — would cost credits");
+        setRegenPending(false);
+        return;
+      }
       await callEngine("generate_weekly_ideas");
       queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
       toast({ title: "Weekly plan updated" });
     } catch (e: any) {
-      // Silent fail — don't block the user
       console.error("Silent regen failed:", e);
     } finally {
       setRegenPending(false);
     }
   }, [brandId, pillars, series, campaigns, regenPending, generating]);
 
-  const handleGenerate = async (action: string) => {
+  const handleGenerateInner = async (action: string) => {
     setGenerating(action);
     try {
       const extra: Record<string, any> = {};
@@ -344,16 +349,21 @@ const ContentHub = () => {
     }
   };
 
-  const handleFullGenerate = async () => {
+  const handleGenerate = async (action: string) => {
+    await checkCreditsAndProceed(() => handleGenerateInner(action));
+  };
+
+  const handleFullGenerateInner = async () => {
     setGenerating("full");
     try {
+      // First call checks credits; subsequent calls skip credit check
       await callEngine("generate_pillars");
       queryClient.invalidateQueries({ queryKey: ["content-pillars", brandId] });
-      await callEngine("generate_series");
+      await callEngine("generate_series", { skip_credit_check: true });
       queryClient.invalidateQueries({ queryKey: ["post-series", brandId] });
-      await callEngine("generate_campaigns");
+      await callEngine("generate_campaigns", { skip_credit_check: true });
       queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
-      await callEngine("generate_weekly_ideas");
+      await callEngine("generate_weekly_ideas", { skip_credit_check: true });
       queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
       toast({ title: "Brand Engine ready!", description: "Your content strategy has been generated." });
     } catch (e: any) {
@@ -363,6 +373,10 @@ const ContentHub = () => {
     } finally {
       setGenerating(null);
     }
+  };
+
+  const handleFullGenerate = async () => {
+    await checkCreditsAndProceed(() => handleFullGenerateInner());
   };
 
   const handleIdeaAction = (idea: any) => {
