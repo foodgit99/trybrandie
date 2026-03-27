@@ -277,6 +277,13 @@ Special Instructions: ${brand.special_instructions || "N/A"}
     }
 
     if (action === "generate_campaigns") {
+      let creditProfile: any = null;
+      if (!skip_credit_check) {
+        const creditCheck = await enforceContentGenCredits();
+        if (creditCheck.blocked) return creditCheck.response;
+        creditProfile = creditCheck.profile;
+      }
+
       const result = await callAI(lovableKey, {
         system: `You are a brand campaign strategist. Generate 2-3 campaign ideas for this brand. Each campaign should have a catchy name, description, and a post count (3-7 posts per campaign). Be specific and seasonal/topical.`,
         user: `Generate campaign ideas:\n\n${fullContext}`,
@@ -318,6 +325,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("campaigns").insert(campaignsToInsert).select();
       if (insertErr) throw new Error(`Insert campaigns failed: ${insertErr.message}`);
+
+      if (creditProfile) await deductAndTrackGeneration(creditProfile);
 
       return jsonResponse({ campaigns: inserted });
     }
