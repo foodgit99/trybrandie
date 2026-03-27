@@ -433,6 +433,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
 
+      if (creditProfile) await deductAndTrackGeneration(creditProfile);
+
       return jsonResponse({ ideas: inserted });
     }
 
