@@ -260,12 +260,43 @@ const ContentHub = () => {
         throw new Error("Rate limited");
       }
       if (res.status === 402) {
-        toast({ title: "Credits exhausted", description: "Please top up your AI credits.", variant: "destructive" });
+        toast({ title: "Not enough credits", description: err.error || "You need more credits for this action.", variant: "destructive" });
         throw new Error("Credits exhausted");
       }
       throw new Error(err.error || "Failed");
     }
     return res.json();
+  };
+
+  // Check if generation is free or costs credits, show dialog if needed
+  const checkCreditsAndProceed = async (actionFn: () => Promise<void>) => {
+    try {
+      const status = await callEngine("check_content_gen_status");
+      if (status.is_free) {
+        await actionFn();
+      } else {
+        // Show confirmation dialog
+        setPendingAction(() => actionFn);
+        setCreditDialogOpen(true);
+      }
+    } catch (e: any) {
+      console.error("Credit check failed:", e);
+      // If check fails, proceed anyway (the backend will enforce)
+      await actionFn();
+    }
+  };
+
+  const handleCreditDialogProceed = async () => {
+    setCreditDialogOpen(false);
+    if (pendingAction) {
+      await pendingAction();
+      setPendingAction(null);
+    }
+  };
+
+  const handleCreditDialogCancel = () => {
+    setCreditDialogOpen(false);
+    setPendingAction(null);
   };
 
   // Silent auto-regen of weekly ideas after strategy changes
