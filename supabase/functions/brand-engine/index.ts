@@ -36,7 +36,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { action, brand_id, pillar_ids, series_ids, week_offset } = await req.json();
+    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check } = await req.json();
 
     if (!brand_id) {
       return new Response(JSON.stringify({ error: "brand_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -204,10 +204,20 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const { data: inserted, error: insertErr } = await serviceClient.from("content_pillars").insert(pillarsToInsert).select();
       if (insertErr) throw new Error(`Insert pillars failed: ${insertErr.message}`);
 
+      // Track generation
+      await deductAndTrackGeneration(creditCheck.profile);
+
       return jsonResponse({ pillars: inserted });
     }
 
     if (action === "generate_series") {
+      let creditProfile: any = null;
+      if (!skip_credit_check) {
+        const creditCheck = await enforceContentGenCredits();
+        if (creditCheck.blocked) return creditCheck.response;
+        creditProfile = creditCheck.profile;
+      }
+
       // Fetch pillars
       const { data: pillars } = await supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order");
       const pillarContext = (pillars || []).map((p: any) => `${p.icon_emoji} ${p.name}: ${p.description}`).join("\n");
@@ -260,6 +270,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("post_series").insert(seriesToInsert).select();
       if (insertErr) throw new Error(`Insert series failed: ${insertErr.message}`);
+
+      if (creditProfile) await deductAndTrackGeneration(creditProfile);
 
       return jsonResponse({ series: inserted });
     }
