@@ -332,6 +332,13 @@ Special Instructions: ${brand.special_instructions || "N/A"}
     }
 
     if (action === "generate_weekly_ideas") {
+      let creditProfile: any = null;
+      if (!skip_credit_check) {
+        const creditCheck = await enforceContentGenCredits();
+        if (creditCheck.blocked) return creditCheck.response;
+        creditProfile = creditCheck.profile;
+      }
+
       const [pillarsRes, seriesRes, campaignsRes] = await Promise.all([
         supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
