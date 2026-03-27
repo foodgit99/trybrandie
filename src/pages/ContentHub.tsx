@@ -26,6 +26,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -103,6 +113,10 @@ const ContentHub = () => {
   const [initialSetupDone, setInitialSetupDone] = useState(false);
   const [regenPending, setRegenPending] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // Credit confirmation dialog state
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
 
   // Pillar dialog
   const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
@@ -246,7 +260,7 @@ const ContentHub = () => {
         throw new Error("Rate limited");
       }
       if (res.status === 402) {
-        toast({ title: "Credits exhausted", description: "Please top up your AI credits.", variant: "destructive" });
+        toast({ title: "Not enough credits", description: err.error || "You need more credits for this action.", variant: "destructive" });
         throw new Error("Credits exhausted");
       }
       throw new Error(err.error || "Failed");
@@ -254,9 +268,39 @@ const ContentHub = () => {
     return res.json();
   };
 
+  // Check if generation is free or costs credits, show dialog if needed
+  const checkCreditsAndProceed = async (actionFn: () => Promise<void>) => {
+    try {
+      const status = await callEngine("check_content_gen_status");
+      if (status.is_free) {
+        await actionFn();
+      } else {
+        // Show confirmation dialog
+        setPendingAction(() => actionFn);
+        setCreditDialogOpen(true);
+      }
+    } catch (e: any) {
+      console.error("Credit check failed:", e);
+      // If check fails, proceed anyway (the backend will enforce)
+      await actionFn();
+    }
+  };
+
+  const handleCreditDialogProceed = async () => {
+    setCreditDialogOpen(false);
+    if (pendingAction) {
+      await pendingAction();
+      setPendingAction(null);
+    }
+  };
+
+  const handleCreditDialogCancel = () => {
+    setCreditDialogOpen(false);
+    setPendingAction(null);
+  };
+
   // Silent auto-regen of weekly ideas after strategy changes
   const silentRegenWeeklyIdeas = useCallback(async () => {
-    // Skip if nothing to generate from
     const hasPillarsData = pillars && pillars.length > 0;
     const hasSeriesData = series && series.length > 0;
     const hasCampaignsData = campaigns && campaigns.length > 0;
@@ -266,18 +310,24 @@ const ContentHub = () => {
     setRegenPending(true);
     toast({ title: "Updating your weekly plan..." });
     try {
+      // Check if free first; if not free, skip silently (don't charge without user consent)
+      const status = await callEngine("check_content_gen_status");
+      if (!status.is_free) {
+        console.log("Silent regen skipped — would cost credits");
+        setRegenPending(false);
+        return;
+      }
       await callEngine("generate_weekly_ideas");
       queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
       toast({ title: "Weekly plan updated" });
     } catch (e: any) {
-      // Silent fail — don't block the user
       console.error("Silent regen failed:", e);
     } finally {
       setRegenPending(false);
     }
   }, [brandId, pillars, series, campaigns, regenPending, generating]);
 
-  const handleGenerate = async (action: string) => {
+  const handleGenerateInner = async (action: string) => {
     setGenerating(action);
     try {
       const extra: Record<string, any> = {};
@@ -299,16 +349,21 @@ const ContentHub = () => {
     }
   };
 
-  const handleFullGenerate = async () => {
+  const handleGenerate = async (action: string) => {
+    await checkCreditsAndProceed(() => handleGenerateInner(action));
+  };
+
+  const handleFullGenerateInner = async () => {
     setGenerating("full");
     try {
+      // First call checks credits; subsequent calls skip credit check
       await callEngine("generate_pillars");
       queryClient.invalidateQueries({ queryKey: ["content-pillars", brandId] });
-      await callEngine("generate_series");
+      await callEngine("generate_series", { skip_credit_check: true });
       queryClient.invalidateQueries({ queryKey: ["post-series", brandId] });
-      await callEngine("generate_campaigns");
+      await callEngine("generate_campaigns", { skip_credit_check: true });
       queryClient.invalidateQueries({ queryKey: ["campaigns", brandId] });
-      await callEngine("generate_weekly_ideas");
+      await callEngine("generate_weekly_ideas", { skip_credit_check: true });
       queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
       toast({ title: "Brand Engine ready!", description: "Your content strategy has been generated." });
     } catch (e: any) {
@@ -318,6 +373,10 @@ const ContentHub = () => {
     } finally {
       setGenerating(null);
     }
+  };
+
+  const handleFullGenerate = async () => {
+    await checkCreditsAndProceed(() => handleFullGenerateInner());
   };
 
   const handleIdeaAction = (idea: any) => {
@@ -1292,6 +1351,22 @@ const ContentHub = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Credit confirmation dialog */}
+      <AlertDialog open={creditDialogOpen} onOpenChange={setCreditDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Use 2 credits?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've used your free AI generation for this week. This generation will cost 2 credits. Would you like to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCreditDialogCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreditDialogProceed}>Proceed</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -36,7 +36,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { action, brand_id, pillar_ids, series_ids, week_offset } = await req.json();
+    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check } = await req.json();
 
     if (!brand_id) {
       return new Response(JSON.stringify({ error: "brand_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -83,9 +83,83 @@ Special Instructions: ${brand.special_instructions || "N/A"}
 
     const fullContext = `${brandContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
 
+    // --- WEEKLY GENERATION TRACKING HELPERS ---
+    const getISOWeekStart = () => {
+      const now = new Date();
+      const day = now.getDay(); // 0=Sun
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((day + 6) % 7));
+      monday.setHours(0, 0, 0, 0);
+      return monday;
+    };
+
+    const checkContentGenStatus = async () => {
+      const { data: profile } = await serviceClient
+        .from("profiles")
+        .select("content_hub_gen_count, content_hub_gen_reset_at, generations_count, bonus_credits, subscription_tier")
+        .eq("user_id", userId)
+        .single();
+      if (!profile) throw new Error("Profile not found");
+
+      const weekStart = getISOWeekStart();
+      const resetAt = new Date(profile.content_hub_gen_reset_at);
+      const genCount = resetAt < weekStart ? 0 : (profile.content_hub_gen_count || 0);
+      const isFree = genCount === 0;
+
+      // Calculate available credits
+      const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
+      const limit = tierLimits[profile.subscription_tier] || 10;
+      const availableCredits = Math.max(0, limit - profile.generations_count) + (profile.bonus_credits || 0);
+
+      return { is_free: isFree, credits_required: isFree ? 0 : 2, available_credits: availableCredits, profile };
+    };
+
+    const deductAndTrackGeneration = async (profile: any) => {
+      const weekStart = getISOWeekStart();
+      const resetAt = new Date(profile.content_hub_gen_reset_at);
+      const currentCount = resetAt < weekStart ? 0 : (profile.content_hub_gen_count || 0);
+
+      const updates: any = {
+        content_hub_gen_count: currentCount + 1,
+        content_hub_gen_reset_at: new Date().toISOString(),
+      };
+
+      // If not free (count >= 1), deduct 2 credits
+      if (currentCount >= 1) {
+        // Deduct from bonus first, then from generations_count
+        const bonusCredits = profile.bonus_credits || 0;
+        if (bonusCredits >= 2) {
+          updates.bonus_credits = bonusCredits - 2;
+        } else if (bonusCredits > 0) {
+          updates.bonus_credits = 0;
+          updates.generations_count = (profile.generations_count || 0) + (2 - bonusCredits);
+        } else {
+          updates.generations_count = (profile.generations_count || 0) + 2;
+        }
+      }
+
+      await serviceClient.from("profiles").update(updates).eq("user_id", userId);
+    };
+
+    const enforceContentGenCredits = async () => {
+      const status = await checkContentGenStatus();
+      if (!status.is_free && status.available_credits < 2) {
+        return { blocked: true, response: new Response(JSON.stringify({ error: "Not enough credits. You need 2 credits for this generation." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }) };
+      }
+      return { blocked: false, profile: status.profile };
+    };
+
     // --- ACTION HANDLERS ---
 
+    if (action === "check_content_gen_status") {
+      const status = await checkContentGenStatus();
+      return jsonResponse({ is_free: status.is_free, credits_required: status.credits_required, available_credits: status.available_credits });
+    }
+
     if (action === "generate_pillars") {
+      const creditCheck = await enforceContentGenCredits();
+      if (creditCheck.blocked) return creditCheck.response;
+
       const result = await callAI(lovableKey, {
         system: `You are a brand content strategist. Given a brand's identity, audience, and past content, generate exactly 5 content pillars — recurring content themes that will build the brand's presence on social media. Each pillar should have a name, description, and emoji icon. Be specific to this brand, not generic.`,
         user: `Generate 5 content pillars for this brand:\n\n${fullContext}`,
@@ -130,10 +204,20 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const { data: inserted, error: insertErr } = await serviceClient.from("content_pillars").insert(pillarsToInsert).select();
       if (insertErr) throw new Error(`Insert pillars failed: ${insertErr.message}`);
 
+      // Track generation
+      await deductAndTrackGeneration(creditCheck.profile);
+
       return jsonResponse({ pillars: inserted });
     }
 
     if (action === "generate_series") {
+      let creditProfile: any = null;
+      if (!skip_credit_check) {
+        const creditCheck = await enforceContentGenCredits();
+        if (creditCheck.blocked) return creditCheck.response;
+        creditProfile = creditCheck.profile;
+      }
+
       // Fetch pillars
       const { data: pillars } = await supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order");
       const pillarContext = (pillars || []).map((p: any) => `${p.icon_emoji} ${p.name}: ${p.description}`).join("\n");
@@ -187,10 +271,19 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const { data: inserted, error: insertErr } = await serviceClient.from("post_series").insert(seriesToInsert).select();
       if (insertErr) throw new Error(`Insert series failed: ${insertErr.message}`);
 
+      if (creditProfile) await deductAndTrackGeneration(creditProfile);
+
       return jsonResponse({ series: inserted });
     }
 
     if (action === "generate_campaigns") {
+      let creditProfile: any = null;
+      if (!skip_credit_check) {
+        const creditCheck = await enforceContentGenCredits();
+        if (creditCheck.blocked) return creditCheck.response;
+        creditProfile = creditCheck.profile;
+      }
+
       const result = await callAI(lovableKey, {
         system: `You are a brand campaign strategist. Generate 2-3 campaign ideas for this brand. Each campaign should have a catchy name, description, and a post count (3-7 posts per campaign). Be specific and seasonal/topical.`,
         user: `Generate campaign ideas:\n\n${fullContext}`,
@@ -233,10 +326,19 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const { data: inserted, error: insertErr } = await serviceClient.from("campaigns").insert(campaignsToInsert).select();
       if (insertErr) throw new Error(`Insert campaigns failed: ${insertErr.message}`);
 
+      if (creditProfile) await deductAndTrackGeneration(creditProfile);
+
       return jsonResponse({ campaigns: inserted });
     }
 
     if (action === "generate_weekly_ideas") {
+      let creditProfile: any = null;
+      if (!skip_credit_check) {
+        const creditCheck = await enforceContentGenCredits();
+        if (creditCheck.blocked) return creditCheck.response;
+        creditProfile = creditCheck.profile;
+      }
+
       const [pillarsRes, seriesRes, campaignsRes] = await Promise.all([
         supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
@@ -330,6 +432,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
 
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
+
+      if (creditProfile) await deductAndTrackGeneration(creditProfile);
 
       return jsonResponse({ ideas: inserted });
     }

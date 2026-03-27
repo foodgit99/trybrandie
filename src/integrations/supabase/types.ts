@@ -761,6 +761,8 @@ export type Database = {
           bonus_credits: number
           bonus_earned_count: number
           bonus_earned_reset_at: string
+          content_hub_gen_count: number
+          content_hub_gen_reset_at: string
           created_at: string
           full_name: string | null
           generations_count: number
@@ -779,6 +781,8 @@ export type Database = {
           bonus_credits?: number
           bonus_earned_count?: number
           bonus_earned_reset_at?: string
+          content_hub_gen_count?: number
+          content_hub_gen_reset_at?: string
           created_at?: string
           full_name?: string | null
           generations_count?: number
@@ -797,6 +801,8 @@ export type Database = {
           bonus_credits?: number
           bonus_earned_count?: number
           bonus_earned_reset_at?: string
+          content_hub_gen_count?: number
+          content_hub_gen_reset_at?: string
           created_at?: string
           full_name?: string | null
           generations_count?: number
