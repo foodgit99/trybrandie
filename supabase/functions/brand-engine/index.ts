@@ -157,6 +157,9 @@ Special Instructions: ${brand.special_instructions || "N/A"}
     }
 
     if (action === "generate_pillars") {
+      const creditCheck = await enforceContentGenCredits();
+      if (creditCheck.blocked) return creditCheck.response;
+
       const result = await callAI(lovableKey, {
         system: `You are a brand content strategist. Given a brand's identity, audience, and past content, generate exactly 5 content pillars — recurring content themes that will build the brand's presence on social media. Each pillar should have a name, description, and emoji icon. Be specific to this brand, not generic.`,
         user: `Generate 5 content pillars for this brand:\n\n${fullContext}`,
