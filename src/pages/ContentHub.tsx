@@ -114,6 +114,10 @@ const ContentHub = () => {
   const [regenPending, setRegenPending] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // Credit confirmation dialog state
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+
   // Pillar dialog
   const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
   const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
