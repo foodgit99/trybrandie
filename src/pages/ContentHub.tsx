@@ -1351,6 +1351,22 @@ const ContentHub = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Credit confirmation dialog */}
+      <AlertDialog open={creditDialogOpen} onOpenChange={setCreditDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Use 2 credits?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've used your free AI generation for this week. This generation will cost 2 credits. Would you like to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCreditDialogCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreditDialogProceed}>Proceed</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
