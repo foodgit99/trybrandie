@@ -1,58 +1,69 @@
 
 
-## Content Hub — Free Generation Limit + Credit Confirmation Dialog
+## Fix: Content Hub Credit Check Bugs
 
-### Overview
+### Root Causes Identified
 
-Users get 1 free AI generation per week in the Content Hub. After using it, subsequent generations (including for other weeks) cost 2 credits, with a confirmation dialog before proceeding.
+**Bug 1 — Missing monthly reset in available credits calculation**
 
-### What needs to happen
+In `brand-engine/index.ts`, the `checkContentGenStatus` function (line 112) calculates available credits as:
+```
+availableCredits = max(0, limit - profile.generations_count) + bonus_credits
+```
+But it does NOT check whether `generations_reset_at` is from a previous month. The design-studio function correctly resets `generations_count` when a new month arrives, but brand-engine reads the stale value. So a user who used all 10 free-tier credits last month would show 0 tier credits remaining, even though the month has reset — making them appear to only have their bonus credits.
 
-#### 1. Database: Track weekly Content Hub generations
+**Bug 2 — AI gateway 402 confused with user credit 402**
 
-Add a `content_hub_generations` column to the `profiles` table plus a `content_hub_gen_reset_at` timestamp to track the weekly allowance.
+In the `callAI` helper (line 473), when the Lovable AI gateway returns HTTP 402 (AI balance depleted), it returns `{ error: "AI credits exhausted", status: 402 }`. This gets forwarded as HTTP 402 to the frontend, which interprets ANY 402 as "user credits exhausted" and shows a misleading toast. The user sees "Not enough credits" when the real issue is an AI service error.
 
-**Migration SQL:**
-```sql
-ALTER TABLE profiles 
-  ADD COLUMN content_hub_gen_count integer NOT NULL DEFAULT 0,
-  ADD COLUMN content_hub_gen_reset_at timestamptz NOT NULL DEFAULT now();
+### Fixes
+
+#### 1. `supabase/functions/brand-engine/index.ts` — Fix `checkContentGenStatus`
+
+Add monthly reset logic for `generations_count`, mirroring what design-studio already does:
+
+```typescript
+const checkContentGenStatus = async () => {
+  const { data: profile } = await serviceClient
+    .from("profiles")
+    .select("content_hub_gen_count, content_hub_gen_reset_at, generations_count, generations_reset_at, bonus_credits, subscription_tier")
+    .eq("user_id", userId)
+    .single();
+  if (!profile) throw new Error("Profile not found");
+
+  const weekStart = getISOWeekStart();
+  const resetAt = new Date(profile.content_hub_gen_reset_at);
+  const genCount = resetAt < weekStart ? 0 : (profile.content_hub_gen_count || 0);
+  const isFree = genCount === 0;
+
+  // Account for monthly reset of generations_count
+  const tierLimits = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
+  const limit = tierLimits[profile.subscription_tier] || 10;
+  const genResetAt = new Date(profile.generations_reset_at);
+  const now = new Date();
+  const monthReset = now.getMonth() !== genResetAt.getMonth() || now.getFullYear() !== genResetAt.getFullYear();
+  const effectiveGenCount = monthReset ? 0 : profile.generations_count;
+  const availableCredits = Math.max(0, limit - effectiveGenCount) + (profile.bonus_credits || 0);
+
+  return { is_free: isFree, credits_required: isFree ? 0 : 2, available_credits: availableCredits, profile };
+};
 ```
 
-#### 2. Backend: Brand-engine edge function changes
+Also fix `deductAndTrackGeneration` to account for monthly reset when deducting from `generations_count`.
 
-In `supabase/functions/brand-engine/index.ts`:
+#### 2. `supabase/functions/brand-engine/index.ts` — Fix AI gateway 402 handling
 
-- Before executing any AI generation action (`generate_pillars`, `generate_series`, `generate_campaigns`, `generate_weekly_ideas`), check the user's `content_hub_gen_count` and `content_hub_gen_reset_at`.
-- If `content_hub_gen_reset_at` is before the start of the current ISO week, treat `content_hub_gen_count` as 0 (reset).
-- If count is 0 (first free generation this week): proceed for free, then increment `content_hub_gen_count` to 1 and set `content_hub_gen_reset_at` to now.
-- If count >= 1: check that the user has >= 2 credits available (bonus + plan credits). If not, return 402. If yes, deduct 2 credits and increment count.
-- Add a new action `check_content_gen_status` that returns `{ is_free: boolean, credits_required: number }` without generating anything — the frontend calls this to decide whether to show the dialog.
+Change the `callAI` function to return status 503 instead of 402 when the AI gateway returns 402, so the frontend doesn't confuse it with user credit errors:
 
-#### 3. Frontend: Credit confirmation dialog in ContentHub
-
-In `src/pages/ContentHub.tsx`:
-
-- Add an `AlertDialog` (already imported pattern) that shows when a generation would cost credits.
-- New state: `creditDialogOpen`, `pendingAction` (stores which action to run after confirmation).
-- Modify all generation trigger points (`handleGenerate`, `handleFullGenerate`, the auto-generate on first visit) to first call the `check_content_gen_status` action.
-  - If `is_free` is true: proceed directly.
-  - If `is_free` is false: show the dialog with the message "You've used your free generation this week. This will cost 2 credits. Would you like to proceed?" with Cancel and Proceed buttons.
-- Cancel: close dialog, do nothing.
-- Proceed: close dialog, run the stored `pendingAction`.
-- The initial auto-generate on first visit (when no pillars exist) is always free since it's the user's first generation.
+```typescript
+if (response.status === 402) return { error: "AI service temporarily unavailable. Please try again.", status: 503 };
+```
 
 ### Files to modify
 
-| File | Action |
+| File | Change |
 |------|--------|
-| Database migration | Create — add `content_hub_gen_count` and `content_hub_gen_reset_at` to profiles |
-| `supabase/functions/brand-engine/index.ts` | Modify — add generation tracking, credit deduction, and `check_content_gen_status` action |
-| `src/pages/ContentHub.tsx` | Modify — add confirmation dialog and pre-check logic before generations |
+| `supabase/functions/brand-engine/index.ts` | Add `generations_reset_at` to profile query, add monthly reset logic, change AI gateway 402 to 503 |
 
-### Technical details
-
-- The `handleFullGenerate` flow (Regenerate All) counts as 1 generation event, not 4 separate ones, since it's a single user action.
-- The silent auto-regen (`silentRegenWeeklyIdeas`) triggered after CRUD operations on pillars/series/campaigns will also check credits — if the user has no credits, it silently skips instead of showing a dialog.
-- Weekly reset is based on ISO week (Monday to Sunday), matching the Content Hub's calendar model.
+No frontend changes needed — the existing 402 handling in `callEngine` will continue to work correctly once the backend stops sending false 402s.
 
