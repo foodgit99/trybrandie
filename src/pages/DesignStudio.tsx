@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+// Guard ref to prevent stale generation results from previous sessions
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
@@ -323,6 +324,7 @@ const DesignStudio = () => {
       setShowScores(false);
       setAttachedImage(null);
       setPreviewImage(null);
+      generationInitiated.current = false;
       generation.clearResult();
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -486,6 +488,7 @@ const DesignStudio = () => {
         }
       : null;
 
+    generationInitiated.current = true;
     generation.startGeneration({
       action: isEdit ? "edit" : "generate",
       canvas_size: canvasSize,
@@ -579,6 +582,7 @@ const DesignStudio = () => {
 
   // Sync generation results back to local state
   useEffect(() => {
+    if (!generationInitiated.current) return;
     if (generation.status === "complete" && generation.result) {
       const r = generation.result;
       const freeLabel = r.free_edit ? " (free edit — no credit used)" : "";
