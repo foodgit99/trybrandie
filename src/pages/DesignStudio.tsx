@@ -1058,6 +1058,25 @@ const DesignStudio = () => {
             <span className="font-medium">{getCreditsRemaining()}</span>
             <span className="text-muted-foreground hidden sm:inline">left</span>
           </div>
+          {/* Carousel mode indicator + slide count */}
+          {isCarouselMode && chatMode === "create" && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-primary/10 text-xs font-medium text-primary">
+                <Layers className="h-3 w-3" />
+                Carousel
+              </div>
+              <Select value={String(slideCount)} onValueChange={(v) => setSlideCount(Number(v))}>
+                <SelectTrigger className="w-[70px] h-8 rounded-xl text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2,3,4,5,6,7,8,9,10].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n} slides</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {chatMode === "create" && (
             <>
           <Select value={canvasSize} onValueChange={setCanvasSize}>
