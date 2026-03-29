@@ -644,12 +644,14 @@ export type Database = {
           brand_id: string
           canvas_size: string
           caption: string | null
+          carousel_id: string | null
           copy_structure: Json | null
           created_at: string
           genome: Json | null
           id: string
           image_url: string
           prompt: string
+          slide_index: number | null
           title: string | null
           trend_intensity: number | null
           trend_used: string | null
@@ -660,12 +662,14 @@ export type Database = {
           brand_id: string
           canvas_size?: string
           caption?: string | null
+          carousel_id?: string | null
           copy_structure?: Json | null
           created_at?: string
           genome?: Json | null
           id?: string
           image_url: string
           prompt: string
+          slide_index?: number | null
           title?: string | null
           trend_intensity?: number | null
           trend_used?: string | null
@@ -676,12 +680,14 @@ export type Database = {
           brand_id?: string
           canvas_size?: string
           caption?: string | null
+          carousel_id?: string | null
           copy_structure?: Json | null
           created_at?: string
           genome?: Json | null
           id?: string
           image_url?: string
           prompt?: string
+          slide_index?: number | null
           title?: string | null
           trend_intensity?: number | null
           trend_used?: string | null

@@ -13,11 +13,14 @@ export interface GenerationResult {
   genome_scores: Record<string, number> | null;
   refined: boolean;
   free_edit: boolean;
+  carousel_id?: string;
+  slides?: Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>;
 }
 
 export interface GenerationParams {
-  action: "generate" | "edit";
+  action: "generate" | "edit" | "generate_carousel";
   canvas_size: string;
+  slide_count?: number;
   messages: { role: string; content: string }[];
   brand: any;
   audience_id?: string;
@@ -154,6 +157,26 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           setError(data.error);
           setStatus("error");
           stopProgressTimer(0);
+          return;
+        }
+
+        // Carousel action — saving is handled server-side
+        if (params.action === "generate_carousel") {
+          stopProgressTimer(100);
+          setResult({
+            image_url: data.slides?.[0]?.image_url || "",
+            design_id: data.slides?.[0]?.design_id || null,
+            explanation: data.explanation || "Here's your carousel.",
+            design_prompt: data.design_prompt || title,
+            genome: data.genome || null,
+            caption: data.caption || null,
+            genome_scores: data.genome_scores || null,
+            refined: false,
+            free_edit: false,
+            carousel_id: data.carousel_id,
+            slides: data.slides,
+          });
+          setStatus("complete");
           return;
         }
 

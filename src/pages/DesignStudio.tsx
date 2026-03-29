@@ -43,6 +43,8 @@ import {
   Copy,
   Loader2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
   Paperclip,
   X,
@@ -57,6 +59,7 @@ import {
   MessageSquare,
   Plus,
   Trash2,
+  Layers,
 } from "lucide-react";
 import {
   Popover,
@@ -125,6 +128,13 @@ const DesignStudio = () => {
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
+
+  // Carousel mode state
+  const isCarouselMode = searchParams.get("mode") === "carousel";
+  const [slideCount, setSlideCount] = useState(5);
+  const [carouselSlides, setCarouselSlides] = useState<Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>>([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [carouselId, setCarouselId] = useState<string | null>(null);
 
   // Video mode state
   const isVideoMode = searchParams.get("mode") === "video";
@@ -409,7 +419,8 @@ const DesignStudio = () => {
     }
     const limit = getTierLimit((data as any).subscription_tier);
     const lockedQuality = renderQuality;
-    const creditCost = lockedQuality === "hd" ? 2 : 1;
+    const baseCost = lockedQuality === "hd" ? 2 : 1;
+    const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
     const bonus = (data as any).bonus_credits ?? 0;
     if (data.generations_count + creditCost > limit + bonus) {
       setShowLimitModal(true);
@@ -491,7 +502,8 @@ const DesignStudio = () => {
 
     generationInitiated.current = true;
     generation.startGeneration({
-      action: isEdit ? "edit" : "generate",
+      action: isCarouselMode ? "generate_carousel" : isEdit ? "edit" : "generate",
+      ...(isCarouselMode && { slide_count: slideCount }),
       canvas_size: canvasSize,
       messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       brand: brandPayload,
@@ -586,6 +598,35 @@ const DesignStudio = () => {
     if (!generationInitiated.current) return;
     if (generation.status === "complete" && generation.result) {
       const r = generation.result;
+
+      // Handle carousel result
+      if (r.carousel_id && r.slides && r.slides.length > 0) {
+        setCarouselSlides(r.slides);
+        setCarouselId(r.carousel_id);
+        setCurrentSlideIndex(0);
+        setCurrentImage(r.slides[0].image_url);
+        setCurrentPrompt(r.design_prompt);
+        setCurrentGenome(r.genome);
+        setCurrentCaption(r.caption);
+        setGenomeScores(r.genome_scores);
+        setCurrentDesignId(r.slides[0].design_id);
+        const assistantMsg: Message = {
+          role: "assistant",
+          content: r.explanation + ` (${r.slides.length} slides generated)`,
+          imageUrl: r.slides[0].image_url,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setSaved(true);
+        setLoading(false);
+        refetchProfile();
+        // Mark content idea as created
+        const contentIdeaId = searchParams.get("content_idea_id");
+        if (contentIdeaId && r.slides[0].design_id) {
+          supabase.from("content_ideas").update({ status: "created", design_id: r.slides[0].design_id } as any).eq("id", contentIdeaId).then(() => {});
+        }
+        return;
+      }
+
       const freeLabel = r.free_edit ? " (free edit — no credit used)" : "";
       const assistantMsg: Message = {
         role: "assistant",
@@ -969,6 +1010,36 @@ const DesignStudio = () => {
     }
   };
 
+  // Carousel slide navigation
+  const navigateSlide = (delta: number) => {
+    if (carouselSlides.length === 0) return;
+    const next = Math.max(0, Math.min(carouselSlides.length - 1, currentSlideIndex + delta));
+    setCurrentSlideIndex(next);
+    setCurrentImage(carouselSlides[next].image_url);
+    setCurrentDesignId(carouselSlides[next].design_id);
+  };
+
+  // Download all carousel slides
+  const downloadAllSlides = async () => {
+    for (let i = 0; i < carouselSlides.length; i++) {
+      try {
+        const resp = await fetch(carouselSlides[i].image_url);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `carousel-slide-${i + 1}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        await new Promise(r => setTimeout(r, 300));
+      } catch {}
+    }
+    toast({ title: `${carouselSlides.length} slides downloaded` });
+  };
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background relative">
       {/* Top bar — fixed */}
@@ -987,6 +1058,25 @@ const DesignStudio = () => {
             <span className="font-medium">{getCreditsRemaining()}</span>
             <span className="text-muted-foreground hidden sm:inline">left</span>
           </div>
+          {/* Carousel mode indicator + slide count */}
+          {isCarouselMode && chatMode === "create" && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-primary/10 text-xs font-medium text-primary">
+                <Layers className="h-3 w-3" />
+                Carousel
+              </div>
+              <Select value={String(slideCount)} onValueChange={(v) => setSlideCount(Number(v))}>
+                <SelectTrigger className="w-[70px] h-8 rounded-xl text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2,3,4,5,6,7,8,9,10].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n} slides</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {chatMode === "create" && (
             <>
           <Select value={canvasSize} onValueChange={setCanvasSize}>
@@ -1336,6 +1426,49 @@ const DesignStudio = () => {
                 {/* Inline image with action icons beneath */}
                 {msg.imageUrl && (
                   <div className="mt-3 space-y-2">
+                    {/* Carousel slide navigator */}
+                    {carouselSlides.length > 0 && msg.imageUrl === carouselSlides[currentSlideIndex]?.image_url && (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <img
+                            src={carouselSlides[currentSlideIndex].image_url}
+                            alt={`Slide ${currentSlideIndex + 1}`}
+                            className="w-full rounded-2xl border border-border cursor-pointer hover:opacity-95 transition-opacity"
+                            style={{ aspectRatio: currentAspect }}
+                            onClick={() => setPreviewImage(carouselSlides[currentSlideIndex].image_url)}
+                          />
+                          {currentSlideIndex > 0 && (
+                            <button onClick={() => navigateSlide(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors shadow-sm">
+                              <ChevronLeft className="h-4 w-4" />
+                            </button>
+                          )}
+                          {currentSlideIndex < carouselSlides.length - 1 && (
+                            <button onClick={() => navigateSlide(1)} className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors shadow-sm">
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          )}
+                          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 backdrop-blur-sm">
+                            {carouselSlides.map((_, idx) => (
+                              <button key={idx} onClick={() => { setCurrentSlideIndex(idx); setCurrentImage(carouselSlides[idx].image_url); setCurrentDesignId(carouselSlides[idx].design_id); }} className={`w-2 h-2 rounded-full transition-colors ${idx === currentSlideIndex ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                            ))}
+                          </div>
+                        </div>
+                        {/* Thumbnail strip */}
+                        <div className="flex gap-1.5 overflow-x-auto pb-1">
+                          {carouselSlides.map((slide, idx) => (
+                            <button key={idx} onClick={() => { setCurrentSlideIndex(idx); setCurrentImage(slide.image_url); setCurrentDesignId(slide.design_id); }} className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${idx === currentSlideIndex ? "border-primary" : "border-transparent hover:border-border"}`}>
+                              <img src={slide.image_url} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={downloadAllSlides}>
+                          <Download className="h-3 w-3" />
+                          Download All ({carouselSlides.length} slides)
+                        </Button>
+                      </div>
+                    )}
+                    {/* Regular single image */}
+                    {(carouselSlides.length === 0 || msg.imageUrl !== carouselSlides[currentSlideIndex]?.image_url) && (
                     <img
                       src={msg.imageUrl}
                       alt="Generated design"
@@ -1343,6 +1476,7 @@ const DesignStudio = () => {
                       style={{ aspectRatio: currentAspect }}
                       onClick={() => setPreviewImage(msg.imageUrl!)}
                     />
+                    )}
                     <div className="flex items-center gap-1 px-1">
                       <button
                         onClick={() => handleVote(1)}

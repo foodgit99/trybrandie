@@ -211,7 +211,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality, slide_count } = await req.json();
 
     // === CHAT ACTION (with brand context) ===
     if (action === "chat") {
@@ -1912,6 +1912,295 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // === CAROUSEL ACTION ===
+    if (action === "generate_carousel") {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+      const numSlides = Math.min(10, Math.max(2, slide_count || 5));
+      const creditCost = (render_quality === "hd" ? 2 : 1) * numSlides;
+
+      // Credit check
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        const resetAt = new Date(profile.generations_reset_at);
+        const now = new Date();
+        const needsReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+        const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
+        const monthlyLimit = tierLimits[profile.subscription_tier] || 10;
+        const totalCredits = monthlyLimit + (profile.bonus_credits || 0);
+
+        if (needsReset) {
+          await adminClient.from("profiles").update({ generations_count: creditCost, generations_reset_at: now.toISOString() }).eq("user_id", user.id);
+        } else {
+          if (profile.generations_count + creditCost > totalCredits) {
+            return new Response(JSON.stringify({ error: "Not enough credits for carousel. You need " + creditCost + " credits." }), {
+              status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          await adminClient.from("profiles").update({ generations_count: profile.generations_count + creditCost }).eq("user_id", user.id);
+        }
+      }
+
+      const carouselId = crypto.randomUUID();
+      const userPrompt = messages[messages.length - 1]?.content || "";
+
+      // Build brand context
+      const brandContext = brand ? `BRAND CONTEXT:\n- Name: ${brand.name || "Unknown"}\n- Vibe: ${brand.vibe || "Modern"}\n- Tone: ${brand.tone_of_voice || "Professional"}\n- Personality: ${(brand.personality_traits || []).join(", ")}\n- Primary colours: ${(brand.primary_colors || []).join(", ")}\n- Fonts: ${brand.typography_primary || "sans-serif"}, ${brand.typography_secondary || "serif"}` : "";
+
+      // Fetch audience
+      let audienceContext = "";
+      if (brand?.id) {
+        try {
+          const { data: audienceData } = await adminClient.from("target_audiences").select("jtbd_profile").eq("brand_id", brand.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
+          if (audienceData?.jtbd_profile) {
+            const p = audienceData.jtbd_profile as any;
+            audienceContext = `\nAUDIENCE: ${p.persona_summary || ""}\nStruggles: ${(p.struggling_moments || []).slice(0, 2).join("; ")}\nDrivers: ${(p.emotional_outcomes || []).slice(0, 2).join("; ")}`;
+          }
+        } catch {}
+      }
+
+      // Step 1: Generate unified creative brief + narrative arc for all slides
+      const arcPrompt = `You are a senior creative director planning an Instagram carousel with ${numSlides} slides.
+
+${brandContext}${audienceContext}
+
+User request: "${userPrompt}"
+
+Create a unified creative direction and per-slide copy following this narrative arc:
+- Slide 1: HOOK — attention-grabbing opening
+- Slides 2-${numSlides - 1}: VALUE — key benefits, insights, or story beats
+- Slide ${numSlides}: CTA — clear call to action
+
+Return structured JSON.`;
+
+      const arcResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [{ role: "system", content: arcPrompt }, { role: "user", content: "Generate the carousel plan now." }],
+          tools: [{
+            type: "function",
+            function: {
+              name: "set_carousel_plan",
+              description: "Set the carousel creative plan",
+              parameters: {
+                type: "object",
+                properties: {
+                  creative_direction: { type: "string", description: "Overall visual direction for the carousel (3-4 sentences)" },
+                  explanation: { type: "string", description: "Brief explanation for the user (1-2 sentences)" },
+                  slides: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        slide_label: { type: "string", description: "e.g. 'Hook', 'Benefit 1', 'CTA'" },
+                        headline: { type: "string", description: "Main headline (3-8 words)" },
+                        subheadline: { type: "string", description: "Supporting text (0-10 words, empty if not needed)" },
+                        cta: { type: "string", description: "CTA text (0-5 words, empty if not needed)" },
+                        scene_description: { type: "string", description: "What this specific slide shows visually (1-2 sentences)" },
+                      },
+                      required: ["slide_label", "headline", "subheadline", "cta", "scene_description"],
+                    },
+                    description: `Exactly ${numSlides} slides`,
+                  },
+                },
+                required: ["creative_direction", "explanation", "slides"],
+                additionalProperties: false,
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "set_carousel_plan" } },
+        }),
+      });
+
+      if (!arcResponse.ok) {
+        if (arcResponse.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (arcResponse.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        throw new Error("Failed to plan carousel");
+      }
+
+      const arcData = await arcResponse.json();
+      const arcToolCall = arcData.choices?.[0]?.message?.tool_calls?.[0];
+      let carouselPlan: { creative_direction: string; explanation: string; slides: any[] };
+      if (arcToolCall?.function?.arguments) {
+        carouselPlan = JSON.parse(arcToolCall.function.arguments);
+      } else {
+        throw new Error("Failed to parse carousel plan");
+      }
+
+      // Ensure we have the right number of slides
+      while (carouselPlan.slides.length < numSlides) {
+        carouselPlan.slides.push({ slide_label: `Slide ${carouselPlan.slides.length + 1}`, headline: brand?.name || "More", subheadline: "", cta: "", scene_description: "Continuation slide" });
+      }
+      carouselPlan.slides = carouselPlan.slides.slice(0, numSlides);
+
+      // Step 2: Compose shared genome (reuse existing logic)
+      const brandVibeLower = (brand?.vibe || "").toLowerCase();
+      const vibePresetMap: Record<string, string> = { cinematic: "luxury-editorial", minimal: "minimalist-modern", bold: "bold-startup", playful: "streetwear-alte", luxury: "luxury-editorial", corporate: "corporate-clean", futuristic: "tech-futurism", natural: "organic-natural", retro: "retro-futurism" };
+      const basePresetId = vibePresetMap[brandVibeLower] || "bold-startup";
+
+      const GENOME_PRESETS: Record<string, any> = {
+        "minimalist-modern": { color: { palette_type: "monochrome", temperature: "neutral", contrast: "medium", saturation: "muted", gradient_logic: "flat" }, typography: { font_personality: "corporate", weight_system: "light", hierarchy_logic: "text_minimal", typography_layout: "centered", text_effect: "none" }, layout: { grid_type: "strict_grid", balance: "symmetrical", spacing_density: "minimal", content_ratio: "balanced" }, composition: { visual_direction: "vertical", focal_strategy: "single_focal_point", layering_depth: "flat" }, texture: { texture_type: "none", intensity: "subtle", distortion: "none" }, illustration: { style: "none", detail_level: "minimal", line_weight: "thin" }, image_style: { lighting: "natural", color_grading: "monochrome", framing: "wide" }, emotion: "calm" },
+        "luxury-editorial": { color: { palette_type: "complementary", temperature: "warm", contrast: "high", saturation: "balanced", gradient_logic: "metallic_gradient" }, typography: { font_personality: "editorial", weight_system: "bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "left_editorial", text_effect: "none" }, layout: { grid_type: "modular_grid", balance: "asymmetrical", spacing_density: "balanced", content_ratio: "image_dominant" }, composition: { visual_direction: "diagonal", focal_strategy: "dual_focal", layering_depth: "deep_layered" }, texture: { texture_type: "paper", intensity: "subtle", distortion: "none" }, illustration: { style: "none", detail_level: "high", line_weight: "thin" }, image_style: { lighting: "dramatic", color_grading: "cinematic", framing: "portrait" }, emotion: "luxurious" },
+        "bold-startup": { color: { palette_type: "complementary", temperature: "warm", contrast: "high", saturation: "vibrant", gradient_logic: "soft_gradient" }, typography: { font_personality: "friendly", weight_system: "bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "centered", text_effect: "none" }, layout: { grid_type: "modular_grid", balance: "asymmetrical", spacing_density: "balanced", content_ratio: "balanced" }, composition: { visual_direction: "diagonal", focal_strategy: "single_focal_point", layering_depth: "medium" }, texture: { texture_type: "none", intensity: "subtle", distortion: "none" }, illustration: { style: "flat", detail_level: "medium", line_weight: "medium" }, image_style: { lighting: "natural", color_grading: "vibrant", framing: "wide" }, emotion: "energetic" },
+        "streetwear-alte": { color: { palette_type: "triadic", temperature: "warm", contrast: "extreme", saturation: "vibrant", gradient_logic: "flat" }, typography: { font_personality: "street", weight_system: "ultra_bold", hierarchy_logic: "strong_headline_dominance", typography_layout: "overlay", text_effect: "outline" }, layout: { grid_type: "broken_grid", balance: "dynamic", spacing_density: "dense", content_ratio: "text_dominant" }, composition: { visual_direction: "diagonal", focal_strategy: "distributed", layering_depth: "deep_layered" }, texture: { texture_type: "grain", intensity: "heavy", distortion: "glitch" }, illustration: { style: "abstract", detail_level: "medium", line_weight: "bold" }, image_style: { lighting: "neon", color_grading: "vibrant", framing: "close_crop" }, emotion: "rebellious" },
+        "corporate-clean": { color: { palette_type: "analogous", temperature: "cool", contrast: "medium", saturation: "balanced", gradient_logic: "soft_gradient" }, typography: { font_personality: "corporate", weight_system: "regular", hierarchy_logic: "balanced_hierarchy", typography_layout: "left_editorial", text_effect: "none" }, layout: { grid_type: "strict_grid", balance: "symmetrical", spacing_density: "balanced", content_ratio: "balanced" }, composition: { visual_direction: "horizontal", focal_strategy: "single_focal_point", layering_depth: "flat" }, texture: { texture_type: "none", intensity: "subtle", distortion: "none" }, illustration: { style: "flat", detail_level: "minimal", line_weight: "thin" }, image_style: { lighting: "soft", color_grading: "cinematic", framing: "wide" }, emotion: "authoritative" },
+        "tech-futurism": { color: { palette_type: "monochrome", temperature: "cool", contrast: "high", saturation: "balanced", gradient_logic: "soft_gradient" }, typography: { font_personality: "futuristic", weight_system: "regular", hierarchy_logic: "text_minimal", typography_layout: "left_editorial", text_effect: "none" }, layout: { grid_type: "strict_grid", balance: "symmetrical", spacing_density: "balanced", content_ratio: "balanced" }, composition: { visual_direction: "horizontal", focal_strategy: "distributed", layering_depth: "medium" }, texture: { texture_type: "digital_noise", intensity: "subtle", distortion: "none" }, illustration: { style: "3d", detail_level: "high", line_weight: "thin" }, image_style: { lighting: "dramatic", color_grading: "cinematic", framing: "wide" }, emotion: "futuristic" },
+        "organic-natural": { color: { palette_type: "analogous", temperature: "warm", contrast: "low", saturation: "muted", gradient_logic: "soft_gradient" }, typography: { font_personality: "friendly", weight_system: "light", hierarchy_logic: "balanced_hierarchy", typography_layout: "centered", text_effect: "none" }, layout: { grid_type: "freeform", balance: "symmetrical", spacing_density: "minimal", content_ratio: "image_dominant" }, composition: { visual_direction: "vertical", focal_strategy: "single_focal_point", layering_depth: "medium" }, texture: { texture_type: "paper", intensity: "subtle", distortion: "none" }, illustration: { style: "hand_drawn", detail_level: "medium", line_weight: "thin" }, image_style: { lighting: "natural", color_grading: "vintage", framing: "wide" }, emotion: "organic" },
+        "retro-futurism": { color: { palette_type: "split_complementary", temperature: "cool", contrast: "high", saturation: "neon", gradient_logic: "multi_spectrum" }, typography: { font_personality: "futuristic", weight_system: "bold", hierarchy_logic: "balanced_hierarchy", typography_layout: "centered", text_effect: "neon" }, layout: { grid_type: "modular_grid", balance: "symmetrical", spacing_density: "balanced", content_ratio: "balanced" }, composition: { visual_direction: "radial", focal_strategy: "single_focal_point", layering_depth: "deep_layered" }, texture: { texture_type: "metallic", intensity: "medium", distortion: "warp" }, illustration: { style: "3d", detail_level: "high", line_weight: "medium" }, image_style: { lighting: "neon", color_grading: "cinematic", framing: "wide" }, emotion: "futuristic" },
+      };
+
+      const genomeData = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
+
+      // Step 3: Render slides in parallel batches of 2
+      const size = canvas_size || "1080x1080";
+      const [w, h] = size.split("x");
+      const sizeLabels: Record<string, string> = { "1080x1080": "square (1080x1080)", "1920x1080": "landscape (1920x1080)", "1080x1920": "portrait story (1080x1920)" };
+      const sizeLabel = sizeLabels[size] || `${w}x${h}`;
+
+      const genomeContext = `VISUAL STYLE GENOME: ${genomeData.color.palette_type} palette, ${genomeData.color.temperature} temp, ${genomeData.color.contrast} contrast, ${genomeData.typography.font_personality} typography, ${genomeData.layout.grid_type} grid, ${genomeData.emotion} emotion.`;
+
+      const dimensionEnforcement = size === "1080x1080"
+        ? "CRITICAL: Image MUST be PERFECTLY SQUARE (1:1 aspect ratio)."
+        : size === "1080x1920"
+        ? "CRITICAL: Image MUST be TALL PORTRAIT (9:16 aspect ratio)."
+        : "CRITICAL: Image MUST be WIDE LANDSCAPE (16:9 aspect ratio).";
+
+      const slides: { image_url: string; slide_index: number; copy_structure: any; design_id: string }[] = [];
+
+      // Render in batches of 2
+      for (let batchStart = 0; batchStart < numSlides; batchStart += 2) {
+        const batchEnd = Math.min(batchStart + 2, numSlides);
+        const batchPromises = [];
+
+        for (let i = batchStart; i < batchEnd; i++) {
+          const slide = carouselPlan.slides[i];
+          const copyInjection = `EXACT TEXT TO RENDER:\n- Headline: "${slide.headline}"${slide.subheadline ? `\n- Subheadline: "${slide.subheadline}"` : ""}${slide.cta ? `\n- CTA: "${slide.cta}"` : ""}\nRender ONLY the text listed above.`;
+
+          const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.logo_url ? " Include the brand logo." : ""}${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
+
+          const imageRefs: any[] = [];
+          if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
+
+          const imageContent = imageRefs.length > 0
+            ? [{ type: "text", text: slidePrompt }, ...imageRefs]
+            : slidePrompt;
+
+          batchPromises.push((async () => {
+            const imgResp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+                messages: [{ role: "user", content: imageContent }],
+                modalities: ["image", "text"],
+              }),
+            });
+
+            if (!imgResp.ok) throw new Error(`Slide ${i + 1} generation failed: ${imgResp.status}`);
+
+            const imgData = await imgResp.json();
+            let imageBase64 = imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+            // One retry if no image
+            if (!imageBase64) {
+              console.log(`Slide ${i + 1}: no image, retrying...`);
+              await new Promise(r => setTimeout(r, 1500));
+              const retry = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+                  messages: [{ role: "user", content: imageContent }],
+                  modalities: ["image", "text"],
+                }),
+              });
+              if (retry.ok) {
+                const retryData = await retry.json();
+                imageBase64 = retryData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+              }
+            }
+
+            if (!imageBase64) throw new Error(`Slide ${i + 1}: no image generated after retry`);
+
+            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+            const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+            const filePath = `${user.id}/${crypto.randomUUID()}.png`;
+            const { error: uploadErr } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
+            if (uploadErr) throw new Error(`Slide ${i + 1} upload failed`);
+            const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
+
+            // Save design row
+            const { data: designRow, error: saveErr } = await adminClient.from("designs").insert({
+              user_id: user.id,
+              brand_id: brand?.id,
+              title: `${slide.slide_label} — ${slide.headline}`.slice(0, 100),
+              prompt: carouselPlan.creative_direction,
+              image_url: urlData.publicUrl,
+              canvas_size: size,
+              carousel_id: carouselId,
+              slide_index: i,
+              genome: genomeData,
+              vote: 0,
+              ...(trend && trend !== "none" && { trend_used: trend, trend_intensity }),
+            } as any).select("id").single();
+
+            return {
+              image_url: urlData.publicUrl,
+              slide_index: i,
+              copy_structure: { headline: slide.headline, subheadline: slide.subheadline || "", cta: slide.cta || "", supporting_text: "" },
+              design_id: saveErr ? "" : designRow?.id || "",
+            };
+          })());
+        }
+
+        const batchResults = await Promise.all(batchPromises);
+        slides.push(...batchResults);
+
+        // Small delay between batches to avoid rate limits
+        if (batchEnd < numSlides) await new Promise(r => setTimeout(r, 1000));
+      }
+
+      // Generate caption for the carousel
+      let captionText: string | null = null;
+      try {
+        const captionResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: `You are a social media caption writer. Write a caption for an Instagram carousel post. Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}.` },
+              { role: "user", content: `Write a caption for a ${numSlides}-slide carousel about: "${userPrompt}". Include 5-8 hashtags.` },
+            ],
+          }),
+        });
+        if (captionResp.ok) {
+          const capData = await captionResp.json();
+          captionText = capData.choices?.[0]?.message?.content || null;
+        }
+      } catch {}
+
+      console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}`);
+
+      return new Response(JSON.stringify({
+        carousel_id: carouselId,
+        slides: slides.sort((a, b) => a.slide_index - b.slide_index),
+        explanation: carouselPlan.explanation,
+        caption: captionText,
+        genome: genomeData,
+        genome_scores: computeGenomeScores(genomeData, brand, trend, trend_intensity, null),
+        design_prompt: carouselPlan.creative_direction,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ error: "Invalid action" }), {
