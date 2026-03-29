@@ -502,7 +502,8 @@ const DesignStudio = () => {
 
     generationInitiated.current = true;
     generation.startGeneration({
-      action: isEdit ? "edit" : "generate",
+      action: isCarouselMode ? "generate_carousel" : isEdit ? "edit" : "generate",
+      ...(isCarouselMode && { slide_count: slideCount }),
       canvas_size: canvasSize,
       messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       brand: brandPayload,
