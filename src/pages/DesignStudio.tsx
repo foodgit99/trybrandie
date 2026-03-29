@@ -1426,6 +1426,49 @@ const DesignStudio = () => {
                 {/* Inline image with action icons beneath */}
                 {msg.imageUrl && (
                   <div className="mt-3 space-y-2">
+                    {/* Carousel slide navigator */}
+                    {carouselSlides.length > 0 && msg.imageUrl === carouselSlides[currentSlideIndex]?.image_url && (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <img
+                            src={carouselSlides[currentSlideIndex].image_url}
+                            alt={`Slide ${currentSlideIndex + 1}`}
+                            className="w-full rounded-2xl border border-border cursor-pointer hover:opacity-95 transition-opacity"
+                            style={{ aspectRatio: currentAspect }}
+                            onClick={() => setPreviewImage(carouselSlides[currentSlideIndex].image_url)}
+                          />
+                          {currentSlideIndex > 0 && (
+                            <button onClick={() => navigateSlide(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors shadow-sm">
+                              <ChevronLeft className="h-4 w-4" />
+                            </button>
+                          )}
+                          {currentSlideIndex < carouselSlides.length - 1 && (
+                            <button onClick={() => navigateSlide(1)} className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors shadow-sm">
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          )}
+                          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 backdrop-blur-sm">
+                            {carouselSlides.map((_, idx) => (
+                              <button key={idx} onClick={() => { setCurrentSlideIndex(idx); setCurrentImage(carouselSlides[idx].image_url); setCurrentDesignId(carouselSlides[idx].design_id); }} className={`w-2 h-2 rounded-full transition-colors ${idx === currentSlideIndex ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                            ))}
+                          </div>
+                        </div>
+                        {/* Thumbnail strip */}
+                        <div className="flex gap-1.5 overflow-x-auto pb-1">
+                          {carouselSlides.map((slide, idx) => (
+                            <button key={idx} onClick={() => { setCurrentSlideIndex(idx); setCurrentImage(slide.image_url); setCurrentDesignId(slide.design_id); }} className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${idx === currentSlideIndex ? "border-primary" : "border-transparent hover:border-border"}`}>
+                              <img src={slide.image_url} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={downloadAllSlides}>
+                          <Download className="h-3 w-3" />
+                          Download All ({carouselSlides.length} slides)
+                        </Button>
+                      </div>
+                    )}
+                    {/* Regular single image */}
+                    {(carouselSlides.length === 0 || msg.imageUrl !== carouselSlides[currentSlideIndex]?.image_url) && (
                     <img
                       src={msg.imageUrl}
                       alt="Generated design"
@@ -1433,6 +1476,7 @@ const DesignStudio = () => {
                       style={{ aspectRatio: currentAspect }}
                       onClick={() => setPreviewImage(msg.imageUrl!)}
                     />
+                    )}
                     <div className="flex items-center gap-1 px-1">
                       <button
                         onClick={() => handleVote(1)}
