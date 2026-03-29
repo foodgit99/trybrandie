@@ -144,6 +144,7 @@ const DesignStudio = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const planChatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const generationInitiated = useRef(false);
 
   const currentAspect = CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
 
