@@ -598,6 +598,35 @@ const DesignStudio = () => {
     if (!generationInitiated.current) return;
     if (generation.status === "complete" && generation.result) {
       const r = generation.result;
+
+      // Handle carousel result
+      if (r.carousel_id && r.slides && r.slides.length > 0) {
+        setCarouselSlides(r.slides);
+        setCarouselId(r.carousel_id);
+        setCurrentSlideIndex(0);
+        setCurrentImage(r.slides[0].image_url);
+        setCurrentPrompt(r.design_prompt);
+        setCurrentGenome(r.genome);
+        setCurrentCaption(r.caption);
+        setGenomeScores(r.genome_scores);
+        setCurrentDesignId(r.slides[0].design_id);
+        const assistantMsg: Message = {
+          role: "assistant",
+          content: r.explanation + ` (${r.slides.length} slides generated)`,
+          imageUrl: r.slides[0].image_url,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setSaved(true);
+        setLoading(false);
+        refetchProfile();
+        // Mark content idea as created
+        const contentIdeaId = searchParams.get("content_idea_id");
+        if (contentIdeaId && r.slides[0].design_id) {
+          supabase.from("content_ideas").update({ status: "created", design_id: r.slides[0].design_id } as any).eq("id", contentIdeaId).then(() => {});
+        }
+        return;
+      }
+
       const freeLabel = r.free_edit ? " (free edit — no credit used)" : "";
       const assistantMsg: Message = {
         role: "assistant",
