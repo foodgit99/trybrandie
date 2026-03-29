@@ -1,0 +1,1 @@
+ALTER TABLE public.designs ADD COLUMN carousel_id uuid DEFAULT NULL, ADD COLUMN slide_index integer DEFAULT NULL;
