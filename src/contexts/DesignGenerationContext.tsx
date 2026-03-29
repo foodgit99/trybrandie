@@ -160,6 +160,26 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           return;
         }
 
+        // Carousel action — saving is handled server-side
+        if (params.action === "generate_carousel") {
+          stopProgressTimer(100);
+          setResult({
+            image_url: data.slides?.[0]?.image_url || "",
+            design_id: data.slides?.[0]?.design_id || null,
+            explanation: data.explanation || "Here's your carousel.",
+            design_prompt: data.design_prompt || title,
+            genome: data.genome || null,
+            caption: data.caption || null,
+            genome_scores: data.genome_scores || null,
+            refined: false,
+            free_edit: false,
+            carousel_id: data.carousel_id,
+            slides: data.slides,
+          });
+          setStatus("complete");
+          return;
+        }
+
         // Auto-save the design
         let designId = current_design_id || null;
         const isEdit = params.action === "edit";
