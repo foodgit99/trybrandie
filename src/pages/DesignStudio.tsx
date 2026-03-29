@@ -419,7 +419,8 @@ const DesignStudio = () => {
     }
     const limit = getTierLimit((data as any).subscription_tier);
     const lockedQuality = renderQuality;
-    const creditCost = lockedQuality === "hd" ? 2 : 1;
+    const baseCost = lockedQuality === "hd" ? 2 : 1;
+    const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
     const bonus = (data as any).bonus_credits ?? 0;
     if (data.generations_count + creditCost > limit + bonus) {
       setShowLimitModal(true);
