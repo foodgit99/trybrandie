@@ -43,6 +43,8 @@ import {
   Copy,
   Loader2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
   Paperclip,
   X,
@@ -57,6 +59,7 @@ import {
   MessageSquare,
   Plus,
   Trash2,
+  Layers,
 } from "lucide-react";
 import {
   Popover,
@@ -125,6 +128,13 @@ const DesignStudio = () => {
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
+
+  // Carousel mode state
+  const isCarouselMode = searchParams.get("mode") === "carousel";
+  const [slideCount, setSlideCount] = useState(5);
+  const [carouselSlides, setCarouselSlides] = useState<Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>>([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [carouselId, setCarouselId] = useState<string | null>(null);
 
   // Video mode state
   const isVideoMode = searchParams.get("mode") === "video";
