@@ -13,11 +13,14 @@ export interface GenerationResult {
   genome_scores: Record<string, number> | null;
   refined: boolean;
   free_edit: boolean;
+  carousel_id?: string;
+  slides?: Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>;
 }
 
 export interface GenerationParams {
-  action: "generate" | "edit";
+  action: "generate" | "edit" | "generate_carousel";
   canvas_size: string;
+  slide_count?: number;
   messages: { role: string; content: string }[];
   brand: any;
   audience_id?: string;
