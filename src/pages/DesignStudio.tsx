@@ -1010,6 +1010,36 @@ const DesignStudio = () => {
     }
   };
 
+  // Carousel slide navigation
+  const navigateSlide = (delta: number) => {
+    if (carouselSlides.length === 0) return;
+    const next = Math.max(0, Math.min(carouselSlides.length - 1, currentSlideIndex + delta));
+    setCurrentSlideIndex(next);
+    setCurrentImage(carouselSlides[next].image_url);
+    setCurrentDesignId(carouselSlides[next].design_id);
+  };
+
+  // Download all carousel slides
+  const downloadAllSlides = async () => {
+    for (let i = 0; i < carouselSlides.length; i++) {
+      try {
+        const resp = await fetch(carouselSlides[i].image_url);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `carousel-slide-${i + 1}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        await new Promise(r => setTimeout(r, 300));
+      } catch {}
+    }
+    toast({ title: `${carouselSlides.length} slides downloaded` });
+  };
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background relative">
       {/* Top bar — fixed */}
