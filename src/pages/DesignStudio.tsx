@@ -1038,7 +1038,6 @@ const DesignStudio = () => {
     }
     toast({ title: `${carouselSlides.length} slides downloaded` });
   };
-  };
 
   return (
     <div className="h-screen flex flex-col bg-background relative">
