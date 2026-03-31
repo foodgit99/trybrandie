@@ -40,7 +40,7 @@ serve(async (req) => {
       supabase.from("post_series").select("name, description, recurrence, preferred_day").eq("brand_id", brand_id),
       supabase.from("campaigns").select("name, description, post_count").eq("brand_id", brand_id),
       supabase.from("brand_inspiration").select("id", { count: "exact", head: true }).eq("brand_id", brand_id),
-      supabase.from("brand_products").select("id", { count: "exact", head: true }).eq("brand_id", brand_id),
+      supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, image_url").eq("brand_id", brand_id),
       supabase.from("designs").select("title, prompt, trend_used, vote").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
     ]);
 
