@@ -22,6 +22,7 @@ interface Scene {
   scene_index: number;
   description: string;
   image_url: string | null;
+  video_url?: string | null;
   duration_ms: number;
   text_overlay: {
     text?: string;
