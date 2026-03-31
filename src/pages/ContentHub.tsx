@@ -1346,6 +1346,17 @@ const ContentHub = () => {
                 </Select>
               </div>
             )}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Content Format</Label>
+              <Select value={ideaForm.content_format || "graphic"} onValueChange={(v) => setIdeaForm((f) => ({ ...f, content_format: v }))}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="graphic">📷 Single Graphic</SelectItem>
+                  <SelectItem value="carousel">📚 Carousel</SelectItem>
+                  <SelectItem value="video">🎬 Video</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIdeaDialogOpen(false)}>Cancel</Button>
