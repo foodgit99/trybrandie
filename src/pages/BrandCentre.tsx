@@ -423,15 +423,17 @@ const BrandCentre = () => {
 
   if (!brand) return null;
 
+  const isService = productForm.product_type === "service";
+
   const renderProductFormFields = () => (
     <>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Name</label>
-        <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder="Product name" className="h-8 text-sm" />
+        <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder={isService ? "Service name" : "Product name"} className="h-8 text-sm" />
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Description</label>
-        <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this product do? Key selling points..." className="min-h-[60px] text-sm" maxLength={500} />
+        <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder={isService ? "Describe the service and who it's for..." : "What does this product do? Key selling points..."} className="min-h-[60px] text-sm" maxLength={500} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
@@ -446,11 +448,30 @@ const BrandCentre = () => {
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Price</label>
-          <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder="e.g. $29, ₦5,000" className="h-8 text-sm" />
+          <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder={isService ? "e.g. $300, From ₦50,000" : "e.g. $29, ₦5,000"} className="h-8 text-sm" />
         </div>
       </div>
+      {/* Service-specific fields */}
+      {isService && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Duration</label>
+            <Input value={productForm.duration} onChange={(e) => setProductForm(p => ({ ...p, duration: e.target.value }))} placeholder="e.g. 1 hour, 4 weeks" className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Pricing Model</label>
+            <div className="flex flex-wrap gap-1">
+              {["fixed", "per hour", "per session", "packages from"].map(m => (
+                <button key={m} onClick={() => setProductForm(p => ({ ...p, pricing_model: m }))} className={`px-2 py-1 text-[10px] rounded-lg border transition-all ${productForm.pricing_model === m ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground">Features (up to 5)</label>
+        <label className="text-xs font-medium text-muted-foreground">{isService ? "What's Included / Deliverables (up to 5)" : "Features (up to 5)"}</label>
         <div className="flex flex-wrap gap-1 mb-1">
           {productForm.features.map((f, i) => (
             <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground flex items-center gap-1">
@@ -461,7 +482,7 @@ const BrandCentre = () => {
         </div>
         {productForm.features.length < 5 && (
           <div className="flex gap-1">
-            <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder="Add a feature" className="h-8 text-sm" />
+            <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder={isService ? "Add a deliverable" : "Add a feature"} className="h-8 text-sm" />
             <Button variant="outline" size="sm" onClick={addFeature} className="h-8 px-2"><Plus className="h-3 w-3" /></Button>
           </div>
         )}
