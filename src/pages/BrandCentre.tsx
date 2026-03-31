@@ -276,6 +276,46 @@ const BrandCentre = () => {
     await supabase.from("brand_products" as any).delete().eq("id", id); refetchProducts();
   };
 
+  const startEditProduct = (product: any) => {
+    setEditingProductId(product.id);
+    setProductForm({
+      label: product.label || "",
+      description: product.description || "",
+      product_type: product.product_type || "physical",
+      price: product.price || "",
+      features: product.features || [],
+    });
+    setNewFeature("");
+  };
+
+  const saveProduct = async () => {
+    if (!editingProductId) return;
+    setSaving(true);
+    await supabase.from("brand_products" as any).update({
+      label: productForm.label.trim(),
+      description: productForm.description.trim(),
+      product_type: productForm.product_type,
+      price: productForm.price.trim(),
+      features: productForm.features,
+    } as any).eq("id", editingProductId);
+    setSaving(false);
+    setEditingProductId(null);
+    toast({ title: "Product updated" });
+    refetchProducts();
+  };
+
+  const addFeature = () => {
+    const f = newFeature.trim();
+    if (f && productForm.features.length < 5 && !productForm.features.includes(f)) {
+      setProductForm(prev => ({ ...prev, features: [...prev.features, f] }));
+      setNewFeature("");
+    }
+  };
+
+  const removeFeature = (idx: number) => {
+    setProductForm(prev => ({ ...prev, features: prev.features.filter((_, i) => i !== idx) }));
+  };
+
   useEffect(() => {
     if (brand && !editing) {
       setName(brand.name || ""); setTagline(brand.tagline || ""); setDescription(brand.description || "");
