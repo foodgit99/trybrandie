@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import heroDesigns from "@/assets/landing-hero-designs.png";
+import heroDesigns from "@/assets/landing-hero-designs.jpg";
 import HeroChatInput from "@/components/HeroChatInput";
 
 const LandingHero = () => (
