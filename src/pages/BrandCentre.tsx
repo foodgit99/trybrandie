@@ -314,7 +314,7 @@ const BrandCentre = () => {
     } as any);
     setSaving(false);
     setAddingProduct(false);
-    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "" });
+    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "", is_featured: false });
     toast({ title: productForm.product_type === "service" ? "Service added" : "Product added" });
     refetchProducts();
   };
