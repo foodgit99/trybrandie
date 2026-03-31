@@ -1,48 +1,84 @@
 
 
-# Plan: Video History & Management
+# Plan: Add Google Veo Video Rendering to Brandie
 
-## Problem
-Video projects are persisted in `video_projects` + `video_scenes` tables but there is no UI to browse, replay, or manage them after leaving the Studio. Users lose access to their storyboards, scripts, and scene images.
+## Overview
+Integrate Google's Veo 3.1 video generation API to render actual MP4 videos from the existing storyboard pipeline. Currently, Brandie generates static scene frames — this adds real video output.
 
-## Approach
+## Architecture
 
-### 1. Add Video Projects tab to Design History page
+The Veo API is async (long-running operations), so we need a two-phase flow:
 
-Rather than a separate page, extend the existing `/history` (DesignHistory.tsx) with a tab system:
-- **Designs** tab (current content)
-- **Videos** tab (new)
+```text
+User generates storyboard (existing)
+       ↓
+User clicks "Render Video"
+       ↓
+Edge function submits scene prompts to Veo API
+       ↓
+Polls for completion (up to ~5 min per scene)
+       ↓
+Stitches scene video URLs → stores in Supabase Storage
+       ↓
+UI shows rendered video player
+```
 
-The Videos tab shows a grid of video project cards, each displaying:
-- First scene thumbnail (or placeholder)
-- Intent summary (goal + platform badge)
-- Scene count + total duration
-- Creation date
-- Status badge
+## Prerequisites
 
-### 2. Video Project Detail Viewer
+A **Google AI API Key** with Veo access enabled is required. This is separate from the Lovable AI key — it's a direct Google Generative AI key. We'll securely store it as a Supabase secret (`GOOGLE_AI_API_KEY`).
 
-When a user taps a video card, open a full-screen viewer (similar to DesignViewer) that shows:
-- The VideoPreview component (already built) loaded with saved scenes
-- Script variations with the ability to switch between them
-- Caption + hashtags with copy button
-- Strategy summary (hook style, pacing, emotional arc)
-- Delete project action
+## Changes
 
-### 3. Scene Image Download
+### 1. Add `GOOGLE_AI_API_KEY` secret
+Prompt you to provide your Google AI API key (from Google AI Studio with Veo access enabled).
 
-Add a "Download All Scenes" button in the detail viewer that downloads scene images as individual files (using the existing storage URLs).
+### 2. New edge function: `supabase/functions/video-render/index.ts`
+Handles the Veo rendering pipeline:
+- Accepts a `video_project_id` and optional scene indices
+- For each scene, calls `POST https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning` with the scene's visual description + brand context
+- Polls `GET https://generativelanguage.googleapis.com/v1beta/{operation_name}` until done
+- Downloads the generated video, uploads to Supabase Storage (`designs/video-renders/`)
+- Updates `video_scenes` with `video_url` column
+- Optionally concatenates all scene clips into a final video URL
+- Costs 5 additional credits (on top of the 3 for storyboard)
 
-## Files Changed
+### 3. Database migration
+- Add `video_url text` column to `video_scenes` table
+- Add `rendered_video_url text` and `render_status text DEFAULT 'pending'` columns to `video_projects` table
 
-1. **`src/pages/DesignHistory.tsx`** — Add tab system, fetch `video_projects` with their `video_scenes`, render video project grid
-2. **`src/components/VideoProjectViewer.tsx`** (new) — Detail viewer dialog that renders VideoPreview with saved project data, strategy summary, and download actions
-3. **`src/pages/DesignStudio.tsx`** — After successful video generation, add a "View in History" toast action linking to `/history?tab=videos`
+### 4. Update `VideoPreview.tsx`
+- When `video_url` exists on a scene, render a `<video>` element instead of `<img>`
+- Add a "Render Video" button that triggers the render pipeline
+- Show render progress status (submitting → rendering → downloading → complete)
+
+### 5. Update `VideoProjectViewer.tsx`
+- Show rendered video player when `rendered_video_url` is available
+- Add download button for the final rendered video
+
+### 6. Update `DesignStudio.tsx`
+- After storyboard generation completes, show a "Render Video" CTA
+- Handle render status polling via Supabase realtime or interval
+
+### 7. Update `supabase/config.toml`
+- Add `[functions.video-render]` with `verify_jwt = false`
 
 ## Technical Details
 
-- Query: `supabase.from("video_projects").select("*, video_scenes(*)").eq("user_id", user.id).order("created_at", { ascending: false })`
-- Reuse existing `VideoPreview` component — it already accepts scenes, variations, caption, hashtags as props
-- Extract script variations from the `script` JSONB column (`project.script.variations`)
-- Extract strategy from `storyboard` JSONB column (`project.storyboard.strategy`)
+**Veo API call pattern:**
+```
+POST https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning
+Headers: x-goog-api-key: {GOOGLE_AI_API_KEY}
+Body: {
+  instances: [{ prompt: "scene visual description..." }],
+  parameters: { aspectRatio: "9:16", durationSeconds: 5, sampleCount: 1 }
+}
+→ Returns { name: "operations/xxx" }
+
+Poll: GET https://generativelanguage.googleapis.com/v1beta/{name}?key={API_KEY}
+→ When done=true, extract video data from response
+```
+
+**Scenes are rendered sequentially** to avoid rate limits (each takes ~2-5 min). Total render time for a 6-scene video: ~10-20 minutes. The UI will poll for status updates.
+
+**Credit cost:** 5 credits for video render (separate from the 3 for storyboard generation), totalling 8 credits for a complete video project.
 
