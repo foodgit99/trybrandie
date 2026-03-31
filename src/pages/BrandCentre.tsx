@@ -47,8 +47,10 @@ const BrandCentre = () => {
   const [saving, setSaving] = useState(false);
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[] });
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "" });
   const [newFeature, setNewFeature] = useState("");
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
   const inspirationInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -258,34 +260,57 @@ const BrandCentre = () => {
     enabled: !!brand,
   });
 
-  const handleProductUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length || !brand || !user) return;
-    for (const file of files) {
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
-      if (upErr) continue;
-      const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
-      await supabase.from("brand_products" as any).insert({ brand_id: brand.id, image_url: urlData.publicUrl, label: file.name.replace(/\.[^.]+$/, "") } as any);
-    }
-    toast({ title: "Product images added" }); refetchProducts();
-  };
-
   const deleteProduct = async (id: string) => {
     await supabase.from("brand_products" as any).delete().eq("id", id); refetchProducts();
   };
 
   const startEditProduct = (product: any) => {
     setEditingProductId(product.id);
+    setAddingProduct(false);
     setProductForm({
       label: product.label || "",
       description: product.description || "",
       product_type: product.product_type || "physical",
       price: product.price || "",
       features: product.features || [],
+      image_url: product.image_url || "",
     });
     setNewFeature("");
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingProductImage(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
+    if (upErr) { toast({ title: "Upload failed", description: upErr.message, variant: "destructive" }); setUploadingProductImage(false); return; }
+    const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
+    setProductForm(p => ({ ...p, image_url: urlData.publicUrl }));
+    if (!productForm.label) {
+      setProductForm(p => ({ ...p, label: file.name.replace(/\.[^.]+$/, "") }));
+    }
+    setUploadingProductImage(false);
+  };
+
+  const saveNewProduct = async () => {
+    if (!brand || !productForm.image_url) { toast({ title: "Please upload a product image first", variant: "destructive" }); return; }
+    setSaving(true);
+    await supabase.from("brand_products" as any).insert({
+      brand_id: brand.id,
+      image_url: productForm.image_url,
+      label: productForm.label.trim() || "Untitled",
+      description: productForm.description.trim(),
+      product_type: productForm.product_type,
+      price: productForm.price.trim(),
+      features: productForm.features,
+    } as any);
+    setSaving(false);
+    setAddingProduct(false);
+    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "" });
+    toast({ title: "Product added" });
+    refetchProducts();
   };
 
   const saveProduct = async () => {
@@ -391,6 +416,52 @@ const BrandCentre = () => {
   };
 
   if (!brand) return null;
+
+  const renderProductFormFields = () => (
+    <>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Name</label>
+        <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder="Product name" className="h-8 text-sm" />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Description</label>
+        <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this product do? Key selling points..." className="min-h-[60px] text-sm" maxLength={500} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Type</label>
+          <div className="flex gap-1">
+            {(["physical", "digital", "service"] as const).map(t => (
+              <button key={t} onClick={() => setProductForm(p => ({ ...p, product_type: t }))} className={`px-2 py-1 text-xs rounded-lg border transition-all ${productForm.product_type === t ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Price</label>
+          <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder="e.g. $29, ₦5,000" className="h-8 text-sm" />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Features (up to 5)</label>
+        <div className="flex flex-wrap gap-1 mb-1">
+          {productForm.features.map((f, i) => (
+            <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground flex items-center gap-1">
+              {f}
+              <button onClick={() => removeFeature(i)} className="text-muted-foreground hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+            </span>
+          ))}
+        </div>
+        {productForm.features.length < 5 && (
+          <div className="flex gap-1">
+            <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder="Add a feature" className="h-8 text-sm" />
+            <Button variant="outline" size="sm" onClick={addFeature} className="h-8 px-2"><Plus className="h-3 w-3" /></Button>
+          </div>
+        )}
+      </div>
+    </>
+  );
 
   const renderSection = (title: string, field: EditingField, children: React.ReactNode, editContent: React.ReactNode) => (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
@@ -652,12 +723,47 @@ const BrandCentre = () => {
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Catalogue</h3>
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => productInputRef.current?.click()}>
-                <Upload className="h-3 w-3" /> Add
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "" }); setNewFeature(""); }}>
+                <Plus className="h-3 w-3" /> Add
               </Button>
-              <input ref={productInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleProductUpload} />
             </div>
             <p className="text-xs text-muted-foreground">Add your products with details. The AI uses this to write accurate copy, pricing, and product-specific content.</p>
+
+            {/* Add new product form */}
+            {addingProduct && (
+              <div className="rounded-xl border border-primary/30 bg-muted/30 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">New Product</p>
+                  <button onClick={() => setAddingProduct(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                </div>
+                {/* Image upload */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Product Image</label>
+                  {productForm.image_url ? (
+                    <div className="flex items-center gap-3">
+                      <img src={productForm.image_url} alt="" className="w-16 h-16 object-cover rounded-lg border border-border" />
+                      <Button variant="outline" size="sm" className="text-xs" onClick={() => productInputRef.current?.click()}>Change</Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => productInputRef.current?.click()}
+                      disabled={uploadingProductImage}
+                      className="w-full h-20 rounded-lg border-2 border-dashed border-border hover:border-muted-foreground/40 flex flex-col items-center justify-center gap-1 text-muted-foreground transition-colors"
+                    >
+                      {uploadingProductImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      <span className="text-xs">{uploadingProductImage ? "Uploading..." : "Upload image"}</span>
+                    </button>
+                  )}
+                  <input ref={productInputRef} type="file" accept="image/*" className="hidden" onChange={handleProductImageUpload} />
+                </div>
+                {renderProductFormFields()}
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setAddingProduct(false)}>Cancel</Button>
+                  <Button size="sm" onClick={saveNewProduct} disabled={saving || !productForm.image_url} className="gap-1"><Check className="h-3 w-3" /> Add Product</Button>
+                </div>
+              </div>
+            )}
+
             {productImages && productImages.length > 0 ? (
               <div className="space-y-3">
                 {productImages.map((item: any) => {
@@ -698,47 +804,7 @@ const BrandCentre = () => {
                       </div>
                       {isEditing && (
                         <div className="border-t border-border p-3 space-y-3 bg-muted/30">
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Name</label>
-                            <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder="Product name" className="h-8 text-sm" />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Description</label>
-                            <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this product do? Key selling points..." className="min-h-[60px] text-sm" maxLength={500} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <label className="text-xs font-medium text-muted-foreground">Type</label>
-                              <div className="flex gap-1">
-                                {(["physical", "digital", "service"] as const).map(t => (
-                                  <button key={t} onClick={() => setProductForm(p => ({ ...p, product_type: t }))} className={`px-2 py-1 text-xs rounded-lg border transition-all ${productForm.product_type === t ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
-                                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-medium text-muted-foreground">Price</label>
-                              <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder="e.g. $29, ₦5,000" className="h-8 text-sm" />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Features (up to 5)</label>
-                            <div className="flex flex-wrap gap-1 mb-1">
-                              {productForm.features.map((f, i) => (
-                                <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground flex items-center gap-1">
-                                  {f}
-                                  <button onClick={() => removeFeature(i)} className="text-muted-foreground hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
-                                </span>
-                              ))}
-                            </div>
-                            {productForm.features.length < 5 && (
-                              <div className="flex gap-1">
-                                <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder="Add a feature" className="h-8 text-sm" />
-                                <Button variant="outline" size="sm" onClick={addFeature} className="h-8 px-2"><Plus className="h-3 w-3" /></Button>
-                              </div>
-                            )}
-                          </div>
+                          {renderProductFormFields()}
                           <div className="flex justify-end">
                             <Button size="sm" onClick={saveProduct} disabled={saving} className="gap-1"><Check className="h-3 w-3" /> Save</Button>
                           </div>
@@ -748,9 +814,9 @@ const BrandCentre = () => {
                   );
                 })}
               </div>
-            ) : (
+            ) : !addingProduct ? (
               <p className="text-sm text-muted-foreground">No products yet. Add your first product to give the AI richer context.</p>
-            )}
+            ) : null}
           </div>
 
           {/* Inspiration */}
