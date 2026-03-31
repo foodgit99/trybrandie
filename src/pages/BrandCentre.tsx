@@ -428,6 +428,16 @@ const BrandCentre = () => {
   const renderProductFormFields = () => (
     <>
       <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Type</label>
+        <div className="flex gap-1">
+          {(["physical", "digital", "service"] as const).map(t => (
+            <button key={t} onClick={() => setProductForm(p => ({ ...p, product_type: t }))} className={`flex-1 px-2 py-1.5 text-xs rounded-lg border transition-all ${productForm.product_type === t ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Name</label>
         <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder={isService ? "Service name" : "Product name"} className="h-8 text-sm" />
       </div>
@@ -437,36 +447,25 @@ const BrandCentre = () => {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Type</label>
-          <div className="flex gap-1">
-            {(["physical", "digital", "service"] as const).map(t => (
-              <button key={t} onClick={() => setProductForm(p => ({ ...p, product_type: t }))} className={`px-2 py-1 text-xs rounded-lg border transition-all ${productForm.product_type === t ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Price</label>
           <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder={isService ? "e.g. $300, From ₦50,000" : "e.g. $29, ₦5,000"} className="h-8 text-sm" />
         </div>
-      </div>
-      {/* Service-specific fields */}
-      {isService && (
-        <div className="grid grid-cols-2 gap-3">
+        {isService && (
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Duration</label>
             <Input value={productForm.duration} onChange={(e) => setProductForm(p => ({ ...p, duration: e.target.value }))} placeholder="e.g. 1 hour, 4 weeks" className="h-8 text-sm" />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Pricing Model</label>
-            <div className="flex flex-wrap gap-1">
-              {["fixed", "per hour", "per session", "packages from"].map(m => (
-                <button key={m} onClick={() => setProductForm(p => ({ ...p, pricing_model: m }))} className={`px-2 py-1 text-[10px] rounded-lg border transition-all ${productForm.pricing_model === m ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
-                  {m}
-                </button>
-              ))}
-            </div>
+        )}
+      </div>
+      {isService && (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Pricing Model</label>
+          <div className="flex flex-wrap gap-1">
+            {["fixed", "per hour", "per session", "packages from"].map(m => (
+              <button key={m} onClick={() => setProductForm(p => ({ ...p, pricing_model: m }))} className={`px-2 py-1 text-[10px] rounded-lg border transition-all ${productForm.pricing_model === m ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
+                {m}
+              </button>
+            ))}
           </div>
         </div>
       )}
