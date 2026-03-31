@@ -97,8 +97,9 @@ interface IdeaForm {
   pillar_id: string;
   series_id: string;
   campaign_id: string;
+  content_format: string;
 }
-const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "" };
+const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic" };
 
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
@@ -379,19 +380,18 @@ const ContentHub = () => {
     await checkCreditsAndProceed(() => handleFullGenerateInner());
   };
 
-  const handleIdeaAction = (idea: any) => {
-    const params = new URLSearchParams({ prompt: idea.prompt, content_idea_id: idea.id });
-    navigate(`/studio?${params.toString()}`);
-  };
-
-  const handleVideoAction = (idea: any) => {
-    const params = new URLSearchParams({ mode: "video", prompt: idea.prompt, content_idea_id: idea.id });
-    navigate(`/studio?${params.toString()}`);
-  };
-
-  const handleCarouselAction = (idea: any) => {
-    const params = new URLSearchParams({ mode: "carousel", prompt: idea.prompt, content_idea_id: idea.id });
-    navigate(`/studio?${params.toString()}`);
+  const handleFormatAction = (idea: any) => {
+    const format = idea.content_format || "graphic";
+    if (format === "video") {
+      const params = new URLSearchParams({ mode: "video", prompt: idea.prompt, content_idea_id: idea.id });
+      navigate(`/studio?${params.toString()}`);
+    } else if (format === "carousel") {
+      const params = new URLSearchParams({ mode: "carousel", prompt: idea.prompt, content_idea_id: idea.id });
+      navigate(`/studio?${params.toString()}`);
+    } else {
+      const params = new URLSearchParams({ prompt: idea.prompt, content_idea_id: idea.id });
+      navigate(`/studio?${params.toString()}`);
+    }
   };
 
   // --- Pillar CRUD ---
@@ -597,6 +597,7 @@ const ContentHub = () => {
       pillar_id: idea.pillar_id || "",
       series_id: idea.series_id || "",
       campaign_id: idea.campaign_id || "",
+      content_format: idea.content_format || "graphic",
     });
     setEditingIdeaId(idea.id);
     // Determine day from scheduled_for
@@ -618,6 +619,7 @@ const ContentHub = () => {
         pillar_id: ideaForm.pillar_id || null,
         series_id: ideaForm.series_id || null,
         campaign_id: ideaForm.campaign_id || null,
+        content_format: ideaForm.content_format || "graphic",
       };
 
       if (editingIdeaId) {
@@ -873,6 +875,9 @@ const ContentHub = () => {
                                 <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                                   {idea.title}
                                 </span>
+                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 shrink-0">
+                                  {(idea.content_format || "graphic") === "carousel" ? "carousel" : (idea.content_format || "graphic") === "video" ? "video" : "graphic"}
+                                </Badge>
                                 {idea.idea_type === "series_post" && (
                                   <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
                                 )}
@@ -902,37 +907,23 @@ const ContentHub = () => {
                         )}
                       </div>
                       <div className="shrink-0 flex gap-1 items-center">
-                        {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => (
-                          <div key={idea.id} className="flex gap-0.5">
+                        {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
+                          const format = idea.content_format || "graphic";
+                          const FormatIcon = format === "carousel" ? Layers : format === "video" ? Play : ArrowRight;
+                          const formatLabel = format === "carousel" ? "Create carousel" : format === "video" ? "Create video" : "Create graphic";
+                          return (
                             <Button
+                              key={idea.id}
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => handleIdeaAction(idea)}
-                              title="Create graphic"
+                              onClick={() => handleFormatAction(idea)}
+                              title={formatLabel}
                             >
-                              <ArrowRight className="h-3.5 w-3.5" />
+                              <FormatIcon className="h-3.5 w-3.5" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleCarouselAction(idea)}
-                              title="Create carousel"
-                            >
-                              <Layers className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleVideoAction(idea)}
-                              title="Create video"
-                            >
-                              <Play className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {/* Add idea button per day */}
                         <button
                           onClick={() => openCreateIdea(day)}
@@ -1355,6 +1346,17 @@ const ContentHub = () => {
                 </Select>
               </div>
             )}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Content Format</Label>
+              <Select value={ideaForm.content_format || "graphic"} onValueChange={(v) => setIdeaForm((f) => ({ ...f, content_format: v }))}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="graphic">📷 Single Graphic</SelectItem>
+                  <SelectItem value="carousel">📚 Carousel</SelectItem>
+                  <SelectItem value="video">🎬 Video</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIdeaDialogOpen(false)}>Cancel</Button>

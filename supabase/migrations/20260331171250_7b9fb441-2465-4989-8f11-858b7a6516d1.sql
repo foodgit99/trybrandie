@@ -1,0 +1,1 @@
+ALTER TABLE public.content_ideas ADD COLUMN content_format text NOT NULL DEFAULT 'graphic';
