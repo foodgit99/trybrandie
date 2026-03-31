@@ -297,7 +297,7 @@ const BrandCentre = () => {
   };
 
   const saveNewProduct = async () => {
-    if (!brand || !productForm.image_url) { toast({ title: "Please upload a product image first", variant: "destructive" }); return; }
+    if (!brand || !productForm.image_url) { toast({ title: "Please upload an image first", variant: "destructive" }); return; }
     setSaving(true);
     await supabase.from("brand_products" as any).insert({
       brand_id: brand.id,
@@ -307,11 +307,13 @@ const BrandCentre = () => {
       product_type: productForm.product_type,
       price: productForm.price.trim(),
       features: productForm.features,
+      duration: productForm.duration.trim(),
+      pricing_model: productForm.pricing_model.trim(),
     } as any);
     setSaving(false);
     setAddingProduct(false);
-    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "" });
-    toast({ title: "Product added" });
+    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "" });
+    toast({ title: productForm.product_type === "service" ? "Service added" : "Product added" });
     refetchProducts();
   };
 
