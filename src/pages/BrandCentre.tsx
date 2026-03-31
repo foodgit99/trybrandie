@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
@@ -48,7 +48,7 @@ const BrandCentre = () => {
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [addingProduct, setAddingProduct] = useState(false);
-  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "" });
+  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false });
   const [newFeature, setNewFeature] = useState("");
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -276,6 +276,7 @@ const BrandCentre = () => {
       image_url: product.image_url || "",
       duration: product.duration || "",
       pricing_model: product.pricing_model || "",
+      is_featured: product.is_featured || false,
     });
     setNewFeature("");
   };
@@ -309,10 +310,11 @@ const BrandCentre = () => {
       features: productForm.features,
       duration: productForm.duration.trim(),
       pricing_model: productForm.pricing_model.trim(),
+      is_featured: productForm.is_featured,
     } as any);
     setSaving(false);
     setAddingProduct(false);
-    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "" });
+    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "", is_featured: false });
     toast({ title: productForm.product_type === "service" ? "Service added" : "Product added" });
     refetchProducts();
   };
@@ -328,6 +330,7 @@ const BrandCentre = () => {
       features: productForm.features,
       duration: productForm.duration.trim(),
       pricing_model: productForm.pricing_model.trim(),
+      is_featured: productForm.is_featured,
     } as any).eq("id", editingProductId);
     setSaving(false);
     setEditingProductId(null);
@@ -485,6 +488,13 @@ const BrandCentre = () => {
             <Button variant="outline" size="sm" onClick={addFeature} className="h-8 px-2"><Plus className="h-3 w-3" /></Button>
           </div>
         )}
+      </div>
+      <div className="flex items-center justify-between rounded-lg border border-border p-2.5">
+        <div className="flex items-center gap-2">
+          <Star className={`h-3.5 w-3.5 ${productForm.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
+          <span className="text-xs font-medium text-muted-foreground">Featured — AI will prioritise this in content</span>
+        </div>
+        <Switch checked={productForm.is_featured} onCheckedChange={(v) => setProductForm(p => ({ ...p, is_featured: v }))} className="scale-75" />
       </div>
     </>
   );
@@ -749,7 +759,7 @@ const BrandCentre = () => {
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Products & Services</h3>
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "" }); setNewFeature(""); }}>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false }); setNewFeature(""); }}>
                 <Plus className="h-3 w-3" /> Add
               </Button>
             </div>
@@ -806,6 +816,7 @@ const BrandCentre = () => {
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${item.product_type === "digital" ? "bg-blue-500/10 text-blue-500" : item.product_type === "service" ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500"}`}>
                                   {item.product_type || "physical"}
                                 </span>
+                                {item.is_featured && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
                                 {item.price && <span className="text-xs text-muted-foreground font-medium">{item.price}</span>}
                               </div>
                               {item.product_type === "service" && item.duration && <span className="text-[10px] text-muted-foreground ml-1">• {item.duration}</span>}

@@ -53,7 +53,7 @@ serve(async (req) => {
       supabase.from("target_audiences").select("jtbd_profile, label").eq("brand_id", brand_id).limit(3),
       supabase.from("designs").select("title, prompt, trend_used").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
       supabase.from("brand_trend_preferences").select("*").eq("brand_id", brand_id).maybeSingle(),
-      supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
+      supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
     ]);
 
     const audiences = audienceRes.data || [];
@@ -84,8 +84,10 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       : "No trend preferences set.";
 
     const productContext = products.length > 0
-      ? products.map((p: any, i: number) => {
-          const parts = [`${i + 1}. "${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""}${p.product_type === "service" && p.pricing_model ? `, ${p.pricing_model}` : ""}${p.product_type === "service" && p.duration ? `, ${p.duration}` : ""})`];
+      ? products
+          .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
+          .map((p: any, i: number) => {
+          const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""}${p.product_type === "service" && p.pricing_model ? `, ${p.pricing_model}` : ""}${p.product_type === "service" && p.duration ? `, ${p.duration}` : ""})`];
           if (p.description) parts.push(`— ${p.description}`);
           const featureLabel = p.product_type === "service" ? "Includes" : "Features";
           if (p.features?.length > 0) parts.push(`${featureLabel}: ${p.features.join(", ")}`);

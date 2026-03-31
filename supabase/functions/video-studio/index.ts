@@ -148,7 +148,7 @@ async function assembleContext(
       ? supabase.from("target_audiences").select("*").eq("id", audienceId).single()
       : Promise.resolve({ data: null }),
     supabase.from("brand_trend_preferences").select("*").eq("brand_id", brandId).maybeSingle(),
-    supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model").eq("brand_id", brandId),
+    supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured").eq("brand_id", brandId),
   ]);
 
   const brand = brandRes.data;
@@ -182,9 +182,11 @@ async function assembleContext(
 
   if (products.length > 0) {
     ctx += `\nPRODUCTS & SERVICES:\n`;
-    products.forEach((p: any, i: number) => {
+    products
+      .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
+      .forEach((p: any, i: number) => {
       const isService = p.product_type === "service";
-      let line = `${i + 1}. "${p.label || "Untitled"}" (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
+      let line = `${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}" (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
       if (p.description) line += ` — ${p.description}`;
       if (p.features?.length > 0) line += ` | ${isService ? "Includes" : "Features"}: ${p.features.join(", ")}`;
       ctx += line + "\n";
