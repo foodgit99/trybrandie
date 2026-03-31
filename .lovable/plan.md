@@ -1,63 +1,61 @@
 
 
-# Plan: Enrich Product Gallery with Detailed Product Information
+# Plan: Products & Services with Type-Specific Forms
 
-## Why This Is Useful
+## Why separate form fields matter
 
-Currently, products are just images with auto-extracted filenames as labels. The AI pipeline sees: *"The brand has 3 product image(s) (coffee-bag, mug, gift-set)"* — almost no context. Adding structured product details would dramatically improve output quality:
+Services have fundamentally different attributes that matter for content generation:
 
-1. **Copywriter Agent** — Knowing a product is a "premium single-origin coffee, 250g bag, $18" lets the AI write specific CTAs ("Get yours for $18"), accurate descriptions, and relevant hooks instead of generic copy.
-2. **Creative Director Agent** — Knowing a product is physical vs. digital changes the visual strategy (physical products benefit from lifestyle photography styling; software benefits from UI mockup framing).
-3. **Content Hub** — The idea generator can create product-specific content ideas: "Showcase the new Espresso Blend" rather than generic "promotional post."
-4. **Caption Agent** — Can name-drop specific products, mention features, and use accurate pricing in captions.
+| Attribute | Product (physical/digital) | Service |
+|---|---|---|
+| Price display | Fixed price ("$49") | Pricing model ("From $200/hr", "Packages from $500") |
+| Key detail | Features list | Deliverables / what's included |
+| Time element | N/A | Duration ("1hr session", "4-week program") |
+| Visual context | Product image | Could be a portfolio/cover image |
+| Content angle | "Get this thing" | "Book this experience / hire this expertise" |
 
-This is one of the highest-impact Brand Centre improvements possible because it closes the gap between "generic brand awareness" and "product-specific marketing" — which is what most small businesses actually need.
+The AI Copywriter and Creative Director would generate very different content knowing "1-hour brand strategy session, $300, includes brand audit + action plan" vs a generic feature list.
 
-## Database Changes
+## Approach: Single form, conditional fields
 
-**Alter `brand_products` table** — add columns:
+No separate table or form needed. The existing `brand_products` table and form structure works — we add conditional fields that appear based on the selected type.
+
+### Database changes
+
+Add 2 columns to `brand_products`:
 
 | Column | Type | Default | Purpose |
 |---|---|---|---|
-| `description` | text | `''` | What the product does / key selling points |
-| `product_type` | text | `'physical'` | `physical`, `digital`, `service` |
-| `price` | text | `''` | Display price (text to handle currency flexibility) |
-| `features` | text[] | `'{}'` | Key features/benefits list |
+| `duration` | text | `''` | Service duration ("1 hour", "4 weeks", "ongoing") |
+| `pricing_model` | text | `''` | How pricing works ("per hour", "per session", "fixed", "packages from") |
 
-No new RLS policies needed — existing policies already cover the table.
+The existing `features` column doubles as "deliverables" for services — just relabel it contextually.
 
-## Brand Centre UI Changes (`BrandCentre.tsx`)
+### UI changes in `BrandCentre.tsx`
 
-- Replace the current image-only grid with **expandable product cards** that show:
-  - Product image (existing)
-  - Name/label (existing, make editable inline)
-  - Description (new textarea)
-  - Type selector: Physical / Digital / Service (new)
-  - Price (new input)
-  - Features (new tag-style input, up to 5)
-- Add an **"Edit product"** flow — clicking a product card opens an inline edit panel below the image
-- Keep the existing upload flow but after upload, prompt the user to fill in details
+1. Rename section header from "Product Catalogue" to "Products & Services"
+2. Rename "Add" button label contextually
+3. In the form, when type is "service":
+   - Show "Duration" field (e.g., "1 hour session")
+   - Show "Pricing Model" selector (per hour / per session / fixed / packages from)
+   - Relabel "Features" as "What's Included / Deliverables"
+   - Relabel "Description" placeholder to "Describe the service and who it's for"
+4. When type is "physical" or "digital": keep current fields as-is
 
-## Orchestration Pipeline Integration
+### Pipeline integration
 
-### `design-studio/index.ts`
-Update the product fetch (line ~930) to select the new columns and build a richer context string:
+Update the product context string in `design-studio/index.ts` and `brand-engine/index.ts` to include duration and pricing model for services:
 
 ```
-PRODUCT CATALOGUE:
-1. "Espresso Blend" (physical, $18) — Premium single-origin coffee. Features: organic, fair-trade, bold flavor.
-2. "Brand Kit" (digital, $49) — Complete branding template package. Features: editable, Canva-compatible.
+PRODUCTS & SERVICES:
+1. "Brand Strategy Session" (service, $300/session, 1hr) — Deep-dive brand audit. Includes: brand audit, competitor analysis, action plan.
+2. "Logo Package" (digital, from $500) — Custom logo design. Features: 3 concepts, unlimited revisions.
 ```
 
-This replaces the current shallow label-only context.
+## Files changed
 
-### `brand-engine/index.ts`
-When generating weekly content ideas, inject the product catalogue so the AI can create product-specific content ideas (e.g., "Showcase Espresso Blend — highlight organic sourcing" as a graphic post).
-
-## Files Changed
-
-1. **Migration SQL** — ALTER `brand_products` to add 4 new columns
-2. **`src/pages/BrandCentre.tsx`** — Expand product card UI with edit capability for new fields
-3. **`supabase/functions/design-studio/index.ts`** — Enrich product context string with new fields
-4. **`supabase/functions/brand-engine/index.ts`** — Inject product catalogue into content idea generation
+1. **Migration SQL** — Add `duration` and `pricing_model` columns to `brand_products`
+2. **`src/pages/BrandCentre.tsx`** — Rename to "Products & Services", add conditional service fields
+3. **`supabase/functions/design-studio/index.ts`** — Enrich context string with service-specific attributes
+4. **`supabase/functions/brand-engine/index.ts`** — Same enrichment for content idea generation
 
