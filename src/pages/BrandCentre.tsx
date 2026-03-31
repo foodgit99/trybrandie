@@ -814,52 +814,27 @@ const BrandCentre = () => {
                   <p className="text-sm font-medium">New Product / Service</p>
                   <button onClick={() => setAddingProduct(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
                 </div>
-                {/* Image upload */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">Images</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {/* Main image */}
-                    {productForm.image_url ? (
-                      <div className="relative group">
-                        <img src={productForm.image_url} alt="" className="w-16 h-16 object-cover rounded-lg border-2 border-primary" />
-                        <span className="absolute -top-1 -left-1 text-[8px] bg-primary text-primary-foreground px-1 rounded">Main</span>
-                        <button onClick={() => productInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Pencil className="h-3 w-3 text-white" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => productInputRef.current?.click()}
-                        disabled={uploadingProductImage}
-                        className="w-16 h-16 rounded-lg border-2 border-dashed border-border hover:border-muted-foreground/40 flex flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors"
-                      >
-                        {uploadingProductImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-                        <span className="text-[9px]">Main</span>
+                {/* Main image upload */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Main Image</label>
+                  {productForm.image_url ? (
+                    <div className="relative group w-fit">
+                      <img src={productForm.image_url} alt="" className="w-16 h-16 object-cover rounded-lg border-2 border-primary" />
+                      <button onClick={() => productInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Pencil className="h-3 w-3 text-white" />
                       </button>
-                    )}
-                    {/* Gallery images */}
-                    {productForm.gallery_images.map((url, i) => (
-                      <div key={i} className="relative group">
-                        <img src={url} alt="" className="w-16 h-16 object-cover rounded-lg border border-border" />
-                        <button onClick={() => removeGalleryImage(i)} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    ))}
-                    {/* Add more button (max 5 gallery images) */}
-                    {productForm.image_url && productForm.gallery_images.length < 5 && (
-                      <button
-                        onClick={() => galleryInputRef.current?.click()}
-                        disabled={uploadingProductImage}
-                        className="w-16 h-16 rounded-lg border-2 border-dashed border-border hover:border-muted-foreground/40 flex flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors"
-                      >
-                        {uploadingProductImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                        <span className="text-[9px]">Add</span>
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => productInputRef.current?.click()}
+                      disabled={uploadingProductImage}
+                      className="w-full h-20 rounded-lg border-2 border-dashed border-border hover:border-muted-foreground/40 flex flex-col items-center justify-center gap-1 text-muted-foreground transition-colors"
+                    >
+                      {uploadingProductImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      <span className="text-xs">{uploadingProductImage ? "Uploading..." : "Upload image"}</span>
+                    </button>
+                  )}
                   <input ref={productInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleProductImageUpload(e, "main")} />
-                  <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleProductImageUpload(e, "gallery")} />
                 </div>
                 {renderProductFormFields()}
                 <div className="flex justify-end gap-2">
