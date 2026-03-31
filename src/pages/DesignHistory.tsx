@@ -414,7 +414,7 @@ const DesignHistory = () => {
 
       {/* Design Viewer */}
       <DesignViewer
-        designs={filteredDesigns}
+        designs={viewerDesigns}
         initialIndex={viewerIndex}
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}
