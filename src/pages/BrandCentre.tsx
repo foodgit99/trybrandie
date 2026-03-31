@@ -277,6 +277,7 @@ const BrandCentre = () => {
       duration: product.duration || "",
       pricing_model: product.pricing_model || "",
       is_featured: product.is_featured || false,
+      gallery_images: product.gallery_images || [],
     });
     setNewFeature("");
   };
