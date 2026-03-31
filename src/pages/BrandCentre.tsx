@@ -511,6 +511,33 @@ const BrandCentre = () => {
         </div>
         <Switch checked={productForm.is_featured} onCheckedChange={(v) => setProductForm(p => ({ ...p, is_featured: v }))} className="scale-75" />
       </div>
+      {/* Gallery images (additional angles/screenshots) */}
+      {productForm.image_url && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Additional Images ({productForm.gallery_images.length}/5)</label>
+          <div className="flex gap-2 flex-wrap">
+            {productForm.gallery_images.map((url, i) => (
+              <div key={i} className="relative group">
+                <img src={url} alt="" className="w-14 h-14 object-cover rounded-lg border border-border" />
+                <button onClick={() => removeGalleryImage(i)} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ))}
+            {productForm.gallery_images.length < 5 && (
+              <button
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={uploadingProductImage}
+                className="w-14 h-14 rounded-lg border-2 border-dashed border-border hover:border-muted-foreground/40 flex flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors"
+              >
+                {uploadingProductImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                <span className="text-[8px]">Add</span>
+              </button>
+            )}
+          </div>
+          <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleProductImageUpload(e, "gallery")} />
+        </div>
+      )}
     </>
   );
 
