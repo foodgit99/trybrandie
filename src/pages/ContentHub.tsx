@@ -619,6 +619,7 @@ const ContentHub = () => {
         pillar_id: ideaForm.pillar_id || null,
         series_id: ideaForm.series_id || null,
         campaign_id: ideaForm.campaign_id || null,
+        content_format: ideaForm.content_format || "graphic",
       };
 
       if (editingIdeaId) {
