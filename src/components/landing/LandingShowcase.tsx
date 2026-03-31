@@ -2,10 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import brandConsistency from "@/assets/landing-brand-consistency.png";
-import contentHub from "@/assets/landing-content-hub.png";
-import carouselPreview from "@/assets/landing-carousel.png";
-import aiIntelligence from "@/assets/landing-ai-intelligence.png";
+import brandConsistency from "@/assets/landing-brand-consistency.jpg";
+import contentHub from "@/assets/landing-content-hub.jpg";
+import carouselPreview from "@/assets/landing-carousel.jpg";
+import aiIntelligence from "@/assets/landing-ai-intelligence.jpg";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
