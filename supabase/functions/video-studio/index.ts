@@ -148,7 +148,7 @@ async function assembleContext(
       ? supabase.from("target_audiences").select("*").eq("id", audienceId).single()
       : Promise.resolve({ data: null }),
     supabase.from("brand_trend_preferences").select("*").eq("brand_id", brandId).maybeSingle(),
-    supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model").eq("brand_id", brandId),
+    supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured").eq("brand_id", brandId),
   ]);
 
   const brand = brandRes.data;
