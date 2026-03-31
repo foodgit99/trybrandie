@@ -83,7 +83,16 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       ? `Active trend: ${trendPrefs.selected_trend}, Preferred: ${(trendPrefs.preferred_trends || []).join(", ")}`
       : "No trend preferences set.";
 
-    const fullContext = `${brandContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
+    const productContext = products.length > 0
+      ? products.map((p: any, i: number) => {
+          const parts = [`${i + 1}. "${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""})`];
+          if (p.description) parts.push(`— ${p.description}`);
+          if (p.features?.length > 0) parts.push(`Features: ${p.features.join(", ")}`);
+          return parts.join(" ");
+        }).join("\n")
+      : "No products catalogued yet.";
+
+    const fullContext = `${brandContext}\n\nPRODUCT CATALOGUE:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
 
     // --- WEEKLY GENERATION TRACKING HELPERS ---
     const getISOWeekStart = () => {

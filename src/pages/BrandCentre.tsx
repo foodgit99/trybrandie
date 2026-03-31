@@ -648,28 +648,108 @@ const BrandCentre = () => {
             </div>
           )}
 
-          {/* Product Images */}
-          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          {/* Product Catalogue */}
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Images</h3>
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Catalogue</h3>
               <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => productInputRef.current?.click()}>
                 <Upload className="h-3 w-3" /> Add
               </Button>
               <input ref={productInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleProductUpload} />
             </div>
-            <p className="text-xs text-muted-foreground">Upload photos of your products. They'll be used contextually in designs when relevant (promotions, launches, showcases).</p>
+            <p className="text-xs text-muted-foreground">Add your products with details. The AI uses this to write accurate copy, pricing, and product-specific content.</p>
             {productImages && productImages.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {productImages.map((item: any) => (
-                  <div key={item.id} className="relative aspect-square group">
-                    <img src={item.image_url} alt={item.label || "Product"} className="w-full h-full object-cover rounded-xl border border-border" />
-                    <button onClick={() => deleteProduct(item.id)} className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3" /></button>
-                    {item.label && <span className="absolute bottom-2 left-2 right-2 text-[10px] text-foreground bg-background/80 backdrop-blur-sm rounded-lg px-2 py-1 truncate">{item.label}</span>}
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {productImages.map((item: any) => {
+                  const isEditing = editingProductId === item.id;
+                  return (
+                    <div key={item.id} className="rounded-xl border border-border overflow-hidden">
+                      <div className="flex gap-3 p-3">
+                        <img src={item.image_url} alt={item.label || "Product"} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-border flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{item.label || "Untitled"}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${item.product_type === "digital" ? "bg-blue-500/10 text-blue-500" : item.product_type === "service" ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500"}`}>
+                                  {item.product_type || "physical"}
+                                </span>
+                                {item.price && <span className="text-xs text-muted-foreground font-medium">{item.price}</span>}
+                              </div>
+                              {item.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
+                              {item.features?.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {item.features.map((f: string, i: number) => (
+                                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground">{f}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => isEditing ? setEditingProductId(null) : startEditProduct(item)} className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                                {isEditing ? <X className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
+                              </button>
+                              <button onClick={() => deleteProduct(item.id)} className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {isEditing && (
+                        <div className="border-t border-border p-3 space-y-3 bg-muted/30">
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Name</label>
+                            <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder="Product name" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Description</label>
+                            <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this product do? Key selling points..." className="min-h-[60px] text-sm" maxLength={500} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">Type</label>
+                              <div className="flex gap-1">
+                                {(["physical", "digital", "service"] as const).map(t => (
+                                  <button key={t} onClick={() => setProductForm(p => ({ ...p, product_type: t }))} className={`px-2 py-1 text-xs rounded-lg border transition-all ${productForm.product_type === t ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
+                                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">Price</label>
+                              <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder="e.g. $29, ₦5,000" className="h-8 text-sm" />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Features (up to 5)</label>
+                            <div className="flex flex-wrap gap-1 mb-1">
+                              {productForm.features.map((f, i) => (
+                                <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground flex items-center gap-1">
+                                  {f}
+                                  <button onClick={() => removeFeature(i)} className="text-muted-foreground hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+                                </span>
+                              ))}
+                            </div>
+                            {productForm.features.length < 5 && (
+                              <div className="flex gap-1">
+                                <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder="Add a feature" className="h-8 text-sm" />
+                                <Button variant="outline" size="sm" onClick={addFeature} className="h-8 px-2"><Plus className="h-3 w-3" /></Button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex justify-end">
+                            <Button size="sm" onClick={saveProduct} disabled={saving} className="gap-1"><Check className="h-3 w-3" /> Save</Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No product images yet.</p>
+              <p className="text-sm text-muted-foreground">No products yet. Add your first product to give the AI richer context.</p>
             )}
           </div>
 
