@@ -204,8 +204,19 @@ const DesignHistory = () => {
     queryClient.invalidateQueries({ queryKey: ["folder-assignments"] });
   };
 
-  const openViewer = (index: number) => {
-    setViewerIndex(index);
+  // State for viewer carousel slides
+  const [viewerDesigns, setViewerDesigns] = useState<typeof designs>([]);
+
+  const openViewer = (index: number, design: any) => {
+    // If it's a carousel group, show all slides in the viewer
+    if (design._carouselSlides && design._carouselSlides.length > 1) {
+      const sorted = [...design._carouselSlides].sort((a: any, b: any) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      setViewerDesigns(sorted);
+      setViewerIndex(0);
+    } else {
+      setViewerDesigns([design]);
+      setViewerIndex(0);
+    }
     setViewerOpen(true);
   };
 
