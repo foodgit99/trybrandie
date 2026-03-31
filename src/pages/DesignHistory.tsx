@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import {
   Pencil,
   Trash2,
   Check,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,10 +112,39 @@ const DesignHistory = () => {
     }
   }, [renamingFolder]);
 
-  // Filtered designs based on active folder
-  const filteredDesigns = activeFolder
-    ? designs.filter((d) => assignments.some((a: any) => a.design_id === d.id && a.folder_id === activeFolder))
-    : designs;
+  // Group carousel slides: show only first slide per carousel_id, attach slide count
+  const groupedDesigns = useMemo(() => {
+    const baseList = activeFolder
+      ? designs.filter((d) => assignments.some((a: any) => a.design_id === d.id && a.folder_id === activeFolder))
+      : designs;
+
+    const carouselMap = new Map<string, typeof baseList>();
+    const result: Array<(typeof designs)[0] & { _slideCount?: number; _carouselSlides?: typeof designs }> = [];
+
+    for (const d of baseList) {
+      const cid = (d as any).carousel_id;
+      if (cid) {
+        if (!carouselMap.has(cid)) {
+          carouselMap.set(cid, []);
+        }
+        carouselMap.get(cid)!.push(d);
+      } else {
+        result.push(d);
+      }
+    }
+
+    // Insert grouped carousels (use first slide by slide_index)
+    for (const [, slides] of carouselMap) {
+      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      result.push({ ...sorted[0], _slideCount: sorted.length, _carouselSlides: sorted });
+    }
+
+    // Sort by created_at descending
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return result;
+  }, [designs, activeFolder, assignments]);
+
+  const filteredDesigns = groupedDesigns;
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim() || !user) return;
@@ -174,8 +204,19 @@ const DesignHistory = () => {
     queryClient.invalidateQueries({ queryKey: ["folder-assignments"] });
   };
 
-  const openViewer = (index: number) => {
-    setViewerIndex(index);
+  // State for viewer carousel slides
+  const [viewerDesigns, setViewerDesigns] = useState<typeof designs>([]);
+
+  const openViewer = (index: number, design: any) => {
+    // If it's a carousel group, show all slides in the viewer
+    if (design._carouselSlides && design._carouselSlides.length > 1) {
+      const sorted = [...design._carouselSlides].sort((a: any, b: any) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      setViewerDesigns(sorted);
+      setViewerIndex(0);
+    } else {
+      setViewerDesigns([design]);
+      setViewerIndex(0);
+    }
     setViewerOpen(true);
   };
 
@@ -325,7 +366,7 @@ const DesignHistory = () => {
                   key={design.id}
                   whileHover={{ scale: 1.02 }}
                   className="group relative rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-                  onClick={() => openViewer(index)}
+                  onClick={() => openViewer(index, design)}
                 >
                   <div className="aspect-square">
                     <img
@@ -335,6 +376,13 @@ const DesignHistory = () => {
                       loading="lazy"
                     />
                   </div>
+                  {/* Carousel badge */}
+                  {(design as any)._slideCount > 1 && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-white text-[10px] font-medium backdrop-blur-sm">
+                      <Layers className="h-3 w-3" />
+                      {(design as any)._slideCount} slides
+                    </div>
+                  )}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
                     <p className="text-white text-xs font-medium truncate">
                       {design.title || "Untitled"}
@@ -366,7 +414,7 @@ const DesignHistory = () => {
 
       {/* Design Viewer */}
       <DesignViewer
-        designs={filteredDesigns}
+        designs={viewerDesigns}
         initialIndex={viewerIndex}
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}

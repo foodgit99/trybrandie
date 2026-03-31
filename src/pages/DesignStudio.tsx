@@ -129,8 +129,8 @@ const DesignStudio = () => {
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
 
-  // Carousel mode state
-  const isCarouselMode = searchParams.get("mode") === "carousel";
+  // Carousel mode state — can be activated via URL or local toggle
+  const [isCarouselMode, setIsCarouselMode] = useState(searchParams.get("mode") === "carousel");
   const [slideCount, setSlideCount] = useState(5);
   const [carouselSlides, setCarouselSlides] = useState<Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -1057,24 +1057,44 @@ const DesignStudio = () => {
             <span className="font-medium">{getCreditsRemaining()}</span>
             <span className="text-muted-foreground hidden sm:inline">left</span>
           </div>
-          {/* Carousel mode indicator + slide count */}
-          {isCarouselMode && chatMode === "create" && (
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-primary/10 text-xs font-medium text-primary">
+          {/* Format toggle: Single / Carousel */}
+          {chatMode === "create" && !isVideoMode && (
+            <div className="flex items-center h-8 sm:h-9 rounded-xl border border-input bg-background overflow-hidden">
+              <button
+                onClick={() => { setIsCarouselMode(false); setCarouselSlides([]); setCarouselId(null); }}
+                className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors ${
+                  !isCarouselMode
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Single
+              </button>
+              <button
+                onClick={() => setIsCarouselMode(true)}
+                className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                  isCarouselMode
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
                 <Layers className="h-3 w-3" />
                 Carousel
-              </div>
-              <Select value={String(slideCount)} onValueChange={(v) => setSlideCount(Number(v))}>
-                <SelectTrigger className="w-[70px] h-8 rounded-xl text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[2,3,4,5,6,7,8,9,10].map((n) => (
-                    <SelectItem key={n} value={String(n)}>{n} slides</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              </button>
             </div>
+          )}
+          {/* Slide count selector when in carousel mode */}
+          {isCarouselMode && chatMode === "create" && (
+            <Select value={String(slideCount)} onValueChange={(v) => setSlideCount(Number(v))}>
+              <SelectTrigger className="w-[70px] h-8 rounded-xl text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2,3,4,5,6,7,8,9,10].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n} slides</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           {chatMode === "create" && (
             <>

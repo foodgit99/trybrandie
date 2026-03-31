@@ -22,6 +22,7 @@ interface DesignViewerProps {
 
 const DesignViewer = ({ designs, initialIndex, open, onClose, onAddToFolder }: DesignViewerProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const isCarousel = designs.length > 1;
 
   useEffect(() => {
     setCurrentIndex(initialIndex);
@@ -137,6 +138,46 @@ const DesignViewer = ({ designs, initialIndex, open, onClose, onAddToFolder }: D
               </button>
             )}
           </div>
+
+          {/* Dot indicators for carousel sets */}
+          {isCarousel && (
+            <div className="flex items-center justify-center gap-1.5 py-2">
+              {designs.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentIndex(i)}
+                  className={`h-2 rounded-full transition-all ${
+                    i === currentIndex
+                      ? "w-6 bg-primary"
+                      : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Thumbnail strip for carousel sets */}
+          {isCarousel && (
+            <div className="flex items-center justify-center gap-2 px-4 pb-2 overflow-x-auto scrollbar-hide">
+              {designs.map((d, i) => (
+                <button
+                  key={d.id}
+                  onClick={() => setCurrentIndex(i)}
+                  className={`shrink-0 h-12 w-12 rounded-lg overflow-hidden border-2 transition-all ${
+                    i === currentIndex
+                      ? "border-primary ring-1 ring-primary/30"
+                      : "border-transparent opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <img
+                    src={d.image_url}
+                    alt={`Slide ${i + 1}`}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Bottom info */}
           <div className="flex items-center justify-center gap-3 px-4 py-4">
