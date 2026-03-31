@@ -584,7 +584,15 @@ const DesignStudio = () => {
       setVideoProjectId(result.project_id || null);
       setSelectedVideoVariation("a");
       refetchProfile();
-      toast({ title: "Video created!", description: `${result.credits_used} credits used` });
+      toast({
+        title: "Video created!",
+        description: `${result.credits_used} credits used`,
+        action: (
+          <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => navigate("/history?tab=videos")}>
+            View in History
+          </Button>
+        ),
+      });
     } catch (e: any) {
       toast({ title: "Video generation failed", description: e.message, variant: "destructive" });
     } finally {
