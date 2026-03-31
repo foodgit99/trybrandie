@@ -809,6 +809,8 @@ const BrandCentre = () => {
                                 </span>
                                 {item.price && <span className="text-xs text-muted-foreground font-medium">{item.price}</span>}
                               </div>
+                              {item.product_type === "service" && item.duration && <span className="text-[10px] text-muted-foreground ml-1">• {item.duration}</span>}
+                              {item.product_type === "service" && item.pricing_model && <span className="text-[10px] text-muted-foreground ml-1">• {item.pricing_model}</span>}
                               {item.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
                               {item.features?.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
