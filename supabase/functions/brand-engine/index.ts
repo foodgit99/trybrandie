@@ -85,14 +85,15 @@ Special Instructions: ${brand.special_instructions || "N/A"}
 
     const productContext = products.length > 0
       ? products.map((p: any, i: number) => {
-          const parts = [`${i + 1}. "${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""})`];
+          const parts = [`${i + 1}. "${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""}${p.product_type === "service" && p.pricing_model ? `, ${p.pricing_model}` : ""}${p.product_type === "service" && p.duration ? `, ${p.duration}` : ""})`];
           if (p.description) parts.push(`— ${p.description}`);
-          if (p.features?.length > 0) parts.push(`Features: ${p.features.join(", ")}`);
+          const featureLabel = p.product_type === "service" ? "Includes" : "Features";
+          if (p.features?.length > 0) parts.push(`${featureLabel}: ${p.features.join(", ")}`);
           return parts.join(" ");
         }).join("\n")
-      : "No products catalogued yet.";
+      : "No products or services catalogued yet.";
 
-    const fullContext = `${brandContext}\n\nPRODUCT CATALOGUE:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
+    const fullContext = `${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
 
     // --- WEEKLY GENERATION TRACKING HELPERS ---
     const getISOWeekStart = () => {
