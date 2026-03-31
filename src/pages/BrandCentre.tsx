@@ -786,7 +786,7 @@ const BrandCentre = () => {
                 {renderProductFormFields()}
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="sm" onClick={() => setAddingProduct(false)}>Cancel</Button>
-                  <Button size="sm" onClick={saveNewProduct} disabled={saving || !productForm.image_url} className="gap-1"><Check className="h-3 w-3" /> Add Product</Button>
+                  <Button size="sm" onClick={saveNewProduct} disabled={saving || !productForm.image_url} className="gap-1"><Check className="h-3 w-3" /> {productForm.product_type === "service" ? "Add Service" : "Add Product"}</Button>
                 </div>
               </div>
             )}
