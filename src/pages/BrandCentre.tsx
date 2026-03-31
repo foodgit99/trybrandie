@@ -774,7 +774,7 @@ const BrandCentre = () => {
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Products & Services</h3>
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false }); setNewFeature(""); }}>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] }); setNewFeature(""); }}>
                 <Plus className="h-3 w-3" /> Add
               </Button>
             </div>
