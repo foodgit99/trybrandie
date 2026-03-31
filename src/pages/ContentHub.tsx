@@ -597,6 +597,7 @@ const ContentHub = () => {
       pillar_id: idea.pillar_id || "",
       series_id: idea.series_id || "",
       campaign_id: idea.campaign_id || "",
+      content_format: idea.content_format || "graphic",
     });
     setEditingIdeaId(idea.id);
     // Determine day from scheduled_for
