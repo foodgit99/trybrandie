@@ -53,7 +53,7 @@ serve(async (req) => {
       supabase.from("target_audiences").select("jtbd_profile, label").eq("brand_id", brand_id).limit(3),
       supabase.from("designs").select("title, prompt, trend_used").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
       supabase.from("brand_trend_preferences").select("*").eq("brand_id", brand_id).maybeSingle(),
-      supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
+      supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
     ]);
 
     const audiences = audienceRes.data || [];
