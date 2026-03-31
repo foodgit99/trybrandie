@@ -849,7 +849,12 @@ const BrandCentre = () => {
                   return (
                     <div key={item.id} className="rounded-xl border border-border overflow-hidden">
                       <div className="flex gap-3 p-3">
-                        <img src={item.image_url} alt={item.label || "Product"} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-border flex-shrink-0" />
+                        <div className="flex-shrink-0">
+                          <img src={item.image_url} alt={item.label || "Product"} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-border" />
+                          {item.gallery_images?.length > 0 && (
+                            <p className="text-[9px] text-muted-foreground text-center mt-0.5">+{item.gallery_images.length} more</p>
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-1">
                             <div className="min-w-0">
