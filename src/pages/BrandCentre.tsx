@@ -844,7 +844,7 @@ const BrandCentre = () => {
                 })}
               </div>
             ) : !addingProduct ? (
-              <p className="text-sm text-muted-foreground">No products yet. Add your first product to give the AI richer context.</p>
+              <p className="text-sm text-muted-foreground">No products or services yet. Add your first to give the AI richer context.</p>
             ) : null}
           </div>
 
