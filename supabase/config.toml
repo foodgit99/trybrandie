@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.video-studio]
 verify_jwt = false
+
+[functions.video-render]
+verify_jwt = false
