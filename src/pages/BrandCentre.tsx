@@ -326,10 +326,12 @@ const BrandCentre = () => {
       product_type: productForm.product_type,
       price: productForm.price.trim(),
       features: productForm.features,
+      duration: productForm.duration.trim(),
+      pricing_model: productForm.pricing_model.trim(),
     } as any).eq("id", editingProductId);
     setSaving(false);
     setEditingProductId(null);
-    toast({ title: "Product updated" });
+    toast({ title: "Updated" });
     refetchProducts();
   };
 
