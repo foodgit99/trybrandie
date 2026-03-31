@@ -129,8 +129,8 @@ const DesignStudio = () => {
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
 
-  // Carousel mode state
-  const isCarouselMode = searchParams.get("mode") === "carousel";
+  // Carousel mode state — can be activated via URL or local toggle
+  const [isCarouselMode, setIsCarouselMode] = useState(searchParams.get("mode") === "carousel");
   const [slideCount, setSlideCount] = useState(5);
   const [carouselSlides, setCarouselSlides] = useState<Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
