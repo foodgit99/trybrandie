@@ -746,15 +746,15 @@ const BrandCentre = () => {
             </div>
           )}
 
-          {/* Product Catalogue */}
+          {/* Products & Services */}
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Catalogue</h3>
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "" }); setNewFeature(""); }}>
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Products & Services</h3>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "" }); setNewFeature(""); }}>
                 <Plus className="h-3 w-3" /> Add
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Add your products with details. The AI uses this to write accurate copy, pricing, and product-specific content.</p>
+            <p className="text-xs text-muted-foreground">Add your products and services. The AI uses this to write accurate copy, pricing, and context-specific content.</p>
 
             {/* Add new product form */}
             {addingProduct && (
