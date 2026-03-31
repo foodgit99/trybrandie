@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Trash2, Target, Zap, Clock } from "lucide-react";
+import { Download, Trash2, Target, Zap, Clock, Play, Loader2 } from "lucide-react";
 import VideoPreview from "@/components/VideoPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,11 +21,14 @@ interface VideoProject {
   credits_used: number;
   selected_variation: number | null;
   created_at: string;
+  render_status?: string;
+  rendered_video_url?: string | null;
   video_scenes: Array<{
     id: string;
     scene_index: number;
     description: string;
     image_url: string | null;
+    video_url?: string | null;
     duration_ms: number;
     text_overlay: any;
     transition: string;
@@ -42,6 +45,8 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [renderStatus, setRenderStatus] = useState<string | null>(null);
 
   if (!project) return null;
 
@@ -51,6 +56,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
       scene_index: s.scene_index,
       description: s.description,
       image_url: s.image_url,
+      video_url: s.video_url || null,
       duration_ms: s.duration_ms,
       text_overlay: s.text_overlay,
       transition: s.transition,
@@ -64,6 +70,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   })) || [];
 
   const strategy = project.storyboard?.strategy;
+  const currentRenderStatus = renderStatus || project.render_status || "pending";
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -76,6 +83,52 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
       onClose();
     }
     setDeleting(false);
+  };
+
+  const handleRenderVideo = async () => {
+    setRendering(true);
+    setRenderStatus("rendering");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-render`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ video_project_id: project.id }),
+        }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: "Render failed" }));
+        if (res.status === 402) {
+          toast({ title: "Insufficient credits", description: "Video rendering requires 5 credits.", variant: "destructive" });
+        } else {
+          toast({ title: "Render failed", description: errData.error, variant: "destructive" });
+        }
+        setRenderStatus("failed");
+        return;
+      }
+
+      const result = await res.json();
+      setRenderStatus(result.render_status);
+      toast({
+        title: result.render_status === "rendered" ? "Video rendered!" : "Render completed with issues",
+        description: `${result.scenes_rendered}/${result.total_scenes} scenes rendered`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["video-projects"] });
+    } catch (e: any) {
+      toast({ title: "Render failed", description: e.message, variant: "destructive" });
+      setRenderStatus("failed");
+    } finally {
+      setRendering(false);
+    }
   };
 
   const handleDownloadScenes = () => {
@@ -97,6 +150,20 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
     toast({ title: `Downloading ${imageScenes.length} scene images` });
   };
 
+  const handleDownloadVideo = () => {
+    const url = project.rendered_video_url;
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `brandie-video-${Date.now()}.mp4`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast({ title: "Downloading video" });
+  };
+
   const intent = project.intent || {};
 
   return (
@@ -111,6 +178,14 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
               <Badge variant="secondary" className="text-[10px]">
                 {project.status}
               </Badge>
+              {currentRenderStatus !== "pending" && (
+                <Badge
+                  variant={currentRenderStatus === "rendered" ? "default" : "secondary"}
+                  className="text-[10px]"
+                >
+                  {currentRenderStatus === "rendering" ? "Rendering…" : currentRenderStatus}
+                </Badge>
+              )}
               <span className="text-[10px] text-muted-foreground">
                 {format(new Date(project.created_at), "MMM d, yyyy")}
               </span>
@@ -137,7 +212,26 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
           )}
         </div>
 
-        {/* Video Preview */}
+        {/* Rendered video player */}
+        {project.rendered_video_url && currentRenderStatus === "rendered" && (
+          <div className="px-5">
+            <Card>
+              <CardContent className="p-3 space-y-2">
+                <p className="text-xs font-medium flex items-center gap-1.5">
+                  <Play className="h-3 w-3" /> Rendered Video
+                </p>
+                <video
+                  src={project.rendered_video_url}
+                  controls
+                  className="w-full rounded-xl"
+                  style={{ maxHeight: 400 }}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Video Preview (storyboard) */}
         <div className="min-h-[400px] border-y border-border">
           <VideoPreview
             scenes={scenes}
@@ -172,7 +266,36 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
         )}
 
         {/* Actions */}
-        <div className="px-5 pb-5 flex items-center gap-2">
+        <div className="px-5 pb-5 flex flex-wrap items-center gap-2">
+          {/* Render Video button */}
+          {currentRenderStatus !== "rendered" && (
+            <Button
+              size="sm"
+              className="rounded-xl gap-1.5 text-xs flex-1"
+              onClick={handleRenderVideo}
+              disabled={rendering || currentRenderStatus === "rendering"}
+            >
+              {rendering || currentRenderStatus === "rendering" ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Rendering…
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5" /> Render Video (5 credits)
+                </>
+              )}
+            </Button>
+          )}
+          {/* Download rendered video */}
+          {project.rendered_video_url && currentRenderStatus === "rendered" && (
+            <Button
+              size="sm"
+              className="rounded-xl gap-1.5 text-xs flex-1"
+              onClick={handleDownloadVideo}
+            >
+              <Download className="h-3.5 w-3.5" /> Download Video
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
