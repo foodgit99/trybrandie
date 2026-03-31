@@ -142,17 +142,19 @@ async function assembleContext(
   brandId: string,
   audienceId?: string
 ): Promise<string> {
-  const [brandRes, audienceRes, trendRes] = await Promise.all([
+  const [brandRes, audienceRes, trendRes, productsRes] = await Promise.all([
     supabase.from("brands").select("*").eq("id", brandId).single(),
     audienceId && audienceId !== "none"
       ? supabase.from("target_audiences").select("*").eq("id", audienceId).single()
       : Promise.resolve({ data: null }),
     supabase.from("brand_trend_preferences").select("*").eq("brand_id", brandId).maybeSingle(),
+    supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model").eq("brand_id", brandId),
   ]);
 
   const brand = brandRes.data;
   const audience = audienceRes.data;
   const trend = trendRes.data;
+  const products = productsRes.data || [];
 
   let ctx = `BRAND CONTEXT:\n`;
   if (brand) {
@@ -176,6 +178,17 @@ async function assembleContext(
 
   if (trend?.trend_enabled) {
     ctx += `\nTREND: ${trend.selected_trend} (intensity: ${trend.default_trend_intensity}%)\n`;
+  }
+
+  if (products.length > 0) {
+    ctx += `\nPRODUCTS & SERVICES:\n`;
+    products.forEach((p: any, i: number) => {
+      const isService = p.product_type === "service";
+      let line = `${i + 1}. "${p.label || "Untitled"}" (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
+      if (p.description) line += ` — ${p.description}`;
+      if (p.features?.length > 0) line += ` | ${isService ? "Includes" : "Features"}: ${p.features.join(", ")}`;
+      ctx += line + "\n";
+    });
   }
 
   return ctx;

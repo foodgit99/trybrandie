@@ -40,7 +40,7 @@ serve(async (req) => {
       supabase.from("post_series").select("name, description, recurrence, preferred_day").eq("brand_id", brand_id),
       supabase.from("campaigns").select("name, description, post_count").eq("brand_id", brand_id),
       supabase.from("brand_inspiration").select("id", { count: "exact", head: true }).eq("brand_id", brand_id),
-      supabase.from("brand_products").select("id", { count: "exact", head: true }).eq("brand_id", brand_id),
+      supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, image_url").eq("brand_id", brand_id),
       supabase.from("designs").select("title, prompt, trend_used, vote").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
     ]);
 
@@ -55,7 +55,7 @@ serve(async (req) => {
     const series = seriesRes.data || [];
     const campaigns = campaignsRes.data || [];
     const inspirationCount = inspirationCountRes.count || 0;
-    const productsCount = productsCountRes.count || 0;
+    const products = productsCountRes.data || [];
     const recentDesigns = recentDesignsRes.data || [];
 
     const brandContext = `
@@ -75,7 +75,15 @@ serve(async (req) => {
 - **Logo**: ${brand.logo_url ? "Uploaded" : "Not uploaded"}
 - **Special Instructions**: ${brand.special_instructions || "None"}
 - **Inspiration Images**: ${inspirationCount} uploaded
-- **Product Images**: ${productsCount} uploaded
+
+## Products & Services
+${products.length > 0 ? products.map((p: any, i: number) => {
+  const isService = p.product_type === "service";
+  let line = `${i + 1}. **${p.label || "Untitled"}** (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
+  if (p.description) line += ` — ${p.description}`;
+  if (p.features?.length > 0) line += `\n   ${isService ? "Includes" : "Features"}: ${p.features.join(", ")}`;
+  return line;
+}).join("\n") : "No products or services added yet."}
 
 ## Target Audiences
 ${audiences.length > 0 ? audiences.map((a: any) => {
