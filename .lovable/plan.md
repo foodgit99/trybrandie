@@ -1,61 +1,32 @@
 
 
-# Plan: Products & Services with Type-Specific Forms
+# Plan: Ensure All Pipelines Pull Products & Services Context
 
-## Why separate form fields matter
+## Current State
 
-Services have fundamentally different attributes that matter for content generation:
-
-| Attribute | Product (physical/digital) | Service |
+| Pipeline | Products & Services Context | Status |
 |---|---|---|
-| Price display | Fixed price ("$49") | Pricing model ("From $200/hr", "Packages from $500") |
-| Key detail | Features list | Deliverables / what's included |
-| Time element | N/A | Duration ("1hr session", "4-week program") |
-| Visual context | Product image | Could be a portfolio/cover image |
-| Content angle | "Get this thing" | "Book this experience / hire this expertise" |
+| `design-studio` | Full catalogue with all fields | Done |
+| `brand-engine` | Full catalogue with all fields | Done |
+| `brand-strategist` | Only fetches count (`head: true`) — no actual product data | Needs fix |
+| `video-studio` | Not fetched at all | Needs fix |
 
-The AI Copywriter and Creative Director would generate very different content knowing "1-hour brand strategy session, $300, includes brand audit + action plan" vs a generic feature list.
+## Changes
 
-## Approach: Single form, conditional fields
+### 1. `supabase/functions/brand-strategist/index.ts`
 
-No separate table or form needed. The existing `brand_products` table and form structure works — we add conditional fields that appear based on the selected type.
+Currently fetches `brand_products` with `count: "exact", head: true` — only gets the number of products, not their details. The AI strategist sees "Product Images: 3 uploaded" with zero context about what those products are.
 
-### Database changes
+**Fix:** Fetch full product records (label, description, product_type, price, features, duration, pricing_model) and inject a formatted `PRODUCTS & SERVICES` section into the brand context string, replacing the shallow "Product Images: N uploaded" line.
 
-Add 2 columns to `brand_products`:
+### 2. `supabase/functions/video-studio/index.ts`
 
-| Column | Type | Default | Purpose |
-|---|---|---|---|
-| `duration` | text | `''` | Service duration ("1 hour", "4 weeks", "ongoing") |
-| `pricing_model` | text | `''` | How pricing works ("per hour", "per session", "fixed", "packages from") |
+The `assembleContext` function fetches brand, audience, and trend data but completely skips products. Video scripts would benefit heavily from knowing product names, prices, and features for accurate CTAs and narration.
 
-The existing `features` column doubles as "deliverables" for services — just relabel it contextually.
+**Fix:** Add a `brand_products` query to the parallel fetch in `assembleContext`, then append a `PRODUCTS & SERVICES` section to the context string using the same formatting pattern as the other pipelines.
 
-### UI changes in `BrandCentre.tsx`
+### Files Changed
 
-1. Rename section header from "Product Catalogue" to "Products & Services"
-2. Rename "Add" button label contextually
-3. In the form, when type is "service":
-   - Show "Duration" field (e.g., "1 hour session")
-   - Show "Pricing Model" selector (per hour / per session / fixed / packages from)
-   - Relabel "Features" as "What's Included / Deliverables"
-   - Relabel "Description" placeholder to "Describe the service and who it's for"
-4. When type is "physical" or "digital": keep current fields as-is
-
-### Pipeline integration
-
-Update the product context string in `design-studio/index.ts` and `brand-engine/index.ts` to include duration and pricing model for services:
-
-```
-PRODUCTS & SERVICES:
-1. "Brand Strategy Session" (service, $300/session, 1hr) — Deep-dive brand audit. Includes: brand audit, competitor analysis, action plan.
-2. "Logo Package" (digital, from $500) — Custom logo design. Features: 3 concepts, unlimited revisions.
-```
-
-## Files changed
-
-1. **Migration SQL** — Add `duration` and `pricing_model` columns to `brand_products`
-2. **`src/pages/BrandCentre.tsx`** — Rename to "Products & Services", add conditional service fields
-3. **`supabase/functions/design-studio/index.ts`** — Enrich context string with service-specific attributes
-4. **`supabase/functions/brand-engine/index.ts`** — Same enrichment for content idea generation
+1. **`supabase/functions/brand-strategist/index.ts`** — Replace count-only product query with full select; add formatted product context to the brand context string
+2. **`supabase/functions/video-studio/index.ts`** — Add product fetch to `assembleContext`; append product catalogue to context string
 
