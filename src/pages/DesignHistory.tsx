@@ -115,7 +115,21 @@ const DesignHistory = () => {
     enabled: !!user,
   });
 
-  // Focus rename input
+  // Fetch video projects
+  const { data: videoProjects = [], isLoading: videosLoading } = useQuery({
+    queryKey: ["video-projects", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("video_projects")
+        .select("*, video_scenes(*)")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!user,
+  });
+
   useEffect(() => {
     if (renamingFolder && renameRef.current) {
       renameRef.current.focus();
