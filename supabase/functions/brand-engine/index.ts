@@ -49,15 +49,17 @@ serve(async (req) => {
     }
 
     // Gather context
-    const [audienceRes, designsRes, trendRes] = await Promise.all([
+    const [audienceRes, designsRes, trendRes, productsRes] = await Promise.all([
       supabase.from("target_audiences").select("jtbd_profile, label").eq("brand_id", brand_id).limit(3),
       supabase.from("designs").select("title, prompt, trend_used").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
       supabase.from("brand_trend_preferences").select("*").eq("brand_id", brand_id).maybeSingle(),
+      supabase.from("brand_products").select("label, description, product_type, price, features").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
     ]);
 
     const audiences = audienceRes.data || [];
     const pastDesigns = designsRes.data || [];
     const trendPrefs = trendRes.data;
+    const products = productsRes.data || [];
 
     const brandContext = `
 Brand: ${brand.name}
