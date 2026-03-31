@@ -75,7 +75,15 @@ serve(async (req) => {
 - **Logo**: ${brand.logo_url ? "Uploaded" : "Not uploaded"}
 - **Special Instructions**: ${brand.special_instructions || "None"}
 - **Inspiration Images**: ${inspirationCount} uploaded
-- **Product Images**: ${productsCount} uploaded
+
+## Products & Services
+${products.length > 0 ? products.map((p: any, i: number) => {
+  const isService = p.product_type === "service";
+  let line = `${i + 1}. **${p.label || "Untitled"}** (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
+  if (p.description) line += ` — ${p.description}`;
+  if (p.features?.length > 0) line += `\n   ${isService ? "Includes" : "Features"}: ${p.features.join(", ")}`;
+  return line;
+}).join("\n") : "No products or services added yet."}
 
 ## Target Audiences
 ${audiences.length > 0 ? audiences.map((a: any) => {

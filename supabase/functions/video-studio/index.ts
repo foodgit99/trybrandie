@@ -180,6 +180,17 @@ async function assembleContext(
     ctx += `\nTREND: ${trend.selected_trend} (intensity: ${trend.default_trend_intensity}%)\n`;
   }
 
+  if (products.length > 0) {
+    ctx += `\nPRODUCTS & SERVICES:\n`;
+    products.forEach((p: any, i: number) => {
+      const isService = p.product_type === "service";
+      let line = `${i + 1}. "${p.label || "Untitled"}" (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
+      if (p.description) line += ` — ${p.description}`;
+      if (p.features?.length > 0) line += ` | ${isService ? "Includes" : "Features"}: ${p.features.join(", ")}`;
+      ctx += line + "\n";
+    });
+  }
+
   return ctx;
 }
 
