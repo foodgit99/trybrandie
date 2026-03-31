@@ -586,11 +586,13 @@ const DesignStudio = () => {
       refetchProfile();
       toast({
         title: "Video created!",
-        description: `${result.credits_used} credits used`,
+        description: `${result.credits_used} credits used. You can now render it as a real video.`,
         action: (
-          <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => navigate("/history?tab=videos")}>
-            View in History
-          </Button>
+          <div className="flex gap-1.5">
+            <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => navigate("/history?tab=videos")}>
+              View in History
+            </Button>
+          </div>
         ),
       });
     } catch (e: any) {
