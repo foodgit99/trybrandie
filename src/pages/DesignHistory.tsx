@@ -55,6 +55,9 @@ const DesignHistory = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "videos" ? "videos" : "designs";
+
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
@@ -66,6 +69,8 @@ const DesignHistory = () => {
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
+  const [selectedVideoProject, setSelectedVideoProject] = useState<any>(null);
+  const [videoViewerOpen, setVideoViewerOpen] = useState(false);
 
   // Fetch all designs
   const { data: designs = [], isLoading } = useQuery({
