@@ -929,7 +929,7 @@ TREND RULES:
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("image_url, label, description, product_type, price, features")
+            .select("image_url, label, description, product_type, price, features, duration, pricing_model")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
             .limit(6);
@@ -939,12 +939,17 @@ TREND RULES:
               const parts = [`${i + 1}. "${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
               if (p.price) meta.push(p.price);
+              if (p.product_type === "service" && p.pricing_model) meta.push(p.pricing_model);
+              if (p.product_type === "service" && p.duration) meta.push(p.duration);
               parts.push(`(${meta.join(", ")})`);
               if (p.description) parts.push(`— ${p.description}`);
-              if (p.features && p.features.length > 0) parts.push(`Features: ${p.features.join(", ")}`);
+              if (p.features && p.features.length > 0) {
+                const label = p.product_type === "service" ? "Includes" : "Features";
+                parts.push(`${label}: ${p.features.join(", ")}`);
+              }
               return parts.join(" ");
             }).join("\n");
-            productImageContext = `\n\nPRODUCT CATALOGUE:\n${catalogueLines}\n\nPRODUCT IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). Use specific product names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.`;
+            productImageContext = `\n\nPRODUCTS & SERVICES:\n${catalogueLines}\n\nPRODUCT/SERVICE IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products/services, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For services, use the image as a portfolio/cover visual. Use specific names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.`;
           }
         } catch (e) {
           console.log("Product catalogue fetch failed, proceeding without:", e);

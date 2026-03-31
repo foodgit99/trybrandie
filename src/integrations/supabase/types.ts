@@ -208,33 +208,39 @@ export type Database = {
           brand_id: string
           created_at: string
           description: string
+          duration: string
           features: string[]
           id: string
           image_url: string
           label: string
           price: string
+          pricing_model: string
           product_type: string
         }
         Insert: {
           brand_id: string
           created_at?: string
           description?: string
+          duration?: string
           features?: string[]
           id?: string
           image_url: string
           label?: string
           price?: string
+          pricing_model?: string
           product_type?: string
         }
         Update: {
           brand_id?: string
           created_at?: string
           description?: string
+          duration?: string
           features?: string[]
           id?: string
           image_url?: string
           label?: string
           price?: string
+          pricing_model?: string
           product_type?: string
         }
         Relationships: [

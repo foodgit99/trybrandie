@@ -48,7 +48,7 @@ const BrandCentre = () => {
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [addingProduct, setAddingProduct] = useState(false);
-  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "" });
+  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "" });
   const [newFeature, setNewFeature] = useState("");
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -274,6 +274,8 @@ const BrandCentre = () => {
       price: product.price || "",
       features: product.features || [],
       image_url: product.image_url || "",
+      duration: product.duration || "",
+      pricing_model: product.pricing_model || "",
     });
     setNewFeature("");
   };
@@ -295,7 +297,7 @@ const BrandCentre = () => {
   };
 
   const saveNewProduct = async () => {
-    if (!brand || !productForm.image_url) { toast({ title: "Please upload a product image first", variant: "destructive" }); return; }
+    if (!brand || !productForm.image_url) { toast({ title: "Please upload an image first", variant: "destructive" }); return; }
     setSaving(true);
     await supabase.from("brand_products" as any).insert({
       brand_id: brand.id,
@@ -305,11 +307,13 @@ const BrandCentre = () => {
       product_type: productForm.product_type,
       price: productForm.price.trim(),
       features: productForm.features,
+      duration: productForm.duration.trim(),
+      pricing_model: productForm.pricing_model.trim(),
     } as any);
     setSaving(false);
     setAddingProduct(false);
-    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "" });
-    toast({ title: "Product added" });
+    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "" });
+    toast({ title: productForm.product_type === "service" ? "Service added" : "Product added" });
     refetchProducts();
   };
 
@@ -322,10 +326,12 @@ const BrandCentre = () => {
       product_type: productForm.product_type,
       price: productForm.price.trim(),
       features: productForm.features,
+      duration: productForm.duration.trim(),
+      pricing_model: productForm.pricing_model.trim(),
     } as any).eq("id", editingProductId);
     setSaving(false);
     setEditingProductId(null);
-    toast({ title: "Product updated" });
+    toast({ title: "Updated" });
     refetchProducts();
   };
 
@@ -417,15 +423,17 @@ const BrandCentre = () => {
 
   if (!brand) return null;
 
+  const isService = productForm.product_type === "service";
+
   const renderProductFormFields = () => (
     <>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Name</label>
-        <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder="Product name" className="h-8 text-sm" />
+        <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder={isService ? "Service name" : "Product name"} className="h-8 text-sm" />
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Description</label>
-        <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this product do? Key selling points..." className="min-h-[60px] text-sm" maxLength={500} />
+        <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder={isService ? "Describe the service and who it's for..." : "What does this product do? Key selling points..."} className="min-h-[60px] text-sm" maxLength={500} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
@@ -440,11 +448,30 @@ const BrandCentre = () => {
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Price</label>
-          <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder="e.g. $29, ₦5,000" className="h-8 text-sm" />
+          <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder={isService ? "e.g. $300, From ₦50,000" : "e.g. $29, ₦5,000"} className="h-8 text-sm" />
         </div>
       </div>
+      {/* Service-specific fields */}
+      {isService && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Duration</label>
+            <Input value={productForm.duration} onChange={(e) => setProductForm(p => ({ ...p, duration: e.target.value }))} placeholder="e.g. 1 hour, 4 weeks" className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Pricing Model</label>
+            <div className="flex flex-wrap gap-1">
+              {["fixed", "per hour", "per session", "packages from"].map(m => (
+                <button key={m} onClick={() => setProductForm(p => ({ ...p, pricing_model: m }))} className={`px-2 py-1 text-[10px] rounded-lg border transition-all ${productForm.pricing_model === m ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground">Features (up to 5)</label>
+        <label className="text-xs font-medium text-muted-foreground">{isService ? "What's Included / Deliverables (up to 5)" : "Features (up to 5)"}</label>
         <div className="flex flex-wrap gap-1 mb-1">
           {productForm.features.map((f, i) => (
             <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground flex items-center gap-1">
@@ -455,7 +482,7 @@ const BrandCentre = () => {
         </div>
         {productForm.features.length < 5 && (
           <div className="flex gap-1">
-            <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder="Add a feature" className="h-8 text-sm" />
+            <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder={isService ? "Add a deliverable" : "Add a feature"} className="h-8 text-sm" />
             <Button variant="outline" size="sm" onClick={addFeature} className="h-8 px-2"><Plus className="h-3 w-3" /></Button>
           </div>
         )}
@@ -719,21 +746,21 @@ const BrandCentre = () => {
             </div>
           )}
 
-          {/* Product Catalogue */}
+          {/* Products & Services */}
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Product Catalogue</h3>
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "" }); setNewFeature(""); }}>
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Products & Services</h3>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "" }); setNewFeature(""); }}>
                 <Plus className="h-3 w-3" /> Add
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Add your products with details. The AI uses this to write accurate copy, pricing, and product-specific content.</p>
+            <p className="text-xs text-muted-foreground">Add your products and services. The AI uses this to write accurate copy, pricing, and context-specific content.</p>
 
             {/* Add new product form */}
             {addingProduct && (
               <div className="rounded-xl border border-primary/30 bg-muted/30 p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">New Product</p>
+                  <p className="text-sm font-medium">New Product / Service</p>
                   <button onClick={() => setAddingProduct(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
                 </div>
                 {/* Image upload */}
@@ -759,7 +786,7 @@ const BrandCentre = () => {
                 {renderProductFormFields()}
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="sm" onClick={() => setAddingProduct(false)}>Cancel</Button>
-                  <Button size="sm" onClick={saveNewProduct} disabled={saving || !productForm.image_url} className="gap-1"><Check className="h-3 w-3" /> Add Product</Button>
+                  <Button size="sm" onClick={saveNewProduct} disabled={saving || !productForm.image_url} className="gap-1"><Check className="h-3 w-3" /> {productForm.product_type === "service" ? "Add Service" : "Add Product"}</Button>
                 </div>
               </div>
             )}
@@ -782,6 +809,8 @@ const BrandCentre = () => {
                                 </span>
                                 {item.price && <span className="text-xs text-muted-foreground font-medium">{item.price}</span>}
                               </div>
+                              {item.product_type === "service" && item.duration && <span className="text-[10px] text-muted-foreground ml-1">• {item.duration}</span>}
+                              {item.product_type === "service" && item.pricing_model && <span className="text-[10px] text-muted-foreground ml-1">• {item.pricing_model}</span>}
                               {item.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
                               {item.features?.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
@@ -815,7 +844,7 @@ const BrandCentre = () => {
                 })}
               </div>
             ) : !addingProduct ? (
-              <p className="text-sm text-muted-foreground">No products yet. Add your first product to give the AI richer context.</p>
+              <p className="text-sm text-muted-foreground">No products or services yet. Add your first to give the AI richer context.</p>
             ) : null}
           </div>
 
