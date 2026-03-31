@@ -875,9 +875,19 @@ const ContentHub = () => {
                                 <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                                   {idea.title}
                                 </span>
-                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 shrink-0">
-                                  {(idea.content_format || "graphic") === "carousel" ? "carousel" : (idea.content_format || "graphic") === "video" ? "video" : "graphic"}
-                                </Badge>
+                                {(() => {
+                                  const fmt = idea.content_format || "graphic";
+                                  const colorMap: Record<string, string> = {
+                                    carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
+                                    video: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/20",
+                                    graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+                                  };
+                                  return (
+                                    <span className={`inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 ${colorMap[fmt] || colorMap.graphic}`}>
+                                      {fmt}
+                                    </span>
+                                  );
+                                })()}
                                 {idea.idea_type === "series_post" && (
                                   <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
                                 )}
