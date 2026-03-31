@@ -142,17 +142,19 @@ async function assembleContext(
   brandId: string,
   audienceId?: string
 ): Promise<string> {
-  const [brandRes, audienceRes, trendRes] = await Promise.all([
+  const [brandRes, audienceRes, trendRes, productsRes] = await Promise.all([
     supabase.from("brands").select("*").eq("id", brandId).single(),
     audienceId && audienceId !== "none"
       ? supabase.from("target_audiences").select("*").eq("id", audienceId).single()
       : Promise.resolve({ data: null }),
     supabase.from("brand_trend_preferences").select("*").eq("brand_id", brandId).maybeSingle(),
+    supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model").eq("brand_id", brandId),
   ]);
 
   const brand = brandRes.data;
   const audience = audienceRes.data;
   const trend = trendRes.data;
+  const products = productsRes.data || [];
 
   let ctx = `BRAND CONTEXT:\n`;
   if (brand) {
