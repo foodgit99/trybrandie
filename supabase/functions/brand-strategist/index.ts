@@ -77,9 +77,11 @@ serve(async (req) => {
 - **Inspiration Images**: ${inspirationCount} uploaded
 
 ## Products & Services
-${products.length > 0 ? products.map((p: any, i: number) => {
+${products.length > 0 ? products
+  .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
+  .map((p: any, i: number) => {
   const isService = p.product_type === "service";
-  let line = `${i + 1}. **${p.label || "Untitled"}** (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
+  let line = `${i + 1}. ${p.is_featured ? "⭐ " : ""}**${p.label || "Untitled"}** (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${isService && p.duration ? `, ${p.duration}` : ""})`;
   if (p.description) line += ` — ${p.description}`;
   if (p.features?.length > 0) line += `\n   ${isService ? "Includes" : "Features"}: ${p.features.join(", ")}`;
   return line;

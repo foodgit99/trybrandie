@@ -84,8 +84,10 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       : "No trend preferences set.";
 
     const productContext = products.length > 0
-      ? products.map((p: any, i: number) => {
-          const parts = [`${i + 1}. "${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""}${p.product_type === "service" && p.pricing_model ? `, ${p.pricing_model}` : ""}${p.product_type === "service" && p.duration ? `, ${p.duration}` : ""})`];
+      ? products
+          .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
+          .map((p: any, i: number) => {
+          const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""}${p.product_type === "service" && p.pricing_model ? `, ${p.pricing_model}` : ""}${p.product_type === "service" && p.duration ? `, ${p.duration}` : ""})`];
           if (p.description) parts.push(`— ${p.description}`);
           const featureLabel = p.product_type === "service" ? "Includes" : "Features";
           if (p.features?.length > 0) parts.push(`${featureLabel}: ${p.features.join(", ")}`);

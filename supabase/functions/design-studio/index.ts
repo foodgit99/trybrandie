@@ -935,8 +935,10 @@ TREND RULES:
             .limit(6);
           if (productData && productData.length > 0) {
             productImageUrls = productData.map((p: any) => p.image_url);
-            const catalogueLines = productData.map((p: any, i: number) => {
-              const parts = [`${i + 1}. "${p.label || "Untitled"}"`];
+            const catalogueLines = productData
+              .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
+              .map((p: any, i: number) => {
+              const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
               if (p.price) meta.push(p.price);
               if (p.product_type === "service" && p.pricing_model) meta.push(p.pricing_model);
