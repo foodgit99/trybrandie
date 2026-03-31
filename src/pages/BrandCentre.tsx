@@ -489,6 +489,13 @@ const BrandCentre = () => {
           </div>
         )}
       </div>
+      <div className="flex items-center justify-between rounded-lg border border-border p-2.5">
+        <div className="flex items-center gap-2">
+          <Star className={`h-3.5 w-3.5 ${productForm.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
+          <span className="text-xs font-medium text-muted-foreground">Featured — AI will prioritise this in content</span>
+        </div>
+        <Switch checked={productForm.is_featured} onCheckedChange={(v) => setProductForm(p => ({ ...p, is_featured: v }))} className="scale-75" />
+      </div>
     </>
   );
 
