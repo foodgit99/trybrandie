@@ -544,6 +544,13 @@ const DesignHistory = () => {
         onAddToFolder={(designId) => openAssignDialog(designId)}
       />
 
+      {/* Video Project Viewer */}
+      <VideoProjectViewer
+        project={selectedVideoProject}
+        open={videoViewerOpen}
+        onClose={() => setVideoViewerOpen(false)}
+      />
+
       {/* Create Folder Dialog */}
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
         <DialogContent className="rounded-2xl max-w-sm">
