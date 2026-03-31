@@ -212,6 +212,7 @@ export type Database = {
           features: string[]
           id: string
           image_url: string
+          is_featured: boolean
           label: string
           price: string
           pricing_model: string
@@ -225,6 +226,7 @@ export type Database = {
           features?: string[]
           id?: string
           image_url: string
+          is_featured?: boolean
           label?: string
           price?: string
           pricing_model?: string
@@ -238,6 +240,7 @@ export type Database = {
           features?: string[]
           id?: string
           image_url?: string
+          is_featured?: boolean
           label?: string
           price?: string
           pricing_model?: string
