@@ -112,10 +112,39 @@ const DesignHistory = () => {
     }
   }, [renamingFolder]);
 
-  // Filtered designs based on active folder
-  const filteredDesigns = activeFolder
-    ? designs.filter((d) => assignments.some((a: any) => a.design_id === d.id && a.folder_id === activeFolder))
-    : designs;
+  // Group carousel slides: show only first slide per carousel_id, attach slide count
+  const groupedDesigns = useMemo(() => {
+    const baseList = activeFolder
+      ? designs.filter((d) => assignments.some((a: any) => a.design_id === d.id && a.folder_id === activeFolder))
+      : designs;
+
+    const carouselMap = new Map<string, typeof baseList>();
+    const result: Array<(typeof designs)[0] & { _slideCount?: number; _carouselSlides?: typeof designs }> = [];
+
+    for (const d of baseList) {
+      const cid = (d as any).carousel_id;
+      if (cid) {
+        if (!carouselMap.has(cid)) {
+          carouselMap.set(cid, []);
+        }
+        carouselMap.get(cid)!.push(d);
+      } else {
+        result.push(d);
+      }
+    }
+
+    // Insert grouped carousels (use first slide by slide_index)
+    for (const [, slides] of carouselMap) {
+      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      result.push({ ...sorted[0], _slideCount: sorted.length, _carouselSlides: sorted });
+    }
+
+    // Sort by created_at descending
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return result;
+  }, [designs, activeFolder, assignments]);
+
+  const filteredDesigns = groupedDesigns;
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim() || !user) return;
