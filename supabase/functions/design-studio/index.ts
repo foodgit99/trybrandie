@@ -922,24 +922,32 @@ TREND RULES:
         }
       }
 
-      // Fetch product images for contextual use
+      // Fetch product catalogue for contextual use
       let productImageUrls: string[] = [];
       let productImageContext = "";
       if (brand?.id) {
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("image_url, label")
+            .select("image_url, label, description, product_type, price, features")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
             .limit(6);
           if (productData && productData.length > 0) {
             productImageUrls = productData.map((p: any) => p.image_url);
-            const labels = productData.filter((p: any) => p.label).map((p: any) => p.label).join(", ");
-            productImageContext = `\n\nPRODUCT IMAGES AVAILABLE: The brand has ${productData.length} product image(s)${labels ? ` (${labels})` : ""}. When the design is promoting, showcasing, or related to the brand's products, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For motivational, informational, or brand-awareness posts, product images are optional. The user's attached image always takes priority over product images.`;
+            const catalogueLines = productData.map((p: any, i: number) => {
+              const parts = [`${i + 1}. "${p.label || "Untitled"}"`];
+              const meta = [p.product_type || "physical"];
+              if (p.price) meta.push(p.price);
+              parts.push(`(${meta.join(", ")})`);
+              if (p.description) parts.push(`— ${p.description}`);
+              if (p.features && p.features.length > 0) parts.push(`Features: ${p.features.join(", ")}`);
+              return parts.join(" ");
+            }).join("\n");
+            productImageContext = `\n\nPRODUCT CATALOGUE:\n${catalogueLines}\n\nPRODUCT IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). Use specific product names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.`;
           }
         } catch (e) {
-          console.log("Product images fetch failed, proceeding without:", e);
+          console.log("Product catalogue fetch failed, proceeding without:", e);
         }
       }
 

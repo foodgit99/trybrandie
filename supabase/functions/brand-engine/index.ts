@@ -49,15 +49,17 @@ serve(async (req) => {
     }
 
     // Gather context
-    const [audienceRes, designsRes, trendRes] = await Promise.all([
+    const [audienceRes, designsRes, trendRes, productsRes] = await Promise.all([
       supabase.from("target_audiences").select("jtbd_profile, label").eq("brand_id", brand_id).limit(3),
       supabase.from("designs").select("title, prompt, trend_used").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
       supabase.from("brand_trend_preferences").select("*").eq("brand_id", brand_id).maybeSingle(),
+      supabase.from("brand_products").select("label, description, product_type, price, features").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
     ]);
 
     const audiences = audienceRes.data || [];
     const pastDesigns = designsRes.data || [];
     const trendPrefs = trendRes.data;
+    const products = productsRes.data || [];
 
     const brandContext = `
 Brand: ${brand.name}
@@ -81,7 +83,16 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       ? `Active trend: ${trendPrefs.selected_trend}, Preferred: ${(trendPrefs.preferred_trends || []).join(", ")}`
       : "No trend preferences set.";
 
-    const fullContext = `${brandContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
+    const productContext = products.length > 0
+      ? products.map((p: any, i: number) => {
+          const parts = [`${i + 1}. "${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""})`];
+          if (p.description) parts.push(`— ${p.description}`);
+          if (p.features?.length > 0) parts.push(`Features: ${p.features.join(", ")}`);
+          return parts.join(" ");
+        }).join("\n")
+      : "No products catalogued yet.";
+
+    const fullContext = `${brandContext}\n\nPRODUCT CATALOGUE:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
 
     // --- WEEKLY GENERATION TRACKING HELPERS ---
     const getISOWeekStart = () => {
