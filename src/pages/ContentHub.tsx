@@ -875,6 +875,9 @@ const ContentHub = () => {
                                 <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                                   {idea.title}
                                 </span>
+                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 shrink-0">
+                                  {(idea.content_format || "graphic") === "carousel" ? "carousel" : (idea.content_format || "graphic") === "video" ? "video" : "graphic"}
+                                </Badge>
                                 {idea.idea_type === "series_post" && (
                                   <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
                                 )}
