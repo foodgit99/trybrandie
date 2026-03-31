@@ -310,6 +310,7 @@ const BrandCentre = () => {
       features: productForm.features,
       duration: productForm.duration.trim(),
       pricing_model: productForm.pricing_model.trim(),
+      is_featured: productForm.is_featured,
     } as any);
     setSaving(false);
     setAddingProduct(false);
