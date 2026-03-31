@@ -929,7 +929,7 @@ TREND RULES:
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("image_url, label, description, product_type, price, features, duration, pricing_model")
+            .select("image_url, label, description, product_type, price, features, duration, pricing_model, is_featured")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
             .limit(6);
