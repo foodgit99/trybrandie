@@ -282,7 +282,7 @@ const BrandCentre = () => {
     setNewFeature("");
   };
 
-  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: "main" | "gallery" = "main") => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setUploadingProductImage(true);
@@ -291,11 +291,23 @@ const BrandCentre = () => {
     const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
     if (upErr) { toast({ title: "Upload failed", description: upErr.message, variant: "destructive" }); setUploadingProductImage(false); return; }
     const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
-    setProductForm(p => ({ ...p, image_url: urlData.publicUrl }));
-    if (!productForm.label) {
-      setProductForm(p => ({ ...p, label: file.name.replace(/\.[^.]+$/, "") }));
+    if (target === "gallery") {
+      setProductForm(p => ({ ...p, gallery_images: [...p.gallery_images, urlData.publicUrl] }));
+    } else {
+      setProductForm(p => ({ ...p, image_url: urlData.publicUrl }));
+      if (!productForm.label) {
+        setProductForm(p => ({ ...p, label: file.name.replace(/\.[^.]+$/, "") }));
+      }
     }
     setUploadingProductImage(false);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const removeGalleryImage = (index: number) => {
+    setProductForm(p => ({ ...p, gallery_images: p.gallery_images.filter((_, i) => i !== index) }));
   };
 
   const saveNewProduct = async () => {
