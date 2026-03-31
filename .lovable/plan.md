@@ -1,61 +1,63 @@
 
 
-# Carousel Feature — Status Audit
+# Plan: Enrich Product Gallery with Detailed Product Information
 
-## What's Working
+## Why This Is Useful
 
-1. **Backend generation pipeline** — The `design-studio` edge function has a complete `generate_carousel` action: creative brief via AI, parallel slide rendering in batches of 2, storage upload, design row saving with `carousel_id` + `slide_index`, caption generation, and credit billing (slide_count × base cost).
+Currently, products are just images with auto-extracted filenames as labels. The AI pipeline sees: *"The brand has 3 product image(s) (coffee-bag, mug, gift-set)"* — almost no context. Adding structured product details would dramatically improve output quality:
 
-2. **Studio carousel mode activation** — Entering via `?mode=carousel` correctly sets `isCarouselMode`, shows the carousel indicator badge, and exposes the slide count selector (2–10).
+1. **Copywriter Agent** — Knowing a product is a "premium single-origin coffee, 250g bag, $18" lets the AI write specific CTAs ("Get yours for $18"), accurate descriptions, and relevant hooks instead of generic copy.
+2. **Creative Director Agent** — Knowing a product is physical vs. digital changes the visual strategy (physical products benefit from lifestyle photography styling; software benefits from UI mockup framing).
+3. **Content Hub** — The idea generator can create product-specific content ideas: "Showcase the new Espresso Blend" rather than generic "promotional post."
+4. **Caption Agent** — Can name-drop specific products, mention features, and use accurate pricing in captions.
 
-3. **Generation context flow** — `DesignGenerationContext` properly handles the `generate_carousel` action, returns `carousel_id` and `slides` array, and the Studio syncs them into local state.
+This is one of the highest-impact Brand Centre improvements possible because it closes the gap between "generic brand awareness" and "product-specific marketing" — which is what most small businesses actually need.
 
-4. **Slide navigator UI** — After generation, the Studio shows: prev/next arrows overlaid on the image, dot indicators, a thumbnail strip, and a "Download All" button.
+## Database Changes
 
-5. **Content Hub → Carousel routing** — When a content idea has `content_format: "carousel"`, clicking the action button navigates to `/studio?mode=carousel&prompt=...&content_idea_id=...`. Content idea status is marked "created" after generation.
+**Alter `brand_products` table** — add columns:
 
-6. **Credit billing** — Correctly multiplies base cost by slide count both client-side (for the pre-check) and server-side.
+| Column | Type | Default | Purpose |
+|---|---|---|---|
+| `description` | text | `''` | What the product does / key selling points |
+| `product_type` | text | `'physical'` | `physical`, `digital`, `service` |
+| `price` | text | `''` | Display price (text to handle currency flexibility) |
+| `features` | text[] | `'{}'` | Key features/benefits list |
 
----
+No new RLS policies needed — existing policies already cover the table.
 
-## What's Partially Working / Has Gaps
+## Brand Centre UI Changes (`BrandCentre.tsx`)
 
-1. **No carousel editing** — After generating a carousel, subsequent chat messages use the standard `generate` or `edit` action. There's no way to edit individual slides or regenerate a single slide. The edit flow treats it as a single-image workflow.
+- Replace the current image-only grid with **expandable product cards** that show:
+  - Product image (existing)
+  - Name/label (existing, make editable inline)
+  - Description (new textarea)
+  - Type selector: Physical / Digital / Service (new)
+  - Price (new input)
+  - Features (new tag-style input, up to 5)
+- Add an **"Edit product"** flow — clicking a product card opens an inline edit panel below the image
+- Keep the existing upload flow but after upload, prompt the user to fill in details
 
-2. **Design History doesn't group carousels** — Each slide is saved as a separate `designs` row with `carousel_id` and `slide_index`, but `DesignHistory.tsx` has zero carousel-aware logic. Slides appear as individual ungrouped designs, which is confusing.
+## Orchestration Pipeline Integration
 
-3. **No carousel re-opening** — If you navigate away and come back, there's no way to reload a carousel from history. The Studio only enters carousel mode via the `?mode=carousel` search param, not from a saved carousel.
+### `design-studio/index.ts`
+Update the product fetch (line ~930) to select the new columns and build a richer context string:
 
-4. **DesignViewer doesn't handle carousels** — The `DesignViewer` component (used in history) shows one image at a time with no slide navigation.
+```
+PRODUCT CATALOGUE:
+1. "Espresso Blend" (physical, $18) — Premium single-origin coffee. Features: organic, fair-trade, bold flavor.
+2. "Brand Kit" (digital, $49) — Complete branding template package. Features: editable, Canva-compatible.
+```
 
-5. **Chat messages for carousel** — Only the first slide's design_id is saved via `design_messages`. The chat history doesn't reference the full carousel context.
+This replaces the current shallow label-only context.
 
----
+### `brand-engine/index.ts`
+When generating weekly content ideas, inject the product catalogue so the AI can create product-specific content ideas (e.g., "Showcase Espresso Blend — highlight organic sourcing" as a graphic post).
 
-## What's Not Working At All
+## Files Changed
 
-1. **No format toggle in the Studio itself** — There's no way to switch between single/carousel mode from within the Studio UI. You can only enter carousel mode via URL params (from Content Hub or direct link). A user in the Studio has no carousel button.
-
-2. **No carousel preview on the canvas panel** — The right-side canvas panel (`currentImage` display) doesn't have carousel-specific UI. It just shows whichever single slide is selected, with no visual indicator that it's part of a set.
-
-3. **No carousel export** — Beyond the "Download All" button (which downloads individual PNGs), there's no combined PDF/ZIP export or shareable carousel preview.
-
----
-
-## Recommended Next Steps (Priority Order)
-
-### Phase 1 — Core Usability
-1. **Add a carousel/single toggle in the Studio toolbar** so users can switch modes without going through Content Hub
-2. **Group carousels in Design History** — show carousel sets as a single card with a slide count badge; clicking opens a carousel viewer with slide navigation
-3. **Enable carousel re-opening** — clicking a carousel in history should open the Studio in carousel mode with all slides loaded
-
-### Phase 2 — Editing & Polish
-4. **Single-slide regeneration** — allow editing/regenerating one slide while keeping the rest
-5. **Carousel-aware DesignViewer** — add slide navigation (arrows, dots, thumbnails) to the viewer component
-6. **Combined download** — ZIP archive of all slides
-
-### Technical Details
-- Phase 1 changes touch: `DesignStudio.tsx` (toolbar toggle), `DesignHistory.tsx` (grouping query + carousel card component), `DesignViewer.tsx` (slide navigation)
-- The database schema already supports carousels (`carousel_id`, `slide_index` columns on `designs` table) — no migrations needed
-- Grouping query: `SELECT DISTINCT ON (COALESCE(carousel_id, id)) ...` or group client-side by `carousel_id`
+1. **Migration SQL** — ALTER `brand_products` to add 4 new columns
+2. **`src/pages/BrandCentre.tsx`** — Expand product card UI with edit capability for new fields
+3. **`supabase/functions/design-studio/index.ts`** — Enrich product context string with new fields
+4. **`supabase/functions/brand-engine/index.ts`** — Inject product catalogue into content idea generation
 
