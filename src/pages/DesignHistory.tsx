@@ -268,172 +268,270 @@ const DesignHistory = () => {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Design History</h2>
+                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">History</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {designs.length} design{designs.length !== 1 ? "s" : ""} created
+                  {designs.length} design{designs.length !== 1 ? "s" : ""} · {videoProjects.length} video{videoProjects.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl gap-1.5 text-xs"
-              onClick={() => setCreateFolderOpen(true)}
-            >
-              <FolderPlus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New Folder</span>
-            </Button>
           </div>
 
-          {/* Folder pills */}
-          {folders.length > 0 && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              <button
-                onClick={() => setActiveFolder(null)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                  !activeFolder
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
+          <Tabs defaultValue={initialTab} className="space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <TabsList className="rounded-xl">
+                <TabsTrigger value="designs" className="rounded-lg gap-1.5 text-xs">
+                  <ImageIcon className="h-3.5 w-3.5" /> Designs
+                </TabsTrigger>
+                <TabsTrigger value="videos" className="rounded-lg gap-1.5 text-xs">
+                  <Film className="h-3.5 w-3.5" /> Videos
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl gap-1.5 text-xs"
+                onClick={() => setCreateFolderOpen(true)}
               >
-                All
-              </button>
-              {folders.map((folder: any) => {
-                const count = assignments.filter((a: any) => a.folder_id === folder.id).length;
-                return (
-                  <div key={folder.id} className="flex items-center gap-0">
-                    {renamingFolder === folder.id ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          ref={renameRef}
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRenameFolder(folder.id);
-                            if (e.key === "Escape") setRenamingFolder(null);
-                          }}
-                          onBlur={() => handleRenameFolder(folder.id)}
-                          className="h-7 px-2 text-xs rounded-lg border border-input bg-background w-24"
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setActiveFolder(activeFolder === folder.id ? null : folder.id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                          activeFolder === folder.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <div
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: folder.color }}
-                        />
-                        {folder.name}
-                        <span className="opacity-50">{count}</span>
-                      </button>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/40 transition-colors -ml-0.5">
-                          <MoreHorizontal className="h-3 w-3" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-36">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setRenamingFolder(folder.id);
-                            setRenameValue(folder.name);
-                          }}
-                          className="gap-2 text-xs"
-                        >
-                          <Pencil className="h-3 w-3" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteFolder(folder.id)}
-                          className="gap-2 text-xs text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                );
-              })}
+                <FolderPlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">New Folder</span>
+              </Button>
             </div>
-          )}
 
-          {/* Design grid */}
-          {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="aspect-square rounded-xl bg-secondary/60 animate-pulse" />
-              ))}
-            </div>
-          ) : filteredDesigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <ImageIcon className="h-12 w-12 text-muted-foreground/40 mb-4" />
-              <p className="text-muted-foreground">
-                {activeFolder ? "No designs in this folder" : "No designs yet"}
-              </p>
-              {!activeFolder && (
-                <Button className="mt-4 rounded-xl" onClick={() => navigate("/studio")}>
-                  Create your first design
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {filteredDesigns.map((design, index) => (
-                <motion.div
-                  key={design.id}
-                  whileHover={{ scale: 1.02 }}
-                  className="group relative rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-                  onClick={() => openViewer(index, design)}
-                >
-                  <div className="aspect-square">
-                    <img
-                      src={design.image_url}
-                      alt={design.title || design.prompt}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  {/* Carousel badge */}
-                  {(design as any)._slideCount > 1 && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-white text-[10px] font-medium backdrop-blur-sm">
-                      <Layers className="h-3 w-3" />
-                      {(design as any)._slideCount} slides
-                    </div>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-white text-xs font-medium truncate">
-                      {design.title || "Untitled"}
-                    </p>
-                    <div className="flex items-center justify-between mt-1">
-                      <div className="flex items-center gap-1 text-white/70">
-                        <Calendar className="h-3 w-3" />
-                        <span className="text-[10px]">
-                          {format(new Date(design.created_at), "MMM d, yyyy")}
-                        </span>
+            {/* === DESIGNS TAB === */}
+            <TabsContent value="designs" className="space-y-4">
+              {/* Folder pills */}
+              {folders.length > 0 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  <button
+                    onClick={() => setActiveFolder(null)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                      !activeFolder
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    All
+                  </button>
+                  {folders.map((folder: any) => {
+                    const count = assignments.filter((a: any) => a.folder_id === folder.id).length;
+                    return (
+                      <div key={folder.id} className="flex items-center gap-0">
+                        {renamingFolder === folder.id ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              ref={renameRef}
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRenameFolder(folder.id);
+                                if (e.key === "Escape") setRenamingFolder(null);
+                              }}
+                              onBlur={() => handleRenameFolder(folder.id)}
+                              className="h-7 px-2 text-xs rounded-lg border border-input bg-background w-24"
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setActiveFolder(activeFolder === folder.id ? null : folder.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                              activeFolder === folder.id
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <div
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ backgroundColor: folder.color }}
+                            />
+                            {folder.name}
+                            <span className="opacity-50">{count}</span>
+                          </button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/40 transition-colors -ml-0.5">
+                              <MoreHorizontal className="h-3 w-3" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-36">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setRenamingFolder(folder.id);
+                                setRenameValue(folder.name);
+                              }}
+                              className="gap-2 text-xs"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteFolder(folder.id)}
+                              className="gap-2 text-xs text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openAssignDialog(design.id);
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Design grid */}
+              {isLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="aspect-square rounded-xl bg-secondary/60 animate-pulse" />
+                  ))}
+                </div>
+              ) : filteredDesigns.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <ImageIcon className="h-12 w-12 text-muted-foreground/40 mb-4" />
+                  <p className="text-muted-foreground">
+                    {activeFolder ? "No designs in this folder" : "No designs yet"}
+                  </p>
+                  {!activeFolder && (
+                    <Button className="mt-4 rounded-xl" onClick={() => navigate("/studio")}>
+                      Create your first design
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {filteredDesigns.map((design, index) => (
+                    <motion.div
+                      key={design.id}
+                      whileHover={{ scale: 1.02 }}
+                      className="group relative rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
+                      onClick={() => openViewer(index, design)}
+                    >
+                      <div className="aspect-square">
+                        <img
+                          src={design.image_url}
+                          alt={design.title || design.prompt}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      {(design as any)._slideCount > 1 && (
+                        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-white text-[10px] font-medium backdrop-blur-sm">
+                          <Layers className="h-3 w-3" />
+                          {(design as any)._slideCount} slides
+                        </div>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-white text-xs font-medium truncate">
+                          {design.title || "Untitled"}
+                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <div className="flex items-center gap-1 text-white/70">
+                            <Calendar className="h-3 w-3" />
+                            <span className="text-[10px]">
+                              {format(new Date(design.created_at), "MMM d, yyyy")}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAssignDialog(design.id);
+                            }}
+                            className="h-6 w-6 flex items-center justify-center rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
+                          >
+                            <FolderPlus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* === VIDEOS TAB === */}
+            <TabsContent value="videos" className="space-y-4">
+              {videosLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="aspect-[3/4] rounded-xl bg-secondary/60 animate-pulse" />
+                  ))}
+                </div>
+              ) : videoProjects.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <Film className="h-12 w-12 text-muted-foreground/40 mb-4" />
+                  <p className="text-muted-foreground">No video projects yet</p>
+                  <Button className="mt-4 rounded-xl" onClick={() => navigate("/studio?mode=video")}>
+                    Create your first video
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {videoProjects.map((project: any) => {
+                    const scenes = (project.video_scenes || []).sort((a: any, b: any) => a.scene_index - b.scene_index);
+                    const firstScene = scenes[0];
+                    const totalDuration = scenes.reduce((sum: number, s: any) => sum + (s.duration_ms || 0), 0);
+                    const intent = project.intent || {};
+
+                    return (
+                      <motion.div
+                        key={project.id}
+                        whileHover={{ scale: 1.02 }}
+                        className="group relative rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
+                        onClick={() => {
+                          setSelectedVideoProject(project);
+                          setVideoViewerOpen(true);
                         }}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
                       >
-                        <FolderPlus className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                        <div className="aspect-[3/4] bg-muted">
+                          {firstScene?.image_url ? (
+                            <img
+                              src={firstScene.image_url}
+                              alt={intent.goal || "Video"}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Film className="h-8 w-8 text-muted-foreground/40" />
+                            </div>
+                          )}
+                        </div>
+                        {/* Badges */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1">
+                          <Badge variant="secondary" className="text-[9px] bg-black/50 text-white border-none backdrop-blur-sm">
+                            {scenes.length} scenes
+                          </Badge>
+                        </div>
+                        {intent.platform && (
+                          <div className="absolute top-2 left-2">
+                            <Badge variant="secondary" className="text-[9px] bg-black/50 text-white border-none backdrop-blur-sm">
+                              {intent.platform}
+                            </Badge>
+                          </div>
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                          <p className="text-white text-xs font-medium truncate">
+                            {intent.goal || "Video Project"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 text-white/70">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <span className="text-[10px]">{(totalDuration / 1000).toFixed(0)}s</span>
+                            </div>
+                            <span className="text-[10px]">·</span>
+                            <span className="text-[10px]">
+                              {format(new Date(project.created_at), "MMM d")}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </motion.div>
       </main>
 
