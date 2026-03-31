@@ -55,7 +55,7 @@ serve(async (req) => {
     const series = seriesRes.data || [];
     const campaigns = campaignsRes.data || [];
     const inspirationCount = inspirationCountRes.count || 0;
-    const productsCount = productsCountRes.count || 0;
+    const products = productsCountRes.data || [];
     const recentDesigns = recentDesignsRes.data || [];
 
     const brandContext = `
