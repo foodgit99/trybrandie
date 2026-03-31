@@ -447,6 +447,7 @@ Choose the format that best serves the content's PURPOSE, not just its pillar la
         title: idea.title,
         prompt: idea.prompt,
         idea_type: idea.idea_type,
+        content_format: idea.content_format || "graphic",
         status: "suggested",
         scheduled_for: dateMap.get(idea.day) || null,
       }));
