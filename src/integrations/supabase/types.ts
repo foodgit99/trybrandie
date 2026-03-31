@@ -210,6 +210,7 @@ export type Database = {
           description: string
           duration: string
           features: string[]
+          gallery_images: string[]
           id: string
           image_url: string
           is_featured: boolean
@@ -224,6 +225,7 @@ export type Database = {
           description?: string
           duration?: string
           features?: string[]
+          gallery_images?: string[]
           id?: string
           image_url: string
           is_featured?: boolean
@@ -238,6 +240,7 @@ export type Database = {
           description?: string
           duration?: string
           features?: string[]
+          gallery_images?: string[]
           id?: string
           image_url?: string
           is_featured?: boolean

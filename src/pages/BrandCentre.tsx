@@ -345,6 +345,7 @@ const BrandCentre = () => {
       duration: productForm.duration.trim(),
       pricing_model: productForm.pricing_model.trim(),
       is_featured: productForm.is_featured,
+      gallery_images: productForm.gallery_images,
     } as any).eq("id", editingProductId);
     setSaving(false);
     setEditingProductId(null);
