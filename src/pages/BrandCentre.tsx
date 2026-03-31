@@ -431,6 +431,52 @@ const BrandCentre = () => {
 
   if (!brand) return null;
 
+  const renderProductFormFields = () => (
+    <>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Name</label>
+        <Input value={productForm.label} onChange={(e) => setProductForm(p => ({ ...p, label: e.target.value }))} placeholder="Product name" className="h-8 text-sm" />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Description</label>
+        <Textarea value={productForm.description} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this product do? Key selling points..." className="min-h-[60px] text-sm" maxLength={500} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Type</label>
+          <div className="flex gap-1">
+            {(["physical", "digital", "service"] as const).map(t => (
+              <button key={t} onClick={() => setProductForm(p => ({ ...p, product_type: t }))} className={`px-2 py-1 text-xs rounded-lg border transition-all ${productForm.product_type === t ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground/40"}`}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Price</label>
+          <Input value={productForm.price} onChange={(e) => setProductForm(p => ({ ...p, price: e.target.value }))} placeholder="e.g. $29, ₦5,000" className="h-8 text-sm" />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Features (up to 5)</label>
+        <div className="flex flex-wrap gap-1 mb-1">
+          {productForm.features.map((f, i) => (
+            <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground flex items-center gap-1">
+              {f}
+              <button onClick={() => removeFeature(i)} className="text-muted-foreground hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+            </span>
+          ))}
+        </div>
+        {productForm.features.length < 5 && (
+          <div className="flex gap-1">
+            <Input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addFeature())} placeholder="Add a feature" className="h-8 text-sm" />
+            <Button variant="outline" size="sm" onClick={addFeature} className="h-8 px-2"><Plus className="h-3 w-3" /></Button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   const renderSection = (title: string, field: EditingField, children: React.ReactNode, editContent: React.ReactNode) => (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
