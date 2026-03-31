@@ -366,7 +366,7 @@ const DesignHistory = () => {
                   key={design.id}
                   whileHover={{ scale: 1.02 }}
                   className="group relative rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-                  onClick={() => openViewer(index)}
+                  onClick={() => openViewer(index, design)}
                 >
                   <div className="aspect-square">
                     <img
@@ -376,6 +376,13 @@ const DesignHistory = () => {
                       loading="lazy"
                     />
                   </div>
+                  {/* Carousel badge */}
+                  {(design as any)._slideCount > 1 && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-white text-[10px] font-medium backdrop-blur-sm">
+                      <Layers className="h-3 w-3" />
+                      {(design as any)._slideCount} slides
+                    </div>
+                  )}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
                     <p className="text-white text-xs font-medium truncate">
                       {design.title || "Untitled"}
