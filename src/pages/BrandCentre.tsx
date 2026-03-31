@@ -816,6 +816,7 @@ const BrandCentre = () => {
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${item.product_type === "digital" ? "bg-blue-500/10 text-blue-500" : item.product_type === "service" ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500"}`}>
                                   {item.product_type || "physical"}
                                 </span>
+                                {item.is_featured && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
                                 {item.price && <span className="text-xs text-muted-foreground font-medium">{item.price}</span>}
                               </div>
                               {item.product_type === "service" && item.duration && <span className="text-[10px] text-muted-foreground ml-1">• {item.duration}</span>}
