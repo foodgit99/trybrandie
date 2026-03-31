@@ -907,37 +907,23 @@ const ContentHub = () => {
                         )}
                       </div>
                       <div className="shrink-0 flex gap-1 items-center">
-                        {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => (
-                          <div key={idea.id} className="flex gap-0.5">
+                        {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
+                          const format = idea.content_format || "graphic";
+                          const FormatIcon = format === "carousel" ? Layers : format === "video" ? Play : ArrowRight;
+                          const formatLabel = format === "carousel" ? "Create carousel" : format === "video" ? "Create video" : "Create graphic";
+                          return (
                             <Button
+                              key={idea.id}
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => handleIdeaAction(idea)}
-                              title="Create graphic"
+                              onClick={() => handleFormatAction(idea)}
+                              title={formatLabel}
                             >
-                              <ArrowRight className="h-3.5 w-3.5" />
+                              <FormatIcon className="h-3.5 w-3.5" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleCarouselAction(idea)}
-                              title="Create carousel"
-                            >
-                              <Layers className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleVideoAction(idea)}
-                              title="Create video"
-                            >
-                              <Play className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {/* Add idea button per day */}
                         <button
                           onClick={() => openCreateIdea(day)}
