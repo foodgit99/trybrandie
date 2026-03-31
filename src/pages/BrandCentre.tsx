@@ -760,7 +760,7 @@ const BrandCentre = () => {
             {addingProduct && (
               <div className="rounded-xl border border-primary/30 bg-muted/30 p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">New Product</p>
+                  <p className="text-sm font-medium">New Product / Service</p>
                   <button onClick={() => setAddingProduct(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
                 </div>
                 {/* Image upload */}
