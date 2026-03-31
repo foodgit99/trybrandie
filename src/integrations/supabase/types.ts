@@ -1014,6 +1014,8 @@ export type Database = {
           hashtags: string[] | null
           id: string
           intent: Json
+          render_status: string
+          rendered_video_url: string | null
           script: Json | null
           selected_variation: number | null
           status: string
@@ -1032,6 +1034,8 @@ export type Database = {
           hashtags?: string[] | null
           id?: string
           intent?: Json
+          render_status?: string
+          rendered_video_url?: string | null
           script?: Json | null
           selected_variation?: number | null
           status?: string
@@ -1050,6 +1054,8 @@ export type Database = {
           hashtags?: string[] | null
           id?: string
           intent?: Json
+          render_status?: string
+          rendered_video_url?: string | null
           script?: Json | null
           selected_variation?: number | null
           status?: string
@@ -1087,6 +1093,7 @@ export type Database = {
           text_overlay: Json | null
           transition: string
           video_project_id: string
+          video_url: string | null
         }
         Insert: {
           created_at?: string
@@ -1098,6 +1105,7 @@ export type Database = {
           text_overlay?: Json | null
           transition?: string
           video_project_id: string
+          video_url?: string | null
         }
         Update: {
           created_at?: string
@@ -1109,6 +1117,7 @@ export type Database = {
           text_overlay?: Json | null
           transition?: string
           video_project_id?: string
+          video_url?: string | null
         }
         Relationships: [
           {

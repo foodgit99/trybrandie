@@ -22,6 +22,7 @@ interface Scene {
   scene_index: number;
   description: string;
   image_url: string | null;
+  video_url?: string | null;
   duration_ms: number;
   text_overlay: {
     text?: string;
@@ -165,7 +166,16 @@ const VideoPreview = ({
               transition={{ duration: 0.3 }}
               className="absolute inset-0"
             >
-              {scene.image_url ? (
+              {scene.video_url ? (
+                <video
+                  src={scene.video_url}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : scene.image_url ? (
                 <img
                   src={scene.image_url}
                   alt={`Scene ${scene.scene_index + 1}`}
