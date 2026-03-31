@@ -46,6 +46,9 @@ const BrandCentre = () => {
   const [editing, setEditing] = useState<EditingField>(null);
   const [saving, setSaving] = useState(false);
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[] });
+  const [newFeature, setNewFeature] = useState("");
   const productInputRef = useRef<HTMLInputElement>(null);
   const inspirationInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
