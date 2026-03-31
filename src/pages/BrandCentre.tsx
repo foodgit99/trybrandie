@@ -48,7 +48,7 @@ const BrandCentre = () => {
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [addingProduct, setAddingProduct] = useState(false);
-  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false });
+  const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] as string[] });
   const [newFeature, setNewFeature] = useState("");
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -277,11 +277,12 @@ const BrandCentre = () => {
       duration: product.duration || "",
       pricing_model: product.pricing_model || "",
       is_featured: product.is_featured || false,
+      gallery_images: product.gallery_images || [],
     });
     setNewFeature("");
   };
 
-  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: "main" | "gallery" = "main") => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setUploadingProductImage(true);
@@ -290,11 +291,23 @@ const BrandCentre = () => {
     const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
     if (upErr) { toast({ title: "Upload failed", description: upErr.message, variant: "destructive" }); setUploadingProductImage(false); return; }
     const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
-    setProductForm(p => ({ ...p, image_url: urlData.publicUrl }));
-    if (!productForm.label) {
-      setProductForm(p => ({ ...p, label: file.name.replace(/\.[^.]+$/, "") }));
+    if (target === "gallery") {
+      setProductForm(p => ({ ...p, gallery_images: [...p.gallery_images, urlData.publicUrl] }));
+    } else {
+      setProductForm(p => ({ ...p, image_url: urlData.publicUrl }));
+      if (!productForm.label) {
+        setProductForm(p => ({ ...p, label: file.name.replace(/\.[^.]+$/, "") }));
+      }
     }
     setUploadingProductImage(false);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const removeGalleryImage = (index: number) => {
+    setProductForm(p => ({ ...p, gallery_images: p.gallery_images.filter((_, i) => i !== index) }));
   };
 
   const saveNewProduct = async () => {
@@ -311,10 +324,11 @@ const BrandCentre = () => {
       duration: productForm.duration.trim(),
       pricing_model: productForm.pricing_model.trim(),
       is_featured: productForm.is_featured,
+      gallery_images: productForm.gallery_images,
     } as any);
     setSaving(false);
     setAddingProduct(false);
-    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "", is_featured: false });
+    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] });
     toast({ title: productForm.product_type === "service" ? "Service added" : "Product added" });
     refetchProducts();
   };
@@ -331,6 +345,7 @@ const BrandCentre = () => {
       duration: productForm.duration.trim(),
       pricing_model: productForm.pricing_model.trim(),
       is_featured: productForm.is_featured,
+      gallery_images: productForm.gallery_images,
     } as any).eq("id", editingProductId);
     setSaving(false);
     setEditingProductId(null);
@@ -496,6 +511,33 @@ const BrandCentre = () => {
         </div>
         <Switch checked={productForm.is_featured} onCheckedChange={(v) => setProductForm(p => ({ ...p, is_featured: v }))} className="scale-75" />
       </div>
+      {/* Gallery images (additional angles/screenshots) */}
+      {productForm.image_url && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Additional Images ({productForm.gallery_images.length}/5)</label>
+          <div className="flex gap-2 flex-wrap">
+            {productForm.gallery_images.map((url, i) => (
+              <div key={i} className="relative group">
+                <img src={url} alt="" className="w-14 h-14 object-cover rounded-lg border border-border" />
+                <button onClick={() => removeGalleryImage(i)} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ))}
+            {productForm.gallery_images.length < 5 && (
+              <button
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={uploadingProductImage}
+                className="w-14 h-14 rounded-lg border-2 border-dashed border-border hover:border-muted-foreground/40 flex flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors"
+              >
+                {uploadingProductImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                <span className="text-[8px]">Add</span>
+              </button>
+            )}
+          </div>
+          <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleProductImageUpload(e, "gallery")} />
+        </div>
+      )}
     </>
   );
 
@@ -759,7 +801,7 @@ const BrandCentre = () => {
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Products & Services</h3>
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false }); setNewFeature(""); }}>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => { setAddingProduct(true); setEditingProductId(null); setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] }); setNewFeature(""); }}>
                 <Plus className="h-3 w-3" /> Add
               </Button>
             </div>
@@ -772,13 +814,15 @@ const BrandCentre = () => {
                   <p className="text-sm font-medium">New Product / Service</p>
                   <button onClick={() => setAddingProduct(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
                 </div>
-                {/* Image upload */}
+                {/* Main image upload */}
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Product Image</label>
+                  <label className="text-xs font-medium text-muted-foreground">Main Image</label>
                   {productForm.image_url ? (
-                    <div className="flex items-center gap-3">
-                      <img src={productForm.image_url} alt="" className="w-16 h-16 object-cover rounded-lg border border-border" />
-                      <Button variant="outline" size="sm" className="text-xs" onClick={() => productInputRef.current?.click()}>Change</Button>
+                    <div className="relative group w-fit">
+                      <img src={productForm.image_url} alt="" className="w-16 h-16 object-cover rounded-lg border-2 border-primary" />
+                      <button onClick={() => productInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Pencil className="h-3 w-3 text-white" />
+                      </button>
                     </div>
                   ) : (
                     <button
@@ -790,7 +834,7 @@ const BrandCentre = () => {
                       <span className="text-xs">{uploadingProductImage ? "Uploading..." : "Upload image"}</span>
                     </button>
                   )}
-                  <input ref={productInputRef} type="file" accept="image/*" className="hidden" onChange={handleProductImageUpload} />
+                  <input ref={productInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleProductImageUpload(e, "main")} />
                 </div>
                 {renderProductFormFields()}
                 <div className="flex justify-end gap-2">
@@ -807,7 +851,12 @@ const BrandCentre = () => {
                   return (
                     <div key={item.id} className="rounded-xl border border-border overflow-hidden">
                       <div className="flex gap-3 p-3">
-                        <img src={item.image_url} alt={item.label || "Product"} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-border flex-shrink-0" />
+                        <div className="flex-shrink-0">
+                          <img src={item.image_url} alt={item.label || "Product"} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-border" />
+                          {item.gallery_images?.length > 0 && (
+                            <p className="text-[9px] text-muted-foreground text-center mt-0.5">+{item.gallery_images.length} more</p>
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-1">
                             <div className="min-w-0">

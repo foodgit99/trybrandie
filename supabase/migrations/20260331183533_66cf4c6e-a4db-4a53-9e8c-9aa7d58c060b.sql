@@ -1,0 +1,1 @@
+ALTER TABLE public.brand_products ADD COLUMN gallery_images text[] NOT NULL DEFAULT '{}'::text[];

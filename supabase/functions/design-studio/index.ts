@@ -929,12 +929,12 @@ TREND RULES:
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("image_url, label, description, product_type, price, features, duration, pricing_model, is_featured")
+            .select("image_url, label, description, product_type, price, features, duration, pricing_model, is_featured, gallery_images")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
             .limit(6);
           if (productData && productData.length > 0) {
-            productImageUrls = productData.map((p: any) => p.image_url);
+            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
             const catalogueLines = productData
               .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
               .map((p: any, i: number) => {
