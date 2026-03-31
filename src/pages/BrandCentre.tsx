@@ -280,14 +280,51 @@ const BrandCentre = () => {
 
   const startEditProduct = (product: any) => {
     setEditingProductId(product.id);
+    setAddingProduct(false);
     setProductForm({
       label: product.label || "",
       description: product.description || "",
       product_type: product.product_type || "physical",
       price: product.price || "",
       features: product.features || [],
+      image_url: product.image_url || "",
     });
     setNewFeature("");
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingProductImage(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
+    if (upErr) { toast({ title: "Upload failed", description: upErr.message, variant: "destructive" }); setUploadingProductImage(false); return; }
+    const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
+    setProductForm(p => ({ ...p, image_url: urlData.publicUrl }));
+    if (!productForm.label) {
+      setProductForm(p => ({ ...p, label: file.name.replace(/\.[^.]+$/, "") }));
+    }
+    setUploadingProductImage(false);
+  };
+
+  const saveNewProduct = async () => {
+    if (!brand || !productForm.image_url) { toast({ title: "Please upload a product image first", variant: "destructive" }); return; }
+    setSaving(true);
+    await supabase.from("brand_products" as any).insert({
+      brand_id: brand.id,
+      image_url: productForm.image_url,
+      label: productForm.label.trim() || "Untitled",
+      description: productForm.description.trim(),
+      product_type: productForm.product_type,
+      price: productForm.price.trim(),
+      features: productForm.features,
+    } as any);
+    setSaving(false);
+    setAddingProduct(false);
+    setProductForm({ label: "", description: "", product_type: "physical", price: "", features: [], image_url: "" });
+    toast({ title: "Product added" });
+    refetchProducts();
   };
 
   const saveProduct = async () => {
