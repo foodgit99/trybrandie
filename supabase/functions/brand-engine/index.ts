@@ -380,7 +380,15 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       });
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.`,
+        system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
+
+CRITICAL — CONTENT FORMAT ASSIGNMENT:
+You MUST assign a content_format to each idea based on the content type and pillar. Use this expert mapping:
+- "carousel" → Educational, How-to, Tips & Tricks, Storytelling, Case Study, Product Showcase, Step-by-step guides, Listicles, Before/After
+- "graphic" → Promotional, Sales, Announcements, Testimonials, Quotes, Engagement/Interactive, Inspirational, UGC/Community, Single visual CTA
+- "video" → Behind the Scenes, Process/Tutorial, Culture/Team, Event/Recap, Demonstrations, Walkthroughs, Dynamic highlights
+
+Choose the format that best serves the content's PURPOSE, not just its pillar label. Educational content works best as carousels (swipeable learning). Promotional content works best as single graphics (punchy CTA). Behind-the-scenes content works best as video (authenticity, motion).`,
         user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}`,
         tool: {
           name: "create_weekly_ideas",
