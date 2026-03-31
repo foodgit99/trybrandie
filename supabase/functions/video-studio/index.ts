@@ -324,9 +324,9 @@ ${scene.text_overlay ? `Text overlay: "${scene.text_overlay}"` : ""}
 Brand colors: ${(brand?.primary_colors || []).join(", ")}
 Energy: ${intent.energy}
 Platform: ${intent.platform} (vertical 9:16 format)
-Style: Modern, professional, on-brand
+Style: Modern, cinematic, professional, on-brand
 
-Create a visually striking scene that feels native to ${intent.platform}.`;
+Create a visually striking scene that feels native to ${intent.platform}. Make it photorealistic and high quality.`;
 
     const res = await fetch(AI_GATEWAY, {
       method: "POST",
@@ -337,38 +337,59 @@ Create a visually striking scene that feels native to ${intent.platform}.`;
       body: JSON.stringify({
         model: IMAGE_MODEL,
         messages: [{ role: "user", content: prompt }],
+        modalities: ["image", "text"],
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("Scene image API error:", res.status);
+      return null;
+    }
 
     const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return null;
+    let imageBase64 = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
-    // Extract base64 image from response
-    const parts = data.choices?.[0]?.message?.parts || [];
-    for (const part of parts) {
-      if (part.inline_data?.data) {
-        // Upload to storage
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-        const buffer = Uint8Array.from(atob(part.inline_data.data), (c) => c.charCodeAt(0));
-        const fileName = `video-scenes/${crypto.randomUUID()}.png`;
-        const { error } = await supabase.storage.from("designs").upload(fileName, buffer, {
-          contentType: "image/png",
-        });
-        if (!error) {
-          const { data: urlData } = supabase.storage.from("designs").getPublicUrl(fileName);
-          return urlData.publicUrl;
-        }
+    // Retry once if no image
+    if (!imageBase64) {
+      console.log("Scene image: no image on first try, retrying...");
+      await new Promise(r => setTimeout(r, 1500));
+      const retry = await fetch(AI_GATEWAY, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: IMAGE_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          modalities: ["image", "text"],
+        }),
+      });
+      if (retry.ok) {
+        const retryData = await retry.json();
+        imageBase64 = retryData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
       }
     }
 
-    // If content contains a URL
-    const urlMatch = content.match(/https?:\/\/[^\s"]+\.(png|jpg|jpeg|webp)/i);
-    if (urlMatch) return urlMatch[0];
+    if (!imageBase64) {
+      console.error("Scene image: no image after retry");
+      return null;
+    }
 
-    return null;
+    // Upload to storage
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const fileName = `video-scenes/${crypto.randomUUID()}.png`;
+    const { error } = await adminClient.storage.from("designs").upload(fileName, buffer, {
+      contentType: "image/png",
+    });
+    if (error) {
+      console.error("Scene image upload failed:", error);
+      return null;
+    }
+    const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(fileName);
+    return urlData.publicUrl;
   } catch (e) {
     console.error("Scene image generation failed:", e);
     return null;
