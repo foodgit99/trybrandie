@@ -226,7 +226,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   };
 
   const handleDownloadVideo = () => {
-    const url = project.rendered_video_url;
+    const url = currentVideoUrl;
     if (!url) return;
     const a = document.createElement("a");
     a.href = url;
