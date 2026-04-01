@@ -47,6 +47,60 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   const [deleting, setDeleting] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [renderStatus, setRenderStatus] = useState<string | null>(null);
+  const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reset local state when project changes
+  useEffect(() => {
+    if (project) {
+      setRenderStatus(null);
+      setRenderedVideoUrl(null);
+      setRendering(false);
+    }
+  }, [project?.id]);
+
+  // Stop polling on unmount or close
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) stopPolling();
+    return stopPolling;
+  }, [open, stopPolling]);
+
+  // Start polling when render is in progress
+  const startPolling = useCallback(() => {
+    stopPolling();
+    if (!project?.id) return;
+
+    pollRef.current = setInterval(async () => {
+      const { data, error } = await supabase
+        .from("video_projects")
+        .select("render_status, rendered_video_url")
+        .eq("id", project.id)
+        .single();
+
+      if (error || !data) return;
+
+      if (data.render_status === "rendered" || data.render_status === "failed") {
+        setRenderStatus(data.render_status);
+        setRenderedVideoUrl(data.rendered_video_url);
+        setRendering(false);
+        stopPolling();
+        queryClient.invalidateQueries({ queryKey: ["video-projects"] });
+
+        if (data.render_status === "rendered") {
+          toast({ title: "Video rendered!", description: "Your video is ready to download." });
+        } else {
+          toast({ title: "Render failed", description: "Some scenes could not be rendered.", variant: "destructive" });
+        }
+      }
+    }, 15000); // Poll every 15 seconds
+  }, [project?.id, stopPolling, queryClient, toast]);
 
   if (!project) return null;
 
