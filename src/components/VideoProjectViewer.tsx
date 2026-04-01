@@ -102,6 +102,14 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
     }, 15000); // Poll every 15 seconds
   }, [project?.id, stopPolling, queryClient, toast]);
 
+  // Auto-start polling if project is already rendering when opened
+  useEffect(() => {
+    if (open && project && (renderStatus || project.render_status) === "rendering") {
+      setRendering(true);
+      startPolling();
+    }
+  }, [open, project?.id, project?.render_status, renderStatus, startPolling]);
+
   if (!project) return null;
 
   const scenes = (project.video_scenes || [])
@@ -126,14 +134,6 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   const strategy = project.storyboard?.strategy;
   const currentRenderStatus = renderStatus || project.render_status || "pending";
   const currentVideoUrl = renderedVideoUrl || project.rendered_video_url;
-
-  // Auto-start polling if project is already rendering when opened
-  useEffect(() => {
-    if (open && currentRenderStatus === "rendering") {
-      setRendering(true);
-      startPolling();
-    }
-  }, [open, currentRenderStatus, startPolling]);
 
   const handleDelete = async () => {
     setDeleting(true);
