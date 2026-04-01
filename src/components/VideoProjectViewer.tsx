@@ -151,6 +151,10 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   const handleRenderVideo = async () => {
     setRendering(true);
     setRenderStatus("rendering");
+    
+    // Start polling immediately — the edge function takes 10-20 min
+    startPolling();
+    
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
@@ -170,27 +174,35 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({ error: "Render failed" }));
+        stopPolling();
         if (res.status === 402) {
           toast({ title: "Insufficient credits", description: "Video rendering requires 5 credits.", variant: "destructive" });
         } else {
           toast({ title: "Render failed", description: errData.error, variant: "destructive" });
         }
         setRenderStatus("failed");
+        setRendering(false);
         return;
       }
 
+      // The edge function may return quickly if it completes fast,
+      // or polling will catch the completion for long renders
       const result = await res.json();
-      setRenderStatus(result.render_status);
-      toast({
-        title: result.render_status === "rendered" ? "Video rendered!" : "Render completed with issues",
-        description: `${result.scenes_rendered}/${result.total_scenes} scenes rendered`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["video-projects"] });
+      if (result.render_status === "rendered" || result.render_status === "failed") {
+        stopPolling();
+        setRenderStatus(result.render_status);
+        setRenderedVideoUrl(result.rendered_video_url || null);
+        setRendering(false);
+        queryClient.invalidateQueries({ queryKey: ["video-projects"] });
+        toast({
+          title: result.render_status === "rendered" ? "Video rendered!" : "Render completed with issues",
+          description: `${result.scenes_rendered}/${result.total_scenes} scenes rendered`,
+        });
+      }
+      // If still rendering, polling will handle the rest
     } catch (e: any) {
-      toast({ title: "Render failed", description: e.message, variant: "destructive" });
-      setRenderStatus("failed");
-    } finally {
-      setRendering(false);
+      // Don't stop polling on network timeout — the render may still be running server-side
+      toast({ title: "Render request sent", description: "We'll update you when it's ready. You can close this dialog and come back later." });
     }
   };
 
