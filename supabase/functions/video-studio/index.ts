@@ -514,7 +514,7 @@ serve(async (req) => {
     // 6. Generate scene images (limit to 4 for speed)
     const scenesToRender = selectedScript.scenes?.slice(0, 6) || [];
     const imagePromises = scenesToRender.map((scene: any) =>
-      generateSceneImage(scene, brandData, intent)
+      generateSceneImage(scene, brandData, intent, context)
     );
 
     const [captionResult, ...sceneImages] = await Promise.all([
