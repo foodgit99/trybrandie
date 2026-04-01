@@ -163,7 +163,7 @@ const Index = () => {
     { label: "New Design", icon: Plus, path: "/studio", description: "Start creating" },
     { label: "Content Hub", icon: Layers, path: "/content", description: "Plan your posts" },
     { label: "Brand Centre", icon: Palette, path: "/brand", description: "Manage identity" },
-    { label: "Design History", icon: Clock, path: "/history", description: "Past creations" },
+    { label: "Video Studio", icon: Video, path: "/studio?mode=video", description: "Create videos" },
   ];
 
   return (
