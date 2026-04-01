@@ -314,19 +314,39 @@ Rules:
 async function generateSceneImage(
   scene: any,
   brand: any,
-  intent: any
+  intent: any,
+  brandContext: string
 ): Promise<string | null> {
   try {
-    const prompt = `Generate a high-quality social media video frame/scene image.
+    // Build rich brand-aware prompt
+    const colorPalette = [
+      ...(brand?.primary_colors || []).map((c: string) => `Primary: ${c}`),
+      ...(brand?.secondary_colors || []).map((c: string) => `Secondary: ${c}`),
+      ...(brand?.accent_colors || []).map((c: string) => `Accent: ${c}`),
+    ].join(", ");
+
+    const brandStyle = [
+      brand?.vibe ? `Visual mood/vibe: ${brand.vibe}` : "",
+      brand?.tone_of_voice ? `Tone: ${brand.tone_of_voice}` : "",
+      brand?.personality_traits?.length ? `Personality: ${brand.personality_traits.join(", ")}` : "",
+      brand?.typography_primary ? `Typography feel: ${brand.typography_primary}` : "",
+      brand?.special_instructions ? `Special instructions: ${brand.special_instructions}` : "",
+    ].filter(Boolean).join("\n");
+
+    const prompt = `Generate a high-quality social media video frame/scene image that is STRICTLY on-brand.
+
+BRAND STYLE DIRECTIVES:
+${brandStyle}
+Color palette: ${colorPalette || "Not specified"}
 
 Scene: ${scene.visual_description}
 ${scene.text_overlay ? `Text overlay: "${scene.text_overlay}"` : ""}
-Brand colors: ${(brand?.primary_colors || []).join(", ")}
 Energy: ${intent.energy}
 Platform: ${intent.platform} (vertical 9:16 format)
-Style: Modern, cinematic, professional, on-brand
 
-Create a visually striking scene that feels native to ${intent.platform}. Make it photorealistic and high quality.`;
+CRITICAL: The image MUST use the brand's color palette as the dominant visual scheme. The mood, lighting, and composition must reflect the brand's vibe and personality. Do NOT use generic stock-photo aesthetics — this must feel uniquely on-brand.
+
+Create a visually striking, photorealistic scene native to ${intent.platform}.`;
 
     const res = await fetch(AI_GATEWAY, {
       method: "POST",
