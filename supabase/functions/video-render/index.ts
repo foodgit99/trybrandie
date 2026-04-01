@@ -16,13 +16,62 @@ interface SceneRow {
   duration_ms: number;
 }
 
+// ─── Brand Context Builder ──────────────────────────────
+
+async function buildBrandDirective(supabase: any, brandId: string): Promise<string> {
+  const [brandRes, audienceRes, trendRes] = await Promise.all([
+    supabase.from("brands").select("*").eq("id", brandId).single(),
+    supabase.from("target_audiences").select("jtbd_profile, label").eq("brand_id", brandId).limit(1).maybeSingle(),
+    supabase.from("brand_trend_preferences").select("*").eq("brand_id", brandId).maybeSingle(),
+  ]);
+
+  const brand = brandRes.data;
+  const audience = audienceRes.data;
+  const trend = trendRes.data;
+
+  if (!brand) return "";
+
+  const colorPalette = [
+    ...(brand.primary_colors || []).map((c: string) => `Primary: ${c}`),
+    ...(brand.secondary_colors || []).map((c: string) => `Secondary: ${c}`),
+    ...(brand.accent_colors || []).map((c: string) => `Accent: ${c}`),
+  ].join(", ");
+
+  let directive = `[BRAND STYLE DIRECTIVE] Brand: "${brand.name}".`;
+  directive += ` Color palette: ${colorPalette || "not specified"}.`;
+  if (brand.vibe) directive += ` Mood/vibe: ${brand.vibe}.`;
+  if (brand.tone_of_voice) directive += ` Tone: ${brand.tone_of_voice}.`;
+  if (brand.personality_traits?.length) directive += ` Personality: ${brand.personality_traits.join(", ")}.`;
+  if (brand.typography_primary) directive += ` Typography feel: ${brand.typography_primary}.`;
+  if (brand.special_instructions) directive += ` Special instructions: ${brand.special_instructions}.`;
+
+  if (audience) {
+    const jtbd = audience.jtbd_profile || {};
+    if (jtbd.emotional_outcomes?.length) {
+      directive += ` Target audience emotional drivers: ${jtbd.emotional_outcomes.join("; ")}.`;
+    }
+    if (jtbd.persona_summary) {
+      directive += ` Audience: ${jtbd.persona_summary}.`;
+    }
+  }
+
+  if (trend?.trend_enabled && trend.selected_trend && trend.selected_trend !== "none") {
+    directive += ` Apply "${trend.selected_trend}" trend styling at ${trend.default_trend_intensity}% intensity.`;
+  }
+
+  directive += ` CRITICAL: Use brand colors as dominant visual scheme. Match the brand's mood and personality in lighting, composition, and color grading.`;
+
+  return directive;
+}
+
+// ─── Main Handler ────────────────────────────────────────
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -129,6 +178,9 @@ Deno.serve(async (req) => {
       .update({ render_status: "rendering" })
       .eq("id", video_project_id);
 
+    // Build brand-aware directive for Veo prompts
+    const brandDirective = await buildBrandDirective(supabaseAdmin, project.brand_id);
+
     // Get aspect ratio from intent
     const platform = project.intent?.platform || "instagram";
     const aspectRatio = ["tiktok", "reels", "youtube_shorts"].includes(platform) ? "9:16" : "16:9";
@@ -140,6 +192,11 @@ Deno.serve(async (req) => {
       try {
         const durationSeconds = Math.min(8, Math.max(5, Math.round(scene.duration_ms / 1000)));
 
+        // Build brand-enriched prompt for Veo
+        const enrichedPrompt = brandDirective
+          ? `${brandDirective}\n\nScene: ${scene.description}`
+          : scene.description;
+
         // Submit to Veo
         const generateRes = await fetch(
           `${VEO_BASE}/models/${VEO_MODEL}:predictLongRunning?key=${GOOGLE_AI_API_KEY}`,
@@ -147,7 +204,7 @@ Deno.serve(async (req) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              instances: [{ prompt: scene.description }],
+              instances: [{ prompt: enrichedPrompt }],
               parameters: {
                 aspectRatio,
                 durationSeconds,
@@ -174,9 +231,9 @@ Deno.serve(async (req) => {
         // Poll for completion (up to 10 minutes per scene)
         let done = false;
         let result: any = null;
-        const maxAttempts = 60; // 60 * 10s = 10 minutes
+        const maxAttempts = 60;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          await new Promise((r) => setTimeout(r, 10000)); // 10s
+          await new Promise((r) => setTimeout(r, 10000));
 
           const pollRes = await fetch(
             `${VEO_BASE}/${operationName}?key=${GOOGLE_AI_API_KEY}`
@@ -229,7 +286,6 @@ Deno.serve(async (req) => {
         const { data: urlData } = supabaseAdmin.storage.from("designs").getPublicUrl(storagePath);
         const videoUrl = urlData.publicUrl;
 
-        // Update scene with video URL
         await supabaseAdmin
           .from("video_scenes")
           .update({ video_url: videoUrl })
@@ -241,12 +297,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Use first scene video as the "rendered" video for now
-    // (Full stitching would require ffmpeg which isn't available in edge functions)
     const renderedVideoUrl = sceneVideoUrls.length > 0 ? sceneVideoUrls[0] : null;
-
-    // Update project status
     const finalStatus = sceneVideoUrls.length > 0 ? "rendered" : "failed";
+
     await supabaseAdmin
       .from("video_projects")
       .update({
@@ -273,7 +326,7 @@ Deno.serve(async (req) => {
 
       await supabaseAdmin
         .from("video_projects")
-        .update({ credits_used: 8 }) // 3 storyboard + 5 render
+        .update({ credits_used: 8 })
         .eq("id", video_project_id);
     }
 

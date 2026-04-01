@@ -241,7 +241,7 @@ Rules:
 - Hook in first 3 seconds is critical
 - Match brand tone exactly
 - Use audience language patterns
-- Each scene should have a clear visual description
+- Each scene's visual_description MUST embed the brand's visual identity: include brand colors (exact hex values), mood/vibe, textures, lighting style, and any special visual instructions from the brand. The visual_description is used directly for image and video generation — it must carry brand DNA so outputs look on-brand without needing separate brand lookups.
 - Transitions should match the energy level
 - Total duration must match target length
 - ${variationHint}`;
@@ -314,19 +314,39 @@ Rules:
 async function generateSceneImage(
   scene: any,
   brand: any,
-  intent: any
+  intent: any,
+  brandContext: string
 ): Promise<string | null> {
   try {
-    const prompt = `Generate a high-quality social media video frame/scene image.
+    // Build rich brand-aware prompt
+    const colorPalette = [
+      ...(brand?.primary_colors || []).map((c: string) => `Primary: ${c}`),
+      ...(brand?.secondary_colors || []).map((c: string) => `Secondary: ${c}`),
+      ...(brand?.accent_colors || []).map((c: string) => `Accent: ${c}`),
+    ].join(", ");
+
+    const brandStyle = [
+      brand?.vibe ? `Visual mood/vibe: ${brand.vibe}` : "",
+      brand?.tone_of_voice ? `Tone: ${brand.tone_of_voice}` : "",
+      brand?.personality_traits?.length ? `Personality: ${brand.personality_traits.join(", ")}` : "",
+      brand?.typography_primary ? `Typography feel: ${brand.typography_primary}` : "",
+      brand?.special_instructions ? `Special instructions: ${brand.special_instructions}` : "",
+    ].filter(Boolean).join("\n");
+
+    const prompt = `Generate a high-quality social media video frame/scene image that is STRICTLY on-brand.
+
+BRAND STYLE DIRECTIVES:
+${brandStyle}
+Color palette: ${colorPalette || "Not specified"}
 
 Scene: ${scene.visual_description}
 ${scene.text_overlay ? `Text overlay: "${scene.text_overlay}"` : ""}
-Brand colors: ${(brand?.primary_colors || []).join(", ")}
 Energy: ${intent.energy}
 Platform: ${intent.platform} (vertical 9:16 format)
-Style: Modern, cinematic, professional, on-brand
 
-Create a visually striking scene that feels native to ${intent.platform}. Make it photorealistic and high quality.`;
+CRITICAL: The image MUST use the brand's color palette as the dominant visual scheme. The mood, lighting, and composition must reflect the brand's vibe and personality. Do NOT use generic stock-photo aesthetics — this must feel uniquely on-brand.
+
+Create a visually striking, photorealistic scene native to ${intent.platform}.`;
 
     const res = await fetch(AI_GATEWAY, {
       method: "POST",
@@ -494,7 +514,7 @@ serve(async (req) => {
     // 6. Generate scene images (limit to 4 for speed)
     const scenesToRender = selectedScript.scenes?.slice(0, 6) || [];
     const imagePromises = scenesToRender.map((scene: any) =>
-      generateSceneImage(scene, brandData, intent)
+      generateSceneImage(scene, brandData, intent, context)
     );
 
     const [captionResult, ...sceneImages] = await Promise.all([
