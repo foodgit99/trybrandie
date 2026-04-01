@@ -288,7 +288,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
         </div>
 
         {/* Rendered video player */}
-        {project.rendered_video_url && currentRenderStatus === "rendered" && (
+        {currentVideoUrl && currentRenderStatus === "rendered" && (
           <div className="px-5">
             <Card>
               <CardContent className="p-3 space-y-2">
@@ -296,7 +296,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
                   <Play className="h-3 w-3" /> Rendered Video
                 </p>
                 <video
-                  src={project.rendered_video_url}
+                  src={currentVideoUrl}
                   controls
                   className="w-full rounded-xl"
                   style={{ maxHeight: 400 }}
