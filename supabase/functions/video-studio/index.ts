@@ -241,7 +241,7 @@ Rules:
 - Hook in first 3 seconds is critical
 - Match brand tone exactly
 - Use audience language patterns
-- Each scene should have a clear visual description
+- Each scene's visual_description MUST embed the brand's visual identity: include brand colors (exact hex values), mood/vibe, textures, lighting style, and any special visual instructions from the brand. The visual_description is used directly for image and video generation — it must carry brand DNA so outputs look on-brand without needing separate brand lookups.
 - Transitions should match the energy level
 - Total duration must match target length
 - ${variationHint}`;
