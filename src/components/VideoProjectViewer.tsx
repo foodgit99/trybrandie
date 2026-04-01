@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,68 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   const [deleting, setDeleting] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [renderStatus, setRenderStatus] = useState<string | null>(null);
+  const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reset local state when project changes
+  useEffect(() => {
+    if (project) {
+      setRenderStatus(null);
+      setRenderedVideoUrl(null);
+      setRendering(false);
+    }
+  }, [project?.id]);
+
+  // Stop polling on unmount or close
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) stopPolling();
+    return stopPolling;
+  }, [open, stopPolling]);
+
+  // Start polling when render is in progress
+  const startPolling = useCallback(() => {
+    stopPolling();
+    if (!project?.id) return;
+
+    pollRef.current = setInterval(async () => {
+      const { data, error } = await supabase
+        .from("video_projects")
+        .select("render_status, rendered_video_url")
+        .eq("id", project.id)
+        .single();
+
+      if (error || !data) return;
+
+      if (data.render_status === "rendered" || data.render_status === "failed") {
+        setRenderStatus(data.render_status);
+        setRenderedVideoUrl(data.rendered_video_url);
+        setRendering(false);
+        stopPolling();
+        queryClient.invalidateQueries({ queryKey: ["video-projects"] });
+
+        if (data.render_status === "rendered") {
+          toast({ title: "Video rendered!", description: "Your video is ready to download." });
+        } else {
+          toast({ title: "Render failed", description: "Some scenes could not be rendered.", variant: "destructive" });
+        }
+      }
+    }, 15000); // Poll every 15 seconds
+  }, [project?.id, stopPolling, queryClient, toast]);
+
+  // Auto-start polling if project is already rendering when opened
+  useEffect(() => {
+    if (open && project && (renderStatus || project.render_status) === "rendering") {
+      setRendering(true);
+      startPolling();
+    }
+  }, [open, project?.id, project?.render_status, renderStatus, startPolling]);
 
   if (!project) return null;
 
@@ -71,6 +133,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
 
   const strategy = project.storyboard?.strategy;
   const currentRenderStatus = renderStatus || project.render_status || "pending";
+  const currentVideoUrl = renderedVideoUrl || project.rendered_video_url;
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -88,6 +151,10 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   const handleRenderVideo = async () => {
     setRendering(true);
     setRenderStatus("rendering");
+    
+    // Start polling immediately — the edge function takes 10-20 min
+    startPolling();
+    
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
@@ -107,27 +174,35 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({ error: "Render failed" }));
+        stopPolling();
         if (res.status === 402) {
           toast({ title: "Insufficient credits", description: "Video rendering requires 5 credits.", variant: "destructive" });
         } else {
           toast({ title: "Render failed", description: errData.error, variant: "destructive" });
         }
         setRenderStatus("failed");
+        setRendering(false);
         return;
       }
 
+      // The edge function may return quickly if it completes fast,
+      // or polling will catch the completion for long renders
       const result = await res.json();
-      setRenderStatus(result.render_status);
-      toast({
-        title: result.render_status === "rendered" ? "Video rendered!" : "Render completed with issues",
-        description: `${result.scenes_rendered}/${result.total_scenes} scenes rendered`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["video-projects"] });
+      if (result.render_status === "rendered" || result.render_status === "failed") {
+        stopPolling();
+        setRenderStatus(result.render_status);
+        setRenderedVideoUrl(result.rendered_video_url || null);
+        setRendering(false);
+        queryClient.invalidateQueries({ queryKey: ["video-projects"] });
+        toast({
+          title: result.render_status === "rendered" ? "Video rendered!" : "Render completed with issues",
+          description: `${result.scenes_rendered}/${result.total_scenes} scenes rendered`,
+        });
+      }
+      // If still rendering, polling will handle the rest
     } catch (e: any) {
-      toast({ title: "Render failed", description: e.message, variant: "destructive" });
-      setRenderStatus("failed");
-    } finally {
-      setRendering(false);
+      // Don't stop polling on network timeout — the render may still be running server-side
+      toast({ title: "Render request sent", description: "We'll update you when it's ready. You can close this dialog and come back later." });
     }
   };
 
@@ -151,7 +226,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
   };
 
   const handleDownloadVideo = () => {
-    const url = project.rendered_video_url;
+    const url = currentVideoUrl;
     if (!url) return;
     const a = document.createElement("a");
     a.href = url;
@@ -213,7 +288,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
         </div>
 
         {/* Rendered video player */}
-        {project.rendered_video_url && currentRenderStatus === "rendered" && (
+        {currentVideoUrl && currentRenderStatus === "rendered" && (
           <div className="px-5">
             <Card>
               <CardContent className="p-3 space-y-2">
@@ -221,7 +296,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
                   <Play className="h-3 w-3" /> Rendered Video
                 </p>
                 <video
-                  src={project.rendered_video_url}
+                  src={currentVideoUrl}
                   controls
                   className="w-full rounded-xl"
                   style={{ maxHeight: 400 }}
@@ -287,7 +362,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
             </Button>
           )}
           {/* Download rendered video */}
-          {project.rendered_video_url && currentRenderStatus === "rendered" && (
+          {currentVideoUrl && currentRenderStatus === "rendered" && (
             <Button
               size="sm"
               className="rounded-xl gap-1.5 text-xs flex-1"
