@@ -362,7 +362,7 @@ const VideoProjectViewer = ({ project, open, onClose }: Props) => {
             </Button>
           )}
           {/* Download rendered video */}
-          {project.rendered_video_url && currentRenderStatus === "rendered" && (
+          {currentVideoUrl && currentRenderStatus === "rendered" && (
             <Button
               size="sm"
               className="rounded-xl gap-1.5 text-xs flex-1"
