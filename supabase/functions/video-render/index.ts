@@ -308,20 +308,29 @@ Deno.serve(async (req) => {
       })
       .eq("id", video_project_id);
 
-    // Deduct credits
+    // Deduct credits — bonus-first
     if (sceneVideoUrls.length > 0) {
+      const RENDER_COST = 5;
       const resetAt = new Date(profile?.generations_reset_at || new Date());
       const now = new Date();
-      const currentCount = (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear())
-        ? 0
-        : (profile?.generations_count || 0);
+      const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+      const currentCount = monthReset ? 0 : (profile?.generations_count || 0);
+      const bonusCredits = profile?.bonus_credits || 0;
+
+      const updates: any = { generations_reset_at: now.toISOString() };
+      if (bonusCredits >= RENDER_COST) {
+        updates.bonus_credits = bonusCredits - RENDER_COST;
+        updates.generations_count = currentCount;
+      } else if (bonusCredits > 0) {
+        updates.bonus_credits = 0;
+        updates.generations_count = currentCount + (RENDER_COST - bonusCredits);
+      } else {
+        updates.generations_count = currentCount + RENDER_COST;
+      }
 
       await supabaseAdmin
         .from("profiles")
-        .update({
-          generations_count: currentCount + 5,
-          generations_reset_at: now.toISOString(),
-        })
+        .update(updates)
         .eq("user_id", userId);
 
       await supabaseAdmin

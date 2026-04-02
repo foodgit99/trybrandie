@@ -1972,14 +1972,36 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         const totalCredits = monthlyLimit + (profile.bonus_credits || 0);
 
         if (needsReset) {
-          await adminClient.from("profiles").update({ generations_count: creditCost, generations_reset_at: now.toISOString() }).eq("user_id", user.id);
+          const bonusCredits = profile.bonus_credits || 0;
+          const updates: any = { generations_reset_at: now.toISOString() };
+          if (bonusCredits >= creditCost) {
+            updates.bonus_credits = bonusCredits - creditCost;
+            updates.generations_count = 0;
+          } else if (bonusCredits > 0) {
+            updates.bonus_credits = 0;
+            updates.generations_count = creditCost - bonusCredits;
+          } else {
+            updates.generations_count = creditCost;
+          }
+          await adminClient.from("profiles").update(updates).eq("user_id", user.id);
         } else {
           if (profile.generations_count + creditCost > totalCredits) {
             return new Response(JSON.stringify({ error: "Not enough credits for carousel. You need " + creditCost + " credits." }), {
               status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          await adminClient.from("profiles").update({ generations_count: profile.generations_count + creditCost }).eq("user_id", user.id);
+          // Bonus-first deduction
+          const bonusCredits = profile.bonus_credits || 0;
+          const updates: any = {};
+          if (bonusCredits >= creditCost) {
+            updates.bonus_credits = bonusCredits - creditCost;
+          } else if (bonusCredits > 0) {
+            updates.bonus_credits = 0;
+            updates.generations_count = profile.generations_count + (creditCost - bonusCredits);
+          } else {
+            updates.generations_count = profile.generations_count + creditCost;
+          }
+          await adminClient.from("profiles").update(updates).eq("user_id", user.id);
         }
       }
 

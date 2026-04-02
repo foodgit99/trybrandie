@@ -571,13 +571,26 @@ serve(async (req) => {
       await supabase.from("video_scenes").insert(sceneRows);
     }
 
-    // 9. Deduct credits
-    await supabase
-      .from("profiles")
-      .update({
-        generations_count: (profile?.generations_count || 0) + VIDEO_CREDIT_COST,
-      })
-      .eq("user_id", user.id);
+    // 9. Deduct credits — bonus-first
+    if (profile) {
+      const bonusCredits = profile.bonus_credits || 0;
+      const resetAt = new Date(profile.generations_reset_at);
+      const now = new Date();
+      const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+      const effectiveCount = monthReset ? 0 : (profile.generations_count || 0);
+      const updates: any = {};
+      if (monthReset) updates.generations_reset_at = now.toISOString();
+      if (bonusCredits >= VIDEO_CREDIT_COST) {
+        updates.bonus_credits = bonusCredits - VIDEO_CREDIT_COST;
+        if (monthReset) updates.generations_count = 0;
+      } else if (bonusCredits > 0) {
+        updates.bonus_credits = 0;
+        updates.generations_count = effectiveCount + (VIDEO_CREDIT_COST - bonusCredits);
+      } else {
+        updates.generations_count = effectiveCount + VIDEO_CREDIT_COST;
+      }
+      await supabase.from("profiles").update(updates).eq("user_id", user.id);
+    }
 
     // Mark content idea if linked
     if (content_idea_id) {
