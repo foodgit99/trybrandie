@@ -826,10 +826,19 @@ TREND RULES:
           const totalCredits = monthlyLimit + (profile.bonus_credits || 0);
 
           if (needsReset) {
-            await adminClient
-              .from("profiles")
-              .update({ generations_count: creditCost, generations_reset_at: now.toISOString(), bonus_earned_count: 0, bonus_earned_reset_at: now.toISOString() })
-              .eq("user_id", user.id);
+            // Month reset: consume bonus first, then start fresh generations_count
+            const bonusCredits = profile.bonus_credits || 0;
+            const updates: any = { generations_reset_at: now.toISOString(), bonus_earned_count: 0, bonus_earned_reset_at: now.toISOString() };
+            if (bonusCredits >= creditCost) {
+              updates.bonus_credits = bonusCredits - creditCost;
+              updates.generations_count = 0;
+            } else if (bonusCredits > 0) {
+              updates.bonus_credits = 0;
+              updates.generations_count = creditCost - bonusCredits;
+            } else {
+              updates.generations_count = creditCost;
+            }
+            await adminClient.from("profiles").update(updates).eq("user_id", user.id);
           } else {
             if (profile.generations_count + creditCost > totalCredits) {
               return new Response(JSON.stringify({ error: "Monthly generation limit reached. Please upgrade your plan." }), {
@@ -838,11 +847,21 @@ TREND RULES:
               });
             }
             
-            const newCount = profile.generations_count + creditCost;
-            await adminClient
-              .from("profiles")
-              .update({ generations_count: newCount })
-              .eq("user_id", user.id);
+            // Bonus-first deduction: consume bonus_credits before incrementing generations_count
+            const bonusCredits = profile.bonus_credits || 0;
+            const updates: any = {};
+            if (bonusCredits >= creditCost) {
+              updates.bonus_credits = bonusCredits - creditCost;
+            } else if (bonusCredits > 0) {
+              updates.bonus_credits = 0;
+              updates.generations_count = profile.generations_count + (creditCost - bonusCredits);
+            } else {
+              updates.generations_count = profile.generations_count + creditCost;
+            }
+            await adminClient.from("profiles").update(updates).eq("user_id", user.id);
+
+            const newCount = updates.generations_count ?? profile.generations_count;
+            const newBonus = updates.bonus_credits ?? bonusCredits;
 
             // Check if credits are running low (< 5 remaining) and send warning email
             const remainingCredits = totalCredits - newCount;
