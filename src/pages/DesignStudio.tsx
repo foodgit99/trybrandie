@@ -293,15 +293,15 @@ const DesignStudio = () => {
   }, [audiences, selectedAudienceId]);
 
   const getCreditsRemaining = () => {
-    const limit = getTierLimit((profile as any)?.subscription_tier);
-    if (!profile) return limit;
+    if (!profile) return FREE_MONTHLY;
     const resetAt = new Date(profile.generations_reset_at);
     const now = new Date();
-    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return limit;
-    }
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
     const bonus = (profile as any).bonus_credits ?? 0;
-    return Math.max(0, limit + bonus - profile.generations_count);
+    const paid = (profile as any).paid_credits ?? 0;
+    return freeRemaining + bonus + paid;
   };
 
   useEffect(() => {
