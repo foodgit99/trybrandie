@@ -572,22 +572,32 @@ serve(async (req) => {
 
     // 9. Deduct credits — bonus-first
     if (profile) {
-      const bonusCredits = profile.bonus_credits || 0;
+      const FREE_MONTHLY = 5;
       const resetAt = new Date(profile.generations_reset_at);
       const now = new Date();
       const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
-      const effectiveCount = monthReset ? 0 : (profile.generations_count || 0);
+      const currentCount = monthReset ? 0 : (profile.generations_count || 0);
+      const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
+      const bonusCredits = profile.bonus_credits || 0;
+      const paidCredits = (profile as any).paid_credits || 0;
+
+      let remainingCost = VIDEO_CREDIT_COST;
       const updates: any = {};
       if (monthReset) updates.generations_reset_at = now.toISOString();
-      if (bonusCredits >= VIDEO_CREDIT_COST) {
-        updates.bonus_credits = bonusCredits - VIDEO_CREDIT_COST;
-        if (monthReset) updates.generations_count = 0;
-      } else if (bonusCredits > 0) {
-        updates.bonus_credits = 0;
-        updates.generations_count = effectiveCount + (VIDEO_CREDIT_COST - bonusCredits);
-      } else {
-        updates.generations_count = effectiveCount + VIDEO_CREDIT_COST;
+
+      const freeToUse = Math.min(remainingCost, freeRemaining);
+      updates.generations_count = currentCount + freeToUse;
+      remainingCost -= freeToUse;
+
+      if (remainingCost > 0) {
+        const bonusToUse = Math.min(remainingCost, bonusCredits);
+        updates.bonus_credits = bonusCredits - bonusToUse;
+        remainingCost -= bonusToUse;
       }
+      if (remainingCost > 0) {
+        updates.paid_credits = paidCredits - remainingCost;
+      }
+
       await supabase.from("profiles").update(updates).eq("user_id", user.id);
     }
 
