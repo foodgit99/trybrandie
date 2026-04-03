@@ -46,22 +46,19 @@ const AppHeader = () => {
     enabled: !!user,
   });
 
-  const subscriptionTier = (profile as any)?.subscription_tier ?? "free";
-  const tierLimit = getTierLimit(subscriptionTier);
-
-  const getCreditsUsed = () => {
-    if (!profile) return 0;
+  const getCreditsRemaining = () => {
+    if (!profile) return FREE_MONTHLY;
     const resetAt = new Date(profile.generations_reset_at);
     const now = new Date();
-    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return 0;
-    }
-    return profile.generations_count;
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const bonus = (profile as any)?.bonus_credits ?? 0;
+    const paid = (profile as any)?.paid_credits ?? 0;
+    return freeRemaining + bonus + paid;
   };
 
-  const creditsUsed = getCreditsUsed();
-  const bonusCredits = (profile as any)?.bonus_credits ?? 0;
-  const creditsRemaining = tierLimit + bonusCredits - creditsUsed;
+  const creditsRemaining = getCreditsRemaining();
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm">
