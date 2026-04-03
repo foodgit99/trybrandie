@@ -862,7 +862,7 @@ TREND RULES:
           const newPaid = updates.paid_credits ?? paidCredits;
 
             // Check if credits are running low (< 5 remaining) and send warning email
-            const remainingCredits = (monthlyLimit + newBonus) - newCount;
+            const remainingCredits = Math.max(0, FREE_MONTHLY - newCount) + newBonus + newPaid;
             if (remainingCredits > 0 && remainingCredits < 5) {
               try {
                 const { data: userData } = await adminClient.auth.admin.getUserById(user.id);
