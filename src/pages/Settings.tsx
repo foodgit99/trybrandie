@@ -134,10 +134,7 @@ const Settings = () => {
                   <div>
                     <p className="text-sm font-medium capitalize">{profile?.subscription_tier ?? "Free"} Plan</p>
                     <p className="text-xs text-muted-foreground">
-                      {profile?.subscription_tier === "entrepreneur" ? "50 credits/month" :
-                       profile?.subscription_tier === "creator" ? "150 credits/month" :
-                       profile?.subscription_tier === "agency" ? "400 credits/month" :
-                       "10 generations per month"}
+                      5 free credits renew monthly
                     </p>
                   </div>
                 </div>

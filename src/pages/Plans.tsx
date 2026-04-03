@@ -14,7 +14,7 @@ const tiers = [
     name: "Free",
     price: "₦0",
     period: "",
-    credits: "10 generations/mo",
+    credits: "5 free credits/mo",
     plan_key: "free",
     features: [
       "1 brand",
@@ -27,7 +27,7 @@ const tiers = [
     name: "Entrepreneur",
     price: "₦12,500",
     period: "/mo",
-    credits: "50 credits/mo",
+    credits: "50 one-time credits",
     plan_key: "entrepreneur",
     features: [
       "1 brand",
@@ -41,7 +41,7 @@ const tiers = [
     name: "Creator",
     price: "₦22,500",
     period: "/mo",
-    credits: "150 credits/mo",
+    credits: "150 one-time credits",
     plan_key: "creator",
     highlight: true,
     features: [
@@ -56,7 +56,7 @@ const tiers = [
     name: "Agency",
     price: "₦59,000",
     period: "/mo",
-    credits: "400 credits/mo",
+    credits: "400 one-time credits",
     plan_key: "agency",
     features: [
       "Unlimited brands",

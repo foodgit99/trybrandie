@@ -402,21 +402,24 @@ const DesignStudio = () => {
     if (!user) return false;
     const { data } = await supabase
       .from("profiles")
-      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
+      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
       .eq("user_id", user.id)
       .single();
     if (!data) return true;
     const resetAt = new Date(data.generations_reset_at);
     const now = new Date();
-    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return true;
-    }
-    const limit = getTierLimit((data as any).subscription_tier);
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? data.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const bonus = (data as any).bonus_credits ?? 0;
+    const paid = (data as any).paid_credits ?? 0;
+    const totalAvailable = freeRemaining + bonus + paid;
+
     const lockedQuality = renderQuality;
     const baseCost = lockedQuality === "hd" ? 2 : 1;
     const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
-    const bonus = (data as any).bonus_credits ?? 0;
-    if (data.generations_count + creditCost > limit + bonus) {
+
+    if (creditCost > totalAvailable) {
       setShowLimitModal(true);
       if (user?.email) {
         supabase.functions.invoke("send-email", {
