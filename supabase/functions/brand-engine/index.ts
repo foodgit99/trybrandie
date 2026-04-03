@@ -110,7 +110,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
     const checkContentGenStatus = async () => {
       const { data: profile } = await serviceClient
         .from("profiles")
-        .select("content_hub_gen_count, content_hub_gen_reset_at, generations_count, generations_reset_at, bonus_credits, subscription_tier")
+        .select("content_hub_gen_count, content_hub_gen_reset_at, generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
         .eq("user_id", userId)
         .single();
       if (!profile) throw new Error("Profile not found");
@@ -120,14 +120,14 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const genCount = resetAt < weekStart ? 0 : (profile.content_hub_gen_count || 0);
       const isFree = genCount === 0;
 
-      // Calculate available credits — account for monthly reset of generations_count
-      const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
-      const limit = tierLimits[profile.subscription_tier] || 10;
+      // Calculate available credits with new model
+      const FREE_MONTHLY = 5;
       const genResetAt = new Date(profile.generations_reset_at);
       const now = new Date();
       const monthReset = now.getMonth() !== genResetAt.getMonth() || now.getFullYear() !== genResetAt.getFullYear();
       const effectiveGenCount = monthReset ? 0 : profile.generations_count;
-      const availableCredits = Math.max(0, limit - effectiveGenCount) + (profile.bonus_credits || 0);
+      const freeRemaining = Math.max(0, FREE_MONTHLY - effectiveGenCount);
+      const availableCredits = freeRemaining + (profile.bonus_credits || 0) + ((profile as any).paid_credits || 0);
 
       return { is_free: isFree, credits_required: isFree ? 0 : 2, available_credits: availableCredits, profile };
     };
