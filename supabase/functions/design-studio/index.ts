@@ -894,7 +894,6 @@ TREND RULES:
                 console.error("Error checking for low credits email:", e);
               }
             }
-          }
         }
       }
 
