@@ -133,24 +133,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check credits (5 for render)
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
+      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
       .eq("user_id", userId)
       .single();
 
     if (profile) {
-      const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
-      const limit = tierLimits[profile.subscription_tier || "free"] || 10;
+      const FREE_MONTHLY = 5;
       const resetAt = new Date(profile.generations_reset_at);
       const now = new Date();
-      let count = profile.generations_count;
-      if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-        count = 0;
-      }
+      const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+      const currentCount = monthReset ? 0 : profile.generations_count;
+      const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
       const bonus = profile.bonus_credits ?? 0;
-      if (count + 5 > limit + bonus) {
+      const paid = (profile as any).paid_credits ?? 0;
+      if (5 > freeRemaining + bonus + paid) {
         return new Response(JSON.stringify({ error: "Insufficient credits. Video rendering requires 5 credits." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
