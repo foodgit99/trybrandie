@@ -1,54 +1,83 @@
 
 
-# Bug Fix: Bonus Credits Never Consumed — Treated as Permanent
+# Plan: Simplify Credit System — 5 Monthly + Consumable Bonus/Paid
 
-## The Problem
+## Current System
+- Each tier gets a monthly allowance (free=10, entrepreneur=50, creator=150, agency=400) that resets via `generations_count` / `generations_reset_at`
+- `bonus_credits` is a separate consumable pool (earned via referrals)
+- Credits remaining = `tierLimit + bonusCredits - generationsUsed`
+- All tier credits renew monthly; bonus credits are consumed first
 
-Bonus credits (earned via referrals, 5 per referral) are **never decremented** when used. They are added to the monthly tier limit as a permanent pool, meaning a user who earned 15 bonus credits gets 15 extra credits **every single month forever**.
+## New System
+- **Every user gets exactly 5 free credits per month** (regardless of tier)
+- **Bonus credits** (referrals) are one-time consumable — once used, gone forever
+- **Paid credits** (from subscriptions) are one-time consumable — once used, gone forever
+- The monthly reset only replenishes 5 free credits, nothing else
 
-Here's what happens for an Entrepreneur user with 15 bonus credits who used 30 credits last month:
+### New Credit Model
+- `generations_count` tracks usage of the 5 monthly free credits (resets monthly)
+- `bonus_credits` stays as-is (consumed, never renewed)
+- New column: `paid_credits` (purchased via subscription, consumed, never renewed)
+- **Credits remaining** = `(5 - monthlyUsed) + bonus_credits + paid_credits`
+- **Deduction order**: free monthly credits first → bonus credits → paid credits
 
-- Month rolls over → `getCreditsUsed()` returns 0 (correct monthly reset)
-- `creditsRemaining = tierLimit(50) + bonusCredits(15) - creditsUsed(0) = 65`
-- The user sees **65 / 50** — more credits than their plan allows
+### What Paid Plans Give You
+When a user subscribes to a tier, they receive a one-time deposit of paid credits:
+- Entrepreneur: 50 paid credits added
+- Creator: 150 paid credits added
+- Agency: 400 paid credits added
 
-The `logo-designer` edge function correctly decrements `bonus_credits` when consumed, but these functions do NOT:
+These do NOT renew automatically. Each billing cycle would need to re-deposit credits (handled by the payment webhook).
 
-1. **`design-studio`** — only increments `generations_count`, never touches `bonus_credits`
-2. **`video-studio`** — same issue
-3. **`brand-engine`** (Content Hub) — partially handles it but has edge cases
-4. **`video-render`** — same issue
+## Changes
 
-## The Fix
+### 1. Database Migration
+Add `paid_credits` column to `profiles` table (integer, default 0, not null).
 
-### 1. Fix credit deduction in `design-studio/index.ts` (2 locations)
+### 2. Frontend — AppHeader.tsx
+- Remove `getTierLimit` function
+- Change display: remaining = `max(0, 5 - monthlyUsed) + bonus_credits + paid_credits`
+- Show total remaining without a "/ limit" denominator (since there's no fixed cap)
 
-When deducting credits, consume bonus credits first:
-- If `bonus_credits >= creditCost`: decrement `bonus_credits` by `creditCost`, do NOT increment `generations_count`
-- If `bonus_credits > 0 but < creditCost`: set `bonus_credits` to 0, increment `generations_count` by the remainder
-- If `bonus_credits == 0`: increment `generations_count` by `creditCost` (current behavior)
+### 3. Frontend — Index.tsx (Dashboard Credit Summary)
+- Same formula: remaining = free remaining + bonus + paid
+- Update labels from "Credits This Month" to reflect the new model
 
-Apply this logic in both the design generation deduction block (~line 828-845) and the carousel deduction block (~line 1947-1958).
+### 4. Frontend — DesignStudio.tsx
+- Update `getCreditsRemaining` to use new formula
+- Update credit check logic
 
-### 2. Fix credit deduction in `video-studio/index.ts`
+### 5. Frontend — Settings.tsx
+- Update credit display text
 
-Same bonus-first deduction logic when deducting the 3-credit storyboard cost.
+### 6. Frontend — Plans.tsx
+- Update plan descriptions (e.g., "50 one-time credits" instead of "50 credits/mo")
 
-### 3. Fix credit deduction in `video-render/index.ts`
+### 7. Edge Functions — All 5 functions
+Update credit availability check and deduction logic in:
+- `design-studio/index.ts` (2 deduction blocks)
+- `video-studio/index.ts`
+- `video-render/index.ts`
+- `brand-engine/index.ts`
+- `logo-designer/index.ts`
 
-Same bonus-first deduction logic when deducting the 5-credit render cost.
+New deduction order: free monthly → bonus → paid.
+New availability check: `freeRemaining + bonus_credits + paid_credits >= cost`
 
-### 4. Fix credit deduction in `brand-engine/index.ts`
+### 8. Payment Webhook — `paystack-webhook/index.ts`
+When a subscription payment succeeds, deposit the tier's credit amount into `paid_credits` (additive) instead of just setting `subscription_tier`.
 
-Align the Content Hub deduction with the same pattern.
-
-### 5. Fix frontend display in `AppHeader.tsx`
-
-The display formula `tierLimit + bonusCredits - creditsUsed` is correct IF bonus credits are being properly decremented. No change needed here once the backend is fixed — the display will naturally show correct values.
-
-## Summary
-
-- **Root cause**: Bonus credits act as a permanent monthly boost instead of a consumable pool
-- **Impact**: Every user with bonus credits gets inflated allowances that never decrease
-- **Fix**: Deduct from `bonus_credits` first across all 4 edge functions, matching the pattern already used in `logo-designer`
+## Files Changed
+1. **Migration** — add `paid_credits` column
+2. **`src/components/AppHeader.tsx`** — new credit formula
+3. **`src/pages/Index.tsx`** — dashboard credit display
+4. **`src/pages/DesignStudio.tsx`** — credit check
+5. **`src/pages/Settings.tsx`** — credit display text
+6. **`src/pages/Plans.tsx`** — plan descriptions
+7. **`supabase/functions/design-studio/index.ts`** — deduction logic
+8. **`supabase/functions/video-studio/index.ts`** — deduction logic
+9. **`supabase/functions/video-render/index.ts`** — deduction logic
+10. **`supabase/functions/brand-engine/index.ts`** — deduction logic
+11. **`supabase/functions/logo-designer/index.ts`** — deduction logic
+12. **`supabase/functions/paystack-webhook/index.ts`** — deposit paid credits on payment
 
