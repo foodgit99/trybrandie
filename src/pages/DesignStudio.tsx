@@ -83,13 +83,7 @@ const CANVAS_SIZES = [
   { label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
 ];
 
-const TIER_LIMITS: Record<string, number> = {
-  free: 10,
-  entrepreneur: 50,
-  creator: 150,
-  agency: 400,
-};
-const getTierLimit = (tier?: string) => TIER_LIMITS[tier || "free"] || TIER_LIMITS.free;
+const FREE_MONTHLY = 5;
 
 const DesignStudio = () => {
   const { brand } = useBrand();
