@@ -83,13 +83,7 @@ const CANVAS_SIZES = [
   { label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
 ];
 
-const TIER_LIMITS: Record<string, number> = {
-  free: 10,
-  entrepreneur: 50,
-  creator: 150,
-  agency: 400,
-};
-const getTierLimit = (tier?: string) => TIER_LIMITS[tier || "free"] || TIER_LIMITS.free;
+const FREE_MONTHLY = 5;
 
 const DesignStudio = () => {
   const { brand } = useBrand();
@@ -175,7 +169,7 @@ const DesignStudio = () => {
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-studio", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("generations_count, generations_reset_at, bonus_credits, subscription_tier").eq("user_id", user!.id).single();
+      const { data, error } = await supabase.from("profiles").select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits").eq("user_id", user!.id).single();
       if (error) throw error;
       return data;
     },
@@ -299,15 +293,15 @@ const DesignStudio = () => {
   }, [audiences, selectedAudienceId]);
 
   const getCreditsRemaining = () => {
-    const limit = getTierLimit((profile as any)?.subscription_tier);
-    if (!profile) return limit;
+    if (!profile) return FREE_MONTHLY;
     const resetAt = new Date(profile.generations_reset_at);
     const now = new Date();
-    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return limit;
-    }
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
     const bonus = (profile as any).bonus_credits ?? 0;
-    return Math.max(0, limit + bonus - profile.generations_count);
+    const paid = (profile as any).paid_credits ?? 0;
+    return freeRemaining + bonus + paid;
   };
 
   useEffect(() => {
@@ -408,21 +402,24 @@ const DesignStudio = () => {
     if (!user) return false;
     const { data } = await supabase
       .from("profiles")
-      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
+      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
       .eq("user_id", user.id)
       .single();
     if (!data) return true;
     const resetAt = new Date(data.generations_reset_at);
     const now = new Date();
-    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return true;
-    }
-    const limit = getTierLimit((data as any).subscription_tier);
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? data.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const bonus = (data as any).bonus_credits ?? 0;
+    const paid = (data as any).paid_credits ?? 0;
+    const totalAvailable = freeRemaining + bonus + paid;
+
     const lockedQuality = renderQuality;
     const baseCost = lockedQuality === "hd" ? 2 : 1;
     const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
-    const bonus = (data as any).bonus_credits ?? 0;
-    if (data.generations_count + creditCost > limit + bonus) {
+
+    if (creditCost > totalAvailable) {
       setShowLimitModal(true);
       if (user?.email) {
         supabase.functions.invoke("send-email", {

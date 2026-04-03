@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const { data: profile, error: profileError } = await adminSupabase
       .from("profiles")
-      .select("logo_generations_used, bonus_credits, generations_count, generations_reset_at, subscription_tier")
+      .select("logo_generations_used, bonus_credits, generations_count, generations_reset_at, subscription_tier, paid_credits")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -57,18 +57,17 @@ serve(async (req) => {
     const isFirstFree = profile.logo_generations_used === 0;
 
     if (!isFirstFree) {
-      // Check credit availability (bonus first, then generation credits)
-      const tierLimits: Record<string, number> = { free: 10, entrepreneur: 50, creator: 150, agency: 400 };
-      const limit = tierLimits[profile.subscription_tier] || 10;
+      // Check credit availability with new model
+      const FREE_MONTHLY = 5;
       const resetAt = new Date(profile.generations_reset_at);
       const now = new Date();
-      let availableGen = (resetAt < new Date(now.getFullYear(), now.getMonth(), 1))
-        ? limit
-        : Math.max(0, limit - profile.generations_count);
-      const totalAvailable = profile.bonus_credits + availableGen;
+      const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+      const currentCount = monthReset ? 0 : profile.generations_count;
+      const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
+      const totalAvailable = freeRemaining + profile.bonus_credits + ((profile as any).paid_credits || 0);
 
       if (totalAvailable < 1) {
-        return new Response(JSON.stringify({ error: "No credits remaining. Please upgrade your plan or wait for your monthly reset.", requires_credits: true }), {
+        return new Response(JSON.stringify({ error: "No credits remaining. Please upgrade your plan or purchase more credits.", requires_credits: true }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -213,18 +212,36 @@ Requirements:
         .update({ logo_generations_used: 1 })
         .eq("user_id", user.id);
     } else {
-      // Deduct from bonus first, then from generation credits
-      if (profile.bonus_credits > 0) {
-        await adminSupabase
-          .from("profiles")
-          .update({ bonus_credits: profile.bonus_credits - 1, logo_generations_used: profile.logo_generations_used + 1 })
-          .eq("user_id", user.id);
-      } else {
-        await adminSupabase
-          .from("profiles")
-          .update({ generations_count: profile.generations_count + 1, logo_generations_used: profile.logo_generations_used + 1 })
-          .eq("user_id", user.id);
+      // Deduction order: free monthly → bonus → paid
+      const FREE_MONTHLY = 5;
+      const resetAt = new Date(profile.generations_reset_at);
+      const now = new Date();
+      const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+      const currentCount = monthReset ? 0 : profile.generations_count;
+      const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
+      const bonusCredits = profile.bonus_credits;
+      const paidCredits = (profile as any).paid_credits || 0;
+
+      let remainingCost = 1;
+      const updates: any = { logo_generations_used: profile.logo_generations_used + 1 };
+      if (monthReset) updates.generations_reset_at = now.toISOString();
+
+      const freeToUse = Math.min(remainingCost, freeRemaining);
+      updates.generations_count = currentCount + freeToUse;
+      remainingCost -= freeToUse;
+
+      if (remainingCost > 0 && bonusCredits > 0) {
+        updates.bonus_credits = bonusCredits - 1;
+        remainingCost = 0;
       }
+      if (remainingCost > 0) {
+        updates.paid_credits = paidCredits - 1;
+      }
+
+      await adminSupabase
+        .from("profiles")
+        .update(updates)
+        .eq("user_id", user.id);
     }
 
     return new Response(JSON.stringify({ image: imageUrl, was_free: isFirstFree }), {

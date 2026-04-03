@@ -25,14 +25,7 @@ import {
   Layers,
 } from "lucide-react";
 
-const getTierLimit = (tier: string): number => {
-  switch (tier) {
-    case "entrepreneur": return 50;
-    case "creator": return 150;
-    case "agency": return 400;
-    default: return 10;
-  }
-};
+const FREE_MONTHLY = 5;
 
 const AppHeader = () => {
   const { user, signOut } = useAuth();
@@ -44,7 +37,7 @@ const AppHeader = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
+        .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
         .eq("user_id", user!.id)
         .single();
       if (error) throw error;
@@ -53,22 +46,19 @@ const AppHeader = () => {
     enabled: !!user,
   });
 
-  const subscriptionTier = (profile as any)?.subscription_tier ?? "free";
-  const tierLimit = getTierLimit(subscriptionTier);
-
-  const getCreditsUsed = () => {
-    if (!profile) return 0;
+  const getCreditsRemaining = () => {
+    if (!profile) return FREE_MONTHLY;
     const resetAt = new Date(profile.generations_reset_at);
     const now = new Date();
-    if (now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-      return 0;
-    }
-    return profile.generations_count;
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const bonus = (profile as any)?.bonus_credits ?? 0;
+    const paid = (profile as any)?.paid_credits ?? 0;
+    return freeRemaining + bonus + paid;
   };
 
-  const creditsUsed = getCreditsUsed();
-  const bonusCredits = (profile as any)?.bonus_credits ?? 0;
-  const creditsRemaining = tierLimit + bonusCredits - creditsUsed;
+  const creditsRemaining = getCreditsRemaining();
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm">
@@ -85,7 +75,7 @@ const AppHeader = () => {
         <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
           <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
           <span className="font-medium">{creditsRemaining}</span>
-          <span className="text-muted-foreground hidden sm:inline">/ {tierLimit}</span>
+          <span className="text-muted-foreground hidden sm:inline">credits</span>
         </div>
 
         {/* Hamburger menu */}

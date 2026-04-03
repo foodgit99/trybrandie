@@ -802,6 +802,7 @@ export type Database = {
           generations_reset_at: string
           id: string
           logo_generations_used: number
+          paid_credits: number
           referral_code: string | null
           referred_by: string | null
           subscription_tier: string
@@ -822,6 +823,7 @@ export type Database = {
           generations_reset_at?: string
           id?: string
           logo_generations_used?: number
+          paid_credits?: number
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
@@ -842,6 +844,7 @@ export type Database = {
           generations_reset_at?: string
           id?: string
           logo_generations_used?: number
+          paid_credits?: number
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string

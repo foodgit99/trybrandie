@@ -74,11 +74,32 @@ Deno.serve(async (req) => {
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Update subscription tier
+      // Update subscription tier and deposit paid credits
       if (user_id && plan) {
+        const paidCreditDeposits: Record<string, number> = {
+          entrepreneur: 50,
+          creator: 150,
+          agency: 400,
+        };
+        const depositAmount = paidCreditDeposits[plan] || 0;
+
+        // First get current paid_credits to add to them
+        const { data: currentProfile } = await supabase
+          .from("profiles")
+          .select("paid_credits")
+          .eq("user_id", user_id)
+          .single();
+
+        const currentPaid = (currentProfile as any)?.paid_credits || 0;
+
         await supabase
           .from("profiles")
-          .update({ subscription_tier: plan, generations_count: 0, generations_reset_at: new Date().toISOString() })
+          .update({
+            subscription_tier: plan,
+            generations_count: 0,
+            generations_reset_at: new Date().toISOString(),
+            paid_credits: currentPaid + depositAmount,
+          })
           .eq("user_id", user_id);
       }
 
