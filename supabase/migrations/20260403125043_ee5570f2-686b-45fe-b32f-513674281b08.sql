@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN paid_credits integer NOT NULL DEFAULT 0;
