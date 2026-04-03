@@ -212,18 +212,36 @@ Requirements:
         .update({ logo_generations_used: 1 })
         .eq("user_id", user.id);
     } else {
-      // Deduct from bonus first, then from generation credits
-      if (profile.bonus_credits > 0) {
-        await adminSupabase
-          .from("profiles")
-          .update({ bonus_credits: profile.bonus_credits - 1, logo_generations_used: profile.logo_generations_used + 1 })
-          .eq("user_id", user.id);
-      } else {
-        await adminSupabase
-          .from("profiles")
-          .update({ generations_count: profile.generations_count + 1, logo_generations_used: profile.logo_generations_used + 1 })
-          .eq("user_id", user.id);
+      // Deduction order: free monthly → bonus → paid
+      const FREE_MONTHLY = 5;
+      const resetAt = new Date(profile.generations_reset_at);
+      const now = new Date();
+      const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
+      const currentCount = monthReset ? 0 : profile.generations_count;
+      const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
+      const bonusCredits = profile.bonus_credits;
+      const paidCredits = (profile as any).paid_credits || 0;
+
+      let remainingCost = 1;
+      const updates: any = { logo_generations_used: profile.logo_generations_used + 1 };
+      if (monthReset) updates.generations_reset_at = now.toISOString();
+
+      const freeToUse = Math.min(remainingCost, freeRemaining);
+      updates.generations_count = currentCount + freeToUse;
+      remainingCost -= freeToUse;
+
+      if (remainingCost > 0 && bonusCredits > 0) {
+        updates.bonus_credits = bonusCredits - 1;
+        remainingCost = 0;
       }
+      if (remainingCost > 0) {
+        updates.paid_credits = paidCredits - 1;
+      }
+
+      await adminSupabase
+        .from("profiles")
+        .update(updates)
+        .eq("user_id", user.id);
     }
 
     return new Response(JSON.stringify({ image: imageUrl, was_free: isFirstFree }), {
