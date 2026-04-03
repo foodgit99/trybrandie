@@ -37,7 +37,7 @@ const AppHeader = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("generations_count, generations_reset_at, bonus_credits, subscription_tier")
+        .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
         .eq("user_id", user!.id)
         .single();
       if (error) throw error;
