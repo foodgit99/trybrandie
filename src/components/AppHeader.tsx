@@ -25,14 +25,7 @@ import {
   Layers,
 } from "lucide-react";
 
-const getTierLimit = (tier: string): number => {
-  switch (tier) {
-    case "entrepreneur": return 50;
-    case "creator": return 150;
-    case "agency": return 400;
-    default: return 10;
-  }
-};
+const FREE_MONTHLY = 5;
 
 const AppHeader = () => {
   const { user, signOut } = useAuth();
