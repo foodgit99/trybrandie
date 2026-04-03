@@ -75,7 +75,7 @@ const AppHeader = () => {
         <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
           <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
           <span className="font-medium">{creditsRemaining}</span>
-          <span className="text-muted-foreground hidden sm:inline">/ {tierLimit}</span>
+          <span className="text-muted-foreground hidden sm:inline">credits</span>
         </div>
 
         {/* Hamburger menu */}
