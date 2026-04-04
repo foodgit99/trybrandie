@@ -915,8 +915,8 @@ const ContentHub = () => {
                       <div className="shrink-0 flex gap-1 items-center">
                         {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
                           const format = idea.content_format || "graphic";
-                          const FormatIcon = format === "carousel" ? Layers : format === "video" ? Play : ArrowRight;
-                          const formatLabel = format === "carousel" ? "Create carousel" : format === "video" ? "Create video" : "Create graphic";
+                          const FormatIcon = format === "carousel" ? Layers : ArrowRight;
+                          const formatLabel = format === "carousel" ? "Create carousel" : "Create graphic";
                           return (
                             <Button
                               key={idea.id}
