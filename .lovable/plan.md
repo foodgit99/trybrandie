@@ -1,33 +1,43 @@
 
 
-# Plan: Use Veo 3.1 Audio + Simplify VideoProjectViewer
+# Plan: Remove All Video UI References
 
-## Context
-Veo 3.1 (`veo-3.1-generate-preview`) already generates video with built-in audio — sound effects, ambient music, and even dialogue/voiceover when prompted. No separate TTS or music service is needed. We just need to enhance the prompts and clean up the UI.
+## Summary
+Remove all video-related buttons, tabs, routes, and UI elements from the frontend while keeping the backend edge functions and database tables intact (for when you get the API key).
 
 ## Changes
 
-### 1. `supabase/functions/video-render/index.ts` — Enhance prompts for audio
-- Add audio direction to the brand directive: instruct Veo to include voiceover narration, background music matching brand mood, and sound effects
-- For each scene's enriched prompt, append audio instructions: "Include professional voiceover narrating the scene. Add brand-appropriate background music that is [brand vibe]. Include subtle sound effects."
-- This requires no API changes — Veo 3.1 handles audio natively
+### 1. `src/pages/Index.tsx` — Remove Video Studio quick action
+- Remove the `Video` icon import from lucide-react
+- Remove the "Video Studio" entry from the `quickActions` array (line 166)
 
-### 2. `src/components/VideoProjectViewer.tsx` — Simplify to video-first viewer
-- **Remove** the storyboard `VideoPreview` component entirely from this dialog
-- **Remove** "Render Video (5 credits)" button — rendering is now automatic from studio
-- **Remove** "Download Scenes" button — users only get the final video
-- When `render_status === "rendered"` and `rendered_video_url` exists: show video player + download + delete buttons only
-- When `render_status === "rendering"`: show a spinner with "Rendering your video…" message
-- When `render_status === "pending"` or `"failed"`: show a status card with appropriate message
-- Keep: intent badges, strategy summary, caption/hashtags, delete button
+### 2. `src/pages/DesignStudio.tsx` — Remove video mode entirely
+- Remove imports: `VideoGuidedFlow`, `VideoPreview`
+- Remove all video state variables (`isVideoMode`, `videoFlowComplete`, `videoLoading`, `videoScenes`, etc.)
+- Remove `handleVideoGenerate`, video polling logic (`videoRenderPollRef`, `startVideoPolling`, `stopVideoPolling`)
+- Remove the video mode conditional block (lines ~1240-1263) that renders `VideoGuidedFlow` and `VideoPreview`
+- Remove "Video Studio" text from the header title conditional
 
-### 3. No database changes needed
-Veo embeds audio directly in the MP4 — no separate audio columns required.
+### 3. `src/pages/DesignHistory.tsx` — Remove Videos tab
+- Remove `VideoProjectViewer` import and component usage
+- Remove video-related state (`selectedVideoProject`, `videoViewerOpen`)
+- Remove `video_projects` query
+- Remove the "Videos" `TabsTrigger` (line 285-287)
+- Remove the entire "Videos" `TabsContent` block (lines 452-533)
+- Remove unused imports (`Film`, `Clock`, `Target`)
+- Remove the `initialTab` logic that checks for `?tab=videos`
 
-### 4. No new edge functions needed
-ElevenLabs integration is not required. Veo handles everything.
+### 4. `src/pages/ContentHub.tsx` — Remove video format option
+- In `handleFormatAction`: remove the `if (format === "video")` branch — treat video ideas as graphics instead
+- Remove the `🎬 Video` `SelectItem` from the content format dropdown (line 1366)
+- In the calendar view: remove the video color mapping and video format icon/label references
+
+### 5. No backend changes
+Edge functions (`video-render`, `video-studio`) and database tables remain untouched for future use.
 
 ## Files Changed
-1. `supabase/functions/video-render/index.ts` — add audio instructions to prompts
-2. `src/components/VideoProjectViewer.tsx` — remove storyboard UI, show only final video
+1. `src/pages/Index.tsx`
+2. `src/pages/DesignStudio.tsx`
+3. `src/pages/DesignHistory.tsx`
+4. `src/pages/ContentHub.tsx`
 
