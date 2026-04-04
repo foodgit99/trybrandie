@@ -1360,7 +1360,7 @@ const ContentHub = () => {
                 <SelectContent>
                   <SelectItem value="graphic">📷 Single Graphic</SelectItem>
                   <SelectItem value="carousel">📚 Carousel</SelectItem>
-                  <SelectItem value="video">🎬 Video</SelectItem>
+                  
                 </SelectContent>
               </Select>
             </div>
