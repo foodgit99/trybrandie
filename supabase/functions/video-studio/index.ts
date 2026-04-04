@@ -36,16 +36,35 @@ async function callAI(
     body: JSON.stringify(body),
   });
 
+  const rawText = await res.text();
+
   if (!res.ok) {
-    const errText = await res.text();
-    console.error(`AI call failed [${res.status}]:`, errText);
+    console.error(`AI call failed [${res.status}]:`, rawText);
     throw new Error(`AI error ${res.status}`);
   }
 
-  const data = await res.json();
+  if (!rawText || rawText.trim().length === 0) {
+    console.error("AI returned empty response body");
+    throw new Error("AI returned empty response");
+  }
+
+  let data: any;
+  try {
+    data = JSON.parse(rawText);
+  } catch (e) {
+    console.error("Failed to parse AI response JSON:", rawText.slice(0, 500));
+    throw new Error("AI returned invalid JSON");
+  }
+
   const choice = data.choices?.[0];
   if (choice?.message?.tool_calls?.[0]) {
-    return JSON.parse(choice.message.tool_calls[0].function.arguments);
+    const args = choice.message.tool_calls[0].function.arguments;
+    try {
+      return JSON.parse(args);
+    } catch (e) {
+      console.error("Failed to parse tool_call arguments:", args?.slice(0, 500));
+      throw new Error("AI returned invalid tool call arguments");
+    }
   }
   return choice?.message?.content || "";
 }
