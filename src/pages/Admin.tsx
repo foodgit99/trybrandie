@@ -375,6 +375,7 @@ type CampaignView = "list" | "compose" | "report";
 
 interface Campaign {
   id: string;
+  admin_user_id: string;
   subject: string;
   headline: string;
   body: string;
