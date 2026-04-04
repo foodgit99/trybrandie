@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
+import ScrollToTop from "@/components/ScrollToTop";
 import FloatingCreateButton from "@/components/FloatingCreateButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
@@ -112,6 +113,7 @@ const App = () => (
       <Sonner />
       <DesignGenerationProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
