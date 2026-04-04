@@ -1239,7 +1239,7 @@ const DesignStudio = () => {
 
       {/* Video Mode */}
       {isVideoMode ? (
-        <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
+        <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0 overflow-y-auto">
           {!videoFlowComplete ? (
             <VideoGuidedFlow
               onComplete={handleVideoGenerate}
