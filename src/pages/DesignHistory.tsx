@@ -250,7 +250,8 @@ const DesignHistory = () => {
               <div>
                 <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">History</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {designs.length} design{designs.length !== 1 ? "s" : ""} · {videoProjects.length} video{videoProjects.length !== 1 ? "s" : ""}
+                  {designs.length} design{designs.length !== 1 ? "s" : ""}
+                </p>
                 </p>
               </div>
             </div>
