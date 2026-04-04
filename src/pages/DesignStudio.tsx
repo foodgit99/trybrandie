@@ -970,7 +970,7 @@ const DesignStudio = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="hidden sm:block text-lg font-serif tracking-tight">
-            {isVideoMode ? "Video Studio" : "Studio"}
+            Studio
           </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
