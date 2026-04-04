@@ -382,10 +382,7 @@ const ContentHub = () => {
 
   const handleFormatAction = (idea: any) => {
     const format = idea.content_format || "graphic";
-    if (format === "video") {
-      const params = new URLSearchParams({ mode: "video", prompt: idea.prompt, content_idea_id: idea.id });
-      navigate(`/studio?${params.toString()}`);
-    } else if (format === "carousel") {
+    if (format === "carousel") {
       const params = new URLSearchParams({ mode: "carousel", prompt: idea.prompt, content_idea_id: idea.id });
       navigate(`/studio?${params.toString()}`);
     } else {
