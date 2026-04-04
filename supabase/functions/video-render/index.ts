@@ -61,6 +61,10 @@ async function buildBrandDirective(supabase: any, brandId: string): Promise<stri
 
   directive += ` CRITICAL: Use brand colors as dominant visual scheme. Match the brand's mood and personality in lighting, composition, and color grading.`;
 
+  // Audio directives for Veo 3.1
+  const vibeForAudio = brand.vibe || "professional and engaging";
+  directive += ` [AUDIO DIRECTION] Include professional voiceover narration that matches the brand's ${brand.tone_of_voice || "confident"} tone. Add background music that feels ${vibeForAudio}. Include subtle, contextually appropriate sound effects. The audio should enhance the visual storytelling and feel cohesive with the brand personality.`;
+
   return directive;
 }
 
