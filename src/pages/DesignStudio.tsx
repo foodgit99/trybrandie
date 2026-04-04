@@ -528,20 +528,60 @@ const DesignStudio = () => {
     });
   };
 
-  // Video generation handler
+  // Video render polling
+  const videoRenderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [videoRenderStatus, setVideoRenderStatus] = useState<string>("");
+  const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null);
+
+  const stopVideoPolling = useCallback(() => {
+    if (videoRenderPollRef.current) {
+      clearInterval(videoRenderPollRef.current);
+      videoRenderPollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => { return stopVideoPolling; }, [stopVideoPolling]);
+
+  const startVideoPolling = useCallback((projectId: string) => {
+    stopVideoPolling();
+    videoRenderPollRef.current = setInterval(async () => {
+      const { data, error } = await supabase
+        .from("video_projects")
+        .select("render_status, rendered_video_url")
+        .eq("id", projectId)
+        .single();
+      if (error || !data) return;
+      if (data.render_status === "rendered" || data.render_status === "failed") {
+        setVideoRenderStatus(data.render_status);
+        setRenderedVideoUrl(data.rendered_video_url);
+        setVideoLoading(false);
+        setVideoStatus("");
+        stopVideoPolling();
+        refetchProfile();
+        if (data.render_status === "rendered") {
+          toast({ title: "Video ready!", description: "Your brand video is ready to download." });
+        } else {
+          toast({ title: "Render failed", description: "Some scenes could not be rendered.", variant: "destructive" });
+        }
+      }
+    }, 15000);
+  }, [stopVideoPolling, refetchProfile, toast]);
+
+  // Video generation handler — auto-chains storyboard → render
   const handleVideoGenerate = async (intent: VideoIntent) => {
     if (!user || !brand) return;
     setVideoFlowComplete(true);
     setVideoLoading(true);
-    setVideoStatus("processing");
+    setVideoStatus("scripting");
+    setVideoRenderStatus("");
+    setRenderedVideoUrl(null);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      setVideoStatus("scripting");
-
+      // 1. Call video-studio (storyboard + scenes)
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-studio`,
         {
@@ -561,40 +601,72 @@ const DesignStudio = () => {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({ error: "Request failed" }));
-        if (res.status === 429) {
-          toast({ title: "Rate limit reached", description: "Please wait and try again.", variant: "destructive" });
-        } else if (res.status === 402) {
-          toast({ title: "Insufficient credits", description: "Video generation requires 3 credits. Upgrade your plan for more.", variant: "destructive" });
+        if (res.status === 402) {
+          toast({ title: "Insufficient credits", description: "Video generation requires 8 credits.", variant: "destructive" });
           setShowLimitModal(true);
         } else {
           toast({ title: "Video generation failed", description: errData.error, variant: "destructive" });
         }
         setVideoLoading(false);
+        setVideoStatus("");
         return;
       }
 
       const result = await res.json();
-      setVideoScenes(result.scenes || []);
-      setVideoVariations(result.variations || []);
+      const projectId = result.project_id;
+      setVideoProjectId(projectId);
       setVideoCaption(result.caption || null);
       setVideoHashtags(result.hashtags || []);
-      setVideoProjectId(result.project_id || null);
-      setSelectedVideoVariation("a");
-      refetchProfile();
-      toast({
-        title: "Video created!",
-        description: `${result.credits_used} credits used. You can now render it as a real video.`,
-        action: (
-          <div className="flex gap-1.5">
-            <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => navigate("/history?tab=videos")}>
-              View in History
-            </Button>
-          </div>
-        ),
-      });
+
+      // 2. Immediately trigger video-render
+      setVideoStatus("rendering");
+
+      const renderRes = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-render`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ video_project_id: projectId }),
+        }
+      );
+
+      if (!renderRes.ok) {
+        const errData = await renderRes.json().catch(() => ({ error: "Render failed" }));
+        if (renderRes.status === 402) {
+          toast({ title: "Insufficient credits", description: "Video rendering requires additional credits.", variant: "destructive" });
+        } else {
+          toast({ title: "Render failed", description: errData.error, variant: "destructive" });
+        }
+        setVideoRenderStatus("failed");
+        setVideoLoading(false);
+        setVideoStatus("");
+        return;
+      }
+
+      // Check if render completed immediately (unlikely with Veo but possible)
+      const renderResult = await renderRes.json();
+      if (renderResult.render_status === "rendered") {
+        setVideoRenderStatus("rendered");
+        setRenderedVideoUrl(renderResult.rendered_video_url || null);
+        setVideoLoading(false);
+        setVideoStatus("");
+        refetchProfile();
+        toast({ title: "Video ready!", description: "Your brand video is ready to download." });
+      } else if (renderResult.render_status === "failed") {
+        setVideoRenderStatus("failed");
+        setVideoLoading(false);
+        setVideoStatus("");
+        toast({ title: "Render failed", variant: "destructive" });
+      } else {
+        // Still rendering — start polling
+        setVideoRenderStatus("rendering");
+        startVideoPolling(projectId);
+      }
     } catch (e: any) {
       toast({ title: "Video generation failed", description: e.message, variant: "destructive" });
-    } finally {
       setVideoLoading(false);
       setVideoStatus("");
     }
@@ -1184,6 +1256,8 @@ const DesignStudio = () => {
               hashtags={videoHashtags}
               loading={videoLoading}
               status={videoStatus}
+              renderStatus={videoRenderStatus}
+              renderedVideoUrl={renderedVideoUrl}
             />
           )}
         </div>
