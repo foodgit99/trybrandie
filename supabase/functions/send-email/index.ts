@@ -577,6 +577,15 @@ Deno.serve(async (req) => {
           data?.cta_url || ""
         );
         break;
+      case "campaign":
+        subject = data?.subject_line || "A message from Brandie";
+        html = campaignHtml(
+          data?.headline || data?.subject_line || "A message from Brandie",
+          data?.message || "",
+          data?.cta_text || "",
+          data?.cta_url || ""
+        );
+        break;
       case "daily_content_reminder":
         subject = `Your content plan for today — ${data?.date || "today"} 📅`;
         html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
