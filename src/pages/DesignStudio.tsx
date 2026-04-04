@@ -980,7 +980,7 @@ const DesignStudio = () => {
             <span className="text-muted-foreground hidden sm:inline">left</span>
           </div>
           {/* Format toggle: Single / Carousel */}
-          {chatMode === "create" && !isVideoMode && (
+          {chatMode === "create" && (
             <div className="flex items-center h-8 sm:h-9 rounded-xl border border-input bg-background overflow-hidden">
               <button
                 onClick={() => { setIsCarouselMode(false); setCarouselSlides([]); setCarouselId(null); }}
