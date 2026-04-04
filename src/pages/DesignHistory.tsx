@@ -40,7 +40,6 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/AppHeader";
 import DesignViewer from "@/components/DesignViewer";
-import VideoProjectViewer from "@/components/VideoProjectViewer";
 
 const FOLDER_COLORS = [
   "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6",
