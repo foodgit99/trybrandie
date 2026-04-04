@@ -731,6 +731,98 @@ export type Database = {
           },
         ]
       }
+      email_campaign_logs: {
+        Row: {
+          campaign_id: string
+          email: string
+          error: string | null
+          id: string
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          email: string
+          error?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          email?: string
+          error?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campaign_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_campaigns: {
+        Row: {
+          admin_user_id: string
+          body: string
+          created_at: string
+          cta_text: string
+          cta_url: string
+          failed_count: number
+          headline: string
+          id: string
+          recipient_count: number
+          scheduled_for: string | null
+          segment_filters: Json
+          sent_count: number
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          body?: string
+          created_at?: string
+          cta_text?: string
+          cta_url?: string
+          failed_count?: number
+          headline?: string
+          id?: string
+          recipient_count?: number
+          scheduled_for?: string | null
+          segment_filters?: Json
+          sent_count?: number
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          body?: string
+          created_at?: string
+          cta_text?: string
+          cta_url?: string
+          failed_count?: number
+          headline?: string
+          id?: string
+          recipient_count?: number
+          scheduled_for?: string | null
+          segment_filters?: Json
+          sent_count?: number
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       post_series: {
         Row: {
           brand_id: string

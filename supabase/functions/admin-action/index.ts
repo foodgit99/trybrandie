@@ -22,6 +22,8 @@ const ALLOWED_TABLES = [
   "design_folders",
   "design_folder_assignments",
   "user_roles",
+  "email_campaigns",
+  "email_campaign_logs",
 ];
 
 async function sendAffiliateEmail(
@@ -46,6 +48,81 @@ async function sendAffiliateEmail(
   }
 }
 
+async function resolveSegment(
+  adminClient: ReturnType<typeof createClient>,
+  filters: Record<string, unknown>
+): Promise<Array<{ user_id: string; email: string }>> {
+  // Build profiles query
+  let query = adminClient.from("profiles").select("user_id");
+
+  // Filter by subscription tier
+  const tiers = filters.tier as string[] | undefined;
+  if (tiers && tiers.length > 0) {
+    query = query.in("subscription_tier", tiers);
+  }
+
+  // Filter by signup date
+  if (filters.signed_up_after) {
+    query = query.gte("created_at", filters.signed_up_after as string);
+  }
+  if (filters.signed_up_before) {
+    query = query.lte("created_at", filters.signed_up_before as string);
+  }
+
+  const { data: profiles, error } = await query;
+  if (error) throw error;
+  if (!profiles || profiles.length === 0) return [];
+
+  let userIds = profiles.map((p) => p.user_id);
+
+  // Filter by has_brand
+  if (filters.has_brand === true) {
+    const { data: brands } = await adminClient
+      .from("brands")
+      .select("user_id")
+      .in("user_id", userIds);
+    const brandUserIds = new Set((brands || []).map((b) => b.user_id));
+    userIds = userIds.filter((id) => brandUserIds.has(id));
+  }
+
+  // Filter by min_designs
+  const minDesigns = filters.min_designs as number | undefined;
+  if (minDesigns && minDesigns > 0) {
+    const { data: designs } = await adminClient
+      .from("designs")
+      .select("user_id")
+      .in("user_id", userIds);
+    const designCounts = new Map<string, number>();
+    (designs || []).forEach((d) => {
+      designCounts.set(d.user_id, (designCounts.get(d.user_id) || 0) + 1);
+    });
+    userIds = userIds.filter((id) => (designCounts.get(id) || 0) >= minDesigns);
+  }
+
+  // Filter by has_referrals
+  if (filters.has_referrals === true) {
+    const { data: rewards } = await adminClient
+      .from("referral_rewards")
+      .select("referrer_user_id")
+      .in("referrer_user_id", userIds);
+    const referrerIds = new Set((rewards || []).map((r) => r.referrer_user_id));
+    userIds = userIds.filter((id) => referrerIds.has(id));
+  }
+
+  if (userIds.length === 0) return [];
+
+  // Resolve emails from auth
+  const results: Array<{ user_id: string; email: string }> = [];
+  for (const uid of userIds) {
+    const { data: authUser } = await adminClient.auth.admin.getUserById(uid);
+    if (authUser?.user?.email) {
+      results.push({ user_id: uid, email: authUser.user.email });
+    }
+  }
+
+  return results;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -55,7 +132,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Get user token from Authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -66,7 +142,6 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Verify user and check admin role
     const userClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: userData, error: userError } = await userClient.auth.getUser(token);
 
@@ -79,7 +154,6 @@ Deno.serve(async (req) => {
 
     const userId = userData.user.id;
 
-    // Check admin role using service role client
     const { data: isAdmin, error: roleError } = await userClient.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
@@ -94,7 +168,6 @@ Deno.serve(async (req) => {
 
     const { operation, table, data, id, offset = 0, limit = 50, search, broadcast } = await req.json();
 
-    // Validate table name
     if (table && !ALLOWED_TABLES.includes(table)) {
       return new Response(JSON.stringify({ error: "Invalid table name" }), {
         status: 400,
@@ -105,8 +178,114 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     switch (operation) {
+      case "segment_count": {
+        const filters = data?.segment_filters || {};
+        const users = await resolveSegment(adminClient, filters);
+        return new Response(JSON.stringify({ count: users.length }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "send_campaign": {
+        const campaignId = data?.campaign_id;
+        if (!campaignId) {
+          return new Response(JSON.stringify({ error: "campaign_id required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Fetch campaign
+        const { data: campaign, error: campErr } = await adminClient
+          .from("email_campaigns")
+          .select("*")
+          .eq("id", campaignId)
+          .single();
+
+        if (campErr || !campaign) {
+          return new Response(JSON.stringify({ error: "Campaign not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Update status to sending
+        await adminClient.from("email_campaigns").update({ status: "sending" }).eq("id", campaignId);
+
+        // Resolve segment
+        const recipients = await resolveSegment(adminClient, campaign.segment_filters || {});
+
+        // Update recipient count
+        await adminClient.from("email_campaigns").update({ recipient_count: recipients.length }).eq("id", campaignId);
+
+        let sent = 0;
+        let failed = 0;
+
+        for (const recipient of recipients) {
+          try {
+            const emailUrl = `${supabaseUrl}/functions/v1/send-email`;
+            const res = await fetch(emailUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({
+                type: "campaign",
+                to: recipient.email,
+                data: {
+                  subject_line: campaign.subject,
+                  headline: campaign.headline || campaign.subject,
+                  message: campaign.body,
+                  cta_text: campaign.cta_text,
+                  cta_url: campaign.cta_url,
+                },
+              }),
+            });
+
+            if (res.ok) {
+              sent++;
+              await adminClient.from("email_campaign_logs").insert({
+                campaign_id: campaignId,
+                user_id: recipient.user_id,
+                email: recipient.email,
+                status: "sent",
+              });
+            } else {
+              const errBody = await res.text();
+              failed++;
+              await adminClient.from("email_campaign_logs").insert({
+                campaign_id: campaignId,
+                user_id: recipient.user_id,
+                email: recipient.email,
+                status: "failed",
+                error: errBody,
+              });
+            }
+          } catch (err) {
+            failed++;
+            await adminClient.from("email_campaign_logs").insert({
+              campaign_id: campaignId,
+              user_id: recipient.user_id,
+              email: recipient.email,
+              status: "failed",
+              error: err.message,
+            });
+          }
+        }
+
+        // Update campaign with final counts
+        await adminClient
+          .from("email_campaigns")
+          .update({ status: "sent", sent_count: sent, failed_count: failed })
+          .eq("id", campaignId);
+
+        return new Response(JSON.stringify({ sent, failed, total: recipients.length }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "broadcast": {
-        // Get count of approved affiliates
         if (broadcast?.countOnly) {
           const { count } = await adminClient
             .from("affiliates")
@@ -117,7 +296,6 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Send broadcast email to all approved affiliates
         const { subject_line, headline, message, cta_text, cta_url } = broadcast || {};
         if (!subject_line || !message) {
           return new Response(JSON.stringify({ error: "subject_line and message are required" }), {
@@ -126,7 +304,6 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Get all approved affiliates
         const { data: affiliates, error: affErr } = await adminClient
           .from("affiliates")
           .select("user_id")
@@ -138,7 +315,6 @@ Deno.serve(async (req) => {
         let failed = 0;
         const total = affiliates?.length || 0;
 
-        // Send emails (limit concurrent requests)
         for (const aff of affiliates || []) {
           const { data: authUser } = await adminClient.auth.admin.getUserById(aff.user_id);
           const email = authUser?.user?.email;
@@ -166,7 +342,6 @@ Deno.serve(async (req) => {
       }
 
       case "stats": {
-        // Get counts for dashboard
         const stats: Record<string, number> = {};
         for (const t of ["profiles", "brands", "designs", "affiliates"]) {
           const { count } = await adminClient
@@ -175,7 +350,6 @@ Deno.serve(async (req) => {
           stats[t] = count || 0;
         }
 
-        // Get total commissions
         const { data: commData } = await adminClient
           .from("affiliate_commissions")
           .select("commission_amount");
@@ -189,9 +363,7 @@ Deno.serve(async (req) => {
       case "list": {
         let query = adminClient.from(table).select("*", { count: "exact" });
 
-        // Add search if provided
         if (search && search.trim()) {
-          // Search across common text fields
           const searchTerm = `%${search}%`;
           if (table === "profiles") {
             query = query.or(`full_name.ilike.${searchTerm},referral_code.ilike.${searchTerm}`);
@@ -201,6 +373,8 @@ Deno.serve(async (req) => {
             query = query.or(`prompt.ilike.${searchTerm},title.ilike.${searchTerm}`);
           } else if (table === "affiliates") {
             query = query.or(`affiliate_code.ilike.${searchTerm},bank_name.ilike.${searchTerm}`);
+          } else if (table === "email_campaigns") {
+            query = query.or(`subject.ilike.${searchTerm},headline.ilike.${searchTerm}`);
           }
         }
 
@@ -230,7 +404,6 @@ Deno.serve(async (req) => {
       }
 
       case "update": {
-        // For affiliates and affiliate_payouts, check if status is changing
         let oldStatus: string | null = null;
         let affiliateUserId: string | null = null;
         let affiliateCode: string | null = null;
@@ -240,7 +413,6 @@ Deno.serve(async (req) => {
           (table === "affiliates" || table === "affiliate_payouts") &&
           data?.status
         ) {
-          // Get the current record to check old status
           const { data: oldRecord } = await adminClient
             .from(table)
             .select("*")
@@ -255,7 +427,6 @@ Deno.serve(async (req) => {
               affiliateCode = oldRecord.affiliate_code;
             } else if (table === "affiliate_payouts") {
               payoutAmount = oldRecord.amount;
-              // Get affiliate user_id
               const { data: affiliate } = await adminClient
                 .from("affiliates")
                 .select("user_id")
@@ -273,9 +444,7 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        // Send affiliate emails based on status change
         if (affiliateUserId && data?.status && data.status !== oldStatus) {
-          // Get user email
           const { data: authUser } = await adminClient.auth.admin.getUserById(affiliateUserId);
           const email = authUser?.user?.email;
 
