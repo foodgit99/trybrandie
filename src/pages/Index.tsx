@@ -162,6 +162,7 @@ const Index = () => {
   const quickActions = [
     { label: "New Design", icon: Plus, path: "/studio", description: "Start creating" },
     { label: "Content Hub", icon: Layers, path: "/content", description: "Plan your posts" },
+    { label: "Design History", icon: Clock, path: "/history", description: "View past designs" },
     { label: "Brand Centre", icon: Palette, path: "/brand", description: "Manage identity" },
   ];
 
