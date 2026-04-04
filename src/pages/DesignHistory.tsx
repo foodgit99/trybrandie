@@ -252,7 +252,6 @@ const DesignHistory = () => {
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {designs.length} design{designs.length !== 1 ? "s" : ""}
                 </p>
-                </p>
               </div>
             </div>
           </div>
