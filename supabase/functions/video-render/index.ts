@@ -194,10 +194,11 @@ Deno.serve(async (req) => {
       try {
         const durationSeconds = Math.min(8, Math.max(5, Math.round(scene.duration_ms / 1000)));
 
-        // Build brand-enriched prompt for Veo
+        // Build brand-enriched prompt for Veo with audio instructions
+        const audioInstruction = `Include professional voiceover narrating this scene. Add brand-appropriate background music. Include subtle sound effects that match the visuals.`;
         const enrichedPrompt = brandDirective
-          ? `${brandDirective}\n\nScene: ${scene.description}`
-          : scene.description;
+          ? `${brandDirective}\n\nScene: ${scene.description}\n\n${audioInstruction}`
+          : `${scene.description}\n\n${audioInstruction}`;
 
         // Submit to Veo
         const generateRes = await fetch(
