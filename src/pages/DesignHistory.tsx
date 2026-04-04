@@ -263,9 +263,6 @@ const DesignHistory = () => {
                 <TabsTrigger value="designs" className="rounded-lg gap-1.5 text-xs">
                   <ImageIcon className="h-3.5 w-3.5" /> Designs
                 </TabsTrigger>
-                <TabsTrigger value="videos" className="rounded-lg gap-1.5 text-xs">
-                  <Film className="h-3.5 w-3.5" /> Videos
-                </TabsTrigger>
               </TabsList>
               <Button
                 variant="outline"
