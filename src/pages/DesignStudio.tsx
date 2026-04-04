@@ -7,8 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import VideoGuidedFlow, { type VideoIntent } from "@/components/VideoGuidedFlow";
-import VideoPreview from "@/components/VideoPreview";
 import {
   Select,
   SelectContent,
