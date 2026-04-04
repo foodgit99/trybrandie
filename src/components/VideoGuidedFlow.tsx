@@ -356,7 +356,7 @@ const VideoGuidedFlow = ({ onComplete, onCancel, initialPrompt }: Props) => {
           {step === steps.length - 1 ? (
             <>
               <Sparkles className="h-3.5 w-3.5" />
-              Generate Video
+              Generate Video (8 credits)
             </>
           ) : (
             <>

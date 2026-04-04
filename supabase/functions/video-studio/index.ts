@@ -467,8 +467,8 @@ serve(async (req) => {
       });
     }
 
-    // Credit check (3 credits for video)
-    const VIDEO_CREDIT_COST = 3;
+    // Credit check (8 credits total: 3 storyboard + 5 render)
+    const VIDEO_CREDIT_COST = 8;
     const { data: profile } = await supabase
       .from("profiles")
       .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")

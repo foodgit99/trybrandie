@@ -1256,6 +1256,8 @@ const DesignStudio = () => {
               hashtags={videoHashtags}
               loading={videoLoading}
               status={videoStatus}
+              renderStatus={videoRenderStatus}
+              renderedVideoUrl={renderedVideoUrl}
             />
           )}
         </div>
