@@ -249,7 +249,7 @@ const VideoPreview = ({
   const scene = scenes[currentScene];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 overflow-y-auto">
       {/* Variation selector */}
       {variations && variations.length > 1 && (
         <div className="px-4 pt-3 pb-1">
