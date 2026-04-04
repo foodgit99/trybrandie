@@ -18,9 +18,6 @@ import {
   Trash2,
   Check,
   Layers,
-  Film,
-  Clock,
-  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
