@@ -7,8 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import VideoGuidedFlow, { type VideoIntent } from "@/components/VideoGuidedFlow";
-import VideoPreview from "@/components/VideoPreview";
 import {
   Select,
   SelectContent,
@@ -130,17 +128,6 @@ const DesignStudio = () => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [carouselId, setCarouselId] = useState<string | null>(null);
 
-  // Video mode state
-  const isVideoMode = searchParams.get("mode") === "video";
-  const [videoFlowComplete, setVideoFlowComplete] = useState(false);
-  const [videoLoading, setVideoLoading] = useState(false);
-  const [videoStatus, setVideoStatus] = useState<string>("");
-  const [videoScenes, setVideoScenes] = useState<any[]>([]);
-  const [videoVariations, setVideoVariations] = useState<any[]>([]);
-  const [selectedVideoVariation, setSelectedVideoVariation] = useState<string>("a");
-  const [videoCaption, setVideoCaption] = useState<string | null>(null);
-  const [videoHashtags, setVideoHashtags] = useState<string[]>([]);
-  const [videoProjectId, setVideoProjectId] = useState<string | null>(null);
 
   const planAbortRef = useRef<AbortController | null>(null);
   const recommendationFetched = useRef(false);
@@ -526,150 +513,6 @@ const DesignStudio = () => {
         attachedImageUrl: m.attachedImageUrl,
       })),
     });
-  };
-
-  // Video render polling
-  const videoRenderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [videoRenderStatus, setVideoRenderStatus] = useState<string>("");
-  const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null);
-
-  const stopVideoPolling = useCallback(() => {
-    if (videoRenderPollRef.current) {
-      clearInterval(videoRenderPollRef.current);
-      videoRenderPollRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => { return stopVideoPolling; }, [stopVideoPolling]);
-
-  const startVideoPolling = useCallback((projectId: string) => {
-    stopVideoPolling();
-    videoRenderPollRef.current = setInterval(async () => {
-      const { data, error } = await supabase
-        .from("video_projects")
-        .select("render_status, rendered_video_url")
-        .eq("id", projectId)
-        .single();
-      if (error || !data) return;
-      if (data.render_status === "rendered" || data.render_status === "failed") {
-        setVideoRenderStatus(data.render_status);
-        setRenderedVideoUrl(data.rendered_video_url);
-        setVideoLoading(false);
-        setVideoStatus("");
-        stopVideoPolling();
-        refetchProfile();
-        if (data.render_status === "rendered") {
-          toast({ title: "Video ready!", description: "Your brand video is ready to download." });
-        } else {
-          toast({ title: "Render failed", description: "Some scenes could not be rendered.", variant: "destructive" });
-        }
-      }
-    }, 15000);
-  }, [stopVideoPolling, refetchProfile, toast]);
-
-  // Video generation handler — auto-chains storyboard → render
-  const handleVideoGenerate = async (intent: VideoIntent) => {
-    if (!user || !brand) return;
-    setVideoFlowComplete(true);
-    setVideoLoading(true);
-    setVideoStatus("scripting");
-    setVideoRenderStatus("");
-    setRenderedVideoUrl(null);
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
-
-      // 1. Call video-studio (storyboard + scenes)
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-studio`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            intent,
-            brand_id: brand.id,
-            audience_id: selectedAudienceId !== "none" ? selectedAudienceId : undefined,
-            content_idea_id: searchParams.get("content_idea_id") || undefined,
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ error: "Request failed" }));
-        if (res.status === 402) {
-          toast({ title: "Insufficient credits", description: "Video generation requires 8 credits.", variant: "destructive" });
-          setShowLimitModal(true);
-        } else {
-          toast({ title: "Video generation failed", description: errData.error, variant: "destructive" });
-        }
-        setVideoLoading(false);
-        setVideoStatus("");
-        return;
-      }
-
-      const result = await res.json();
-      const projectId = result.project_id;
-      setVideoProjectId(projectId);
-      setVideoCaption(result.caption || null);
-      setVideoHashtags(result.hashtags || []);
-
-      // 2. Immediately trigger video-render
-      setVideoStatus("rendering");
-
-      const renderRes = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-render`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ video_project_id: projectId }),
-        }
-      );
-
-      if (!renderRes.ok) {
-        const errData = await renderRes.json().catch(() => ({ error: "Render failed" }));
-        if (renderRes.status === 402) {
-          toast({ title: "Insufficient credits", description: "Video rendering requires additional credits.", variant: "destructive" });
-        } else {
-          toast({ title: "Render failed", description: errData.error, variant: "destructive" });
-        }
-        setVideoRenderStatus("failed");
-        setVideoLoading(false);
-        setVideoStatus("");
-        return;
-      }
-
-      // Check if render completed immediately (unlikely with Veo but possible)
-      const renderResult = await renderRes.json();
-      if (renderResult.render_status === "rendered") {
-        setVideoRenderStatus("rendered");
-        setRenderedVideoUrl(renderResult.rendered_video_url || null);
-        setVideoLoading(false);
-        setVideoStatus("");
-        refetchProfile();
-        toast({ title: "Video ready!", description: "Your brand video is ready to download." });
-      } else if (renderResult.render_status === "failed") {
-        setVideoRenderStatus("failed");
-        setVideoLoading(false);
-        setVideoStatus("");
-        toast({ title: "Render failed", variant: "destructive" });
-      } else {
-        // Still rendering — start polling
-        setVideoRenderStatus("rendering");
-        startVideoPolling(projectId);
-      }
-    } catch (e: any) {
-      toast({ title: "Video generation failed", description: e.message, variant: "destructive" });
-      setVideoLoading(false);
-      setVideoStatus("");
-    }
   };
 
   // Sync generation results back to local state
@@ -1127,7 +970,7 @@ const DesignStudio = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="hidden sm:block text-lg font-serif tracking-tight">
-            {isVideoMode ? "Video Studio" : "Studio"}
+            Studio
           </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
@@ -1137,7 +980,7 @@ const DesignStudio = () => {
             <span className="text-muted-foreground hidden sm:inline">left</span>
           </div>
           {/* Format toggle: Single / Carousel */}
-          {chatMode === "create" && !isVideoMode && (
+          {chatMode === "create" && (
             <div className="flex items-center h-8 sm:h-9 rounded-xl border border-input bg-background overflow-hidden">
               <button
                 onClick={() => { setIsCarouselMode(false); setCarouselSlides([]); setCarouselId(null); }}
@@ -1237,32 +1080,8 @@ const DesignStudio = () => {
         </div>
       </header>
 
-      {/* Video Mode */}
-      {isVideoMode ? (
-        <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0 overflow-y-auto">
-          {!videoFlowComplete ? (
-            <VideoGuidedFlow
-              onComplete={handleVideoGenerate}
-              onCancel={() => navigate("/content")}
-              initialPrompt={searchParams.get("prompt") || ""}
-            />
-          ) : (
-            <VideoPreview
-              scenes={videoScenes}
-              variations={videoVariations}
-              selectedVariation={selectedVideoVariation}
-              onSelectVariation={setSelectedVideoVariation}
-              caption={videoCaption}
-              hashtags={videoHashtags}
-              loading={videoLoading}
-              status={videoStatus}
-              renderStatus={videoRenderStatus}
-              renderedVideoUrl={renderedVideoUrl}
-            />
-          )}
-        </div>
-      ) : (
-      /* Single-column chat layout — scrollable between fixed header and input */
+      {/* Single-column chat layout — scrollable between fixed header and input */}
+      {(
       <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 pb-[180px] space-y-4">

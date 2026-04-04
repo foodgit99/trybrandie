@@ -382,10 +382,7 @@ const ContentHub = () => {
 
   const handleFormatAction = (idea: any) => {
     const format = idea.content_format || "graphic";
-    if (format === "video") {
-      const params = new URLSearchParams({ mode: "video", prompt: idea.prompt, content_idea_id: idea.id });
-      navigate(`/studio?${params.toString()}`);
-    } else if (format === "carousel") {
+    if (format === "carousel") {
       const params = new URLSearchParams({ mode: "carousel", prompt: idea.prompt, content_idea_id: idea.id });
       navigate(`/studio?${params.toString()}`);
     } else {
@@ -879,7 +876,6 @@ const ContentHub = () => {
                                   const fmt = idea.content_format || "graphic";
                                   const colorMap: Record<string, string> = {
                                     carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
-                                    video: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/20",
                                     graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
                                   };
                                   return (
@@ -919,8 +915,8 @@ const ContentHub = () => {
                       <div className="shrink-0 flex gap-1 items-center">
                         {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
                           const format = idea.content_format || "graphic";
-                          const FormatIcon = format === "carousel" ? Layers : format === "video" ? Play : ArrowRight;
-                          const formatLabel = format === "carousel" ? "Create carousel" : format === "video" ? "Create video" : "Create graphic";
+                          const FormatIcon = format === "carousel" ? Layers : ArrowRight;
+                          const formatLabel = format === "carousel" ? "Create carousel" : "Create graphic";
                           return (
                             <Button
                               key={idea.id}
@@ -1363,7 +1359,7 @@ const ContentHub = () => {
                 <SelectContent>
                   <SelectItem value="graphic">📷 Single Graphic</SelectItem>
                   <SelectItem value="carousel">📚 Carousel</SelectItem>
-                  <SelectItem value="video">🎬 Video</SelectItem>
+                  
                 </SelectContent>
               </Select>
             </div>

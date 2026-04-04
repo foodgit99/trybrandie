@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,9 +18,6 @@ import {
   Trash2,
   Check,
   Layers,
-  Film,
-  Clock,
-  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +40,6 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/AppHeader";
 import DesignViewer from "@/components/DesignViewer";
-import VideoProjectViewer from "@/components/VideoProjectViewer";
 
 const FOLDER_COLORS = [
   "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6",
@@ -55,8 +51,8 @@ const DesignHistory = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") === "videos" ? "videos" : "designs";
+
+  const initialTab = "designs";
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
@@ -69,8 +65,6 @@ const DesignHistory = () => {
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
-  const [selectedVideoProject, setSelectedVideoProject] = useState<any>(null);
-  const [videoViewerOpen, setVideoViewerOpen] = useState(false);
 
   // Fetch all designs
   const { data: designs = [], isLoading } = useQuery({
@@ -115,20 +109,6 @@ const DesignHistory = () => {
     enabled: !!user,
   });
 
-  // Fetch video projects
-  const { data: videoProjects = [], isLoading: videosLoading } = useQuery({
-    queryKey: ["video-projects", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("video_projects")
-        .select("*, video_scenes(*)")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as any[];
-    },
-    enabled: !!user,
-  });
 
   useEffect(() => {
     if (renamingFolder && renameRef.current) {
@@ -270,7 +250,7 @@ const DesignHistory = () => {
               <div>
                 <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">History</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {designs.length} design{designs.length !== 1 ? "s" : ""} · {videoProjects.length} video{videoProjects.length !== 1 ? "s" : ""}
+                  {designs.length} design{designs.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
@@ -281,9 +261,6 @@ const DesignHistory = () => {
               <TabsList className="rounded-xl">
                 <TabsTrigger value="designs" className="rounded-lg gap-1.5 text-xs">
                   <ImageIcon className="h-3.5 w-3.5" /> Designs
-                </TabsTrigger>
-                <TabsTrigger value="videos" className="rounded-lg gap-1.5 text-xs">
-                  <Film className="h-3.5 w-3.5" /> Videos
                 </TabsTrigger>
               </TabsList>
               <Button
@@ -449,88 +426,6 @@ const DesignHistory = () => {
               )}
             </TabsContent>
 
-            {/* === VIDEOS TAB === */}
-            <TabsContent value="videos" className="space-y-4">
-              {videosLoading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="aspect-[3/4] rounded-xl bg-secondary/60 animate-pulse" />
-                  ))}
-                </div>
-              ) : videoProjects.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <Film className="h-12 w-12 text-muted-foreground/40 mb-4" />
-                  <p className="text-muted-foreground">No video projects yet</p>
-                  <Button className="mt-4 rounded-xl" onClick={() => navigate("/studio?mode=video")}>
-                    Create your first video
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {videoProjects.map((project: any) => {
-                    const scenes = (project.video_scenes || []).sort((a: any, b: any) => a.scene_index - b.scene_index);
-                    const firstScene = scenes[0];
-                    const totalDuration = scenes.reduce((sum: number, s: any) => sum + (s.duration_ms || 0), 0);
-                    const intent = project.intent || {};
-
-                    return (
-                      <motion.div
-                        key={project.id}
-                        whileHover={{ scale: 1.02 }}
-                        className="group relative rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-                        onClick={() => {
-                          setSelectedVideoProject(project);
-                          setVideoViewerOpen(true);
-                        }}
-                      >
-                        <div className="aspect-[3/4] bg-muted">
-                          {firstScene?.image_url ? (
-                            <img
-                              src={firstScene.image_url}
-                              alt={intent.goal || "Video"}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Film className="h-8 w-8 text-muted-foreground/40" />
-                            </div>
-                          )}
-                        </div>
-                        {/* Badges */}
-                        <div className="absolute top-2 right-2 flex items-center gap-1">
-                          <Badge variant="secondary" className="text-[9px] bg-black/50 text-white border-none backdrop-blur-sm">
-                            {scenes.length} scenes
-                          </Badge>
-                        </div>
-                        {intent.platform && (
-                          <div className="absolute top-2 left-2">
-                            <Badge variant="secondary" className="text-[9px] bg-black/50 text-white border-none backdrop-blur-sm">
-                              {intent.platform}
-                            </Badge>
-                          </div>
-                        )}
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                          <p className="text-white text-xs font-medium truncate">
-                            {intent.goal || "Video Project"}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1 text-white/70">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              <span className="text-[10px]">{(totalDuration / 1000).toFixed(0)}s</span>
-                            </div>
-                            <span className="text-[10px]">·</span>
-                            <span className="text-[10px]">
-                              {format(new Date(project.created_at), "MMM d")}
-                            </span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
-            </TabsContent>
           </Tabs>
         </motion.div>
       </main>
@@ -544,12 +439,6 @@ const DesignHistory = () => {
         onAddToFolder={(designId) => openAssignDialog(designId)}
       />
 
-      {/* Video Project Viewer */}
-      <VideoProjectViewer
-        project={selectedVideoProject}
-        open={videoViewerOpen}
-        onClose={() => setVideoViewerOpen(false)}
-      />
 
       {/* Create Folder Dialog */}
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
