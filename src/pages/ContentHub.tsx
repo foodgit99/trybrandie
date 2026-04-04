@@ -876,7 +876,6 @@ const ContentHub = () => {
                                   const fmt = idea.content_format || "graphic";
                                   const colorMap: Record<string, string> = {
                                     carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
-                                    video: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/20",
                                     graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
                                   };
                                   return (
