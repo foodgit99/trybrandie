@@ -51,8 +51,8 @@ const DesignHistory = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") === "videos" ? "videos" : "designs";
+
+  const initialTab = "designs";
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
