@@ -128,17 +128,6 @@ const DesignStudio = () => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [carouselId, setCarouselId] = useState<string | null>(null);
 
-  // Video mode state
-  const isVideoMode = searchParams.get("mode") === "video";
-  const [videoFlowComplete, setVideoFlowComplete] = useState(false);
-  const [videoLoading, setVideoLoading] = useState(false);
-  const [videoStatus, setVideoStatus] = useState<string>("");
-  const [videoScenes, setVideoScenes] = useState<any[]>([]);
-  const [videoVariations, setVideoVariations] = useState<any[]>([]);
-  const [selectedVideoVariation, setSelectedVideoVariation] = useState<string>("a");
-  const [videoCaption, setVideoCaption] = useState<string | null>(null);
-  const [videoHashtags, setVideoHashtags] = useState<string[]>([]);
-  const [videoProjectId, setVideoProjectId] = useState<string | null>(null);
 
   const planAbortRef = useRef<AbortController | null>(null);
   const recommendationFetched = useRef(false);
