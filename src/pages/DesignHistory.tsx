@@ -65,8 +65,6 @@ const DesignHistory = () => {
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
-  const [selectedVideoProject, setSelectedVideoProject] = useState<any>(null);
-  const [videoViewerOpen, setVideoViewerOpen] = useState(false);
 
   // Fetch all designs
   const { data: designs = [], isLoading } = useQuery({
