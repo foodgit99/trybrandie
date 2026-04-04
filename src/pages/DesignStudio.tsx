@@ -1119,7 +1119,7 @@ const DesignStudio = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background relative">
+    <div className="h-screen flex flex-col bg-background relative overflow-hidden">
       {/* Top bar — fixed */}
       <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-2 sm:gap-3">
