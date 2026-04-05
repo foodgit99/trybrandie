@@ -181,6 +181,13 @@ const Plans = () => {
               transition={{ duration: 0.5 }}
               className="space-y-8"
             >
+              {/* Current Balance */}
+              <div className="flex items-center justify-center gap-3 px-5 py-3 rounded-2xl bg-secondary/60 border border-border">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Current balance:</span>
+                <span className="text-lg font-serif font-medium">{creditsRemaining} credits</span>
+              </div>
+
               {/* Header */}
               <div className="text-center space-y-2">
                 <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Buy Credits</h2>
