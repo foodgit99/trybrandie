@@ -501,22 +501,22 @@ const BrandCentre = () => {
     try {
       const b = scannedBrand;
       const updates: Record<string, unknown> = { website_url: websiteUrl.trim() };
-      if (b.name) updates.name = b.name;
-      if (b.tagline) updates.tagline = b.tagline;
-      if (b.description) updates.description = b.description;
-      if (b.logo_url) updates.logo_url = b.logo_url;
-      if (b.primary_colors?.length) updates.primary_colors = b.primary_colors;
-      if (b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
-      if (b.accent_colors?.length) updates.accent_colors = b.accent_colors;
-      if (b.typography_primary) updates.typography_primary = b.typography_primary;
-      if (b.typography_secondary) updates.typography_secondary = b.typography_secondary;
-      if (b.vibe) updates.vibe = b.vibe;
-      if (b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
-      if (b.personality_traits?.length) updates.personality_traits = b.personality_traits;
+      if (selectedFields.name && b.name) updates.name = b.name;
+      if (selectedFields.tagline && b.tagline) updates.tagline = b.tagline;
+      if (selectedFields.description && b.description) updates.description = b.description;
+      if (selectedFields.logo && b.logo_url) updates.logo_url = b.logo_url;
+      if (selectedFields.colours && b.primary_colors?.length) updates.primary_colors = b.primary_colors;
+      if (selectedFields.colours && b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
+      if (selectedFields.colours && b.accent_colors?.length) updates.accent_colors = b.accent_colors;
+      if (selectedFields.typography && b.typography_primary) updates.typography_primary = b.typography_primary;
+      if (selectedFields.typography && b.typography_secondary) updates.typography_secondary = b.typography_secondary;
+      if (selectedFields.vibe && b.vibe) updates.vibe = b.vibe;
+      if (selectedFields.tone_of_voice && b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
+      if (selectedFields.personality && b.personality_traits?.length) updates.personality_traits = b.personality_traits;
 
       await supabase.from("brands").update(updates as any).eq("id", brand.id);
 
-      if (b.audience_raw_inputs) {
+      if (selectedFields.audience && b.audience_raw_inputs) {
         const existingAudiences = audiences || [];
         if (existingAudiences.length === 0) {
           await supabase.from("target_audiences" as any).insert({
