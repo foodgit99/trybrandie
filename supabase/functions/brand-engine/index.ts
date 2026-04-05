@@ -494,7 +494,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     pillar_name: { type: "string" },
                     series_name: { type: "string" },
                     campaign_name: { type: "string" },
-                    idea_type: { type: "string", enum: ["single", "series_post", "campaign_post"] },
+                    idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel", "video"] },
                   },
                   required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format"],

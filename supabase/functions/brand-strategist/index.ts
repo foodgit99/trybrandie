@@ -33,7 +33,7 @@ serve(async (req) => {
     }
 
     // Fetch brand context in parallel
-    const [brandRes, audienceRes, pillarsRes, seriesRes, campaignsRes, inspirationCountRes, productsCountRes, recentDesignsRes] = await Promise.all([
+    const [brandRes, audienceRes, pillarsRes, seriesRes, campaignsRes, inspirationCountRes, productsCountRes, recentDesignsRes, trendIntelRes] = await Promise.all([
       supabase.from("brands").select("*").eq("id", brand_id).eq("user_id", userId).single(),
       supabase.from("target_audiences").select("label, jtbd_profile").eq("brand_id", brand_id),
       supabase.from("content_pillars").select("name, description").eq("brand_id", brand_id).order("sort_order"),
@@ -42,6 +42,7 @@ serve(async (req) => {
       supabase.from("brand_inspiration").select("id", { count: "exact", head: true }).eq("brand_id", brand_id),
       supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, image_url, is_featured").eq("brand_id", brand_id),
       supabase.from("designs").select("title, prompt, trend_used, vote").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
+      supabase.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brand_id).maybeSingle(),
     ]);
 
     const brand = brandRes.data;
