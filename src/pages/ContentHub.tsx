@@ -1006,6 +1006,7 @@ const ContentHub = () => {
                     selectedSunday={selectedSunday}
                   />
                 </div>
+                <Card>
                   <CardContent className="p-0 divide-y divide-border">
                     {DAYS.map((day) => {
                       const dayIdeas = ideasByDay[day] || [];
