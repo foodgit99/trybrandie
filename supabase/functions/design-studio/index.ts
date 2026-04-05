@@ -360,6 +360,13 @@ When you have brand context, reference it naturally in your advice — suggest u
     }
 
     if (action === "generate" || action === "edit") {
+      // Circuit breaker check for AI gateway
+      if (isCircuitOpen("ai-gateway")) {
+        return new Response(JSON.stringify({ error: "Our design engine is temporarily busy, please try again in a moment." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
