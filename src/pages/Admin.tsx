@@ -886,11 +886,15 @@ function CampaignComposer({
         <CardContent className="space-y-3">
           <div className="flex gap-3">
             <Button
-              variant={scheduleMode === "now" ? "default" : "outline"}
-              className="rounded-xl flex-1"
-              onClick={() => setScheduleMode("now")}
+              variant="default"
+              className="rounded-xl flex-1 gap-2"
+              disabled={!isValid || (recipientCount !== null && recipientCount === 0) || saving}
+              onClick={() => {
+                setScheduleMode("now");
+                setConfirmOpen(true);
+              }}
             >
-              <Send className="h-4 w-4 mr-2" />
+              <Send className="h-4 w-4" />
               Send Now
             </Button>
             <Button
@@ -904,26 +908,36 @@ function CampaignComposer({
           </div>
 
           {scheduleMode === "schedule" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div className="space-y-1">
-                <Label className="text-sm">Date</Label>
-                <Input
-                  type="date"
-                  value={scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : ""}
-                  onChange={(e) => setScheduledDate(e.target.value ? new Date(e.target.value) : undefined)}
-                  className="rounded-xl"
-                  min={format(new Date(), "yyyy-MM-dd")}
-                />
+            <div className="space-y-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-sm">Date</Label>
+                  <Input
+                    type="date"
+                    value={scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setScheduledDate(e.target.value ? new Date(e.target.value) : undefined)}
+                    className="rounded-xl"
+                    min={format(new Date(), "yyyy-MM-dd")}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm">Time (UTC)</Label>
+                  <Input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-sm">Time (UTC)</Label>
-                <Input
-                  type="time"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  className="rounded-xl"
-                />
-              </div>
+              <Button
+                className="rounded-xl w-full gap-2"
+                disabled={!isValid || !scheduledDate || (recipientCount !== null && recipientCount === 0) || saving}
+                onClick={() => setConfirmOpen(true)}
+              >
+                <CalendarIcon className="h-4 w-4" />
+                Schedule Campaign
+              </Button>
             </div>
           )}
         </CardContent>
@@ -938,14 +952,6 @@ function CampaignComposer({
         <Button variant="outline" onClick={handleSaveDraft} disabled={!isValid || saving} className="rounded-xl gap-2">
           <FileText className="h-4 w-4" />
           Save Draft
-        </Button>
-        <Button
-          onClick={() => setConfirmOpen(true)}
-          disabled={!isValid || (recipientCount !== null && recipientCount === 0) || saving}
-          className="rounded-xl gap-2"
-        >
-          <Send className="h-4 w-4" />
-          {scheduleMode === "schedule" ? "Schedule" : "Send Now"}
         </Button>
       </div>
 
