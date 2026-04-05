@@ -1729,13 +1729,16 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
                 console.warn("Copywriter output failed validation, using raw:", JSON.stringify(rawResult));
               }
               const result = validated || rawResult;
-              console.log("Copywriter output:", JSON.stringify(result));
+              console.log(`Copywriter output (model: ${copyModel}):`, JSON.stringify(result));
+              copySpan.finish({ metadata: { model: copyModel } });
               return result;
             }
           } else {
             console.error("Copywriter agent failed, falling back to image model copy:", copyResponse.status);
           }
+          copySpan.finish({ status: "error" });
         } catch (e) {
+          recordFailure("ai-gateway");
           console.error("Copywriter agent error, falling back:", e);
         }
         return null;
