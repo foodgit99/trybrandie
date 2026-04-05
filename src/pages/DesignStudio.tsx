@@ -1201,7 +1201,14 @@ const DesignStudio = () => {
                   </button>
                 </div>
               )}
-              {planMessages.map((msg, i) => (
+              {planMessages.map((msg, i) => {
+                const isAssistant = msg.role === "assistant";
+                const { cleanContent, actions } = isAssistant
+                  ? parseStrategistActions(msg.content)
+                  : { cleanContent: msg.content, actions: [] };
+                const isLastAssistant = isAssistant && !planLoading && i === planMessages.length - 1;
+
+                return (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 8 }}
@@ -1226,12 +1233,44 @@ const DesignStudio = () => {
                           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
                         }}
                       >
-                        {msg.content}
+                        {cleanContent}
                       </ReactMarkdown>
                     </div>
+                    {/* Action buttons */}
+                    {isLastAssistant && actions.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, duration: 0.2 }}
+                        className="flex flex-wrap gap-2 mt-2"
+                      >
+                        {actions.map((action, j) => (
+                          <button
+                            key={j}
+                            onClick={() => {
+                              if (action.action === "design") {
+                                setChatMode("create");
+                                setInput(action.prompt);
+                              } else if (action.action === "ideas") {
+                                navigate(`/content-hub`);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                          >
+                            {action.action === "design" ? (
+                              <Palette className="h-3 w-3" />
+                            ) : (
+                              <Lightbulb className="h-3 w-3" />
+                            )}
+                            {action.label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
               {planLoading && planMessages[planMessages.length - 1]?.role !== "assistant" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                   <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
