@@ -967,170 +967,130 @@ const ContentHub = () => {
             </section>
           </Collapsible>
 
-          {/* Weekly Calendar — always visible */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">{weekLabel}</h2>
-                {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setWeekOffset((o) => o - 1)}
-                  title="Previous week"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                {weekOffset !== 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs px-2"
-                    onClick={() => setWeekOffset(0)}
-                  >
-                    Today
+          <Collapsible open={openSections.calendar} onOpenChange={() => toggleSection("calendar")}>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">{weekLabel}</h2>
+                    {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                    {openSections.calendar ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setWeekOffset((o) => o + 1)}
-                  title="Next week"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => handleGenerate("generate_weekly_ideas")}
-                  disabled={!!generating}
-                >
-                  {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                  Generate Ideas
-                </Button>
-                <CalendarExport
-                  weeklyIdeas={weeklyIdeas}
-                  brand={brand}
-                  pillars={pillars}
-                  series={series}
-                  campaigns={campaigns}
-                  weekLabel={weekLabel}
-                  selectedMonday={selectedMonday}
-                  selectedSunday={selectedSunday}
-                />
+                  {weekOffset !== 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setWeekOffset(0)}>Today</Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)} title="Next week">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating}>
+                    {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Generate Ideas
+                  </Button>
+                  <CalendarExport
+                    weeklyIdeas={weeklyIdeas}
+                    brand={brand}
+                    pillars={pillars}
+                    series={series}
+                    campaigns={campaigns}
+                    weekLabel={weekLabel}
+                    selectedMonday={selectedMonday}
+                    selectedSunday={selectedSunday}
+                  />
+                </div>
               </div>
-            </div>
-            <Card>
-              <CardContent className="p-0 divide-y divide-border">
-                {DAYS.map((day) => {
-                  const dayIdeas = ideasByDay[day] || [];
-                  const todayIndex = (new Date().getDay() + 6) % 7;
-                  const isToday = DAYS[todayIndex] === day;
-                  return (
-                    <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
-                      <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
-                        {DAY_LABELS[day]}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        {dayIdeas.length === 0 ? (
-                          <span className="text-xs text-muted-foreground/50">—</span>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {dayIdeas.map((idea: any) => (
-                              <div key={idea.id} className="flex items-center gap-2 group/idea">
-                                {idea.status === "created" ? (
-                                  <Check className="h-3 w-3 text-green-500 shrink-0" />
-                                ) : (
-                                  <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-                                )}
-                                <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                                  {idea.title}
-                                </span>
-                                {(() => {
-                                  const fmt = idea.content_format || "graphic";
-                                  const colorMap: Record<string, string> = {
-                                    carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
-                                    graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-                                  };
-                                  return (
-                                    <span className={`inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 ${colorMap[fmt] || colorMap.graphic}`}>
-                                      {fmt}
+              <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <Card>
+                  <CardContent className="p-0 divide-y divide-border">
+                    {DAYS.map((day) => {
+                      const dayIdeas = ideasByDay[day] || [];
+                      const todayIndex = (new Date().getDay() + 6) % 7;
+                      const isToday = DAYS[todayIndex] === day;
+                      return (
+                        <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
+                          <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
+                            {DAY_LABELS[day]}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            {dayIdeas.length === 0 ? (
+                              <span className="text-xs text-muted-foreground/50">—</span>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {dayIdeas.map((idea: any) => (
+                                  <div key={idea.id} className="flex items-center gap-2 group/idea">
+                                    {idea.status === "created" ? (
+                                      <Check className="h-3 w-3 text-green-500 shrink-0" />
+                                    ) : (
+                                      <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                                    )}
+                                    <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                                      {idea.title}
                                     </span>
-                                  );
-                                })()}
-                                {idea.idea_type === "holiday" && (
-                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
-                                    <Gift className="h-2 w-2" />
-                                    holiday
-                                  </Badge>
-                                )}
-                                {idea.idea_type === "series_post" && (
-                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
-                                )}
-                                {idea.idea_type === "campaign_post" && (
-                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
-                                )}
-                                {/* Hover edit/delete for ideas */}
-                                <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
-                                  <button
-                                    onClick={() => openEditIdea(idea)}
-                                    className="p-0.5 rounded hover:bg-muted transition-colors"
-                                    title="Edit idea"
-                                  >
-                                    <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
-                                  </button>
-                                  <button
-                                    onClick={() => deleteIdea(idea.id)}
-                                    className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
-                                    title="Delete idea"
-                                  >
-                                    <Trash2 className="h-2.5 w-2.5 text-destructive/70" />
-                                  </button>
-                                </div>
+                                    {(() => {
+                                      const fmt = idea.content_format || "graphic";
+                                      const colorMap: Record<string, string> = {
+                                        carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
+                                        graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+                                      };
+                                      return (
+                                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 ${colorMap[fmt] || colorMap.graphic}`}>
+                                          {fmt}
+                                        </span>
+                                      );
+                                    })()}
+                                    {idea.idea_type === "holiday" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                                        <Gift className="h-2 w-2" />
+                                        holiday
+                                      </Badge>
+                                    )}
+                                    {idea.idea_type === "series_post" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
+                                    )}
+                                    {idea.idea_type === "campaign_post" && (
+                                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
+                                    )}
+                                    <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
+                                      <button onClick={() => openEditIdea(idea)} className="p-0.5 rounded hover:bg-muted transition-colors" title="Edit idea">
+                                        <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
+                                      </button>
+                                      <button onClick={() => deleteIdea(idea.id)} className="p-0.5 rounded hover:bg-destructive/10 transition-colors" title="Delete idea">
+                                        <Trash2 className="h-2.5 w-2.5 text-destructive/70" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <div className="shrink-0 flex gap-1 items-center">
-                        {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
-                          const format = idea.content_format || "graphic";
-                          const FormatIcon = format === "carousel" ? Layers : ArrowRight;
-                          const formatLabel = format === "carousel" ? "Create carousel" : "Create graphic";
-                          return (
-                            <Button
-                              key={idea.id}
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleFormatAction(idea)}
-                              title={formatLabel}
-                            >
-                              <FormatIcon className="h-3.5 w-3.5" />
-                            </Button>
-                          );
-                        })}
-                        {/* Add idea button per day */}
-                        <button
-                          onClick={() => openCreateIdea(day)}
-                          className="p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 sm:opacity-0 max-sm:opacity-100"
-                          title="Add idea"
-                        >
-                          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </section>
+                          <div className="shrink-0 flex gap-1 items-center">
+                            {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
+                              const format = idea.content_format || "graphic";
+                              const FormatIcon = format === "carousel" ? Layers : ArrowRight;
+                              const formatLabel = format === "carousel" ? "Create carousel" : "Create graphic";
+                              return (
+                                <Button key={idea.id} variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleFormatAction(idea)} title={formatLabel}>
+                                  <FormatIcon className="h-3.5 w-3.5" />
+                                </Button>
+                              );
+                            })}
+                            <button onClick={() => openCreateIdea(day)} className="p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 sm:opacity-0 max-sm:opacity-100" title="Add idea">
+                              <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
 
           {/* Series */}
           <section className="space-y-3">
