@@ -815,9 +815,9 @@ const ContentHub = () => {
           {/* Trend Intel Card */}
           <Collapsible open={openSections.trends} onOpenChange={() => toggleSection("trends")}>
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">Trend Intel</h2>
                     {trendIntel?.generated_at && (
@@ -829,21 +829,23 @@ const ContentHub = () => {
                         })()}
                       </span>
                     )}
-                    {openSections.trends ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                </CollapsibleTrigger>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={refreshTrendIntel}
-                  disabled={trendRefreshing}
-                >
-                  {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  {trendIntel ? "Refresh" : "Research Trends"}
-                </Button>
-              </div>
+                  </div>
+                  {openSections.trends ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={refreshTrendIntel}
+                    disabled={trendRefreshing}
+                  >
+                    {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    {trendIntel ? "Refresh" : "Research Trends"}
+                  </Button>
+                </div>
                 {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
                   <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -914,16 +916,18 @@ const ContentHub = () => {
           {/* Pillars */}
           <Collapsible open={openSections.pillars} onOpenChange={() => toggleSection("pillars")}>
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">Content Pillars</h2>
                     {hasPillars && <Badge variant="secondary" className="text-[10px]">{pillars!.length}</Badge>}
-                    {openSections.pillars ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                </CollapsibleTrigger>
-                <div className="flex items-center gap-1">
+                  </div>
+                  {openSections.pillars ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreatePillar}>
                     <Plus className="h-3 w-3" /> Add
                   </Button>
@@ -932,8 +936,6 @@ const ContentHub = () => {
                     AI Generate
                   </Button>
                 </div>
-              </div>
-              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {hasPillars ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                     {pillars!.map((p: any, i: number) => (
@@ -969,16 +971,18 @@ const ContentHub = () => {
 
           <Collapsible open={openSections.calendar} onOpenChange={() => toggleSection("calendar")}>
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">{weekLabel}</h2>
                     {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                    {openSections.calendar ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                </CollapsibleTrigger>
-                <div className="flex items-center gap-1">
+                  </div>
+                  {openSections.calendar ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -1003,8 +1007,6 @@ const ContentHub = () => {
                     selectedSunday={selectedSunday}
                   />
                 </div>
-              </div>
-              <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
                 <Card>
                   <CardContent className="p-0 divide-y divide-border">
                     {DAYS.map((day) => {
@@ -1095,16 +1097,18 @@ const ContentHub = () => {
           {/* Series */}
           <Collapsible open={openSections.series} onOpenChange={() => toggleSection("series")}>
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <Repeat className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">Recurring Series</h2>
                     {series && series.length > 0 && <Badge variant="secondary" className="text-[10px]">{series.length}</Badge>}
-                    {openSections.series ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                </CollapsibleTrigger>
-                <div className="flex items-center gap-1">
+                  </div>
+                  {openSections.series ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreateSeries}>
                     <Plus className="h-3 w-3" /> Add
                   </Button>
@@ -1113,8 +1117,6 @@ const ContentHub = () => {
                     AI Generate
                   </Button>
                 </div>
-              </div>
-              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {series && series.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {series.map((s: any, i: number) => (
@@ -1155,16 +1157,18 @@ const ContentHub = () => {
           {/* Campaigns */}
           <Collapsible open={openSections.campaigns} onOpenChange={() => toggleSection("campaigns")}>
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <Megaphone className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">Campaigns</h2>
                     {campaigns && campaigns.length > 0 && <Badge variant="secondary" className="text-[10px]">{campaigns.length}</Badge>}
-                    {openSections.campaigns ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                </CollapsibleTrigger>
-                <div className="flex items-center gap-1">
+                  </div>
+                  {openSections.campaigns ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreateCampaign}>
                     <Plus className="h-3 w-3" /> Add
                   </Button>
@@ -1173,8 +1177,6 @@ const ContentHub = () => {
                     AI Generate
                   </Button>
                 </div>
-              </div>
-              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {campaigns && campaigns.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {campaigns.map((c: any, i: number) => (
