@@ -975,7 +975,7 @@ const ContentHub = () => {
                 <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <h2 className="text-base font-semibold">{weekLabel}</h2>
+                    <h2 className="text-base font-semibold">{openSections.calendar ? weekLabel : "Content Calendar"}</h2>
                     {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
                   </div>
                   {openSections.calendar ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
