@@ -519,6 +519,7 @@ const Onboarding = () => {
     }
   };
 
+  const isPreStep = step === -1;
   const isLast = step === lastStep;
 
   return (
@@ -528,7 +529,7 @@ const Onboarding = () => {
         <motion.div
           className="h-full bg-primary"
           initial={false}
-          animate={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
+          animate={{ width: isPreStep ? "0%" : `${((step + 1) / TOTAL_STEPS) * 100}%` }}
           transition={{ duration: 0.3 }}
         />
       </div>
@@ -543,40 +544,104 @@ const Onboarding = () => {
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6">
         <div className="w-full max-w-lg">
           <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.25 }}
-              className="space-y-6"
-            >
-              <div>
-                <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">
-                  Step {step + 1} of {TOTAL_STEPS}
-                </p>
-                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">{STEP_TITLES[step]}</h2>
-                <p className="text-muted-foreground text-sm mt-1">{STEP_SUBTITLES[step]}</p>
-              </div>
+            {isPreStep ? (
+              <motion.div
+                key="prestep"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Got a website?</h2>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Drop your URL and we'll set everything up for you.
+                  </p>
+                </div>
 
-              {renderStep()}
-            </motion.div>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="yourwebsite.com"
+                      className="pl-9 h-12 text-lg"
+                      disabled={scanning}
+                      autoFocus
+                      onKeyDown={(e) => e.key === "Enter" && !scanning && websiteUrl.trim() && handleWebsiteScan()}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleWebsiteScan}
+                    disabled={scanning || !websiteUrl.trim()}
+                    className="w-full h-11 gap-2 rounded-xl"
+                  >
+                    {scanning ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {scanMessage}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Scan my website
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <button
+                  onClick={() => setStep(0)}
+                  disabled={scanning}
+                  className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                >
+                  Skip — I'll set up manually
+                </button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-6"
+              >
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">
+                    Step {step + 1} of {TOTAL_STEPS}
+                  </p>
+                  <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">{STEP_TITLES[step]}</h2>
+                  <p className="text-muted-foreground text-sm mt-1">{STEP_SUBTITLES[step]}</p>
+                </div>
+
+                {renderStep()}
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </main>
 
       {/* Navigation */}
       <footer className="px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={prev}
-          disabled={step === 0}
-          className="gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
+        {isPreStep ? (
+          <div />
+        ) : (
+          <Button
+            variant="ghost"
+            onClick={prev}
+            className="gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        )}
 
-        {isLast ? (
+        {isPreStep ? (
+          <div />
+        ) : isLast ? (
           <Button onClick={handleFinish} disabled={saving} className="gap-2 h-11 px-6 rounded-xl">
             {saving ? "Setting up…" : (
               <>
