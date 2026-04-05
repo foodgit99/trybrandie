@@ -1771,41 +1771,46 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
 Brief: ${designPrompt}
 User request: "${userPrompt}"`;
 
-          const captionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
-              messages: [
-                { role: "system", content: captionSystemPrompt },
-                { role: "user", content: captionUserPrompt },
-              ],
-              tools: [{
-                type: "function",
-                function: {
-                  name: "set_caption",
-                  description: "Set the social media caption and hashtags for the design",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
-                      hashtags: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "5-10 relevant hashtags including the # symbol",
-                      },
-                    },
-                    required: ["caption", "hashtags"],
-                    additionalProperties: false,
+          const captionSpan = tracer.startSpan("caption");
+          const captionToolsDef = [{
+            type: "function",
+            function: {
+              name: "set_caption",
+              description: "Set the social media caption and hashtags for the design",
+              parameters: {
+                type: "object",
+                properties: {
+                  caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
+                  hashtags: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "5-10 relevant hashtags including the # symbol",
                   },
                 },
-              }],
-              tool_choice: { type: "function", function: { name: "set_caption" } },
+                required: ["caption", "hashtags"],
+                additionalProperties: false,
+              },
+            },
+          }];
+
+          const { response: captionResponse, modelUsed: captionModel } = await callWithFallback(
+            MODEL_CHAINS.chat,
+            (model) => ({
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: "system", content: captionSystemPrompt },
+                  { role: "user", content: captionUserPrompt },
+                ],
+                tools: captionToolsDef,
+                tool_choice: { type: "function", function: { name: "set_caption" } },
+              }),
             }),
-          });
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            LOVABLE_API_KEY,
+          );
+
+          recordSuccess("ai-gateway");
 
           if (captionResponse.ok) {
             const captionData = await captionResponse.json();
@@ -1813,13 +1818,16 @@ User request: "${userPrompt}"`;
             if (toolCall?.function?.arguments) {
               const parsed = JSON.parse(toolCall.function.arguments);
               const result = parsed.caption + "\n\n" + (parsed.hashtags || []).join(" ");
-              console.log("Caption Agent output:", result);
+              console.log(`Caption Agent output (model: ${captionModel}):`, result);
+              captionSpan.finish({ metadata: { model: captionModel } });
               return result;
             }
           } else {
             console.error("Caption agent failed:", captionResponse.status);
           }
+          captionSpan.finish({ status: "error" });
         } catch (e) {
+          recordFailure("ai-gateway");
           console.error("Caption agent error:", e);
         }
         return null;
