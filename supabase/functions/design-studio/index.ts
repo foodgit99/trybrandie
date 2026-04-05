@@ -2043,6 +2043,22 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       // Log structured trace for observability
       tracer.log();
 
+      // Persist trace to design_traces table
+      try {
+        const summary = tracer.summary();
+        await adminClient.from("design_traces").insert({
+          run_id: tracer.runId,
+          user_id: user.id,
+          spans: summary.spans,
+          total_latency_ms: summary.total_latency_ms,
+          total_input_tokens: summary.total_input_tokens,
+          total_output_tokens: summary.total_output_tokens,
+          error: summary.error_count > 0 ? JSON.stringify(tracer.getSpans().filter(s => s.status === "error").map(s => s.error)) : null,
+        });
+      } catch (traceErr) {
+        console.error("Failed to persist trace:", traceErr);
+      }
+
       return new Response(
         JSON.stringify({
           image_url: urlData.publicUrl,
