@@ -1535,9 +1535,22 @@ ${brand.special_instructions}
       let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; explanation: string };
       let genomeData: any = null;
       try {
+        const briefSpan = tracer.startSpan("brief+genome");
         const results = await Promise.all([briefPromise, genomePromise]);
         briefResult = results[0];
         genomeData = results[1];
+        briefSpan.finish();
+
+        // Validate genome output
+        if (genomeData) {
+          const validation = validateGenome(genomeData);
+          if (validation) {
+            genomeData = validation.genome;
+            if (validation.fixes.length > 0) {
+              console.log(`Genome validation fixes: ${validation.fixes.join(", ")}`);
+            }
+          }
+        }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         if (errMsg === "RATE_LIMIT") {
