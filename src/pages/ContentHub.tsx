@@ -940,6 +940,12 @@ const ContentHub = () => {
                                     </span>
                                   );
                                 })()}
+                                {idea.idea_type === "holiday" && (
+                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                                    <Gift className="h-2 w-2" />
+                                    holiday
+                                  </Badge>
+                                )}
                                 {idea.idea_type === "series_post" && (
                                   <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
                                 )}
