@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
+import AdminTracesTab from "@/components/admin/AdminTracesTab";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
