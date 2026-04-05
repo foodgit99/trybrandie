@@ -803,6 +803,7 @@ const ContentHub = () => {
               </Button>
             </div>
             {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
+              <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {(trendIntel.trends_data as any[]).slice(0, showAllTrends ? undefined : 4).map((trend: any, i: number) => (
                   <motion.div
@@ -846,6 +847,7 @@ const ContentHub = () => {
                   {showAllTrends ? "Show less" : `Show all ${(trendIntel.trends_data as any[]).length} trends`}
                 </Button>
               )}
+              </>
             ) : !trendRefreshing && (
               <Card className="border-dashed">
                 <CardContent className="py-6 text-center space-y-2">
