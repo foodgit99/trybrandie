@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     }
 
     const branding = scrapeData.data?.branding || scrapeData.branding || {};
-    const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
+    const markdown = sanitiseScrapedContent(scrapeData.data?.markdown || scrapeData.markdown || "");
     const metadata = scrapeData.data?.metadata || scrapeData.metadata || {};
 
     console.log("Branding extracted, analyzing with AI...");
