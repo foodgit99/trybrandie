@@ -132,7 +132,7 @@ const AppHeader = () => {
               onClick={() => navigate("/plans")}
             >
               <CreditCard className="h-4 w-4" />
-              Plans
+              Buy Credits
             </DropdownMenuItem>
             <DropdownMenuItem
               className="gap-2 rounded-lg cursor-pointer"
