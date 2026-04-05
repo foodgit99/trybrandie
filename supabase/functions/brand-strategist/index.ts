@@ -111,6 +111,18 @@ ${campaigns.length > 0 ? campaigns.map((c: any) => `- **${c.name}** (${c.post_co
 
 ## Recent Designs
 ${recentDesigns.length > 0 ? recentDesigns.map((d: any) => `- "${d.title || d.prompt?.slice(0, 60)}"${d.trend_used ? ` (trend: ${d.trend_used})` : ""}${d.vote === 1 ? " ⬆️" : d.vote === -1 ? " ⬇️" : ""}`).join("\n") : "No designs created yet."}
+
+## Industry Trend Intelligence
+${(() => {
+  const trendIntel = trendIntelRes.data;
+  if (!trendIntel?.trends_data || !Array.isArray(trendIntel.trends_data) || trendIntel.trends_data.length === 0) {
+    return "No trend intelligence available yet. Suggest the user refresh their Trend Intel from the Content Hub.";
+  }
+  const age = Date.now() - new Date(trendIntel.generated_at).getTime();
+  const daysAgo = Math.floor(age / (1000 * 60 * 60 * 24));
+  return `*Last updated: ${daysAgo === 0 ? "today" : `${daysAgo} day${daysAgo > 1 ? "s" : ""} ago`}*\n` +
+    (trendIntel.trends_data as any[]).map((t: any) => `### ${t.title}\n${t.summary}\n**Brand relevance**: ${t.relevance_to_brand}\n**Content angles**: ${(t.content_angles || []).join("; ")}`).join("\n\n");
+})()}
 `.trim();
 
     const systemPrompt = `You are Brandie's Brand Strategist — a seasoned branding expert who has studied and applied the frameworks used by the world's most successful brands.
