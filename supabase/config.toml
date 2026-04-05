@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.video-render]
 verify_jwt = false
+
+[functions.trend-scout]
+verify_jwt = false

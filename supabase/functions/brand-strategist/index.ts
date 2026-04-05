@@ -33,7 +33,7 @@ serve(async (req) => {
     }
 
     // Fetch brand context in parallel
-    const [brandRes, audienceRes, pillarsRes, seriesRes, campaignsRes, inspirationCountRes, productsCountRes, recentDesignsRes] = await Promise.all([
+    const [brandRes, audienceRes, pillarsRes, seriesRes, campaignsRes, inspirationCountRes, productsCountRes, recentDesignsRes, trendIntelRes] = await Promise.all([
       supabase.from("brands").select("*").eq("id", brand_id).eq("user_id", userId).single(),
       supabase.from("target_audiences").select("label, jtbd_profile").eq("brand_id", brand_id),
       supabase.from("content_pillars").select("name, description").eq("brand_id", brand_id).order("sort_order"),
@@ -42,6 +42,7 @@ serve(async (req) => {
       supabase.from("brand_inspiration").select("id", { count: "exact", head: true }).eq("brand_id", brand_id),
       supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, image_url, is_featured").eq("brand_id", brand_id),
       supabase.from("designs").select("title, prompt, trend_used, vote").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
+      supabase.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brand_id).maybeSingle(),
     ]);
 
     const brand = brandRes.data;
@@ -110,6 +111,18 @@ ${campaigns.length > 0 ? campaigns.map((c: any) => `- **${c.name}** (${c.post_co
 
 ## Recent Designs
 ${recentDesigns.length > 0 ? recentDesigns.map((d: any) => `- "${d.title || d.prompt?.slice(0, 60)}"${d.trend_used ? ` (trend: ${d.trend_used})` : ""}${d.vote === 1 ? " ⬆️" : d.vote === -1 ? " ⬇️" : ""}`).join("\n") : "No designs created yet."}
+
+## Industry Trend Intelligence
+${(() => {
+  const trendIntel = trendIntelRes.data;
+  if (!trendIntel?.trends_data || !Array.isArray(trendIntel.trends_data) || trendIntel.trends_data.length === 0) {
+    return "No trend intelligence available yet. Suggest the user refresh their Trend Intel from the Content Hub.";
+  }
+  const age = Date.now() - new Date(trendIntel.generated_at).getTime();
+  const daysAgo = Math.floor(age / (1000 * 60 * 60 * 24));
+  return `*Last updated: ${daysAgo === 0 ? "today" : `${daysAgo} day${daysAgo > 1 ? "s" : ""} ago`}*\n` +
+    (trendIntel.trends_data as any[]).map((t: any) => `### ${t.title}\n${t.summary}\n**Brand relevance**: ${t.relevance_to_brand}\n**Content angles**: ${(t.content_angles || []).join("; ")}`).join("\n\n");
+})()}
 `.trim();
 
     const systemPrompt = `You are Brandie's Brand Strategist — a seasoned branding expert who has studied and applied the frameworks used by the world's most successful brands.
