@@ -1531,6 +1531,92 @@ const ContentHub = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Trend Detail Dialog */}
+      <Dialog open={!!selectedTrend} onOpenChange={(open) => !open && setSelectedTrend(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {selectedTrend && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary shrink-0" />
+                  <DialogTitle className="text-base">{selectedTrend.title}</DialogTitle>
+                </div>
+              </DialogHeader>
+              <div className="space-y-4 py-1">
+                <p className="text-sm text-muted-foreground leading-relaxed">{selectedTrend.summary}</p>
+
+                {selectedTrend.relevance_to_brand && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-semibold text-foreground">Why this matters for your brand</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{selectedTrend.relevance_to_brand}</p>
+                  </div>
+                )}
+
+                {selectedTrend.content_angles?.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-semibold text-foreground">Content angles</h4>
+                    <ol className="space-y-1.5 list-none">
+                      {selectedTrend.content_angles.map((angle: string, j: number) => (
+                        <li key={j} className="flex items-start gap-2">
+                          <span className="text-[10px] font-bold text-primary mt-0.5 shrink-0">{j + 1}.</span>
+                          <span className="text-xs text-muted-foreground">{angle}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    const prompt = `${selectedTrend.title}: ${selectedTrend.content_angles?.[0] || selectedTrend.summary}`;
+                    navigate(`/studio?prompt=${encodeURIComponent(prompt)}`);
+                    setSelectedTrend(null);
+                  }}
+                >
+                  <Palette className="h-3 w-3" />
+                  Generate Design
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setSelectedTrend(null);
+                    setIdeaForm({
+                      ...emptyIdea,
+                      title: selectedTrend.title,
+                      prompt: `${selectedTrend.title}: ${selectedTrend.content_angles?.[0] || selectedTrend.summary}`,
+                    });
+                    setIdeaDay("monday");
+                    setEditingIdeaId(null);
+                    setIdeaDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                  Create Content Idea
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    const prompt = `How can I leverage the trend "${selectedTrend.title}" for my brand?`;
+                    navigate(`/studio?mode=plan&prompt=${encodeURIComponent(prompt)}`);
+                    setSelectedTrend(null);
+                  }}
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  Ask Strategist
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Credit confirmation dialog */}
       <AlertDialog open={creditDialogOpen} onOpenChange={setCreditDialogOpen}>
         <AlertDialogContent>
