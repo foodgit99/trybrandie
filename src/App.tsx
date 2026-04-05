@@ -134,6 +134,7 @@ const App = () => (
         </Routes>
         <FloatingDesignStatus />
         <FloatingCreateButton />
+        <LowCreditsBanner />
       </BrowserRouter>
       </DesignGenerationProvider>
     </TooltipProvider>
