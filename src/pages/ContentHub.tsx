@@ -63,6 +63,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import CalendarExport from "@/components/CalendarExport";
+import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
