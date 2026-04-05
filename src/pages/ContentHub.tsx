@@ -115,8 +115,10 @@ const ContentHub = () => {
   const { user } = useAuth();
   const { brand } = useBrand();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const strategistPrompt = searchParams.get("strategist_prompt");
 
   const [generating, setGenerating] = useState<string | null>(null);
   const [initialSetupDone, setInitialSetupDone] = useState(false);
