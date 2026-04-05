@@ -781,23 +781,11 @@ const ContentHub = () => {
           className="space-y-8"
         >
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-serif tracking-tight">Content Hub</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Your content strategy, powered by AI
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl gap-2"
-              onClick={handleFullGenerate}
-              disabled={!!generating}
-            >
-              {generating === "full" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Regenerate All
-            </Button>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-serif tracking-tight">Content Hub</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Your content strategy, powered by AI
+            </p>
           </div>
 
           {/* Strategist prompt banner */}
