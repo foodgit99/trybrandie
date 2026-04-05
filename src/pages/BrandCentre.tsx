@@ -470,7 +470,20 @@ const BrandCentre = () => {
       if (result?.error) throw new Error(result.error);
 
       if (result.brand) {
-        setScannedBrand(result.brand);
+        const b = result.brand;
+        const fields: Record<string, boolean> = {};
+        if (b.name) fields.name = true;
+        if (b.tagline) fields.tagline = true;
+        if (b.description) fields.description = true;
+        if (b.logo_url) fields.logo = true;
+        if (b.primary_colors?.length || b.secondary_colors?.length || b.accent_colors?.length) fields.colours = true;
+        if (b.typography_primary || b.typography_secondary) fields.typography = true;
+        if (b.vibe) fields.vibe = true;
+        if (b.tone_of_voice) fields.tone_of_voice = true;
+        if (b.personality_traits?.length) fields.personality = true;
+        if (b.audience_raw_inputs) fields.audience = true;
+        setSelectedFields(fields);
+        setScannedBrand(b);
         setConfirmDialogOpen(true);
       }
     } catch (err: any) {
