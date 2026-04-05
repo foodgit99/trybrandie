@@ -1,40 +1,43 @@
 
 
-# Plan: Weekly Credit Gate for Trend Intel Refresh
+## Plan: Add Contextual Action Buttons to Strategist Responses
 
-## What Changes
+### Overview
+After each strategist (plan mode) assistant message finishes streaming, the AI will optionally include structured action suggestions embedded in the response. These appear as clickable buttons below the message, allowing the user to jump to the Design Studio (design mode) with a pre-filled prompt, or navigate to the Content Hub to generate ideas.
 
-Add weekly credit tracking to the trend-scout flow, mirroring the existing content generation pattern: first refresh per week is free, subsequent refreshes cost 2 credits with a confirmation dialog.
+### Approach
 
-## Implementation
+**1. Modify the edge function (`supabase/functions/brand-strategist/index.ts`)**
 
-### 1. Database Migration
+Update the system prompt to instruct the AI to optionally append a JSON block at the end of its response when — and only when — the conversation naturally leads to a concrete, actionable next step. The format:
 
-Add two columns to `profiles` table:
-- `trend_intel_gen_count` (integer, default 0)
-- `trend_intel_gen_reset_at` (timestamptz, default now)
+```
+<!-- ACTIONS
+[{"label":"Design this","action":"design","prompt":"Create a bold promo post for..."},{"label":"Generate content ideas","action":"ideas","prompt":"Summer campaign ideas for..."}]
+ACTIONS -->
+```
 
-Same pattern as the existing `content_hub_gen_count` / `content_hub_gen_reset_at`.
+The system prompt will emphasize: do NOT always include actions. Only include them when the strategist's advice naturally concludes with a specific, actionable design or content task.
 
-### 2. Edge Function: `supabase/functions/trend-scout/index.ts`
+**2. Parse actions from assistant messages (client-side in `DesignStudio.tsx`)**
 
-Add the same credit-checking logic from `brand-engine`:
-- `getISOWeekStart()` helper
-- Fetch profile's `trend_intel_gen_count` and `trend_intel_gen_reset_at`
-- If count is 0 this week → free (no credit deduction)
-- If count ≥ 1 → require 2 credits, deduct using the same free→bonus→paid waterfall
-- Add a `check_only` mode: when `{ brand_id, check_only: true }` is sent, return `{ is_free, credits_required, available_credits }` without running the AI — this lets the frontend show the confirmation dialog before committing
-- After successful generation, increment `trend_intel_gen_count` and update `trend_intel_gen_reset_at`
+- Create a utility function `parseStrategistActions(content: string)` that extracts the JSON actions block and returns `{ cleanContent: string, actions: Array<{label, action, prompt}> }`.
+- When rendering plan messages, strip the actions block from the displayed markdown and render action buttons below the message bubble.
 
-### 3. Frontend: `src/pages/ContentHub.tsx`
+**3. Render action buttons below strategist messages**
 
-- Before calling `refreshTrendIntel`, call the trend-scout with `check_only: true`
-- If `is_free` → proceed directly
-- If not free → reuse the existing `creditDialogOpen` / `pendingAction` pattern to show the "This will cost 2 credits" confirmation dialog
-- Handle 402 errors (not enough credits) with a toast
+- Only show on assistant messages that contain parsed actions.
+- Style as small, pill-shaped buttons with appropriate icons (Palette for design, Lightbulb for ideas).
+- On click:
+  - `"design"` action: Switch to create mode (`setChatMode("create")`), populate the input with the prompt.
+  - `"ideas"` action: Navigate to `/content-hub` (or trigger idea generation if applicable).
 
-### Files to Modify
-1. **New migration** — add `trend_intel_gen_count` and `trend_intel_gen_reset_at` to profiles
-2. **`supabase/functions/trend-scout/index.ts`** — add credit check, deduction, and `check_only` mode
-3. **`src/pages/ContentHub.tsx`** — wrap `refreshTrendIntel` in credit check flow
+### Files Changed
+- `supabase/functions/brand-strategist/index.ts` — Add action instruction to system prompt
+- `src/pages/DesignStudio.tsx` — Parse actions from plan messages, render action buttons, handle click actions
+
+### Key Constraints
+- Actions are suggested sparingly — the system prompt will explicitly instruct the AI to only include them when the advice leads to a clear next step.
+- Maximum 2 actions per response.
+- The hidden JSON block is stripped from the visible message so the UX stays clean.
 
