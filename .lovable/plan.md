@@ -1,75 +1,59 @@
 
 
-## Plan: Strengthen Seasonal & Holiday Awareness Across Brandie
+## Plan: Flexible Credit-Pack Pricing Model
 
-### Current State Assessment
+### Overview
+Replace the 4-tier subscription model with a simple, slider-based "Buy Credits" interface. Credits are sold in ₦5,000 increments (20 credits per increment). Users drag a slider to choose how many credits they want, with a default of 40 credits (₦10,000) for new users. The slider range is 20–200 credits (₦5,000–₦50,000).
 
-Seasonal/holiday awareness exists in **3 places**, but with significant gaps:
+### UI Design (inspired by the attached screenshot)
+- Clean card with "Buy Credits" header and credit card icon
+- Large credit count on the left, large price on the right (in accent color)
+- Slider with gradient track (pink-to-purple like the reference)
+- Min/max labels beneath the slider ("20 credits" / "200 credits")
+- Breakdown line: e.g. "2 × ₦5,000 — ₦10,000"
+- Large gradient CTA button: "⚡ Buy {N} Credits — ₦{price}"
+- Subtle footer text: "₦5,000 per 20 credits"
+- Payment verification and success states remain as-is
 
-1. **Brand Engine (content idea generation)** — Has a hardcoded holiday calendar (~40 entries) that injects holiday context when generating weekly content ideas. Tags ideas as `idea_type: "holiday"` with amber badges. **This is the strongest implementation.**
+### Changes
 
-2. **ChatSuggestions** — Has a basic month-to-season map with 1-2 events per month. Only used for suggestion chip text. Very shallow.
+**1. `src/pages/Plans.tsx`** — Complete rewrite of the main content
+- Remove the 4-tier grid
+- Add slider state (`units`, default = 2, range 1–10)
+- Computed values: `credits = units * 20`, `price = units * 5000`
+- Use the existing `Slider` component from `@/components/ui/slider`
+- Gradient-styled CTA button
+- Keep the existing Paystack verification flow and success screen intact
+- Update `handleUpgrade` to pass `credits` and `amount` instead of a plan key
 
-3. **Brand Strategist** — Has **zero** seasonal/holiday awareness. No date context is injected into its system prompt at all. It doesn't know what month it is.
+**2. `supabase/functions/paystack-checkout/index.ts`** — Accept flexible amounts
+- Instead of looking up plan from `PLAN_AMOUNTS`, accept `credits` and `amount` directly
+- Validate: `amount === credits / 20 * 500000` (₦5,000 in kobo per 20 credits)
+- Validate min/max bounds (20–200 credits)
+- Pass `credits` in metadata instead of `plan`
 
-4. **Design Studio** — Has **zero** seasonal/holiday awareness. No seasonal context in prompts.
+**3. `supabase/functions/paystack-verify/index.ts`** — Handle credit deposits
+- Read `credits` from metadata instead of `plan`
+- Add `credits` to the user's `paid_credits` pool (additive)
+- No longer update `subscription_tier` (no tiers in this model)
+- Return `credits` and `amount` in the success response
 
-5. **Trend Scout** — Mentions "seasonal opportunities" in its system prompt but has no structured holiday data.
+**4. `supabase/functions/paystack-webhook/index.ts`** — Handle credit deposits
+- Read `credits` from metadata
+- Add to `paid_credits` pool (same additive logic)
+- Remove the old `paidCreditDeposits` tier map
+- Affiliate commission tracking stays the same
 
-### Gaps
-
-- The holiday list is hardcoded and only in one edge function — not reusable
-- The strategist doesn't know the current date or upcoming holidays
-- No proactive "upcoming events" surface for users — holidays only appear after content is generated
-- No way for users to see what's coming up next week/month to plan ahead
-- Missing many holidays (Mother's Day varies by country, Eid, Diwali, Lunar New Year, etc.)
-
----
-
-### Plan
-
-**Step 1: Create a shared holiday calendar utility**
-
-Create `supabase/functions/_shared/holiday-calendar.ts` — a reusable module with:
-- The full holiday list (expanded with more global events: Eid, Diwali, Lunar New Year, Pride Month, etc.)
-- Helper functions: `getUpcomingHolidays(days: number)`, `getThisWeekHolidays()`, `getCurrentSeasonalContext()`
-- Export current date context string for injection into any AI prompt
-
-**Step 2: Inject seasonal context into the Brand Strategist**
-
-Update `brand-strategist/index.ts` to:
-- Import the shared holiday calendar
-- Add current date + upcoming holidays (next 14 days) to the system prompt
-- Instruct the strategist to proactively reference upcoming events when relevant to the brand
-
-**Step 3: Inject seasonal context into the Design Studio**
-
-Update `design-studio/index.ts` to include current date and upcoming holidays so design prompts are seasonally aware.
-
-**Step 4: Add an "Upcoming Events" section to the Content Hub**
-
-Add a compact, always-visible card at the top of the Content Hub showing:
-- Next 2-4 upcoming holidays/events (within 14 days)
-- Each with a quick "Create Design" or "Plan Content" action button
-- Shows the date, event name, and suggested content type
-- If no events are upcoming, show "No major events in the next 2 weeks"
-
-This gives users a **proactive planning surface** — they can see what's coming and act on it without waiting for the AI to generate ideas.
-
-**Step 5: Update ChatSuggestions with richer seasonal data**
-
-Replace the shallow month-to-season map with the shared holiday data so suggestion chips reference real upcoming events rather than generic seasonal labels.
+**5. `src/components/landing/LandingPricing.tsx`** — Simplified landing pricing
+- Replace the 4-card grid with a single "Buy Credits" card matching the in-app UI style
+- Show the slider experience as a preview with a "Get started free" CTA
+- Keep the "5 free credits/month" mention
+- Add feature highlights below (no watermark, all formats, etc.)
 
 ### Files Changed
-
-- `supabase/functions/_shared/holiday-calendar.ts` — New shared utility
-- `supabase/functions/brand-strategist/index.ts` — Add seasonal context to system prompt
-- `supabase/functions/design-studio/index.ts` — Add seasonal context
-- `supabase/functions/brand-engine/index.ts` — Refactor to use shared holiday module
-- `src/pages/ContentHub.tsx` — Add "Upcoming Events" card
-- `src/components/ChatSuggestions.tsx` — Use real upcoming events
-
-### UX Impact
-
-Users will see upcoming holidays/events front-and-center in the Content Hub, the strategist will proactively weave seasonal context into advice, and designs will be naturally season-aware — making Brandie feel like a team member who always knows what's coming up.
+- `src/pages/Plans.tsx`
+- `src/components/landing/LandingPricing.tsx`
+- `supabase/functions/paystack-checkout/index.ts`
+- `supabase/functions/paystack-verify/index.ts`
+- `supabase/functions/paystack-webhook/index.ts`
 
