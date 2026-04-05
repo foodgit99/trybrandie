@@ -1614,7 +1614,7 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs").map((t) => (
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
@@ -1629,6 +1629,10 @@ export default function Admin() {
               </Card>
             </TabsContent>
           ))}
+
+          <TabsContent value="ai_traces">
+            <AdminTracesTab />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
