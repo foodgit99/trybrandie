@@ -1102,25 +1102,16 @@ const ContentHub = () => {
           {/* Campaigns */}
           <Collapsible open={openSections.campaigns} onOpenChange={() => toggleSection("campaigns")}>
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <Megaphone className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">Campaigns</h2>
                     {campaigns && campaigns.length > 0 && <Badge variant="secondary" className="text-[10px]">{campaigns.length}</Badge>}
-                    {openSections.campaigns ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                </CollapsibleTrigger>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreateCampaign}>
-                    <Plus className="h-3 w-3" /> Add
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_campaigns")} disabled={!!generating}>
-                    {generating === "generate_campaigns" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                    AI Generate
-                  </Button>
-                </div>
-              </div>
+                  </div>
+                  {openSections.campaigns ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {campaigns && campaigns.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
