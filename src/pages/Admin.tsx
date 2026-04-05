@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
+import AdminTracesTab from "@/components/admin/AdminTracesTab";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
@@ -78,6 +79,7 @@ const TABLES = [
   { key: "affiliate_commissions", label: "Commissions", icon: DollarSign },
   { key: "affiliate_payouts", label: "Payouts", icon: DollarSign },
   { key: "user_roles", label: "Roles", icon: Users },
+  { key: "ai_traces", label: "AI Traces", icon: BarChart3 },
 ];
 
 async function adminAction(payload: Record<string, unknown>) {
@@ -1612,7 +1614,7 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs").map((t) => (
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
@@ -1627,6 +1629,10 @@ export default function Admin() {
               </Card>
             </TabsContent>
           ))}
+
+          <TabsContent value="ai_traces">
+            <AdminTracesTab />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
