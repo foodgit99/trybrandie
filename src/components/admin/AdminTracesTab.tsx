@@ -302,6 +302,32 @@ export default function AdminTracesTab() {
         <StatCard title="Total Traces" value={totalCount} icon={Zap} />
       </div>
 
+      {/* Alert Banners */}
+      {stats.total > 0 && (parseFloat(stats.errorRate) > 5 || stats.p95Latency > 60000) && (
+        <div className="space-y-3">
+          {parseFloat(stats.errorRate) > 5 && (
+            <Alert variant="destructive" className="rounded-2xl border-destructive/30 bg-destructive/5">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="font-semibold">High Error Rate Alert</AlertTitle>
+              <AlertDescription>
+                Error rate is at <span className="font-bold">{stats.errorRate}%</span> over the last 7 days ({stats.errors} failures out of {stats.total} generations). 
+                Threshold: 5%. Investigate failing spans in the trace list below.
+              </AlertDescription>
+            </Alert>
+          )}
+          {stats.p95Latency > 60000 && (
+            <Alert className="rounded-2xl border-yellow-500/30 bg-yellow-500/5">
+              <Clock className="h-4 w-4 text-yellow-600" />
+              <AlertTitle className="font-semibold text-yellow-700">High Latency Alert</AlertTitle>
+              <AlertDescription className="text-yellow-700">
+                P95 latency is at <span className="font-bold">{(stats.p95Latency / 1000).toFixed(1)}s</span> over the last 7 days. 
+                Threshold: 60s. Check the agent breakdown chart to identify slow pipeline stages.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Latency Trend */}
