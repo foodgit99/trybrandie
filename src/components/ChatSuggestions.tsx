@@ -2,6 +2,23 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { getUpcomingHolidays, getCurrentSeason } from "@/lib/holidayCalendar";
 
+interface ContentIdea {
+  id: string;
+  title: string;
+  prompt: string;
+  status: string;
+}
+
+interface ChatSuggestionsProps {
+  brandName?: string;
+  brandVibe?: string | null;
+  brandDescription?: string | null;
+  onSelect: (text: string) => void;
+  hasMessages: boolean;
+  hasImage: boolean;
+  contentIdeas?: ContentIdea[];
+}
+
 const ChatSuggestions = ({
   brandName,
   brandVibe,
@@ -12,9 +29,14 @@ const ChatSuggestions = ({
   contentIdeas,
 }: ChatSuggestionsProps) => {
   const suggestions = useMemo(() => {
-    const { season, events } = getSeasonalContext();
+    const season = getCurrentSeason();
+    const upcoming = getUpcomingHolidays(14);
     const name = brandName || "my brand";
-    const event = events[Math.floor(Math.random() * events.length)];
+
+    // Pick a real upcoming event name, or fall back to season
+    const eventName = upcoming.length > 0
+      ? upcoming[Math.floor(Math.random() * Math.min(upcoming.length, 3))].name
+      : `${season.toLowerCase()} season`;
 
     if (hasImage) {
       return [
@@ -28,7 +50,7 @@ const ChatSuggestions = ({
     if (hasMessages) {
       return [
         "Try a completely different layout",
-        `Create a ${event} version`,
+        `Create a ${eventName} version`,
         "Make it more eye-catching",
         "Generate an alternative variation",
       ];
@@ -43,15 +65,22 @@ const ChatSuggestions = ({
       return shuffled.slice(0, 4).map((idea) => idea.prompt);
     }
 
-    // Fallback — brand + season aware
-    const pool = [
-      `Create a ${event} promo for ${name}`,
+    // Fallback — brand + real upcoming events aware
+    const pool: string[] = [];
+
+    // Add event-specific suggestions
+    for (const h of upcoming.slice(0, 2)) {
+      pool.push(`Create a ${h.name} promo for ${name}`);
+      pool.push(`Design a ${h.name} social media graphic`);
+    }
+
+    // Always add some seasonal + brand suggestions
+    pool.push(
       `Design a ${season.toLowerCase()} announcement post`,
       `Make an Instagram post showcasing ${name}`,
       `Design a limited-time offer graphic`,
       `Create a brand awareness post for ${name}`,
-      `Design a ${event} social media graphic`,
-    ];
+    );
 
     if (brandVibe) {
       pool.push(`Create a ${brandVibe} themed post for ${name}`);
