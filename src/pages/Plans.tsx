@@ -2,86 +2,40 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
+import { Loader2, CheckCircle2, ArrowRight, Zap, CreditCard } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
 
-const tiers = [
-  {
-    name: "Free",
-    price: "₦0",
-    period: "",
-    credits: "5 free credits/mo",
-    plan_key: "free",
-    features: [
-      "1 brand",
-      "Watermarked exports",
-      "1080×1080 only",
-      "Standard speed",
-    ],
-  },
-  {
-    name: "Entrepreneur",
-    price: "₦12,500",
-    period: "/mo",
-    credits: "50 one-time credits",
-    plan_key: "entrepreneur",
-    features: [
-      "1 brand",
-      "No watermark",
-      "PNG + JPG export",
-      "Brand Centre access",
-      "Design history",
-    ],
-  },
-  {
-    name: "Creator",
-    price: "₦22,500",
-    period: "/mo",
-    credits: "150 one-time credits",
-    plan_key: "creator",
-    highlight: true,
-    features: [
-      "Multiple brands",
-      "Team access (2–3 members)",
-      "All export formats",
-      "Carousel generation",
-      "Version history",
-    ],
-  },
-  {
-    name: "Agency",
-    price: "₦59,000",
-    period: "/mo",
-    credits: "400 one-time credits",
-    plan_key: "agency",
-    features: [
-      "Unlimited brands",
-      "Team access (5+ seats)",
-      "White-label exports",
-      "Priority rendering",
-      "Early feature access",
-    ],
-  },
-];
+const PRICE_PER_UNIT = 5000; // ₦5,000
+const CREDITS_PER_UNIT = 20;
+const MIN_UNITS = 1;
+const MAX_UNITS = 10;
+const DEFAULT_UNITS = 2;
+
+const formatNaira = (amount: number) =>
+  `₦${amount.toLocaleString()}`;
 
 const Plans = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const [currentTier, setCurrentTier] = useState<string>("free");
+  const [units, setUnits] = useState(DEFAULT_UNITS);
+  const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<{
-    plan: string;
+    credits: number;
     amount: number;
     currency: string;
   } | null>(null);
   const queryClient = useQueryClient();
-  const [verifying, setVerifying] = useState(false);
+
+  const credits = units * CREDITS_PER_UNIT;
+  const price = units * PRICE_PER_UNIT;
 
   // Verify Paystack callback
   useEffect(() => {
@@ -100,45 +54,31 @@ const Plans = () => {
           });
         } else {
           setPaymentSuccess({
-            plan: data.plan,
+            credits: data.credits,
             amount: data.amount,
             currency: data.currency,
           });
-          setCurrentTier(data.plan);
-          // Invalidate all profile caches so credit displays refresh
           queryClient.invalidateQueries({ queryKey: ["profile-studio"] });
           queryClient.invalidateQueries({ queryKey: ["profile"] });
           queryClient.invalidateQueries({ queryKey: ["header-profile"] });
         }
-        // Clean URL params
         setSearchParams({}, { replace: true });
       })
       .finally(() => setVerifying(false));
   }, [searchParams, user]);
 
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("profiles")
-      .select("subscription_tier")
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.subscription_tier) setCurrentTier(data.subscription_tier);
-      });
-  }, [user]);
-
-  const handleUpgrade = async (planKey: string) => {
+  const handleBuyCredits = async () => {
     if (!user?.email) {
       toast({ title: "Please sign in first", variant: "destructive" });
       return;
     }
 
-    setLoadingPlan(planKey);
+    setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("paystack-checkout", {
         body: {
-          plan: planKey,
+          credits,
+          amount: price,
           email: user.email,
           user_id: user.id,
           callback_url: "https://trybrandie.com/plans",
@@ -153,7 +93,7 @@ const Plans = () => {
     } catch (err: any) {
       toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
     } finally {
-      setLoadingPlan(null);
+      setLoading(false);
     }
   };
 
@@ -161,7 +101,7 @@ const Plans = () => {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      <main className="max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <AnimatePresence mode="wait">
           {verifying ? (
             <motion.div
@@ -188,20 +128,20 @@ const Plans = () => {
               </div>
               <div className="space-y-2">
                 <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">
-                  Welcome to {tiers.find((t) => t.plan_key === paymentSuccess.plan)?.name || paymentSuccess.plan}!
+                  Credits added!
                 </h2>
                 <p className="text-muted-foreground">
-                  Payment of {paymentSuccess.currency} {paymentSuccess.amount.toLocaleString()} confirmed.
+                  {paymentSuccess.credits} credits deposited to your account.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Your plan has been upgraded. Enjoy your new credits and features.
+                  Payment of {paymentSuccess.currency} {paymentSuccess.amount.toLocaleString()} confirmed.
                 </p>
               </div>
               <Button
                 className="rounded-xl gap-2 mt-4"
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate("/design-studio")}
               >
-                Go to Dashboard
+                Start Designing
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </motion.div>
@@ -211,72 +151,85 @@ const Plans = () => {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="space-y-10"
+              className="space-y-8"
             >
+              {/* Header */}
               <div className="text-center space-y-2">
-                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Choose your plan</h2>
-                <p className="text-muted-foreground">Scale your brand as you grow.</p>
+                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Buy Credits</h2>
+                <p className="text-muted-foreground text-sm">
+                  Power your designs. ₦5,000 per 20 credits.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {tiers.map((tier) => {
-                  const isActive = currentTier === tier.plan_key;
-                  return (
-                    <div
-                      key={tier.name}
-                      className={`rounded-2xl border p-6 flex flex-col justify-between transition-shadow ${
-                        isActive
-                          ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                          : tier.highlight
-                          ? "border-primary shadow-lg ring-1 ring-primary/20"
-                          : "border-border"
-                      }`}
-                    >
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-muted-foreground">{tier.name}</p>
-                            {isActive && (
-                              <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                Active
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-3xl font-serif tracking-tight mt-1">
-                            {tier.price}
-                            <span className="text-base font-sans text-muted-foreground">{tier.period}</span>
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">{tier.credits}</p>
-                        </div>
+              {/* Credit Card */}
+              <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-8 shadow-sm">
+                {/* Icon + Title */}
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Credit Pack</p>
+                    <p className="text-xs text-muted-foreground">Choose your amount</p>
+                  </div>
+                </div>
 
-                        <ul className="space-y-2">
-                          {tier.features.map((f) => (
-                            <li key={f} className="flex items-start gap-2 text-sm">
-                              <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                              <span>{f}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                {/* Big numbers */}
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-4xl sm:text-5xl font-serif tracking-tight">{credits}</p>
+                    <p className="text-sm text-muted-foreground mt-1">credits</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-4xl sm:text-5xl font-serif tracking-tight text-primary">
+                      {formatNaira(price)}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">one-time</p>
+                  </div>
+                </div>
 
-                      <Button
-                        className="mt-6 w-full rounded-xl"
-                        variant={isActive ? "secondary" : tier.highlight ? "default" : "outline"}
-                        disabled={isActive || loadingPlan === tier.plan_key}
-                        onClick={() => handleUpgrade(tier.plan_key)}
-                      >
-                        {loadingPlan === tier.plan_key ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : isActive ? (
-                          "Current Plan"
-                        ) : (
-                          "Upgrade"
-                        )}
-                      </Button>
-                    </div>
-                  );
-                })}
+                {/* Slider */}
+                <div className="space-y-3">
+                  <Slider
+                    value={[units]}
+                    onValueChange={(v) => setUnits(v[0])}
+                    min={MIN_UNITS}
+                    max={MAX_UNITS}
+                    step={1}
+                    className="w-full [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:border-2 [&_[role=slider]]:border-primary [&_[role=slider]]:shadow-md [&_.relative]:h-2.5 [&_[data-orientation=horizontal]>.absolute]:bg-gradient-to-r [&_[data-orientation=horizontal]>.absolute]:from-primary [&_[data-orientation=horizontal]>.absolute]:to-accent"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>20 credits</span>
+                    <span>200 credits</span>
+                  </div>
+                </div>
+
+                {/* Breakdown */}
+                <p className="text-center text-sm text-muted-foreground">
+                  {units} × ₦5,000 — <span className="font-medium text-foreground">{formatNaira(price)}</span>
+                </p>
+
+                {/* CTA Button */}
+                <Button
+                  className="w-full h-12 rounded-xl text-base font-medium gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-primary-foreground"
+                  onClick={handleBuyCredits}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4" />
+                      Buy {credits} Credits — {formatNaira(price)}
+                    </>
+                  )}
+                </Button>
               </div>
+
+              {/* Footer note */}
+              <p className="text-center text-xs text-muted-foreground">
+                All users get 5 free credits every month. Buy more anytime — credits never expire.
+              </p>
             </motion.div>
           )}
         </AnimatePresence>

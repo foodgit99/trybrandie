@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Check, Zap } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Check, Zap, CreditCard } from "lucide-react";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -12,149 +14,121 @@ const fadeUp = {
   }),
 };
 
-const plans = [
-  {
-    name: "Free",
-    price: "₦0",
-    period: "forever",
-    description: "Try Brandie risk-free",
-    credits: "10 generations/mo",
-    features: [
-      "1 brand",
-      "Watermarked exports",
-      "1080×1080 only",
-      "Standard speed",
-    ],
-    cta: "Get started free",
-    highlight: false,
-  },
-  {
-    name: "Entrepreneur",
-    price: "₦12,500",
-    period: "/mo",
-    description: "For solo business owners",
-    credits: "50 credits/mo",
-    features: [
-      "1 brand",
-      "No watermark",
-      "PNG + JPG export",
-      "Brand Centre access",
-      "Design history",
-    ],
-    cta: "Start growing",
-    highlight: false,
-  },
-  {
-    name: "Creator",
-    price: "₦22,500",
-    period: "/mo",
-    description: "For creators & teams",
-    credits: "150 credits/mo",
-    features: [
-      "Multiple brands",
-      "Team access (2–3 members)",
-      "All export formats",
-      "Carousel generation",
-      "Version history",
-    ],
-    cta: "Go Creator",
-    highlight: true,
-  },
-  {
-    name: "Agency",
-    price: "₦59,000",
-    period: "/mo",
-    description: "For agencies & studios",
-    credits: "400 credits/mo",
-    features: [
-      "Unlimited brands",
-      "Team access (5+ seats)",
-      "White-label exports",
-      "Priority rendering",
-      "Early feature access",
-    ],
-    cta: "Upgrade",
-    highlight: false,
-  },
+const PRICE_PER_UNIT = 5000;
+const CREDITS_PER_UNIT = 20;
+
+const formatNaira = (amount: number) => `₦${amount.toLocaleString()}`;
+
+const features = [
+  "No watermark on paid credits",
+  "All export formats (PNG, JPG)",
+  "Brand Centre access",
+  "Design history & versions",
+  "5 free credits every month",
 ];
 
 const LandingPricing = () => {
   const navigate = useNavigate();
+  const [units, setUnits] = useState(2);
+  const credits = units * CREDITS_PER_UNIT;
+  const price = units * PRICE_PER_UNIT;
 
   return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-8 py-20 sm:py-28">
+    <section className="max-w-3xl mx-auto px-4 sm:px-8 py-20 sm:py-28">
       <motion.div
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
-        className="text-center mb-16 space-y-3"
+        className="text-center mb-12 space-y-3"
       >
         <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
-          Simple, transparent pricing
+          Simple, flexible pricing
         </motion.h2>
         <motion.p variants={fadeUp} custom={1} className="text-muted-foreground max-w-md mx-auto">
-          Start free. Upgrade when you're ready. Every plan includes AI-powered design generation.
+          Start free. Buy credits when you need them. No subscriptions, no commitments.
         </motion.p>
       </motion.div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {plans.map((plan, i) => (
-          <motion.div
-            key={plan.name}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            variants={fadeUp}
-            custom={i + 2}
-            className={`relative rounded-2xl border p-6 flex flex-col ${
-              plan.highlight
-                ? "border-foreground bg-primary text-primary-foreground shadow-xl scale-[1.02]"
-                : "border-border bg-card"
-            }`}
-          >
-            {plan.highlight && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-medium px-3 py-1 rounded-full bg-foreground text-background">
-                Most Popular
-              </span>
-            )}
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+        variants={fadeUp}
+        custom={2}
+        className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-8 shadow-sm max-w-md mx-auto"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <CreditCard className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">Credit Pack</p>
+            <p className="text-xs text-muted-foreground">₦5,000 per 20 credits</p>
+          </div>
+        </div>
 
-            <div className="space-y-1 mb-4">
-              <h3 className="text-lg font-serif">{plan.name}</h3>
-              <p className={`text-xs ${plan.highlight ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                {plan.description}
-              </p>
-            </div>
-
-            <div className="mb-1">
-              <span className="text-3xl font-serif tracking-tight">{plan.price}</span>
-              <span className={`text-sm ${plan.highlight ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                {plan.period}
-              </span>
-            </div>
-            <p className={`text-xs mb-5 ${plan.highlight ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-              {plan.credits}
+        {/* Big numbers */}
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-4xl sm:text-5xl font-serif tracking-tight">{credits}</p>
+            <p className="text-sm text-muted-foreground mt-1">credits</p>
+          </div>
+          <div className="text-right">
+            <p className="text-4xl sm:text-5xl font-serif tracking-tight text-primary">
+              {formatNaira(price)}
             </p>
+            <p className="text-sm text-muted-foreground mt-1">one-time</p>
+          </div>
+        </div>
 
-            <ul className="space-y-2.5 mb-6 flex-1">
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-2 text-sm">
-                  <Check className={`h-4 w-4 mt-0.5 shrink-0 ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`} />
-                  <span className={plan.highlight ? "text-primary-foreground/90" : ""}>{feature}</span>
-                </li>
-              ))}
-            </ul>
+        {/* Slider */}
+        <div className="space-y-3">
+          <Slider
+            value={[units]}
+            onValueChange={(v) => setUnits(v[0])}
+            min={1}
+            max={10}
+            step={1}
+            className="w-full [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:border-2 [&_[role=slider]]:border-primary [&_[role=slider]]:shadow-md [&_.relative]:h-2.5 [&_[data-orientation=horizontal]>.absolute]:bg-gradient-to-r [&_[data-orientation=horizontal]>.absolute]:from-primary [&_[data-orientation=horizontal]>.absolute]:to-accent"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>20 credits</span>
+            <span>200 credits</span>
+          </div>
+        </div>
 
-            <Button
-              variant={plan.highlight ? "secondary" : "outline"}
-              className="w-full rounded-xl gap-2"
-              onClick={() => navigate("/auth?mode=signup")}
-            >
-              {plan.highlight && <Zap className="h-3.5 w-3.5" />}
-              {plan.cta}
-            </Button>
-          </motion.div>
+        {/* Breakdown */}
+        <p className="text-center text-sm text-muted-foreground">
+          {units} × ₦5,000 — <span className="font-medium text-foreground">{formatNaira(price)}</span>
+        </p>
+
+        {/* CTA */}
+        <Button
+          className="w-full h-12 rounded-xl text-base font-medium gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-primary-foreground"
+          onClick={() => navigate("/auth?mode=signup")}
+        >
+          <Zap className="h-4 w-4" />
+          Get started free
+        </Button>
+      </motion.div>
+
+      {/* Features */}
+      <motion.ul
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+        variants={fadeUp}
+        custom={3}
+        className="mt-10 grid sm:grid-cols-2 gap-3 max-w-md mx-auto"
+      >
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <span>{feature}</span>
+          </li>
         ))}
-      </div>
+      </motion.ul>
     </section>
   );
 };

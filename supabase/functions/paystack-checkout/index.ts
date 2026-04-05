@@ -1,16 +1,13 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PLAN_AMOUNTS: Record<string, number> = {
-  entrepreneur: 12500_00, // ₦12,500 in kobo
-  creator: 22500_00,      // ₦22,500 in kobo
-  agency: 59000_00,       // ₦59,000 in kobo
-};
+const KOBO_PER_UNIT = 500000; // ₦5,000 in kobo
+const CREDITS_PER_UNIT = 20;
+const MIN_CREDITS = 20;
+const MAX_CREDITS = 200;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -18,22 +15,33 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { plan, email, user_id, callback_url } = await req.json();
+    const { credits, amount, email, user_id, callback_url } = await req.json();
 
-    if (!plan || !email || !user_id) {
+    if (!credits || !amount || !email || !user_id) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const amount = PLAN_AMOUNTS[plan];
-    if (!amount) {
-      return new Response(JSON.stringify({ error: "Invalid plan" }), {
+    // Validate credits are in valid increments
+    if (credits % CREDITS_PER_UNIT !== 0 || credits < MIN_CREDITS || credits > MAX_CREDITS) {
+      return new Response(JSON.stringify({ error: "Invalid credit amount" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const units = credits / CREDITS_PER_UNIT;
+    const expectedAmount = units * 5000; // ₦ amount
+    if (amount !== expectedAmount) {
+      return new Response(JSON.stringify({ error: "Amount mismatch" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const amountInKobo = units * KOBO_PER_UNIT;
 
     const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
     if (!PAYSTACK_SECRET_KEY) {
@@ -55,14 +63,14 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         email,
-        amount,
+        amount: amountInKobo,
         currency: "NGN",
         callback_url: safeCallbackUrl,
         metadata: {
           user_id,
-          plan,
+          credits,
           custom_fields: [
-            { display_name: "Plan", variable_name: "plan", value: plan },
+            { display_name: "Credits", variable_name: "credits", value: String(credits) },
           ],
         },
       }),
