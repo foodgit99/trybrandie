@@ -378,9 +378,10 @@ Deno.serve(async (req) => {
           }
         }
 
+        const orderCol = table === "email_campaign_logs" ? "sent_at" : "created_at";
         const { data: rows, count, error } = await query
           .range(offset, offset + limit - 1)
-          .order("created_at", { ascending: false });
+          .order(orderCol, { ascending: false });
 
         if (error) throw error;
 
