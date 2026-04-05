@@ -655,6 +655,7 @@ function CampaignComposer({
   const [subject, setSubject] = useState(campaign?.subject || "");
   const [headline, setHeadline] = useState(campaign?.headline || "");
   const [body, setBody] = useState(campaign?.body || "");
+  const [senderName, setSenderName] = useState(campaign?.sender_name || "Brandie");
   const [ctaText, setCtaText] = useState(campaign?.cta_text || "");
   const [ctaUrl, setCtaUrl] = useState(campaign?.cta_url || "");
   const [filters, setFilters] = useState<SegmentFilters>(
