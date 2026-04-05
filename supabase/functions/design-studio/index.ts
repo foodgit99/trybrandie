@@ -217,7 +217,19 @@ serve(async (req) => {
       });
     }
 
+    // Initialize tracer for this request
+    const tracer = new Tracer(user.id);
+
     const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality, slide_count } = await req.json();
+
+    // Sanitise user-provided text inputs
+    if (messages && Array.isArray(messages)) {
+      for (const msg of messages) {
+        if (msg.role === "user" && typeof msg.content === "string") {
+          msg.content = sanitise(msg.content);
+        }
+      }
+    }
 
     // === CHAT ACTION (with brand context) ===
     if (action === "chat") {
