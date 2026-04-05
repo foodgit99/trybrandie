@@ -1280,6 +1280,20 @@ const ContentHub = () => {
               </CollapsibleContent>
             </section>
           </Collapsible>
+
+          {/* Regenerate All */}
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-2"
+              onClick={handleFullGenerate}
+              disabled={!!generating}
+            >
+              {generating === "full" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Regenerate All
+            </Button>
+          </div>
           <div className="h-[70px]" />
         </motion.div>
       </main>
