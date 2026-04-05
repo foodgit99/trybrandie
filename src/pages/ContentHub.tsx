@@ -769,6 +769,81 @@ const ContentHub = () => {
             </Card>
           )}
 
+          {/* Trend Intel Card */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold">Trend Intel</h2>
+                {trendIntel?.generated_at && (
+                  <span className="text-[10px] text-muted-foreground">
+                    Updated {(() => {
+                      const age = Date.now() - new Date(trendIntel.generated_at).getTime();
+                      const days = Math.floor(age / (1000 * 60 * 60 * 24));
+                      return days === 0 ? "today" : `${days}d ago`;
+                    })()}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={refreshTrendIntel}
+                disabled={trendRefreshing}
+              >
+                {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                {trendIntel ? "Refresh" : "Research Trends"}
+              </Button>
+            </div>
+            {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {(trendIntel.trends_data as any[]).slice(0, 4).map((trend: any, i: number) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Card className="hover:border-primary/30 transition-colors">
+                      <CardContent className="p-3 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <TrendingUp className="h-3 w-3 text-primary shrink-0" />
+                          <p className="text-xs font-semibold leading-tight truncate">{trend.title}</p>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{trend.summary}</p>
+                        {trend.content_angles?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {trend.content_angles.slice(0, 2).map((angle: string, j: number) => (
+                              <span key={j} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary truncate max-w-[140px]">
+                                {angle}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            ) : !trendRefreshing && (
+              <Card className="border-dashed">
+                <CardContent className="py-6 text-center space-y-2">
+                  <TrendingUp className="h-6 w-6 mx-auto text-muted-foreground/40" />
+                  <p className="text-xs text-muted-foreground">No trend intel yet. Click "Research Trends" to discover what's happening in your industry.</p>
+                </CardContent>
+              </Card>
+            )}
+            {trendRefreshing && (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center space-y-2">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                  <p className="text-xs text-muted-foreground">Researching industry trends…</p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
+
           {/* Pillars */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
