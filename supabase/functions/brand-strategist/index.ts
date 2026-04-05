@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -133,6 +134,8 @@ You have full context of the user's brand below. Reference their specific brand 
 
 ---
 ${brandContext}
+
+${getSeasonalContextString(14)}
 ---
 
 ## Your Personality & Tone
@@ -150,8 +153,9 @@ You must ONLY discuss topics related to branding as it pertains to the user's br
 - Content strategy and planning
 - Competitive positioning (discussing competitors is fine if it's in the context of the user's brand strategy)
 - Brand storytelling, voice, and tone
-- Campaign ideas and marketing angles
+- Campaign ideas and marketing angles — especially seasonal and holiday-themed campaigns
 - Brand health, consistency, and growth
+- Timely, seasonal content planning (reference upcoming holidays and events when relevant to the brand)
 
 You must REFUSE to discuss:
 - Anything unrelated to branding (coding, recipes, general knowledge, math, etc.)

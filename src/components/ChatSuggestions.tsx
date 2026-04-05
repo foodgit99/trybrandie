@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { getUpcomingHolidays, getCurrentSeason } from "@/lib/holidayCalendar";
 
 interface ContentIdea {
   id: string;
@@ -18,25 +19,6 @@ interface ChatSuggestionsProps {
   contentIdeas?: ContentIdea[];
 }
 
-const getSeasonalContext = () => {
-  const month = new Date().getMonth();
-  const seasonMap: Record<number, { season: string; events: string[] }> = {
-    0: { season: "Winter", events: ["New Year", "January sale"] },
-    1: { season: "Winter", events: ["Valentine's Day", "February promo"] },
-    2: { season: "Spring", events: ["Spring launch", "Women's Day"] },
-    3: { season: "Spring", events: ["Easter", "spring refresh"] },
-    4: { season: "Spring", events: ["Mother's Day", "May campaign"] },
-    5: { season: "Summer", events: ["summer sale", "mid-year promo"] },
-    6: { season: "Summer", events: ["summer vibes", "July offer"] },
-    7: { season: "Summer", events: ["back to school", "August sale"] },
-    8: { season: "Autumn", events: ["fall launch", "September promo"] },
-    9: { season: "Autumn", events: ["Halloween", "October special"] },
-    10: { season: "Autumn", events: ["Black Friday", "holiday prep"] },
-    11: { season: "Winter", events: ["Christmas", "year-end sale", "holiday"] },
-  };
-  return seasonMap[month];
-};
-
 const ChatSuggestions = ({
   brandName,
   brandVibe,
@@ -47,9 +29,14 @@ const ChatSuggestions = ({
   contentIdeas,
 }: ChatSuggestionsProps) => {
   const suggestions = useMemo(() => {
-    const { season, events } = getSeasonalContext();
+    const season = getCurrentSeason();
+    const upcoming = getUpcomingHolidays(14);
     const name = brandName || "my brand";
-    const event = events[Math.floor(Math.random() * events.length)];
+
+    // Pick a real upcoming event name, or fall back to season
+    const eventName = upcoming.length > 0
+      ? upcoming[Math.floor(Math.random() * Math.min(upcoming.length, 3))].name
+      : `${season.toLowerCase()} season`;
 
     if (hasImage) {
       return [
@@ -63,7 +50,7 @@ const ChatSuggestions = ({
     if (hasMessages) {
       return [
         "Try a completely different layout",
-        `Create a ${event} version`,
+        `Create a ${eventName} version`,
         "Make it more eye-catching",
         "Generate an alternative variation",
       ];
@@ -78,15 +65,22 @@ const ChatSuggestions = ({
       return shuffled.slice(0, 4).map((idea) => idea.prompt);
     }
 
-    // Fallback — brand + season aware
-    const pool = [
-      `Create a ${event} promo for ${name}`,
+    // Fallback — brand + real upcoming events aware
+    const pool: string[] = [];
+
+    // Add event-specific suggestions
+    for (const h of upcoming.slice(0, 2)) {
+      pool.push(`Create a ${h.name} promo for ${name}`);
+      pool.push(`Design a ${h.name} social media graphic`);
+    }
+
+    // Always add some seasonal + brand suggestions
+    pool.push(
       `Design a ${season.toLowerCase()} announcement post`,
       `Make an Instagram post showcasing ${name}`,
       `Design a limited-time offer graphic`,
       `Create a brand awareness post for ${name}`,
-      `Design a ${event} social media graphic`,
-    ];
+    );
 
     if (brandVibe) {
       pool.push(`Create a ${brandVibe} themed post for ${name}`);
