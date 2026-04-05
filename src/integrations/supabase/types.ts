@@ -782,6 +782,7 @@ export type Database = {
           recipient_count: number
           scheduled_for: string | null
           segment_filters: Json
+          sender_name: string
           sent_count: number
           status: string
           subject: string
@@ -799,6 +800,7 @@ export type Database = {
           recipient_count?: number
           scheduled_for?: string | null
           segment_filters?: Json
+          sender_name?: string
           sent_count?: number
           status?: string
           subject: string
@@ -816,6 +818,7 @@ export type Database = {
           recipient_count?: number
           scheduled_for?: string | null
           segment_filters?: Json
+          sender_name?: string
           sent_count?: number
           status?: string
           subject?: string

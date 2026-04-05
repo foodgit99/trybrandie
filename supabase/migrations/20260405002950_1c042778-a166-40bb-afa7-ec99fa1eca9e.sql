@@ -1,0 +1,1 @@
+ALTER TABLE public.email_campaigns ADD COLUMN sender_name text NOT NULL DEFAULT 'Brandie';
