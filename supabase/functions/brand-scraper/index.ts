@@ -53,12 +53,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    let formattedUrl = url.trim();
+    let formattedUrl = sanitisedUrl;
     if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
     console.log("Scraping URL:", formattedUrl);
+
+    // Step 1: Firecrawl scrape (with timeout)
+    const scrapeRes = await withTimeout(fetch("https://api.firecrawl.dev/v1/scrape", {
 
     // Step 1: Firecrawl scrape
     const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
