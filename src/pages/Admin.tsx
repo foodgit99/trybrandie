@@ -460,6 +460,20 @@ function EmailCRMTab() {
     }
   };
 
+  const handleReuse = (c: Campaign) => {
+    setEditingCampaign({
+      ...c,
+      id: "",
+      subject: `${c.subject} (Resend)`,
+      status: "draft",
+      sent_count: 0,
+      failed_count: 0,
+      recipient_count: 0,
+      scheduled_for: null,
+    });
+    setView("compose");
+  };
+
   const handleViewReport = (c: Campaign) => {
     setReportCampaign(c);
     setView("report");
@@ -579,6 +593,11 @@ function EmailCRMTab() {
                   </div>
                   <div className="flex gap-1 shrink-0">
                     {c.status === "sent" && (
+                      <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => handleReuse(c)} title="Reuse as template">
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {c.status === "sent" && (
                       <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => handleViewReport(c)}>
                         <BarChart3 className="h-4 w-4" />
                       </Button>
@@ -686,7 +705,7 @@ function CampaignComposer({
         status: "draft",
       };
 
-      if (campaign) {
+      if (campaign?.id) {
         await adminAction({
           operation: "update",
           table: "email_campaigns",
