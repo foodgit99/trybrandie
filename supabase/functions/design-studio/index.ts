@@ -580,18 +580,17 @@ CONVERSION RULES:
 
               const rawMessages = weightedMessages.slice(0, 45).join("\n- ");
 
-              const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  model: "google/gemini-2.5-flash-lite",
-                  messages: [
-                    {
-                      role: "system",
-                      content: `You are a design preference analyst. Given a user's recent chat messages from a brand design tool, extract structured preference tags.
+              const extractionSpan = tracer.startSpan("chat-preference-extraction");
+              try {
+                const { response: extractResponse, modelUsed } = await callWithFallback(
+                  MODEL_CHAINS.fast,
+                  (model) => ({
+                    body: JSON.stringify({
+                      model,
+                      messages: [
+                        {
+                          role: "system",
+                          content: `You are a design preference analyst. Given a user's recent chat messages from a brand design tool, extract structured preference tags.
 
 Output ONLY a JSON object with these fields (use empty arrays if no clear pattern):
 {
@@ -605,36 +604,47 @@ Output ONLY a JSON object with these fields (use empty arrays if no clear patter
 }
 
 Be concise. Only include tags with clear evidence from multiple messages. Output valid JSON only.`,
-                    },
-                    {
-                      role: "user",
-                      content: `Recent user messages:\n- ${rawMessages}`,
-                    },
-                  ],
-                }),
-              });
+                        },
+                        {
+                          role: "user",
+                          content: `Recent user messages:\n- ${rawMessages}`,
+                        },
+                      ],
+                    }),
+                  }),
+                  "https://ai.gateway.lovable.dev/v1/chat/completions",
+                  LOVABLE_API_KEY,
+                );
 
-              if (extractResponse.ok) {
-                const extractData = await extractResponse.json();
-                const rawContent = extractData.choices?.[0]?.message?.content || "";
-                try {
-                  const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                  if (jsonMatch) tags = JSON.parse(jsonMatch[0]);
-                } catch { /* ignore parse errors */ }
+                recordSuccess("ai-gateway");
 
-                // Persist to cache (upsert by user_id) — preserve existing edit_patterns
-                if (tags && typeof tags === "object") {
-                  const existingEditPatterns = cached?.edit_patterns || [];
-                  await adminClient
-                    .from("chat_preference_cache")
-                    .upsert(
-                      { user_id: user.id, tags, message_count: msgCount, edit_patterns: existingEditPatterns, updated_at: new Date().toISOString() },
-                      { onConflict: "user_id" }
-                    );
-                  console.log("Chat RAG: extracted and cached preference tags (edit_patterns preserved)");
+                if (extractResponse.ok) {
+                  const extractData = await extractResponse.json();
+                  const rawContent = extractData.choices?.[0]?.message?.content || "";
+                  try {
+                    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) tags = JSON.parse(jsonMatch[0]);
+                  } catch { /* ignore parse errors */ }
+
+                  // Persist to cache (upsert by user_id) — preserve existing edit_patterns
+                  if (tags && typeof tags === "object") {
+                    const existingEditPatterns = cached?.edit_patterns || [];
+                    await adminClient
+                      .from("chat_preference_cache")
+                      .upsert(
+                        { user_id: user.id, tags, message_count: msgCount, edit_patterns: existingEditPatterns, updated_at: new Date().toISOString() },
+                        { onConflict: "user_id" }
+                      );
+                    console.log(`Chat RAG: extracted and cached preference tags (model: ${modelUsed})`);
+                  }
+                } else {
+                  console.log("Chat RAG extraction call failed:", extractResponse.status);
                 }
-              } else {
-                console.log("Chat RAG extraction call failed:", extractResponse.status);
+                extractionSpan.finish({ metadata: { model: modelUsed } });
+              } catch (extractErr) {
+                recordFailure("ai-gateway");
+                extractionSpan.fail(extractErr instanceof Error ? extractErr.message : String(extractErr));
+                console.log("Chat RAG extraction failed:", extractErr);
               }
             }
           }
