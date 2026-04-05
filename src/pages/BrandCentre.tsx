@@ -732,6 +732,46 @@ const BrandCentre = () => {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
+
+          {/* Website Import */}
+          {websiteImportOpen ? (
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Import from website</h3>
+                <Button variant="ghost" size="sm" onClick={() => { setWebsiteImportOpen(false); setWebsiteUrl(""); }} disabled={websiteScanning}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">Enter your website URL and we'll update your brand details automatically.</p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    placeholder="yourwebsite.com"
+                    className="pl-9"
+                    disabled={websiteScanning}
+                    onKeyDown={(e) => e.key === "Enter" && !websiteScanning && websiteUrl.trim() && handleWebsiteImport()}
+                  />
+                </div>
+                <Button onClick={handleWebsiteImport} disabled={websiteScanning || !websiteUrl.trim()} className="gap-2 shrink-0">
+                  {websiteScanning ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> {websiteScanMessage}</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4" /> Scan</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setWebsiteImportOpen(true)}>
+                <Globe className="h-3.5 w-3.5" /> Import from website
+              </Button>
+            </div>
+          )}
+
           {/* Brand Info */}
           {renderSection("Brand Info", "info",
             <div className="space-y-2">
