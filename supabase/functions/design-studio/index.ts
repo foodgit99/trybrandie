@@ -1229,6 +1229,11 @@ ${brand.special_instructions}
           design_focus: "the headline",
           explanation: explanationFallback,
         };
+        } catch (briefErr) {
+          recordFailure("ai-gateway");
+          briefSpanInner.fail(briefErr instanceof Error ? briefErr.message : String(briefErr));
+          throw briefErr;
+        }
       })();
 
       // Genome Composer Promise (deterministic — no LLM dependency, runs in parallel with brief)
