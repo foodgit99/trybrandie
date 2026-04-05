@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
+import { sanitise } from "../_shared/sanitise.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,15 @@ serve(async (req) => {
     const { messages, brand_id } = await req.json();
     if (!messages || !brand_id) {
       return new Response(JSON.stringify({ error: "Missing messages or brand_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Sanitise user messages before injecting into strategist prompt
+    if (Array.isArray(messages)) {
+      for (const msg of messages) {
+        if (msg.role === "user" && typeof msg.content === "string") {
+          msg.content = sanitise(msg.content);
+        }
+      }
     }
 
     // Fetch brand context in parallel

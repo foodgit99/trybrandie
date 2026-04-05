@@ -5,6 +5,7 @@ import { sanitise } from "../_shared/sanitise.ts";
 import { Tracer } from "../_shared/tracer.ts";
 import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
 import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
+import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
 
 const corsHeaders = {
@@ -303,37 +304,55 @@ ${seasonalContext}
 
 When you have brand context, reference it naturally in your advice — suggest using specific brand colours, recommend copy that matches the tone of voice, and consider the target audience when discussing design strategy. If an upcoming holiday or event is relevant to the user's brand, proactively suggest timely content ideas.`;
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: chatSystemPrompt },
-            ...messages,
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error("Chat failed");
+      // Circuit breaker check for chat
+      if (isCircuitOpen("ai-gateway")) {
+        return new Response(JSON.stringify({ error: "Our design engine is temporarily busy, please try again in a moment." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      const chatData = await response.json();
-      const content = chatData.choices?.[0]?.message?.content || "";
+      try {
+        const { response } = await callWithFallback(
+          MODEL_CHAINS.chat,
+          (model) => ({
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: "system", content: chatSystemPrompt },
+                ...messages,
+              ],
+            }),
+          }),
+          "https://ai.gateway.lovable.dev/v1/chat/completions",
+          LOVABLE_API_KEY,
+        );
+
+        recordSuccess("ai-gateway");
+
+        if (!response.ok) {
+          if (response.status === 429) {
+            return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
+              status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          if (response.status === 402) {
+            return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+              status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          throw new Error("Chat failed");
+        }
+
+        const chatData = await response.json();
+        const content = chatData.choices?.[0]?.message?.content || "";
+
+        return new Response(JSON.stringify({ message: content }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (chatErr) {
+        recordFailure("ai-gateway");
+        throw chatErr;
+      }
 
       return new Response(JSON.stringify({ message: content }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -341,6 +360,13 @@ When you have brand context, reference it naturally in your advice — suggest u
     }
 
     if (action === "generate" || action === "edit") {
+      // Circuit breaker check for AI gateway
+      if (isCircuitOpen("ai-gateway")) {
+        return new Response(JSON.stringify({ error: "Our design engine is temporarily busy, please try again in a moment." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
@@ -554,18 +580,17 @@ CONVERSION RULES:
 
               const rawMessages = weightedMessages.slice(0, 45).join("\n- ");
 
-              const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  model: "google/gemini-2.5-flash-lite",
-                  messages: [
-                    {
-                      role: "system",
-                      content: `You are a design preference analyst. Given a user's recent chat messages from a brand design tool, extract structured preference tags.
+              const extractionSpan = tracer.startSpan("chat-preference-extraction");
+              try {
+                const { response: extractResponse, modelUsed } = await callWithFallback(
+                  MODEL_CHAINS.fast,
+                  (model) => ({
+                    body: JSON.stringify({
+                      model,
+                      messages: [
+                        {
+                          role: "system",
+                          content: `You are a design preference analyst. Given a user's recent chat messages from a brand design tool, extract structured preference tags.
 
 Output ONLY a JSON object with these fields (use empty arrays if no clear pattern):
 {
@@ -579,36 +604,47 @@ Output ONLY a JSON object with these fields (use empty arrays if no clear patter
 }
 
 Be concise. Only include tags with clear evidence from multiple messages. Output valid JSON only.`,
-                    },
-                    {
-                      role: "user",
-                      content: `Recent user messages:\n- ${rawMessages}`,
-                    },
-                  ],
-                }),
-              });
+                        },
+                        {
+                          role: "user",
+                          content: `Recent user messages:\n- ${rawMessages}`,
+                        },
+                      ],
+                    }),
+                  }),
+                  "https://ai.gateway.lovable.dev/v1/chat/completions",
+                  LOVABLE_API_KEY,
+                );
 
-              if (extractResponse.ok) {
-                const extractData = await extractResponse.json();
-                const rawContent = extractData.choices?.[0]?.message?.content || "";
-                try {
-                  const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                  if (jsonMatch) tags = JSON.parse(jsonMatch[0]);
-                } catch { /* ignore parse errors */ }
+                recordSuccess("ai-gateway");
 
-                // Persist to cache (upsert by user_id) — preserve existing edit_patterns
-                if (tags && typeof tags === "object") {
-                  const existingEditPatterns = cached?.edit_patterns || [];
-                  await adminClient
-                    .from("chat_preference_cache")
-                    .upsert(
-                      { user_id: user.id, tags, message_count: msgCount, edit_patterns: existingEditPatterns, updated_at: new Date().toISOString() },
-                      { onConflict: "user_id" }
-                    );
-                  console.log("Chat RAG: extracted and cached preference tags (edit_patterns preserved)");
+                if (extractResponse.ok) {
+                  const extractData = await extractResponse.json();
+                  const rawContent = extractData.choices?.[0]?.message?.content || "";
+                  try {
+                    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) tags = JSON.parse(jsonMatch[0]);
+                  } catch { /* ignore parse errors */ }
+
+                  // Persist to cache (upsert by user_id) — preserve existing edit_patterns
+                  if (tags && typeof tags === "object") {
+                    const existingEditPatterns = cached?.edit_patterns || [];
+                    await adminClient
+                      .from("chat_preference_cache")
+                      .upsert(
+                        { user_id: user.id, tags, message_count: msgCount, edit_patterns: existingEditPatterns, updated_at: new Date().toISOString() },
+                        { onConflict: "user_id" }
+                      );
+                    console.log(`Chat RAG: extracted and cached preference tags (model: ${modelUsed})`);
+                  }
+                } else {
+                  console.log("Chat RAG extraction call failed:", extractResponse.status);
                 }
-              } else {
-                console.log("Chat RAG extraction call failed:", extractResponse.status);
+                extractionSpan.finish({ metadata: { model: modelUsed } });
+              } catch (extractErr) {
+                recordFailure("ai-gateway");
+                extractionSpan.fail(extractErr instanceof Error ? extractErr.message : String(extractErr));
+                console.log("Chat RAG extraction failed:", extractErr);
               }
             }
           }
@@ -1105,49 +1141,63 @@ ${brand.special_instructions}
 
       // Brief Agent Promise (structured tool calling)
       const briefPromise = (async () => {
-        const briefResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}` },
-              ...messages.slice(0, -1),
-              { role: "user", content: briefUserContent },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "set_brief",
-                description: "Set the strategic creative direction for this design",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    creative_direction: { type: "string", description: "Detailed visual and conceptual direction for the design (3-4 sentences). Describe WHAT to create, the scene, the mood, the visual approach. Be extremely specific about colours (use exact hex codes from brand), fonts, and composition." },
-                    composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
-                    emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
-                    design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
-                    explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
-                  },
-                  required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
-                  additionalProperties: false,
+        const briefSpanInner = tracer.startSpan("brief-agent");
+        try {
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const briefMessages = [
+            { role: "system", content: briefSystemContent },
+            ...messages.slice(0, -1),
+            { role: "user", content: briefUserContent },
+          ];
+          const briefTools = [{
+            type: "function",
+            function: {
+              name: "set_brief",
+              description: "Set the strategic creative direction for this design",
+              parameters: {
+                type: "object",
+                properties: {
+                  creative_direction: { type: "string", description: "Detailed visual and conceptual direction for the design (3-4 sentences). Describe WHAT to create, the scene, the mood, the visual approach. Be extremely specific about colours (use exact hex codes from brand), fonts, and composition." },
+                  composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
+                  emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
+                  design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
+                  explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
                 },
+                required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
+                additionalProperties: false,
               },
-            }],
-            tool_choice: { type: "function", function: { name: "set_brief" } },
-          }),
-        });
+            },
+          }];
 
-        if (!briefResponse.ok) {
-          if (briefResponse.status === 429) throw new Error("RATE_LIMIT");
-          if (briefResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
-          const errText = await briefResponse.text();
-          console.error("Brief generation error:", briefResponse.status, errText);
-          throw new Error("Failed to generate design brief");
-        }
+          const { response: briefResponse, modelUsed } = await withTimeout(
+            callWithFallback(
+              MODEL_CHAINS.reasoning,
+              (model) => ({
+                body: JSON.stringify({
+                  model,
+                  messages: briefMessages,
+                  tools: briefTools,
+                  tool_choice: { type: "function", function: { name: "set_brief" } },
+                }),
+              }),
+              "https://ai.gateway.lovable.dev/v1/chat/completions",
+              LOVABLE_API_KEY,
+            ),
+            TIMEOUTS.AI_CALL,
+            "Brief Agent",
+          );
+
+          recordSuccess("ai-gateway");
+
+          if (!briefResponse.ok) {
+            if (briefResponse.status === 429) throw new Error("RATE_LIMIT");
+            if (briefResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
+            const errText = await briefResponse.text();
+            console.error("Brief generation error:", briefResponse.status, errText);
+            throw new Error("Failed to generate design brief");
+          }
+
+          briefSpanInner.finish({ metadata: { model: modelUsed } });
 
         const briefData = await briefResponse.json();
         const toolCall = briefData.choices?.[0]?.message?.tool_calls?.[0];
@@ -1179,6 +1229,11 @@ ${brand.special_instructions}
           design_focus: "the headline",
           explanation: explanationFallback,
         };
+        } catch (briefErr) {
+          recordFailure("ai-gateway");
+          briefSpanInner.fail(briefErr instanceof Error ? briefErr.message : String(briefErr));
+          throw briefErr;
+        }
       })();
 
       // Genome Composer Promise (deterministic — no LLM dependency, runs in parallel with brief)
@@ -1624,39 +1679,44 @@ RULES:
 8. The copy must sound like it was written by the brand, not by a generic AI
 ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}`;
 
-          const copyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
-              messages: [
-                { role: "system", content: copywriterPrompt },
-                { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
-              ],
-              tools: [{
-                type: "function",
-                function: {
-                  name: "set_copy",
-                  description: "Set the exact copy text for the social media graphic",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      headline: { type: "string", description: "Main headline text (required, 3-8 words)" },
-                      subheadline: { type: "string", description: "Supporting subheadline (optional, 3-10 words, empty string if not needed)" },
-                      cta: { type: "string", description: "Call to action text (optional, 2-5 words, empty string if not needed)" },
-                      supporting_text: { type: "string", description: "Any additional small text (optional, empty string if not needed)" },
-                    },
-                    required: ["headline", "subheadline", "cta", "supporting_text"],
-                    additionalProperties: false,
-                  },
+          const copySpan = tracer.startSpan("copywriter");
+          const copyToolsDef = [{
+            type: "function",
+            function: {
+              name: "set_copy",
+              description: "Set the exact copy text for the social media graphic",
+              parameters: {
+                type: "object",
+                properties: {
+                  headline: { type: "string", description: "Main headline text (required, 3-8 words)" },
+                  subheadline: { type: "string", description: "Supporting subheadline (optional, 3-10 words, empty string if not needed)" },
+                  cta: { type: "string", description: "Call to action text (optional, 2-5 words, empty string if not needed)" },
+                  supporting_text: { type: "string", description: "Any additional small text (optional, empty string if not needed)" },
                 },
-              }],
-              tool_choice: { type: "function", function: { name: "set_copy" } },
+                required: ["headline", "subheadline", "cta", "supporting_text"],
+                additionalProperties: false,
+              },
+            },
+          }];
+
+          const { response: copyResponse, modelUsed: copyModel } = await callWithFallback(
+            MODEL_CHAINS.chat,
+            (model) => ({
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: "system", content: copywriterPrompt },
+                  { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
+                ],
+                tools: copyToolsDef,
+                tool_choice: { type: "function", function: { name: "set_copy" } },
+              }),
             }),
-          });
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            LOVABLE_API_KEY,
+          );
+
+          recordSuccess("ai-gateway");
 
           if (copyResponse.ok) {
             const copyData = await copyResponse.json();
@@ -1669,13 +1729,16 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
                 console.warn("Copywriter output failed validation, using raw:", JSON.stringify(rawResult));
               }
               const result = validated || rawResult;
-              console.log("Copywriter output:", JSON.stringify(result));
+              console.log(`Copywriter output (model: ${copyModel}):`, JSON.stringify(result));
+              copySpan.finish({ metadata: { model: copyModel } });
               return result;
             }
           } else {
             console.error("Copywriter agent failed, falling back to image model copy:", copyResponse.status);
           }
+          copySpan.finish({ status: "error" });
         } catch (e) {
+          recordFailure("ai-gateway");
           console.error("Copywriter agent error, falling back:", e);
         }
         return null;
@@ -1708,41 +1771,46 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
 Brief: ${designPrompt}
 User request: "${userPrompt}"`;
 
-          const captionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
-              messages: [
-                { role: "system", content: captionSystemPrompt },
-                { role: "user", content: captionUserPrompt },
-              ],
-              tools: [{
-                type: "function",
-                function: {
-                  name: "set_caption",
-                  description: "Set the social media caption and hashtags for the design",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
-                      hashtags: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "5-10 relevant hashtags including the # symbol",
-                      },
-                    },
-                    required: ["caption", "hashtags"],
-                    additionalProperties: false,
+          const captionSpan = tracer.startSpan("caption");
+          const captionToolsDef = [{
+            type: "function",
+            function: {
+              name: "set_caption",
+              description: "Set the social media caption and hashtags for the design",
+              parameters: {
+                type: "object",
+                properties: {
+                  caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
+                  hashtags: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "5-10 relevant hashtags including the # symbol",
                   },
                 },
-              }],
-              tool_choice: { type: "function", function: { name: "set_caption" } },
+                required: ["caption", "hashtags"],
+                additionalProperties: false,
+              },
+            },
+          }];
+
+          const { response: captionResponse, modelUsed: captionModel } = await callWithFallback(
+            MODEL_CHAINS.chat,
+            (model) => ({
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: "system", content: captionSystemPrompt },
+                  { role: "user", content: captionUserPrompt },
+                ],
+                tools: captionToolsDef,
+                tool_choice: { type: "function", function: { name: "set_caption" } },
+              }),
             }),
-          });
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            LOVABLE_API_KEY,
+          );
+
+          recordSuccess("ai-gateway");
 
           if (captionResponse.ok) {
             const captionData = await captionResponse.json();
@@ -1750,13 +1818,16 @@ User request: "${userPrompt}"`;
             if (toolCall?.function?.arguments) {
               const parsed = JSON.parse(toolCall.function.arguments);
               const result = parsed.caption + "\n\n" + (parsed.hashtags || []).join(" ");
-              console.log("Caption Agent output:", result);
+              console.log(`Caption Agent output (model: ${captionModel}):`, result);
+              captionSpan.finish({ metadata: { model: captionModel } });
               return result;
             }
           } else {
             console.error("Caption agent failed:", captionResponse.status);
           }
+          captionSpan.finish({ status: "error" });
         } catch (e) {
+          recordFailure("ai-gateway");
           console.error("Caption agent error:", e);
         }
         return null;
@@ -1971,6 +2042,22 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       // Log structured trace for observability
       tracer.log();
+
+      // Persist trace to design_traces table
+      try {
+        const summary = tracer.summary();
+        await adminClient.from("design_traces").insert({
+          run_id: tracer.runId,
+          user_id: user.id,
+          spans: summary.spans,
+          total_latency_ms: summary.total_latency_ms,
+          total_input_tokens: summary.total_input_tokens,
+          total_output_tokens: summary.total_output_tokens,
+          error: summary.error_count > 0 ? JSON.stringify(tracer.getSpans().filter(s => s.status === "error").map(s => s.error)) : null,
+        });
+      } catch (traceErr) {
+        console.error("Failed to persist trace:", traceErr);
+      }
 
       return new Response(
         JSON.stringify({

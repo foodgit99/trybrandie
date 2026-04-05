@@ -707,6 +707,42 @@ export type Database = {
           },
         ]
       }
+      design_traces: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          id: string
+          run_id: string
+          spans: Json | null
+          total_input_tokens: number | null
+          total_latency_ms: number | null
+          total_output_tokens: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          run_id: string
+          spans?: Json | null
+          total_input_tokens?: number | null
+          total_latency_ms?: number | null
+          total_output_tokens?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          run_id?: string
+          spans?: Json | null
+          total_input_tokens?: number | null
+          total_latency_ms?: number | null
+          total_output_tokens?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       designs: {
         Row: {
           brand_id: string
