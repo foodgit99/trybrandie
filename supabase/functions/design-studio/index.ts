@@ -1141,49 +1141,63 @@ ${brand.special_instructions}
 
       // Brief Agent Promise (structured tool calling)
       const briefPromise = (async () => {
-        const briefResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}` },
-              ...messages.slice(0, -1),
-              { role: "user", content: briefUserContent },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "set_brief",
-                description: "Set the strategic creative direction for this design",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    creative_direction: { type: "string", description: "Detailed visual and conceptual direction for the design (3-4 sentences). Describe WHAT to create, the scene, the mood, the visual approach. Be extremely specific about colours (use exact hex codes from brand), fonts, and composition." },
-                    composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
-                    emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
-                    design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
-                    explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
-                  },
-                  required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
-                  additionalProperties: false,
+        const briefSpanInner = tracer.startSpan("brief-agent");
+        try {
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const briefMessages = [
+            { role: "system", content: briefSystemContent },
+            ...messages.slice(0, -1),
+            { role: "user", content: briefUserContent },
+          ];
+          const briefTools = [{
+            type: "function",
+            function: {
+              name: "set_brief",
+              description: "Set the strategic creative direction for this design",
+              parameters: {
+                type: "object",
+                properties: {
+                  creative_direction: { type: "string", description: "Detailed visual and conceptual direction for the design (3-4 sentences). Describe WHAT to create, the scene, the mood, the visual approach. Be extremely specific about colours (use exact hex codes from brand), fonts, and composition." },
+                  composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
+                  emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
+                  design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
+                  explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
                 },
+                required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
+                additionalProperties: false,
               },
-            }],
-            tool_choice: { type: "function", function: { name: "set_brief" } },
-          }),
-        });
+            },
+          }];
 
-        if (!briefResponse.ok) {
-          if (briefResponse.status === 429) throw new Error("RATE_LIMIT");
-          if (briefResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
-          const errText = await briefResponse.text();
-          console.error("Brief generation error:", briefResponse.status, errText);
-          throw new Error("Failed to generate design brief");
-        }
+          const { response: briefResponse, modelUsed } = await withTimeout(
+            callWithFallback(
+              MODEL_CHAINS.reasoning,
+              (model) => ({
+                body: JSON.stringify({
+                  model,
+                  messages: briefMessages,
+                  tools: briefTools,
+                  tool_choice: { type: "function", function: { name: "set_brief" } },
+                }),
+              }),
+              "https://ai.gateway.lovable.dev/v1/chat/completions",
+              LOVABLE_API_KEY,
+            ),
+            TIMEOUTS.AI_CALL,
+            "Brief Agent",
+          );
+
+          recordSuccess("ai-gateway");
+
+          if (!briefResponse.ok) {
+            if (briefResponse.status === 429) throw new Error("RATE_LIMIT");
+            if (briefResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
+            const errText = await briefResponse.text();
+            console.error("Brief generation error:", briefResponse.status, errText);
+            throw new Error("Failed to generate design brief");
+          }
+
+          briefSpanInner.finish({ metadata: { model: modelUsed } });
 
         const briefData = await briefResponse.json();
         const toolCall = briefData.choices?.[0]?.message?.tool_calls?.[0];
