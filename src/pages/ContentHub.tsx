@@ -815,9 +815,9 @@ const ContentHub = () => {
           {/* Trend Intel Card */}
           <Collapsible open={openSections.trends} onOpenChange={() => toggleSection("trends")}>
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">Trend Intel</h2>
                     {trendIntel?.generated_at && (
@@ -829,20 +829,10 @@ const ContentHub = () => {
                         })()}
                       </span>
                     )}
-                    {openSections.trends ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                </CollapsibleTrigger>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={refreshTrendIntel}
-                  disabled={trendRefreshing}
-                >
-                  {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  {trendIntel ? "Refresh" : "Research Trends"}
-                </Button>
-              </div>
+                  </div>
+                  {openSections.trends ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
                   <>
