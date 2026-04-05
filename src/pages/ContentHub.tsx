@@ -1165,7 +1165,15 @@ const ContentHub = () => {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
-                {campaigns && campaigns.length > 0 ? (
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreateCampaign}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_campaigns")} disabled={!!generating}>
+                    {generating === "generate_campaigns" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    AI Generate
+                  </Button>
+                </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {campaigns.map((c: any, i: number) => (
                       <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
