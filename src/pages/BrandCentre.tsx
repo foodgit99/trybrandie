@@ -56,6 +56,7 @@ const BrandCentre = () => {
   const [scannedBrand, setScannedBrand] = useState<any>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [applyingImport, setApplyingImport] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({});
   const [addingProduct, setAddingProduct] = useState(false);
   const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] as string[] });
   const [newFeature, setNewFeature] = useState("");
