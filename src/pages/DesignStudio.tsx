@@ -1252,7 +1252,7 @@ const DesignStudio = () => {
                                 setChatMode("create");
                                 setInput(action.prompt);
                               } else if (action.action === "ideas") {
-                                navigate(`/content-hub`);
+                                navigate(`/content?strategist_prompt=${encodeURIComponent(action.prompt)}`);
                               }
                             }}
                             className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
