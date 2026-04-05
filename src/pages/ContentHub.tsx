@@ -124,6 +124,14 @@ const ContentHub = () => {
   const [trendRefreshing, setTrendRefreshing] = useState(false);
   const [selectedTrend, setSelectedTrend] = useState<any>(null);
   const [showAllTrends, setShowAllTrends] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    trends: false,
+    pillars: false,
+    calendar: true,
+    series: false,
+    campaigns: false,
+  });
+  const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Credit confirmation dialog state
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
