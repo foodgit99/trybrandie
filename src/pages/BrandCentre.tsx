@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
@@ -51,6 +52,9 @@ const BrandCentre = () => {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [websiteScanning, setWebsiteScanning] = useState(false);
   const [websiteScanMessage, setWebsiteScanMessage] = useState("");
+  const [scannedBrand, setScannedBrand] = useState<any>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [applyingImport, setApplyingImport] = useState(false);
   const [addingProduct, setAddingProduct] = useState(false);
   const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] as string[] });
   const [newFeature, setNewFeature] = useState("");
@@ -463,41 +467,9 @@ const BrandCentre = () => {
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
 
-      const b = result.brand;
-      if (b) {
-        const updates: Record<string, unknown> = { website_url: websiteUrl.trim() };
-        if (b.name) updates.name = b.name;
-        if (b.tagline) updates.tagline = b.tagline;
-        if (b.description) updates.description = b.description;
-        if (b.logo_url) updates.logo_url = b.logo_url;
-        if (b.primary_colors?.length) updates.primary_colors = b.primary_colors;
-        if (b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
-        if (b.accent_colors?.length) updates.accent_colors = b.accent_colors;
-        if (b.typography_primary) updates.typography_primary = b.typography_primary;
-        if (b.typography_secondary) updates.typography_secondary = b.typography_secondary;
-        if (b.vibe) updates.vibe = b.vibe;
-        if (b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
-        if (b.personality_traits?.length) updates.personality_traits = b.personality_traits;
-
-        await supabase.from("brands").update(updates as any).eq("id", brand.id);
-
-        // If audience data was inferred, create audience profile
-        if (b.audience_raw_inputs) {
-          const existingAudiences = audiences || [];
-          if (existingAudiences.length === 0) {
-            await supabase.from("target_audiences" as any).insert({
-              brand_id: brand.id,
-              label: "Website Audience",
-              raw_inputs: b.audience_raw_inputs,
-            } as any);
-            queryClient.invalidateQueries({ queryKey: ["target_audiences", brand.id] });
-          }
-        }
-
-        toast({ title: "Brand updated from website!", description: "Your brand details have been refreshed." });
-        refetch();
-        setWebsiteImportOpen(false);
-        setWebsiteUrl("");
+      if (result.brand) {
+        setScannedBrand(result.brand);
+        setConfirmDialogOpen(true);
       }
     } catch (err: any) {
       clearInterval(interval);
@@ -505,6 +477,52 @@ const BrandCentre = () => {
     } finally {
       setWebsiteScanning(false);
       setWebsiteScanMessage("");
+    }
+  };
+
+  const applyWebsiteImport = async () => {
+    if (!scannedBrand || !brand) return;
+    setApplyingImport(true);
+    try {
+      const b = scannedBrand;
+      const updates: Record<string, unknown> = { website_url: websiteUrl.trim() };
+      if (b.name) updates.name = b.name;
+      if (b.tagline) updates.tagline = b.tagline;
+      if (b.description) updates.description = b.description;
+      if (b.logo_url) updates.logo_url = b.logo_url;
+      if (b.primary_colors?.length) updates.primary_colors = b.primary_colors;
+      if (b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
+      if (b.accent_colors?.length) updates.accent_colors = b.accent_colors;
+      if (b.typography_primary) updates.typography_primary = b.typography_primary;
+      if (b.typography_secondary) updates.typography_secondary = b.typography_secondary;
+      if (b.vibe) updates.vibe = b.vibe;
+      if (b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
+      if (b.personality_traits?.length) updates.personality_traits = b.personality_traits;
+
+      await supabase.from("brands").update(updates as any).eq("id", brand.id);
+
+      if (b.audience_raw_inputs) {
+        const existingAudiences = audiences || [];
+        if (existingAudiences.length === 0) {
+          await supabase.from("target_audiences" as any).insert({
+            brand_id: brand.id,
+            label: "Website Audience",
+            raw_inputs: b.audience_raw_inputs,
+          } as any);
+          queryClient.invalidateQueries({ queryKey: ["target_audiences", brand.id] });
+        }
+      }
+
+      toast({ title: "Brand updated from website!", description: "Your brand details have been refreshed." });
+      refetch();
+      setConfirmDialogOpen(false);
+      setScannedBrand(null);
+      setWebsiteImportOpen(false);
+      setWebsiteUrl("");
+    } catch (err: any) {
+      toast({ title: "Error applying changes", description: err.message, variant: "destructive" });
+    } finally {
+      setApplyingImport(false);
     }
   };
 
@@ -1217,6 +1235,76 @@ const BrandCentre = () => {
           </div>
         </motion.div>
       </main>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={(open) => { if (!applyingImport) { setConfirmDialogOpen(open); if (!open) setScannedBrand(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Apply website import?</DialogTitle>
+            <DialogDescription>
+              We found the following brand details. This will overwrite your current brand settings.
+            </DialogDescription>
+          </DialogHeader>
+
+          {scannedBrand && (
+            <div className="space-y-3 max-h-[50vh] overflow-y-auto text-sm">
+              {scannedBrand.name && (
+                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Name</span><p className="font-medium">{scannedBrand.name}</p></div>
+              )}
+              {scannedBrand.tagline && (
+                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tagline</span><p>{scannedBrand.tagline}</p></div>
+              )}
+              {scannedBrand.description && (
+                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Description</span><p className="text-muted-foreground">{scannedBrand.description}</p></div>
+              )}
+              {scannedBrand.vibe && (
+                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Vibe</span><p><span className="inline-block px-2.5 py-1 rounded-lg bg-secondary text-xs font-medium">{scannedBrand.vibe}</span></p></div>
+              )}
+              {scannedBrand.primary_colors?.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Colours</span>
+                  <div className="flex gap-1.5 mt-1">
+                    {[...(scannedBrand.primary_colors || []), ...(scannedBrand.secondary_colors || []), ...(scannedBrand.accent_colors || [])].map((c: string, i: number) => (
+                      <div key={i} className="w-7 h-7 rounded-lg border border-border" style={{ backgroundColor: c }} title={c} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {scannedBrand.typography_primary && (
+                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Typography</span><p>{scannedBrand.typography_primary}{scannedBrand.typography_secondary ? ` / ${scannedBrand.typography_secondary}` : ""}</p></div>
+              )}
+              {scannedBrand.tone_of_voice && (
+                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tone of Voice</span><p className="text-muted-foreground">{scannedBrand.tone_of_voice}</p></div>
+              )}
+              {scannedBrand.personality_traits?.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Personality</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {scannedBrand.personality_traits.map((t: string) => (
+                      <span key={t} className="inline-block px-2 py-0.5 rounded-lg bg-secondary text-xs">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {scannedBrand.logo_url && (
+                <div>
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Logo</span>
+                  <img src={scannedBrand.logo_url} alt="Detected logo" className="h-12 object-contain mt-1 rounded-lg border border-border p-1" />
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setConfirmDialogOpen(false); setScannedBrand(null); }} disabled={applyingImport}>
+              Cancel
+            </Button>
+            <Button onClick={applyWebsiteImport} disabled={applyingImport} className="gap-2">
+              {applyingImport ? <><Loader2 className="h-4 w-4 animate-spin" /> Applying…</> : <><Check className="h-4 w-4" /> Apply Changes</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
