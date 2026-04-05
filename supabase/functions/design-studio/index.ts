@@ -1233,7 +1233,7 @@ ${brand.special_instructions}
           const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
           const briefMessages = [
             { role: "system", content: briefSystemContent },
-            ...messages.slice(0, -1),
+            ...compressedMessages.slice(0, -1),
             { role: "user", content: briefUserContent },
           ];
           const briefTools = [{
