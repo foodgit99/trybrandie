@@ -406,7 +406,7 @@ When you have brand context, reference it naturally in your advice — suggest u
               model,
               messages: [
                 { role: "system", content: chatSystemPrompt },
-                ...messages,
+                ...compressedMessages,
               ],
             }),
           }),
