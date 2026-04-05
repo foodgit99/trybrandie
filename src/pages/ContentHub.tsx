@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { supabase } from "@/integrations/supabase/client";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/AppHeader";
@@ -123,6 +124,14 @@ const ContentHub = () => {
   const [trendRefreshing, setTrendRefreshing] = useState(false);
   const [selectedTrend, setSelectedTrend] = useState<any>(null);
   const [showAllTrends, setShowAllTrends] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    trends: false,
+    pillars: false,
+    calendar: true,
+    series: false,
+    campaigns: false,
+  });
+  const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Credit confirmation dialog state
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
@@ -804,488 +813,402 @@ const ContentHub = () => {
           )}
 
           {/* Trend Intel Card */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">Trend Intel</h2>
-                {trendIntel?.generated_at && (
-                  <span className="text-[10px] text-muted-foreground">
-                    Updated {(() => {
-                      const age = Date.now() - new Date(trendIntel.generated_at).getTime();
-                      const days = Math.floor(age / (1000 * 60 * 60 * 24));
-                      return days === 0 ? "today" : `${days}d ago`;
-                    })()}
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 text-xs"
-                onClick={refreshTrendIntel}
-                disabled={trendRefreshing}
-              >
-                {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                {trendIntel ? "Refresh" : "Research Trends"}
-              </Button>
-            </div>
-            {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
-              <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {(trendIntel.trends_data as any[]).slice(0, showAllTrends ? undefined : 4).map((trend: any, i: number) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                  >
-                    <Card
-                      className="hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer group"
-                      onClick={() => setSelectedTrend(trend)}
-                    >
-                      <CardContent className="p-3 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <TrendingUp className="h-3 w-3 text-primary shrink-0" />
-                          <p className="text-xs font-semibold leading-tight truncate flex-1">{trend.title}</p>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/60 transition-all duration-200 shrink-0 -translate-x-1 group-hover:translate-x-0" />
-                        </div>
-                        <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{trend.summary}</p>
-                        {trend.content_angles?.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-0.5">
-                            {trend.content_angles.slice(0, 2).map((angle: string, j: number) => (
-                              <span key={j} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary truncate max-w-[140px]">
-                                {angle}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-              {(trendIntel.trends_data as any[]).length > 4 && (
+          <Collapsible open={openSections.trends} onOpenChange={() => toggleSection("trends")}>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">Trend Intel</h2>
+                    {trendIntel?.generated_at && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Updated {(() => {
+                          const age = Date.now() - new Date(trendIntel.generated_at).getTime();
+                          const days = Math.floor(age / (1000 * 60 * 60 * 24));
+                          return days === 0 ? "today" : `${days}d ago`;
+                        })()}
+                      </span>
+                    )}
+                    {openSections.trends ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </CollapsibleTrigger>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full h-7 text-xs gap-1"
-                  onClick={() => setShowAllTrends(!showAllTrends)}
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={refreshTrendIntel}
+                  disabled={trendRefreshing}
                 >
-                  {showAllTrends ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  {showAllTrends ? "Show less" : `Show all ${(trendIntel.trends_data as any[]).length} trends`}
+                  {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  {trendIntel ? "Refresh" : "Research Trends"}
                 </Button>
-              )}
-              </>
-            ) : !trendRefreshing && (
-              <Card className="border-dashed">
-                <CardContent className="py-6 text-center space-y-2">
-                  <TrendingUp className="h-6 w-6 mx-auto text-muted-foreground/40" />
-                  <p className="text-xs text-muted-foreground">No trend intel yet. Click "Research Trends" to discover what's happening in your industry.</p>
-                </CardContent>
-              </Card>
-            )}
-            {trendRefreshing && (
-              <Card className="border-dashed">
-                <CardContent className="py-8 text-center space-y-2">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                  <p className="text-xs text-muted-foreground">Researching industry trends…</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
+              </div>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
+                  <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {(trendIntel.trends_data as any[]).slice(0, showAllTrends ? undefined : 4).map((trend: any, i: number) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                      >
+                        <Card
+                          className="hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer group"
+                          onClick={() => setSelectedTrend(trend)}
+                        >
+                          <CardContent className="p-3 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <TrendingUp className="h-3 w-3 text-primary shrink-0" />
+                              <p className="text-xs font-semibold leading-tight truncate flex-1">{trend.title}</p>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/60 transition-all duration-200 shrink-0 -translate-x-1 group-hover:translate-x-0" />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{trend.summary}</p>
+                            {trend.content_angles?.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {trend.content_angles.slice(0, 2).map((angle: string, j: number) => (
+                                  <span key={j} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary truncate max-w-[140px]">
+                                    {angle}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                  {(trendIntel.trends_data as any[]).length > 4 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full h-7 text-xs gap-1"
+                      onClick={() => setShowAllTrends(!showAllTrends)}
+                    >
+                      {showAllTrends ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                      {showAllTrends ? "Show less" : `Show all ${(trendIntel.trends_data as any[]).length} trends`}
+                    </Button>
+                  )}
+                  </>
+                ) : !trendRefreshing && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center space-y-2">
+                      <TrendingUp className="h-6 w-6 mx-auto text-muted-foreground/40" />
+                      <p className="text-xs text-muted-foreground">No trend intel yet. Click "Research Trends" to discover what's happening in your industry.</p>
+                    </CardContent>
+                  </Card>
+                )}
+                {trendRefreshing && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center space-y-2">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                      <p className="text-xs text-muted-foreground">Researching industry trends…</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
 
           {/* Pillars */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">Content Pillars</h2>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={openCreatePillar}
-                >
-                  <Plus className="h-3 w-3" />
-                  Add
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => handleGenerate("generate_pillars")}
-                  disabled={!!generating}
-                >
-                  {generating === "generate_pillars" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  AI Generate
-                </Button>
-              </div>
-            </div>
-            {hasPillars ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-                {pillars!.map((p: any, i: number) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                  >
-                    <Card className="h-full hover:border-primary/30 transition-colors group relative">
-                      <CardContent className="p-3 text-center space-y-1">
-                        <span className="text-2xl">{p.icon_emoji}</span>
-                        <p className="text-xs font-medium leading-tight">{p.name}</p>
-                        <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
-                      </CardContent>
-                      {/* Hover actions */}
-                      <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
-                        <button
-                          onClick={() => openEditPillar(p)}
-                          className="p-1 rounded-md hover:bg-muted transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => deletePillar(p.id)}
-                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive/70" />
-                        </button>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            ) : !generating && (
-              <Card className="border-dashed">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No pillars yet. Add one manually or let AI generate them.</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
-
-          {/* Weekly Calendar — always visible */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">{weekLabel}</h2>
-                {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setWeekOffset((o) => o - 1)}
-                  title="Previous week"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                {weekOffset !== 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs px-2"
-                    onClick={() => setWeekOffset(0)}
-                  >
-                    Today
+          <Collapsible open={openSections.pillars} onOpenChange={() => toggleSection("pillars")}>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <Layers className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">Content Pillars</h2>
+                    {hasPillars && <Badge variant="secondary" className="text-[10px]">{pillars!.length}</Badge>}
+                    {openSections.pillars ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreatePillar}>
+                    <Plus className="h-3 w-3" /> Add
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setWeekOffset((o) => o + 1)}
-                  title="Next week"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => handleGenerate("generate_weekly_ideas")}
-                  disabled={!!generating}
-                >
-                  {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                  Generate Ideas
-                </Button>
-                <CalendarExport
-                  weeklyIdeas={weeklyIdeas}
-                  brand={brand}
-                  pillars={pillars}
-                  series={series}
-                  campaigns={campaigns}
-                  weekLabel={weekLabel}
-                  selectedMonday={selectedMonday}
-                  selectedSunday={selectedSunday}
-                />
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_pillars")} disabled={!!generating}>
+                    {generating === "generate_pillars" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    AI Generate
+                  </Button>
+                </div>
               </div>
-            </div>
-            <Card>
-              <CardContent className="p-0 divide-y divide-border">
-                {DAYS.map((day) => {
-                  const dayIdeas = ideasByDay[day] || [];
-                  const todayIndex = (new Date().getDay() + 6) % 7;
-                  const isToday = DAYS[todayIndex] === day;
-                  return (
-                    <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
-                      <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
-                        {DAY_LABELS[day]}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        {dayIdeas.length === 0 ? (
-                          <span className="text-xs text-muted-foreground/50">—</span>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {dayIdeas.map((idea: any) => (
-                              <div key={idea.id} className="flex items-center gap-2 group/idea">
-                                {idea.status === "created" ? (
-                                  <Check className="h-3 w-3 text-green-500 shrink-0" />
-                                ) : (
-                                  <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-                                )}
-                                <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                                  {idea.title}
-                                </span>
-                                {(() => {
-                                  const fmt = idea.content_format || "graphic";
-                                  const colorMap: Record<string, string> = {
-                                    carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
-                                    graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-                                  };
-                                  return (
-                                    <span className={`inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 ${colorMap[fmt] || colorMap.graphic}`}>
-                                      {fmt}
-                                    </span>
-                                  );
-                                })()}
-                                {idea.idea_type === "holiday" && (
-                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
-                                    <Gift className="h-2 w-2" />
-                                    holiday
-                                  </Badge>
-                                )}
-                                {idea.idea_type === "series_post" && (
-                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
-                                )}
-                                {idea.idea_type === "campaign_post" && (
-                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
-                                )}
-                                {/* Hover edit/delete for ideas */}
-                                <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
-                                  <button
-                                    onClick={() => openEditIdea(idea)}
-                                    className="p-0.5 rounded hover:bg-muted transition-colors"
-                                    title="Edit idea"
-                                  >
-                                    <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
-                                  </button>
-                                  <button
-                                    onClick={() => deleteIdea(idea.id)}
-                                    className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
-                                    title="Delete idea"
-                                  >
-                                    <Trash2 className="h-2.5 w-2.5 text-destructive/70" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                {hasPillars ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                    {pillars!.map((p: any, i: number) => (
+                      <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <Card className="h-full hover:border-primary/30 transition-colors group relative">
+                          <CardContent className="p-3 text-center space-y-1">
+                            <span className="text-2xl">{p.icon_emoji}</span>
+                            <p className="text-xs font-medium leading-tight">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
+                          </CardContent>
+                          <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
+                            <button onClick={() => openEditPillar(p)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => deletePillar(p.id)} className="p-1 rounded-md hover:bg-destructive/10 transition-colors" title="Delete">
+                              <Trash2 className="h-3 w-3 text-destructive/70" />
+                            </button>
                           </div>
-                        )}
-                      </div>
-                      <div className="shrink-0 flex gap-1 items-center">
-                        {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
-                          const format = idea.content_format || "graphic";
-                          const FormatIcon = format === "carousel" ? Layers : ArrowRight;
-                          const formatLabel = format === "carousel" ? "Create carousel" : "Create graphic";
-                          return (
-                            <Button
-                              key={idea.id}
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleFormatAction(idea)}
-                              title={formatLabel}
-                            >
-                              <FormatIcon className="h-3.5 w-3.5" />
-                            </Button>
-                          );
-                        })}
-                        {/* Add idea button per day */}
-                        <button
-                          onClick={() => openCreateIdea(day)}
-                          className="p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 sm:opacity-0 max-sm:opacity-100"
-                          title="Add idea"
-                        >
-                          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </section>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : !generating && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No pillars yet. Add one manually or let AI generate them.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
+
+          <Collapsible open={openSections.calendar} onOpenChange={() => toggleSection("calendar")}>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">{weekLabel}</h2>
+                    {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                    {openSections.calendar ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {weekOffset !== 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setWeekOffset(0)}>Today</Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)} title="Next week">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating}>
+                    {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Generate Ideas
+                  </Button>
+                  <CalendarExport
+                    weeklyIdeas={weeklyIdeas}
+                    brand={brand}
+                    pillars={pillars}
+                    series={series}
+                    campaigns={campaigns}
+                    weekLabel={weekLabel}
+                    selectedMonday={selectedMonday}
+                    selectedSunday={selectedSunday}
+                  />
+                </div>
+              </div>
+              <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <Card>
+                  <CardContent className="p-0 divide-y divide-border">
+                    {DAYS.map((day) => {
+                      const dayIdeas = ideasByDay[day] || [];
+                      const todayIndex = (new Date().getDay() + 6) % 7;
+                      const isToday = DAYS[todayIndex] === day;
+                      return (
+                        <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
+                          <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
+                            {DAY_LABELS[day]}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            {dayIdeas.length === 0 ? (
+                              <span className="text-xs text-muted-foreground/50">—</span>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {dayIdeas.map((idea: any) => (
+                                  <div key={idea.id} className="flex items-center gap-2 group/idea">
+                                    {idea.status === "created" ? (
+                                      <Check className="h-3 w-3 text-green-500 shrink-0" />
+                                    ) : (
+                                      <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                                    )}
+                                    <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                                      {idea.title}
+                                    </span>
+                                    {(() => {
+                                      const fmt = idea.content_format || "graphic";
+                                      const colorMap: Record<string, string> = {
+                                        carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
+                                        graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+                                      };
+                                      return (
+                                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 ${colorMap[fmt] || colorMap.graphic}`}>
+                                          {fmt}
+                                        </span>
+                                      );
+                                    })()}
+                                    {idea.idea_type === "holiday" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                                        <Gift className="h-2 w-2" />
+                                        holiday
+                                      </Badge>
+                                    )}
+                                    {idea.idea_type === "series_post" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
+                                    )}
+                                    {idea.idea_type === "campaign_post" && (
+                                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
+                                    )}
+                                    <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
+                                      <button onClick={() => openEditIdea(idea)} className="p-0.5 rounded hover:bg-muted transition-colors" title="Edit idea">
+                                        <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
+                                      </button>
+                                      <button onClick={() => deleteIdea(idea.id)} className="p-0.5 rounded hover:bg-destructive/10 transition-colors" title="Delete idea">
+                                        <Trash2 className="h-2.5 w-2.5 text-destructive/70" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="shrink-0 flex gap-1 items-center">
+                            {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
+                              const format = idea.content_format || "graphic";
+                              const FormatIcon = format === "carousel" ? Layers : ArrowRight;
+                              const formatLabel = format === "carousel" ? "Create carousel" : "Create graphic";
+                              return (
+                                <Button key={idea.id} variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleFormatAction(idea)} title={formatLabel}>
+                                  <FormatIcon className="h-3.5 w-3.5" />
+                                </Button>
+                              );
+                            })}
+                            <button onClick={() => openCreateIdea(day)} className="p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 sm:opacity-0 max-sm:opacity-100" title="Add idea">
+                              <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
 
           {/* Series */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Repeat className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">Recurring Series</h2>
+          <Collapsible open={openSections.series} onOpenChange={() => toggleSection("series")}>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <Repeat className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">Recurring Series</h2>
+                    {series && series.length > 0 && <Badge variant="secondary" className="text-[10px]">{series.length}</Badge>}
+                    {openSections.series ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreateSeries}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_series")} disabled={!!generating}>
+                    {generating === "generate_series" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    AI Generate
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={openCreateSeries}
-                >
-                  <Plus className="h-3 w-3" />
-                  Add
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => handleGenerate("generate_series")}
-                  disabled={!!generating}
-                >
-                  {generating === "generate_series" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  AI Generate
-                </Button>
-              </div>
-            </div>
-            {series && series.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {series.map((s: any, i: number) => (
-                  <motion.div
-                    key={s.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                  >
-                    <Card className="hover:border-primary/30 transition-colors group relative">
-                      <CardContent className="p-4 space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold">{s.name}</h3>
-                          <Badge variant="secondary" className="text-[10px]">
-                            {s.recurrence}{s.preferred_day ? ` · ${DAY_LABELS[s.preferred_day] || s.preferred_day}` : ""}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
-                      </CardContent>
-                      {/* Hover actions */}
-                      <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
-                        <button
-                          onClick={() => openEditSeries(s)}
-                          className="p-1 rounded-md hover:bg-muted transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => deleteSeries(s.id)}
-                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive/70" />
-                        </button>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            ) : !generating && (
-              <Card className="border-dashed">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No series yet. Add one manually or let AI generate them.</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                {series && series.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {series.map((s: any, i: number) => (
+                      <motion.div key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <Card className="hover:border-primary/30 transition-colors group relative">
+                          <CardContent className="p-4 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-sm font-semibold">{s.name}</h3>
+                              <Badge variant="secondary" className="text-[10px]">
+                                {s.recurrence}{s.preferred_day ? ` · ${DAY_LABELS[s.preferred_day] || s.preferred_day}` : ""}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
+                          </CardContent>
+                          <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
+                            <button onClick={() => openEditSeries(s)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => deleteSeries(s.id)} className="p-1 rounded-md hover:bg-destructive/10 transition-colors" title="Delete">
+                              <Trash2 className="h-3 w-3 text-destructive/70" />
+                            </button>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : !generating && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No series yet. Add one manually or let AI generate them.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
 
           {/* Campaigns */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Megaphone className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">Campaigns</h2>
+          <Collapsible open={openSections.campaigns} onOpenChange={() => toggleSection("campaigns")}>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <Megaphone className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">Campaigns</h2>
+                    {campaigns && campaigns.length > 0 && <Badge variant="secondary" className="text-[10px]">{campaigns.length}</Badge>}
+                    {openSections.campaigns ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreateCampaign}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_campaigns")} disabled={!!generating}>
+                    {generating === "generate_campaigns" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    AI Generate
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={openCreateCampaign}
-                >
-                  <Plus className="h-3 w-3" />
-                  Add
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => handleGenerate("generate_campaigns")}
-                  disabled={!!generating}
-                >
-                  {generating === "generate_campaigns" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  AI Generate
-                </Button>
-              </div>
-            </div>
-            {campaigns && campaigns.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {campaigns.map((c: any, i: number) => (
-                  <motion.div
-                    key={c.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                  >
-                    <Card className="hover:border-primary/30 transition-colors group relative">
-                      <CardContent className="p-4 space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold">{c.name}</h3>
-                          <Badge variant="outline" className="text-[10px]">{c.post_count} posts</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
-                      </CardContent>
-                      <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
-                        <button
-                          onClick={() => openEditCampaign(c)}
-                          className="p-1 rounded-md hover:bg-muted transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => deleteCampaign(c.id)}
-                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive/70" />
-                        </button>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            ) : !generating && (
-              <Card className="border-dashed">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No campaigns yet. Add one manually or let AI generate them.</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                {campaigns && campaigns.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {campaigns.map((c: any, i: number) => (
+                      <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <Card className="hover:border-primary/30 transition-colors group relative">
+                          <CardContent className="p-4 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-sm font-semibold">{c.name}</h3>
+                              <Badge variant="outline" className="text-[10px]">{c.post_count} posts</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
+                          </CardContent>
+                          <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
+                            <button onClick={() => openEditCampaign(c)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => deleteCampaign(c.id)} className="p-1 rounded-md hover:bg-destructive/10 transition-colors" title="Delete">
+                              <Trash2 className="h-3 w-3 text-destructive/70" />
+                            </button>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : !generating && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No campaigns yet. Add one manually or let AI generate them.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
         </motion.div>
       </main>
 
