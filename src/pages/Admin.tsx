@@ -381,6 +381,7 @@ interface Campaign {
   body: string;
   cta_text: string;
   cta_url: string;
+  sender_name: string;
   segment_filters: SegmentFilters;
   status: string;
   scheduled_for: string | null;
@@ -654,6 +655,7 @@ function CampaignComposer({
   const [subject, setSubject] = useState(campaign?.subject || "");
   const [headline, setHeadline] = useState(campaign?.headline || "");
   const [body, setBody] = useState(campaign?.body || "");
+  const [senderName, setSenderName] = useState(campaign?.sender_name || "Brandie");
   const [ctaText, setCtaText] = useState(campaign?.cta_text || "");
   const [ctaUrl, setCtaUrl] = useState(campaign?.cta_url || "");
   const [filters, setFilters] = useState<SegmentFilters>(
@@ -701,6 +703,7 @@ function CampaignComposer({
         body,
         cta_text: ctaText,
         cta_url: ctaUrl,
+        sender_name: senderName || "Brandie",
         segment_filters: filters,
         status: "draft",
       };
@@ -742,6 +745,7 @@ function CampaignComposer({
         body,
         cta_text: ctaText,
         cta_url: ctaUrl,
+        sender_name: senderName || "Brandie",
         segment_filters: filters,
       };
 
@@ -823,16 +827,27 @@ function CampaignComposer({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>
-              Subject line <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Exciting updates from Brandie"
-              className="rounded-xl"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>
+                Subject line <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="e.g. Exciting updates from Brandie"
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Sender name</Label>
+              <Input
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="Brandie"
+                className="rounded-xl"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

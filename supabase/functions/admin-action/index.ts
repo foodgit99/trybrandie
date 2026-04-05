@@ -239,6 +239,7 @@ Deno.serve(async (req) => {
                   message: campaign.body,
                   cta_text: campaign.cta_text,
                   cta_url: campaign.cta_url,
+                  sender_name: campaign.sender_name || "Brandie",
                 },
               }),
             });

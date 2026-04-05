@@ -640,7 +640,9 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Brandie <hello@trybrandie.com>",
+        from: type === "campaign" && data?.sender_name
+          ? `${data.sender_name} <hello@trybrandie.com>`
+          : "Brandie <hello@trybrandie.com>",
         to: [to],
         subject,
         html,
