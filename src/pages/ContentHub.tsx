@@ -54,6 +54,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Play,
+  TrendingUp,
+  Gift,
 } from "lucide-react";
 import CalendarExport from "@/components/CalendarExport";
 
