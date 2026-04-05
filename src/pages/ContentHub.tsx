@@ -56,6 +56,10 @@ import {
   Play,
   TrendingUp,
   Gift,
+  Palette,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import CalendarExport from "@/components/CalendarExport";
 
