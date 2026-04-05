@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
+import { sanitise } from "../_shared/sanitise.ts";
+import { Tracer } from "../_shared/tracer.ts";
+import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
+import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
+import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
