@@ -34,6 +34,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Missing messages or brand_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Sanitise user messages before injecting into strategist prompt
+    if (Array.isArray(messages)) {
+      for (const msg of messages) {
+        if (msg.role === "user" && typeof msg.content === "string") {
+          msg.content = sanitise(msg.content);
+        }
+      }
+    }
+
     // Fetch brand context in parallel
     const [brandRes, audienceRes, pillarsRes, seriesRes, campaignsRes, inspirationCountRes, productsCountRes, recentDesignsRes, trendIntelRes] = await Promise.all([
       supabase.from("brands").select("*").eq("id", brand_id).eq("user_id", userId).single(),
