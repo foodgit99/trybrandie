@@ -49,27 +49,36 @@ Deno.serve(async (req) => {
 
     const metadata = data.data.metadata;
     const user_id = metadata?.user_id;
-    const plan = metadata?.plan;
+    const credits = Number(metadata?.credits) || 0;
     const amount = data.data.amount / 100;
     const currency = data.data.currency;
 
-    // Update profile tier as a safety net (webhook may have already done this)
-    if (user_id && plan) {
+    // Deposit paid credits additively
+    if (user_id && credits > 0) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      console.log(`Attempting to update profile for user ${user_id} to plan ${plan}`);
+      console.log(`Depositing ${credits} credits for user ${user_id}`);
+
+      // Get current paid_credits
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("paid_credits")
+        .eq("user_id", user_id)
+        .single();
+
+      const currentPaid = (currentProfile as any)?.paid_credits || 0;
 
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ subscription_tier: plan, generations_count: 0, generations_reset_at: new Date().toISOString() })
+        .update({ paid_credits: currentPaid + credits })
         .eq("user_id", user_id);
 
       if (updateError) {
         console.error("Profile update failed:", JSON.stringify(updateError));
       } else {
-        console.log(`Profile updated successfully for user ${user_id} to ${plan}`);
+        console.log(`Credits deposited: ${currentPaid} + ${credits} = ${currentPaid + credits}`);
       }
 
       // Send payment confirmation email
@@ -87,7 +96,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               type: "payment_confirmation",
               to: userEmail,
-              data: { plan, amount, currency },
+              data: { credits, amount, currency },
             }),
           });
           
@@ -102,13 +111,13 @@ Deno.serve(async (req) => {
         console.error("Error sending payment confirmation email:", emailErr);
       }
     } else {
-      console.warn(`Missing metadata - user_id: ${user_id}, plan: ${plan}`);
+      console.warn(`Missing metadata - user_id: ${user_id}, credits: ${credits}`);
     }
 
     return new Response(
       JSON.stringify({
         verified: true,
-        plan,
+        credits,
         amount,
         currency,
       }),

@@ -68,22 +68,14 @@ Deno.serve(async (req) => {
     if (event.event === "charge.success") {
       const { metadata, reference, amount } = event.data;
       const user_id = metadata?.user_id;
-      const plan = metadata?.plan;
+      const credits = Number(metadata?.credits) || 0;
 
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Update subscription tier and deposit paid credits
-      if (user_id && plan) {
-        const paidCreditDeposits: Record<string, number> = {
-          entrepreneur: 50,
-          creator: 150,
-          agency: 400,
-        };
-        const depositAmount = paidCreditDeposits[plan] || 0;
-
-        // First get current paid_credits to add to them
+      // Deposit paid credits additively
+      if (user_id && credits > 0) {
         const { data: currentProfile } = await supabase
           .from("profiles")
           .select("paid_credits")
@@ -95,10 +87,7 @@ Deno.serve(async (req) => {
         await supabase
           .from("profiles")
           .update({
-            subscription_tier: plan,
-            generations_count: 0,
-            generations_reset_at: new Date().toISOString(),
-            paid_credits: currentPaid + depositAmount,
+            paid_credits: currentPaid + credits,
           })
           .eq("user_id", user_id);
       }
@@ -113,7 +102,7 @@ Deno.serve(async (req) => {
           .single();
 
         if (referral) {
-          const paymentAmount = amount / 100; // Paystack sends in kobo
+          const paymentAmount = amount / 100;
           const { data: affiliate } = await supabase
             .from("affiliates")
             .select("commission_rate, user_id")
@@ -123,7 +112,6 @@ Deno.serve(async (req) => {
           const rate = affiliate?.commission_rate ?? 0.20;
           const commissionAmount = paymentAmount * rate;
 
-          // Insert commission record
           await supabase.from("affiliate_commissions").insert({
             affiliate_id: referral.affiliate_id,
             referral_id: referral.id,
@@ -133,19 +121,16 @@ Deno.serve(async (req) => {
             status: "pending",
           });
 
-          // Update affiliate total_earned
           await supabase.rpc("increment_affiliate_earned", {
             p_affiliate_id: referral.affiliate_id,
             p_amount: commissionAmount,
           });
 
-          // Mark referral as converted
           await supabase
             .from("affiliate_referrals")
             .update({ status: "converted" })
             .eq("id", referral.id);
 
-          // Send commission earned email to affiliate
           if (affiliate?.user_id) {
             const { data: authUser } = await supabase.auth.admin.getUserById(affiliate.user_id);
             const affiliateEmail = authUser?.user?.email;
@@ -157,11 +142,9 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Send new referral email (referral is now converted)
           if (affiliate?.user_id) {
             const { data: authUser } = await supabase.auth.admin.getUserById(affiliate.user_id);
             const affiliateEmail = authUser?.user?.email;
-            // Get referred user email
             const { data: referredUser } = await supabase.auth.admin.getUserById(user_id);
             const referredEmail = referredUser?.user?.email || "A new user";
             if (affiliateEmail) {
