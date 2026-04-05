@@ -841,13 +841,14 @@ const ContentHub = () => {
                     transition={{ delay: i * 0.05 }}
                   >
                     <Card
-                      className="hover:border-primary/30 transition-colors cursor-pointer"
+                      className="hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer group"
                       onClick={() => setSelectedTrend(trend)}
                     >
                       <CardContent className="p-3 space-y-1">
                         <div className="flex items-center gap-1.5">
                           <TrendingUp className="h-3 w-3 text-primary shrink-0" />
-                          <p className="text-xs font-semibold leading-tight truncate">{trend.title}</p>
+                          <p className="text-xs font-semibold leading-tight truncate flex-1">{trend.title}</p>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/60 transition-all duration-200 shrink-0 -translate-x-1 group-hover:translate-x-0" />
                         </div>
                         <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{trend.summary}</p>
                         {trend.content_angles?.length > 0 && (
