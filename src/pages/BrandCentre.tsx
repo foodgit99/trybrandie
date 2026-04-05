@@ -1257,65 +1257,115 @@ const BrandCentre = () => {
           <DialogHeader>
             <DialogTitle>Apply website import?</DialogTitle>
             <DialogDescription>
-              We found the following brand details. This will overwrite your current brand settings.
+              Select which fields to overwrite with the detected brand details.
             </DialogDescription>
           </DialogHeader>
 
-          {scannedBrand && (
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto text-sm">
-              {scannedBrand.name && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Name</span><p className="font-medium">{scannedBrand.name}</p></div>
-              )}
-              {scannedBrand.tagline && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tagline</span><p>{scannedBrand.tagline}</p></div>
-              )}
-              {scannedBrand.description && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Description</span><p className="text-muted-foreground">{scannedBrand.description}</p></div>
-              )}
-              {scannedBrand.vibe && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Vibe</span><p><span className="inline-block px-2.5 py-1 rounded-lg bg-secondary text-xs font-medium">{scannedBrand.vibe}</span></p></div>
-              )}
-              {scannedBrand.primary_colors?.length > 0 && (
-                <div>
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Colours</span>
-                  <div className="flex gap-1.5 mt-1">
-                    {[...(scannedBrand.primary_colors || []), ...(scannedBrand.secondary_colors || []), ...(scannedBrand.accent_colors || [])].map((c: string, i: number) => (
-                      <div key={i} className="w-7 h-7 rounded-lg border border-border" style={{ backgroundColor: c }} title={c} />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {scannedBrand.typography_primary && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Typography</span><p>{scannedBrand.typography_primary}{scannedBrand.typography_secondary ? ` / ${scannedBrand.typography_secondary}` : ""}</p></div>
-              )}
-              {scannedBrand.tone_of_voice && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tone of Voice</span><p className="text-muted-foreground">{scannedBrand.tone_of_voice}</p></div>
-              )}
-              {scannedBrand.personality_traits?.length > 0 && (
-                <div>
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Personality</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {scannedBrand.personality_traits.map((t: string) => (
-                      <span key={t} className="inline-block px-2 py-0.5 rounded-lg bg-secondary text-xs">{t}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {scannedBrand.logo_url && (
-                <div>
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Logo</span>
-                  <img src={scannedBrand.logo_url} alt="Detected logo" className="h-12 object-contain mt-1 rounded-lg border border-border p-1" />
-                </div>
-              )}
-            </div>
-          )}
+          {scannedBrand && (() => {
+            const fieldKeys = Object.keys(selectedFields);
+            const selectedCount = fieldKeys.filter(k => selectedFields[k]).length;
+            const totalCount = fieldKeys.length;
+            const allSelected = selectedCount === totalCount;
+
+            const toggleField = (key: string) => setSelectedFields(prev => ({ ...prev, [key]: !prev[key] }));
+            const toggleAll = () => {
+              const newVal = !allSelected;
+              setSelectedFields(prev => Object.fromEntries(Object.keys(prev).map(k => [k, newVal])));
+            };
+
+            return (
+              <div className="space-y-1 max-h-[50vh] overflow-y-auto text-sm">
+                <button onClick={toggleAll} className="text-xs text-primary hover:underline mb-2">
+                  {allSelected ? "Deselect all" : "Select all"}
+                </button>
+
+                {selectedFields.name !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.name ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.name} onCheckedChange={() => toggleField("name")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Name</span><p className="font-medium">{scannedBrand.name}</p></div>
+                  </label>
+                )}
+                {selectedFields.tagline !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.tagline ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.tagline} onCheckedChange={() => toggleField("tagline")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tagline</span><p>{scannedBrand.tagline}</p></div>
+                  </label>
+                )}
+                {selectedFields.description !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.description ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.description} onCheckedChange={() => toggleField("description")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Description</span><p className="text-muted-foreground">{scannedBrand.description}</p></div>
+                  </label>
+                )}
+                {selectedFields.vibe !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.vibe ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.vibe} onCheckedChange={() => toggleField("vibe")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Vibe</span><p><span className="inline-block px-2.5 py-1 rounded-lg bg-secondary text-xs font-medium">{scannedBrand.vibe}</span></p></div>
+                  </label>
+                )}
+                {selectedFields.colours !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.colours ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.colours} onCheckedChange={() => toggleField("colours")} className="mt-0.5" />
+                    <div>
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider">Colours</span>
+                      <div className="flex gap-1.5 mt-1">
+                        {[...(scannedBrand.primary_colors || []), ...(scannedBrand.secondary_colors || []), ...(scannedBrand.accent_colors || [])].map((c: string, i: number) => (
+                          <div key={i} className="w-7 h-7 rounded-lg border border-border" style={{ backgroundColor: c }} title={c} />
+                        ))}
+                      </div>
+                    </div>
+                  </label>
+                )}
+                {selectedFields.typography !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.typography ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.typography} onCheckedChange={() => toggleField("typography")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Typography</span><p>{scannedBrand.typography_primary}{scannedBrand.typography_secondary ? ` / ${scannedBrand.typography_secondary}` : ""}</p></div>
+                  </label>
+                )}
+                {selectedFields.tone_of_voice !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.tone_of_voice ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.tone_of_voice} onCheckedChange={() => toggleField("tone_of_voice")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tone of Voice</span><p className="text-muted-foreground">{scannedBrand.tone_of_voice}</p></div>
+                  </label>
+                )}
+                {selectedFields.personality !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.personality ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.personality} onCheckedChange={() => toggleField("personality")} className="mt-0.5" />
+                    <div>
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider">Personality</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {scannedBrand.personality_traits.map((t: string) => (
+                          <span key={t} className="inline-block px-2 py-0.5 rounded-lg bg-secondary text-xs">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </label>
+                )}
+                {selectedFields.logo !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.logo ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.logo} onCheckedChange={() => toggleField("logo")} className="mt-0.5" />
+                    <div>
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider">Logo</span>
+                      <img src={scannedBrand.logo_url} alt="Detected logo" className="h-12 object-contain mt-1 rounded-lg border border-border p-1" />
+                    </div>
+                  </label>
+                )}
+                {selectedFields.audience !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.audience ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.audience} onCheckedChange={() => toggleField("audience")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Target Audience</span><p className="text-muted-foreground">Inferred audience profile from website</p></div>
+                  </label>
+                )}
+              </div>
+            );
+          })()}
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => { setConfirmDialogOpen(false); setScannedBrand(null); }} disabled={applyingImport}>
               Cancel
             </Button>
-            <Button onClick={applyWebsiteImport} disabled={applyingImport} className="gap-2">
-              {applyingImport ? <><Loader2 className="h-4 w-4 animate-spin" /> Applying…</> : <><Check className="h-4 w-4" /> Apply Changes</>}
+            <Button onClick={applyWebsiteImport} disabled={applyingImport || Object.values(selectedFields).every(v => !v)} className="gap-2">
+              {applyingImport ? <><Loader2 className="h-4 w-4 animate-spin" /> Applying…</> : <><Check className="h-4 w-4" /> Apply {Object.values(selectedFields).filter(Boolean).length} of {Object.keys(selectedFields).length} fields</>}
             </Button>
           </DialogFooter>
         </DialogContent>
