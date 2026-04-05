@@ -470,14 +470,10 @@ function EmailCRMTab() {
       failed_count: 0,
       recipient_count: 0,
       scheduled_for: null,
-    } as unknown as Campaign);
-    setEditingCampaign(null);
-    // We use a small trick: set state for the composer to pick up via a ref-like pattern
-    // Instead, let's just go to compose with pre-filled data using a dedicated state
+    });
     setView("compose");
   };
 
-  // We need a cleaner approach: store reuse data separately
   const handleViewReport = (c: Campaign) => {
     setReportCampaign(c);
     setView("report");
