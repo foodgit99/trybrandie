@@ -1679,39 +1679,44 @@ RULES:
 8. The copy must sound like it was written by the brand, not by a generic AI
 ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}`;
 
-          const copyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
-              messages: [
-                { role: "system", content: copywriterPrompt },
-                { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
-              ],
-              tools: [{
-                type: "function",
-                function: {
-                  name: "set_copy",
-                  description: "Set the exact copy text for the social media graphic",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      headline: { type: "string", description: "Main headline text (required, 3-8 words)" },
-                      subheadline: { type: "string", description: "Supporting subheadline (optional, 3-10 words, empty string if not needed)" },
-                      cta: { type: "string", description: "Call to action text (optional, 2-5 words, empty string if not needed)" },
-                      supporting_text: { type: "string", description: "Any additional small text (optional, empty string if not needed)" },
-                    },
-                    required: ["headline", "subheadline", "cta", "supporting_text"],
-                    additionalProperties: false,
-                  },
+          const copySpan = tracer.startSpan("copywriter");
+          const copyToolsDef = [{
+            type: "function",
+            function: {
+              name: "set_copy",
+              description: "Set the exact copy text for the social media graphic",
+              parameters: {
+                type: "object",
+                properties: {
+                  headline: { type: "string", description: "Main headline text (required, 3-8 words)" },
+                  subheadline: { type: "string", description: "Supporting subheadline (optional, 3-10 words, empty string if not needed)" },
+                  cta: { type: "string", description: "Call to action text (optional, 2-5 words, empty string if not needed)" },
+                  supporting_text: { type: "string", description: "Any additional small text (optional, empty string if not needed)" },
                 },
-              }],
-              tool_choice: { type: "function", function: { name: "set_copy" } },
+                required: ["headline", "subheadline", "cta", "supporting_text"],
+                additionalProperties: false,
+              },
+            },
+          }];
+
+          const { response: copyResponse, modelUsed: copyModel } = await callWithFallback(
+            MODEL_CHAINS.chat,
+            (model) => ({
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: "system", content: copywriterPrompt },
+                  { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
+                ],
+                tools: copyToolsDef,
+                tool_choice: { type: "function", function: { name: "set_copy" } },
+              }),
             }),
-          });
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            LOVABLE_API_KEY,
+          );
+
+          recordSuccess("ai-gateway");
 
           if (copyResponse.ok) {
             const copyData = await copyResponse.json();
