@@ -359,6 +359,7 @@ export type Database = {
           updated_at: string
           user_id: string
           vibe: string | null
+          website_url: string | null
         }
         Insert: {
           accent_colors?: string[] | null
@@ -380,6 +381,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           vibe?: string | null
+          website_url?: string | null
         }
         Update: {
           accent_colors?: string[] | null
@@ -401,6 +403,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vibe?: string | null
+          website_url?: string | null
         }
         Relationships: []
       }

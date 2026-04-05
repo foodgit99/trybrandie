@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ArrowRight, Upload, X, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Upload, X, Check, Sparkles, Globe, Loader2 } from "lucide-react";
 import brandieLogo from "@/assets/brandie-logo.png";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 
@@ -71,12 +71,23 @@ type BrandData = {
 };
 
 const Onboarding = () => {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(-1); // -1 = website pre-step
   const [saving, setSaving] = useState(false);
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const SCAN_MESSAGES = [
+    "Scanning your website…",
+    "Extracting brand colours…",
+    "Analyzing your tone…",
+    "Detecting typography…",
+    "Almost there…",
+  ];
 
   const [data, setData] = useState<BrandData>({
     name: "",
@@ -100,14 +111,72 @@ const Onboarding = () => {
     setData((prev) => ({ ...prev, [key]: value }));
 
   const canAdvance = () => {
+    if (step === -1) return true; // pre-step always allows advance (skip)
     if (step === 0) return data.name.trim().length > 0;
     if (step === 6) return data.vibe.length > 0;
     return true;
   };
 
   const lastStep = TOTAL_STEPS - 1;
-  const next = () => step < lastStep && canAdvance() && setStep(step + 1);
-  const prev = () => step > 0 && setStep(step - 1);
+  const next = () => {
+    if (step === -1) { setStep(0); return; }
+    step < lastStep && canAdvance() && setStep(step + 1);
+  };
+  const prev = () => {
+    if (step === 0) { setStep(-1); return; }
+    step > 0 && setStep(step - 1);
+  };
+
+  const handleWebsiteScan = async () => {
+    if (!websiteUrl.trim()) return;
+    setScanning(true);
+    setScanMessage(SCAN_MESSAGES[0]);
+
+    // Rotate messages
+    let msgIndex = 0;
+    const interval = setInterval(() => {
+      msgIndex = (msgIndex + 1) % SCAN_MESSAGES.length;
+      setScanMessage(SCAN_MESSAGES[msgIndex]);
+    }, 2500);
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("brand-scraper", {
+        body: { url: websiteUrl.trim() },
+      });
+
+      clearInterval(interval);
+
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      const brand = result.brand;
+      if (brand) {
+        setData((prev) => ({
+          ...prev,
+          name: brand.name || prev.name,
+          tagline: brand.tagline || prev.tagline,
+          description: brand.description || prev.description,
+          logoPreview: brand.logo_url || prev.logoPreview,
+          primaryColors: brand.primary_colors?.length ? brand.primary_colors : prev.primaryColors,
+          secondaryColors: brand.secondary_colors?.length ? brand.secondary_colors : prev.secondaryColors,
+          accentColors: brand.accent_colors?.length ? brand.accent_colors : prev.accentColors,
+          typographyPrimary: brand.typography_primary || prev.typographyPrimary,
+          typographySecondary: brand.typography_secondary || prev.typographySecondary,
+          vibe: brand.vibe || prev.vibe,
+          toneOfVoice: brand.tone_of_voice || prev.toneOfVoice,
+          personalityTraits: brand.personality_traits?.length ? brand.personality_traits : prev.personalityTraits,
+        }));
+        toast({ title: "Website scanned!", description: "We've pre-filled your brand details. Review and edit as you go." });
+        setStep(0);
+      }
+    } catch (err: any) {
+      clearInterval(interval);
+      toast({ title: "Couldn't scan website", description: err.message || "Please try again or set up manually.", variant: "destructive" });
+    } finally {
+      setScanning(false);
+      setScanMessage("");
+    }
+  };
 
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -200,6 +269,7 @@ const Onboarding = () => {
           tone_of_voice: data.toneOfVoice.trim() || null,
           personality_traits: data.personalityTraits,
           onboarding_complete: true,
+          website_url: websiteUrl.trim() || null,
         } as any)
         .select()
         .single();
@@ -450,6 +520,7 @@ const Onboarding = () => {
     }
   };
 
+  const isPreStep = step === -1;
   const isLast = step === lastStep;
 
   return (
@@ -459,7 +530,7 @@ const Onboarding = () => {
         <motion.div
           className="h-full bg-primary"
           initial={false}
-          animate={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
+          animate={{ width: isPreStep ? "0%" : `${((step + 1) / TOTAL_STEPS) * 100}%` }}
           transition={{ duration: 0.3 }}
         />
       </div>
@@ -474,40 +545,104 @@ const Onboarding = () => {
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6">
         <div className="w-full max-w-lg">
           <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.25 }}
-              className="space-y-6"
-            >
-              <div>
-                <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">
-                  Step {step + 1} of {TOTAL_STEPS}
-                </p>
-                <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">{STEP_TITLES[step]}</h2>
-                <p className="text-muted-foreground text-sm mt-1">{STEP_SUBTITLES[step]}</p>
-              </div>
+            {isPreStep ? (
+              <motion.div
+                key="prestep"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Got a website?</h2>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Drop your URL and we'll set everything up for you.
+                  </p>
+                </div>
 
-              {renderStep()}
-            </motion.div>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="yourwebsite.com"
+                      className="pl-9 h-12 text-lg"
+                      disabled={scanning}
+                      autoFocus
+                      onKeyDown={(e) => e.key === "Enter" && !scanning && websiteUrl.trim() && handleWebsiteScan()}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleWebsiteScan}
+                    disabled={scanning || !websiteUrl.trim()}
+                    className="w-full h-11 gap-2 rounded-xl"
+                  >
+                    {scanning ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {scanMessage}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Scan my website
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <button
+                  onClick={() => setStep(0)}
+                  disabled={scanning}
+                  className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                >
+                  Skip — I'll set up manually
+                </button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-6"
+              >
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">
+                    Step {step + 1} of {TOTAL_STEPS}
+                  </p>
+                  <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">{STEP_TITLES[step]}</h2>
+                  <p className="text-muted-foreground text-sm mt-1">{STEP_SUBTITLES[step]}</p>
+                </div>
+
+                {renderStep()}
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </main>
 
       {/* Navigation */}
       <footer className="px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={prev}
-          disabled={step === 0}
-          className="gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
+        {isPreStep ? (
+          <div />
+        ) : (
+          <Button
+            variant="ghost"
+            onClick={prev}
+            className="gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        )}
 
-        {isLast ? (
+        {isPreStep ? (
+          <div />
+        ) : isLast ? (
           <Button onClick={handleFinish} disabled={saving} className="gap-2 h-11 px-6 rounded-xl">
             {saving ? "Setting up…" : (
               <>

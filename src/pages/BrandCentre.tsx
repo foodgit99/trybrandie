@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star, Globe } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
@@ -47,6 +47,10 @@ const BrandCentre = () => {
   const [saving, setSaving] = useState(false);
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [websiteImportOpen, setWebsiteImportOpen] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [websiteScanning, setWebsiteScanning] = useState(false);
+  const [websiteScanMessage, setWebsiteScanMessage] = useState("");
   const [addingProduct, setAddingProduct] = useState(false);
   const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] as string[] });
   const [newFeature, setNewFeature] = useState("");
@@ -439,6 +443,71 @@ const BrandCentre = () => {
     else setPersonalityTraits([...personalityTraits, trait]);
   };
 
+  const SCAN_MESSAGES = ["Scanning your website…", "Extracting brand colours…", "Analyzing your tone…", "Detecting typography…", "Almost there…"];
+
+  const handleWebsiteImport = async () => {
+    if (!websiteUrl.trim() || !brand) return;
+    setWebsiteScanning(true);
+    setWebsiteScanMessage(SCAN_MESSAGES[0]);
+    let msgIndex = 0;
+    const interval = setInterval(() => {
+      msgIndex = (msgIndex + 1) % SCAN_MESSAGES.length;
+      setWebsiteScanMessage(SCAN_MESSAGES[msgIndex]);
+    }, 2500);
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("brand-scraper", {
+        body: { url: websiteUrl.trim() },
+      });
+      clearInterval(interval);
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      const b = result.brand;
+      if (b) {
+        const updates: Record<string, unknown> = { website_url: websiteUrl.trim() };
+        if (b.name) updates.name = b.name;
+        if (b.tagline) updates.tagline = b.tagline;
+        if (b.description) updates.description = b.description;
+        if (b.logo_url) updates.logo_url = b.logo_url;
+        if (b.primary_colors?.length) updates.primary_colors = b.primary_colors;
+        if (b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
+        if (b.accent_colors?.length) updates.accent_colors = b.accent_colors;
+        if (b.typography_primary) updates.typography_primary = b.typography_primary;
+        if (b.typography_secondary) updates.typography_secondary = b.typography_secondary;
+        if (b.vibe) updates.vibe = b.vibe;
+        if (b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
+        if (b.personality_traits?.length) updates.personality_traits = b.personality_traits;
+
+        await supabase.from("brands").update(updates as any).eq("id", brand.id);
+
+        // If audience data was inferred, create audience profile
+        if (b.audience_raw_inputs) {
+          const existingAudiences = audiences || [];
+          if (existingAudiences.length === 0) {
+            await supabase.from("target_audiences" as any).insert({
+              brand_id: brand.id,
+              label: "Website Audience",
+              raw_inputs: b.audience_raw_inputs,
+            } as any);
+            queryClient.invalidateQueries({ queryKey: ["target_audiences", brand.id] });
+          }
+        }
+
+        toast({ title: "Brand updated from website!", description: "Your brand details have been refreshed." });
+        refetch();
+        setWebsiteImportOpen(false);
+        setWebsiteUrl("");
+      }
+    } catch (err: any) {
+      clearInterval(interval);
+      toast({ title: "Couldn't scan website", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setWebsiteScanning(false);
+      setWebsiteScanMessage("");
+    }
+  };
+
   if (!brand) return null;
 
   const isService = productForm.product_type === "service";
@@ -663,6 +732,46 @@ const BrandCentre = () => {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
+
+          {/* Website Import */}
+          {websiteImportOpen ? (
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Import from website</h3>
+                <Button variant="ghost" size="sm" onClick={() => { setWebsiteImportOpen(false); setWebsiteUrl(""); }} disabled={websiteScanning}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">Enter your website URL and we'll update your brand details automatically.</p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    placeholder="yourwebsite.com"
+                    className="pl-9"
+                    disabled={websiteScanning}
+                    onKeyDown={(e) => e.key === "Enter" && !websiteScanning && websiteUrl.trim() && handleWebsiteImport()}
+                  />
+                </div>
+                <Button onClick={handleWebsiteImport} disabled={websiteScanning || !websiteUrl.trim()} className="gap-2 shrink-0">
+                  {websiteScanning ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> {websiteScanMessage}</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4" /> Scan</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setWebsiteImportOpen(true)}>
+                <Globe className="h-3.5 w-3.5" /> Import from website
+              </Button>
+            </div>
+          )}
+
           {/* Brand Info */}
           {renderSection("Brand Info", "info",
             <div className="space-y-2">
