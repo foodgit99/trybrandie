@@ -443,6 +443,71 @@ const BrandCentre = () => {
     else setPersonalityTraits([...personalityTraits, trait]);
   };
 
+  const SCAN_MESSAGES = ["Scanning your website…", "Extracting brand colours…", "Analyzing your tone…", "Detecting typography…", "Almost there…"];
+
+  const handleWebsiteImport = async () => {
+    if (!websiteUrl.trim() || !brand) return;
+    setWebsiteScanning(true);
+    setWebsiteScanMessage(SCAN_MESSAGES[0]);
+    let msgIndex = 0;
+    const interval = setInterval(() => {
+      msgIndex = (msgIndex + 1) % SCAN_MESSAGES.length;
+      setWebsiteScanMessage(SCAN_MESSAGES[msgIndex]);
+    }, 2500);
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("brand-scraper", {
+        body: { url: websiteUrl.trim() },
+      });
+      clearInterval(interval);
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      const b = result.brand;
+      if (b) {
+        const updates: Record<string, unknown> = { website_url: websiteUrl.trim() };
+        if (b.name) updates.name = b.name;
+        if (b.tagline) updates.tagline = b.tagline;
+        if (b.description) updates.description = b.description;
+        if (b.logo_url) updates.logo_url = b.logo_url;
+        if (b.primary_colors?.length) updates.primary_colors = b.primary_colors;
+        if (b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
+        if (b.accent_colors?.length) updates.accent_colors = b.accent_colors;
+        if (b.typography_primary) updates.typography_primary = b.typography_primary;
+        if (b.typography_secondary) updates.typography_secondary = b.typography_secondary;
+        if (b.vibe) updates.vibe = b.vibe;
+        if (b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
+        if (b.personality_traits?.length) updates.personality_traits = b.personality_traits;
+
+        await supabase.from("brands").update(updates as any).eq("id", brand.id);
+
+        // If audience data was inferred, create audience profile
+        if (b.audience_raw_inputs) {
+          const existingAudiences = audiences || [];
+          if (existingAudiences.length === 0) {
+            await supabase.from("target_audiences" as any).insert({
+              brand_id: brand.id,
+              label: "Website Audience",
+              raw_inputs: b.audience_raw_inputs,
+            } as any);
+            queryClient.invalidateQueries({ queryKey: ["target_audiences", brand.id] });
+          }
+        }
+
+        toast({ title: "Brand updated from website!", description: "Your brand details have been refreshed." });
+        refetch();
+        setWebsiteImportOpen(false);
+        setWebsiteUrl("");
+      }
+    } catch (err: any) {
+      clearInterval(interval);
+      toast({ title: "Couldn't scan website", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setWebsiteScanning(false);
+      setWebsiteScanMessage("");
+    }
+  };
+
   if (!brand) return null;
 
   const isService = productForm.product_type === "service";
