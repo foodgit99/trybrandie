@@ -231,6 +231,59 @@ const ContentHub = () => {
     enabled: !!brandId,
   });
 
+  // Trend Intel query
+  const { data: trendIntel, isLoading: trendIntelLoading } = useQuery({
+    queryKey: ["trend-intel", brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brand_trend_intel")
+        .select("*")
+        .eq("brand_id", brandId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!brandId,
+  });
+
+  const refreshTrendIntel = async () => {
+    setTrendRefreshing(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trend-scout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ brand_id: brandId, force_refresh: true }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed" }));
+        if (res.status === 429) {
+          toast({ title: "Rate limited", description: "Please try again in a moment.", variant: "destructive" });
+        } else {
+          toast({ title: "Trend research failed", description: err.error || "Please try again.", variant: "destructive" });
+        }
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["trend-intel", brandId] });
+      toast({ title: "Trend intel updated!", description: "Latest industry trends have been researched." });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setTrendRefreshing(false);
+    }
+  };
+
   // Auto-generate on first visit if no pillars exist
   useEffect(() => {
     if (brandId && !pillarsLoading && pillars && pillars.length === 0 && !initialSetupDone && !generating) {
