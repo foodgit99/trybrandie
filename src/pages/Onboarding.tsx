@@ -71,12 +71,23 @@ type BrandData = {
 };
 
 const Onboarding = () => {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(-1); // -1 = website pre-step
   const [saving, setSaving] = useState(false);
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const SCAN_MESSAGES = [
+    "Scanning your website…",
+    "Extracting brand colours…",
+    "Analyzing your tone…",
+    "Detecting typography…",
+    "Almost there…",
+  ];
 
   const [data, setData] = useState<BrandData>({
     name: "",
