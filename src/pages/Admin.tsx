@@ -593,6 +593,11 @@ function EmailCRMTab() {
                   </div>
                   <div className="flex gap-1 shrink-0">
                     {c.status === "sent" && (
+                      <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => handleReuse(c)} title="Reuse as template">
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {c.status === "sent" && (
                       <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => handleViewReport(c)}>
                         <BarChart3 className="h-4 w-4" />
                       </Button>
