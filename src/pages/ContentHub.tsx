@@ -56,6 +56,10 @@ import {
   Play,
   TrendingUp,
   Gift,
+  Palette,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import CalendarExport from "@/components/CalendarExport";
 
@@ -117,6 +121,8 @@ const ContentHub = () => {
   const [regenPending, setRegenPending] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [trendRefreshing, setTrendRefreshing] = useState(false);
+  const [selectedTrend, setSelectedTrend] = useState<any>(null);
+  const [showAllTrends, setShowAllTrends] = useState(false);
 
   // Credit confirmation dialog state
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
@@ -797,15 +803,19 @@ const ContentHub = () => {
               </Button>
             </div>
             {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
+              <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {(trendIntel.trends_data as any[]).slice(0, 4).map((trend: any, i: number) => (
+                {(trendIntel.trends_data as any[]).slice(0, showAllTrends ? undefined : 4).map((trend: any, i: number) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                   >
-                    <Card className="hover:border-primary/30 transition-colors">
+                    <Card
+                      className="hover:border-primary/30 transition-colors cursor-pointer"
+                      onClick={() => setSelectedTrend(trend)}
+                    >
                       <CardContent className="p-3 space-y-1">
                         <div className="flex items-center gap-1.5">
                           <TrendingUp className="h-3 w-3 text-primary shrink-0" />
@@ -826,6 +836,18 @@ const ContentHub = () => {
                   </motion.div>
                 ))}
               </div>
+              {(trendIntel.trends_data as any[]).length > 4 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-7 text-xs gap-1"
+                  onClick={() => setShowAllTrends(!showAllTrends)}
+                >
+                  {showAllTrends ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {showAllTrends ? "Show less" : `Show all ${(trendIntel.trends_data as any[]).length} trends`}
+                </Button>
+              )}
+              </>
             ) : !trendRefreshing && (
               <Card className="border-dashed">
                 <CardContent className="py-6 text-center space-y-2">
@@ -1508,6 +1530,92 @@ const ContentHub = () => {
               {editingIdeaId ? "Save" : "Add"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Trend Detail Dialog */}
+      <Dialog open={!!selectedTrend} onOpenChange={(open) => !open && setSelectedTrend(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {selectedTrend && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary shrink-0" />
+                  <DialogTitle className="text-base">{selectedTrend.title}</DialogTitle>
+                </div>
+              </DialogHeader>
+              <div className="space-y-4 py-1">
+                <p className="text-sm text-muted-foreground leading-relaxed">{selectedTrend.summary}</p>
+
+                {selectedTrend.relevance_to_brand && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-semibold text-foreground">Why this matters for your brand</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{selectedTrend.relevance_to_brand}</p>
+                  </div>
+                )}
+
+                {selectedTrend.content_angles?.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-semibold text-foreground">Content angles</h4>
+                    <ol className="space-y-1.5 list-none">
+                      {selectedTrend.content_angles.map((angle: string, j: number) => (
+                        <li key={j} className="flex items-start gap-2">
+                          <span className="text-[10px] font-bold text-primary mt-0.5 shrink-0">{j + 1}.</span>
+                          <span className="text-xs text-muted-foreground">{angle}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    const prompt = `${selectedTrend.title}: ${selectedTrend.content_angles?.[0] || selectedTrend.summary}`;
+                    navigate(`/studio?prompt=${encodeURIComponent(prompt)}`);
+                    setSelectedTrend(null);
+                  }}
+                >
+                  <Palette className="h-3 w-3" />
+                  Generate Design
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setSelectedTrend(null);
+                    setIdeaForm({
+                      ...emptyIdea,
+                      title: selectedTrend.title,
+                      prompt: `${selectedTrend.title}: ${selectedTrend.content_angles?.[0] || selectedTrend.summary}`,
+                    });
+                    setIdeaDay("monday");
+                    setEditingIdeaId(null);
+                    setIdeaDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                  Create Content Idea
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    const prompt = `How can I leverage the trend "${selectedTrend.title}" for my brand?`;
+                    navigate(`/studio?mode=plan&prompt=${encodeURIComponent(prompt)}`);
+                    setSelectedTrend(null);
+                  }}
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  Ask Strategist
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
