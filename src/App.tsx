@@ -8,6 +8,7 @@ import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
 import ScrollToTop from "@/components/ScrollToTop";
 import FloatingCreateButton from "@/components/FloatingCreateButton";
+import LowCreditsBanner from "@/components/LowCreditsBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -133,6 +134,7 @@ const App = () => (
         </Routes>
         <FloatingDesignStatus />
         <FloatingCreateButton />
+        <LowCreditsBanner />
       </BrowserRouter>
       </DesignGenerationProvider>
     </TooltipProvider>
