@@ -36,6 +36,32 @@ const Plans = () => {
   } | null>(null);
   const queryClient = useQueryClient();
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("generations_count, generations_reset_at, bonus_credits, paid_credits")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const getCreditsRemaining = () => {
+    if (!profile) return FREE_MONTHLY;
+    const resetAt = new Date(profile.generations_reset_at);
+    const now = new Date();
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    return freeRemaining + (profile.bonus_credits ?? 0) + (profile.paid_credits ?? 0);
+  };
+
+  const creditsRemaining = getCreditsRemaining();
+
   const credits = units * CREDITS_PER_UNIT;
   const price = units * PRICE_PER_UNIT;
 
