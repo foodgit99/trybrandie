@@ -798,6 +798,48 @@ const ContentHub = () => {
             </Button>
           </div>
 
+          {/* Upcoming Events Card */}
+          {(() => {
+            const upcoming = getUpcomingHolidays(14);
+            if (upcoming.length === 0) return null;
+            return (
+              <Card className="border-primary/20 bg-primary/[0.03]">
+                <CardContent className="p-4 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Gift className="h-4 w-4 text-primary" />
+                    <h2 className="text-sm font-semibold">Upcoming Events</h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {upcoming.slice(0, 4).map((h, i) => {
+                      const dateLabel = h.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                      const urgency = h.daysUntil <= 0 ? "Today" : h.daysUntil === 1 ? "Tomorrow" : `In ${h.daysUntil} days`;
+                      return (
+                        <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">{h.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{dateLabel} · {urgency}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-[10px] gap-1 shrink-0"
+                            onClick={() => {
+                              const prompt = `Create a ${h.name} themed post for ${brand?.name || "my brand"}`;
+                              navigate(`/studio?prompt=${encodeURIComponent(prompt)}`);
+                            }}
+                          >
+                            <Palette className="h-2.5 w-2.5" />
+                            Design
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           {/* Loading / Empty state */}
           {generating === "full" && !hasPillars && (
             <Card className="border-dashed">
