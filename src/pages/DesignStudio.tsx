@@ -377,9 +377,13 @@ const DesignStudio = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pick up prompt from Content Hub URL params
+  // Pick up prompt and mode from Content Hub URL params
   useEffect(() => {
     const promptParam = searchParams.get("prompt");
+    const modeParam = searchParams.get("mode");
+    if (modeParam === "plan") {
+      setChatMode("plan");
+    }
     if (promptParam && messages.length === 0 && !searchParams.get("design")) {
       setInput(promptParam);
     }
