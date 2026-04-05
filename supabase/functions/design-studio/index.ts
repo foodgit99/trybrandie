@@ -304,37 +304,55 @@ ${seasonalContext}
 
 When you have brand context, reference it naturally in your advice — suggest using specific brand colours, recommend copy that matches the tone of voice, and consider the target audience when discussing design strategy. If an upcoming holiday or event is relevant to the user's brand, proactively suggest timely content ideas.`;
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: chatSystemPrompt },
-            ...messages,
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error("Chat failed");
+      // Circuit breaker check for chat
+      if (isCircuitOpen("ai-gateway")) {
+        return new Response(JSON.stringify({ error: "Our design engine is temporarily busy, please try again in a moment." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      const chatData = await response.json();
-      const content = chatData.choices?.[0]?.message?.content || "";
+      try {
+        const { response } = await callWithFallback(
+          MODEL_CHAINS.chat,
+          (model) => ({
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: "system", content: chatSystemPrompt },
+                ...messages,
+              ],
+            }),
+          }),
+          "https://ai.gateway.lovable.dev/v1/chat/completions",
+          LOVABLE_API_KEY,
+        );
+
+        recordSuccess("ai-gateway");
+
+        if (!response.ok) {
+          if (response.status === 429) {
+            return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
+              status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          if (response.status === 402) {
+            return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+              status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          throw new Error("Chat failed");
+        }
+
+        const chatData = await response.json();
+        const content = chatData.choices?.[0]?.message?.content || "";
+
+        return new Response(JSON.stringify({ message: content }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (chatErr) {
+        recordFailure("ai-gateway");
+        throw chatErr;
+      }
 
       return new Response(JSON.stringify({ message: content }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
