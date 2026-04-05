@@ -232,6 +232,93 @@ serve(async (req) => {
       }
     }
 
+    // === CONTEXT COMPRESSION ===
+    // When conversation exceeds 15 messages, summarise older messages
+    // to reduce token usage while preserving context
+    const COMPRESSION_THRESHOLD = 15;
+    const RECENT_MESSAGES_TO_KEEP = 6; // Keep the last 6 messages verbatim
+
+    async function compressMessages(
+      msgs: Array<{ role: string; content: string }>,
+      apiKey: string
+    ): Promise<Array<{ role: string; content: string }>> {
+      if (!msgs || msgs.length <= COMPRESSION_THRESHOLD) return msgs;
+
+      const olderMessages = msgs.slice(0, msgs.length - RECENT_MESSAGES_TO_KEEP);
+      const recentMessages = msgs.slice(msgs.length - RECENT_MESSAGES_TO_KEEP);
+
+      // Build a transcript of older messages for summarisation
+      const transcript = olderMessages
+        .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+        .join("\n\n");
+
+      try {
+        const summaryResponse = await fetch(
+          "https://ai.gateway.lovable.dev/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-lite",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are a conversation summariser. Produce a concise summary of the conversation below, preserving: 1) key design decisions (colours, layout, style choices), 2) user preferences and feedback, 3) brand/audience context mentioned, 4) the most recent design state. Be factual and brief — max 200 words. Output only the summary, no preamble.",
+                },
+                {
+                  role: "user",
+                  content: `Summarise this design conversation:\n\n${transcript}`,
+                },
+              ],
+            }),
+          }
+        );
+
+        if (!summaryResponse.ok) {
+          console.warn("Context compression failed, using uncompressed messages");
+          return msgs;
+        }
+
+        const summaryData = await summaryResponse.json();
+        const summary =
+          summaryData.choices?.[0]?.message?.content || "";
+
+        if (!summary) return msgs;
+
+        console.log(
+          `Context compression: ${olderMessages.length} older messages → summary (${summary.length} chars). Keeping ${recentMessages.length} recent.`
+        );
+
+        // Return a synthetic "system" message with the summary + recent messages
+        return [
+          {
+            role: "user",
+            content: `[Conversation context — summarised from ${olderMessages.length} earlier messages]\n${summary}`,
+          },
+          {
+            role: "assistant",
+            content:
+              "Understood, I have the context from our earlier conversation. Let's continue.",
+          },
+          ...recentMessages,
+        ];
+      } catch (e) {
+        console.warn("Context compression error, falling back to full messages:", e);
+        return msgs;
+      }
+    }
+
+    // Apply compression if needed
+    let compressedMessages = messages;
+    if (messages && Array.isArray(messages) && messages.length > COMPRESSION_THRESHOLD) {
+      compressedMessages = await compressMessages(messages, LOVABLE_API_KEY);
+      console.log(`Messages compressed: ${messages.length} → ${compressedMessages.length}`);
+    }
+
     // === CHAT ACTION (with brand context) ===
     if (action === "chat") {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
