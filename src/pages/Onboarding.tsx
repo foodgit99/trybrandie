@@ -111,14 +111,72 @@ const Onboarding = () => {
     setData((prev) => ({ ...prev, [key]: value }));
 
   const canAdvance = () => {
+    if (step === -1) return true; // pre-step always allows advance (skip)
     if (step === 0) return data.name.trim().length > 0;
     if (step === 6) return data.vibe.length > 0;
     return true;
   };
 
   const lastStep = TOTAL_STEPS - 1;
-  const next = () => step < lastStep && canAdvance() && setStep(step + 1);
-  const prev = () => step > 0 && setStep(step - 1);
+  const next = () => {
+    if (step === -1) { setStep(0); return; }
+    step < lastStep && canAdvance() && setStep(step + 1);
+  };
+  const prev = () => {
+    if (step === 0) { setStep(-1); return; }
+    step > 0 && setStep(step - 1);
+  };
+
+  const handleWebsiteScan = async () => {
+    if (!websiteUrl.trim()) return;
+    setScanning(true);
+    setScanMessage(SCAN_MESSAGES[0]);
+
+    // Rotate messages
+    let msgIndex = 0;
+    const interval = setInterval(() => {
+      msgIndex = (msgIndex + 1) % SCAN_MESSAGES.length;
+      setScanMessage(SCAN_MESSAGES[msgIndex]);
+    }, 2500);
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke("brand-scraper", {
+        body: { url: websiteUrl.trim() },
+      });
+
+      clearInterval(interval);
+
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      const brand = result.brand;
+      if (brand) {
+        setData((prev) => ({
+          ...prev,
+          name: brand.name || prev.name,
+          tagline: brand.tagline || prev.tagline,
+          description: brand.description || prev.description,
+          logoPreview: brand.logo_url || prev.logoPreview,
+          primaryColors: brand.primary_colors?.length ? brand.primary_colors : prev.primaryColors,
+          secondaryColors: brand.secondary_colors?.length ? brand.secondary_colors : prev.secondaryColors,
+          accentColors: brand.accent_colors?.length ? brand.accent_colors : prev.accentColors,
+          typographyPrimary: brand.typography_primary || prev.typographyPrimary,
+          typographySecondary: brand.typography_secondary || prev.typographySecondary,
+          vibe: brand.vibe || prev.vibe,
+          toneOfVoice: brand.tone_of_voice || prev.toneOfVoice,
+          personalityTraits: brand.personality_traits?.length ? brand.personality_traits : prev.personalityTraits,
+        }));
+        toast({ title: "Website scanned!", description: "We've pre-filled your brand details. Review and edit as you go." });
+        setStep(0);
+      }
+    } catch (err: any) {
+      clearInterval(interval);
+      toast({ title: "Couldn't scan website", description: err.message || "Please try again or set up manually.", variant: "destructive" });
+    } finally {
+      setScanning(false);
+      setScanMessage("");
+    }
+  };
 
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
