@@ -381,6 +381,7 @@ interface Campaign {
   body: string;
   cta_text: string;
   cta_url: string;
+  sender_name: string;
   segment_filters: SegmentFilters;
   status: string;
   scheduled_for: string | null;
