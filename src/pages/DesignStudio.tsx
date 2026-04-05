@@ -75,6 +75,25 @@ type Message = {
   attachedImageUrl?: string;
 };
 
+type StrategistAction = {
+  label: string;
+  action: "design" | "ideas";
+  prompt: string;
+};
+
+const parseStrategistActions = (content: string): { cleanContent: string; actions: StrategistAction[] } => {
+  const regex = /<!-- ACTIONS\s*\n([\s\S]*?)\nACTIONS -->/;
+  const match = content.match(regex);
+  if (!match) return { cleanContent: content, actions: [] };
+  try {
+    const actions = JSON.parse(match[1]) as StrategistAction[];
+    const cleanContent = content.replace(regex, "").trimEnd();
+    return { cleanContent, actions: actions.slice(0, 2) };
+  } catch {
+    return { cleanContent: content, actions: [] };
+  }
+};
+
 const CANVAS_SIZES = [
   { label: "Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
   { label: "Landscape (1920×1080)", value: "1920x1080", aspect: "16 / 9" },
