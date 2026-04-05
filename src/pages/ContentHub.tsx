@@ -1211,7 +1211,7 @@ const ContentHub = () => {
               </CollapsibleContent>
             </section>
           </Collapsible>
-          <div className="h-[120px]" />
+          <div className="h-[70px]" />
         </motion.div>
       </main>
 
