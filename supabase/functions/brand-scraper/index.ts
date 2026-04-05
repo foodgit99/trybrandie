@@ -37,7 +37,8 @@ Deno.serve(async (req) => {
     }
 
     const { url } = await req.json();
-    if (!url || typeof url !== "string" || url.trim().length < 4) {
+    const sanitisedUrl = sanitiseUrl(url);
+    if (!sanitisedUrl) {
       return new Response(JSON.stringify({ error: "A valid URL is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
