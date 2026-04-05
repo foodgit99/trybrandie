@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ArrowRight, Upload, X, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Upload, X, Check, Sparkles, Globe, Loader2 } from "lucide-react";
 import brandieLogo from "@/assets/brandie-logo.png";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 
