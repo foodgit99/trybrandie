@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, ArrowRight, Zap, CreditCard } from "lucide-react";
+import { Loader2, CheckCircle2, ArrowRight, Zap, CreditCard, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
+
+const FREE_MONTHLY = 5;
 
 const PRICE_PER_UNIT = 5000; // ₦5,000
 const CREDITS_PER_UNIT = 20;
@@ -33,6 +35,32 @@ const Plans = () => {
     currency: string;
   } | null>(null);
   const queryClient = useQueryClient();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("generations_count, generations_reset_at, bonus_credits, paid_credits")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const getCreditsRemaining = () => {
+    if (!profile) return FREE_MONTHLY;
+    const resetAt = new Date(profile.generations_reset_at);
+    const now = new Date();
+    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
+    const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
+    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    return freeRemaining + (profile.bonus_credits ?? 0) + (profile.paid_credits ?? 0);
+  };
+
+  const creditsRemaining = getCreditsRemaining();
 
   const credits = units * CREDITS_PER_UNIT;
   const price = units * PRICE_PER_UNIT;
@@ -153,6 +181,13 @@ const Plans = () => {
               transition={{ duration: 0.5 }}
               className="space-y-8"
             >
+              {/* Current Balance */}
+              <div className="flex items-center justify-center gap-3 px-5 py-3 rounded-2xl bg-secondary/60 border border-border">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Current balance:</span>
+                <span className="text-lg font-serif font-medium">{creditsRemaining} credits</span>
+              </div>
+
               {/* Header */}
               <div className="text-center space-y-2">
                 <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Buy Credits</h2>
