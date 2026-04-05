@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star, Globe } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import AppHeader from "@/components/AppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
@@ -55,6 +56,7 @@ const BrandCentre = () => {
   const [scannedBrand, setScannedBrand] = useState<any>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [applyingImport, setApplyingImport] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({});
   const [addingProduct, setAddingProduct] = useState(false);
   const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] as string[] });
   const [newFeature, setNewFeature] = useState("");
@@ -468,7 +470,20 @@ const BrandCentre = () => {
       if (result?.error) throw new Error(result.error);
 
       if (result.brand) {
-        setScannedBrand(result.brand);
+        const b = result.brand;
+        const fields: Record<string, boolean> = {};
+        if (b.name) fields.name = true;
+        if (b.tagline) fields.tagline = true;
+        if (b.description) fields.description = true;
+        if (b.logo_url) fields.logo = true;
+        if (b.primary_colors?.length || b.secondary_colors?.length || b.accent_colors?.length) fields.colours = true;
+        if (b.typography_primary || b.typography_secondary) fields.typography = true;
+        if (b.vibe) fields.vibe = true;
+        if (b.tone_of_voice) fields.tone_of_voice = true;
+        if (b.personality_traits?.length) fields.personality = true;
+        if (b.audience_raw_inputs) fields.audience = true;
+        setSelectedFields(fields);
+        setScannedBrand(b);
         setConfirmDialogOpen(true);
       }
     } catch (err: any) {
@@ -486,22 +501,22 @@ const BrandCentre = () => {
     try {
       const b = scannedBrand;
       const updates: Record<string, unknown> = { website_url: websiteUrl.trim() };
-      if (b.name) updates.name = b.name;
-      if (b.tagline) updates.tagline = b.tagline;
-      if (b.description) updates.description = b.description;
-      if (b.logo_url) updates.logo_url = b.logo_url;
-      if (b.primary_colors?.length) updates.primary_colors = b.primary_colors;
-      if (b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
-      if (b.accent_colors?.length) updates.accent_colors = b.accent_colors;
-      if (b.typography_primary) updates.typography_primary = b.typography_primary;
-      if (b.typography_secondary) updates.typography_secondary = b.typography_secondary;
-      if (b.vibe) updates.vibe = b.vibe;
-      if (b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
-      if (b.personality_traits?.length) updates.personality_traits = b.personality_traits;
+      if (selectedFields.name && b.name) updates.name = b.name;
+      if (selectedFields.tagline && b.tagline) updates.tagline = b.tagline;
+      if (selectedFields.description && b.description) updates.description = b.description;
+      if (selectedFields.logo && b.logo_url) updates.logo_url = b.logo_url;
+      if (selectedFields.colours && b.primary_colors?.length) updates.primary_colors = b.primary_colors;
+      if (selectedFields.colours && b.secondary_colors?.length) updates.secondary_colors = b.secondary_colors;
+      if (selectedFields.colours && b.accent_colors?.length) updates.accent_colors = b.accent_colors;
+      if (selectedFields.typography && b.typography_primary) updates.typography_primary = b.typography_primary;
+      if (selectedFields.typography && b.typography_secondary) updates.typography_secondary = b.typography_secondary;
+      if (selectedFields.vibe && b.vibe) updates.vibe = b.vibe;
+      if (selectedFields.tone_of_voice && b.tone_of_voice) updates.tone_of_voice = b.tone_of_voice;
+      if (selectedFields.personality && b.personality_traits?.length) updates.personality_traits = b.personality_traits;
 
       await supabase.from("brands").update(updates as any).eq("id", brand.id);
 
-      if (b.audience_raw_inputs) {
+      if (selectedFields.audience && b.audience_raw_inputs) {
         const existingAudiences = audiences || [];
         if (existingAudiences.length === 0) {
           await supabase.from("target_audiences" as any).insert({
@@ -1242,65 +1257,115 @@ const BrandCentre = () => {
           <DialogHeader>
             <DialogTitle>Apply website import?</DialogTitle>
             <DialogDescription>
-              We found the following brand details. This will overwrite your current brand settings.
+              Select which fields to overwrite with the detected brand details.
             </DialogDescription>
           </DialogHeader>
 
-          {scannedBrand && (
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto text-sm">
-              {scannedBrand.name && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Name</span><p className="font-medium">{scannedBrand.name}</p></div>
-              )}
-              {scannedBrand.tagline && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tagline</span><p>{scannedBrand.tagline}</p></div>
-              )}
-              {scannedBrand.description && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Description</span><p className="text-muted-foreground">{scannedBrand.description}</p></div>
-              )}
-              {scannedBrand.vibe && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Vibe</span><p><span className="inline-block px-2.5 py-1 rounded-lg bg-secondary text-xs font-medium">{scannedBrand.vibe}</span></p></div>
-              )}
-              {scannedBrand.primary_colors?.length > 0 && (
-                <div>
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Colours</span>
-                  <div className="flex gap-1.5 mt-1">
-                    {[...(scannedBrand.primary_colors || []), ...(scannedBrand.secondary_colors || []), ...(scannedBrand.accent_colors || [])].map((c: string, i: number) => (
-                      <div key={i} className="w-7 h-7 rounded-lg border border-border" style={{ backgroundColor: c }} title={c} />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {scannedBrand.typography_primary && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Typography</span><p>{scannedBrand.typography_primary}{scannedBrand.typography_secondary ? ` / ${scannedBrand.typography_secondary}` : ""}</p></div>
-              )}
-              {scannedBrand.tone_of_voice && (
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tone of Voice</span><p className="text-muted-foreground">{scannedBrand.tone_of_voice}</p></div>
-              )}
-              {scannedBrand.personality_traits?.length > 0 && (
-                <div>
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Personality</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {scannedBrand.personality_traits.map((t: string) => (
-                      <span key={t} className="inline-block px-2 py-0.5 rounded-lg bg-secondary text-xs">{t}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {scannedBrand.logo_url && (
-                <div>
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider">Logo</span>
-                  <img src={scannedBrand.logo_url} alt="Detected logo" className="h-12 object-contain mt-1 rounded-lg border border-border p-1" />
-                </div>
-              )}
-            </div>
-          )}
+          {scannedBrand && (() => {
+            const fieldKeys = Object.keys(selectedFields);
+            const selectedCount = fieldKeys.filter(k => selectedFields[k]).length;
+            const totalCount = fieldKeys.length;
+            const allSelected = selectedCount === totalCount;
+
+            const toggleField = (key: string) => setSelectedFields(prev => ({ ...prev, [key]: !prev[key] }));
+            const toggleAll = () => {
+              const newVal = !allSelected;
+              setSelectedFields(prev => Object.fromEntries(Object.keys(prev).map(k => [k, newVal])));
+            };
+
+            return (
+              <div className="space-y-1 max-h-[50vh] overflow-y-auto text-sm">
+                <button onClick={toggleAll} className="text-xs text-primary hover:underline mb-2">
+                  {allSelected ? "Deselect all" : "Select all"}
+                </button>
+
+                {selectedFields.name !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.name ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.name} onCheckedChange={() => toggleField("name")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Name</span><p className="font-medium">{scannedBrand.name}</p></div>
+                  </label>
+                )}
+                {selectedFields.tagline !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.tagline ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.tagline} onCheckedChange={() => toggleField("tagline")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tagline</span><p>{scannedBrand.tagline}</p></div>
+                  </label>
+                )}
+                {selectedFields.description !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.description ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.description} onCheckedChange={() => toggleField("description")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Description</span><p className="text-muted-foreground">{scannedBrand.description}</p></div>
+                  </label>
+                )}
+                {selectedFields.vibe !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.vibe ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.vibe} onCheckedChange={() => toggleField("vibe")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Vibe</span><p><span className="inline-block px-2.5 py-1 rounded-lg bg-secondary text-xs font-medium">{scannedBrand.vibe}</span></p></div>
+                  </label>
+                )}
+                {selectedFields.colours !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.colours ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.colours} onCheckedChange={() => toggleField("colours")} className="mt-0.5" />
+                    <div>
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider">Colours</span>
+                      <div className="flex gap-1.5 mt-1">
+                        {[...(scannedBrand.primary_colors || []), ...(scannedBrand.secondary_colors || []), ...(scannedBrand.accent_colors || [])].map((c: string, i: number) => (
+                          <div key={i} className="w-7 h-7 rounded-lg border border-border" style={{ backgroundColor: c }} title={c} />
+                        ))}
+                      </div>
+                    </div>
+                  </label>
+                )}
+                {selectedFields.typography !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.typography ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.typography} onCheckedChange={() => toggleField("typography")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Typography</span><p>{scannedBrand.typography_primary}{scannedBrand.typography_secondary ? ` / ${scannedBrand.typography_secondary}` : ""}</p></div>
+                  </label>
+                )}
+                {selectedFields.tone_of_voice !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.tone_of_voice ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.tone_of_voice} onCheckedChange={() => toggleField("tone_of_voice")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Tone of Voice</span><p className="text-muted-foreground">{scannedBrand.tone_of_voice}</p></div>
+                  </label>
+                )}
+                {selectedFields.personality !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.personality ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.personality} onCheckedChange={() => toggleField("personality")} className="mt-0.5" />
+                    <div>
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider">Personality</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {scannedBrand.personality_traits.map((t: string) => (
+                          <span key={t} className="inline-block px-2 py-0.5 rounded-lg bg-secondary text-xs">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </label>
+                )}
+                {selectedFields.logo !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.logo ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.logo} onCheckedChange={() => toggleField("logo")} className="mt-0.5" />
+                    <div>
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider">Logo</span>
+                      <img src={scannedBrand.logo_url} alt="Detected logo" className="h-12 object-contain mt-1 rounded-lg border border-border p-1" />
+                    </div>
+                  </label>
+                )}
+                {selectedFields.audience !== undefined && (
+                  <label className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-secondary/50 transition-opacity ${!selectedFields.audience ? "opacity-50" : ""}`}>
+                    <Checkbox checked={selectedFields.audience} onCheckedChange={() => toggleField("audience")} className="mt-0.5" />
+                    <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Target Audience</span><p className="text-muted-foreground">Inferred audience profile from website</p></div>
+                  </label>
+                )}
+              </div>
+            );
+          })()}
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => { setConfirmDialogOpen(false); setScannedBrand(null); }} disabled={applyingImport}>
               Cancel
             </Button>
-            <Button onClick={applyWebsiteImport} disabled={applyingImport} className="gap-2">
-              {applyingImport ? <><Loader2 className="h-4 w-4 animate-spin" /> Applying…</> : <><Check className="h-4 w-4" /> Apply Changes</>}
+            <Button onClick={applyWebsiteImport} disabled={applyingImport || Object.values(selectedFields).every(v => !v)} className="gap-2">
+              {applyingImport ? <><Loader2 className="h-4 w-4 animate-spin" /> Applying…</> : <><Check className="h-4 w-4" /> Apply {Object.values(selectedFields).filter(Boolean).length} of {Object.keys(selectedFields).length} fields</>}
             </Button>
           </DialogFooter>
         </DialogContent>
