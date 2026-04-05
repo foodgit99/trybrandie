@@ -1649,7 +1649,13 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
             const copyData = await copyResponse.json();
             const toolCall = copyData.choices?.[0]?.message?.tool_calls?.[0];
             if (toolCall?.function?.arguments) {
-              const result = JSON.parse(toolCall.function.arguments);
+              const rawResult = JSON.parse(toolCall.function.arguments);
+              // Validate copy structure
+              const validated = validateCopyStructure(rawResult);
+              if (!validated) {
+                console.warn("Copywriter output failed validation, using raw:", JSON.stringify(rawResult));
+              }
+              const result = validated || rawResult;
               console.log("Copywriter output:", JSON.stringify(result));
               return result;
             }
