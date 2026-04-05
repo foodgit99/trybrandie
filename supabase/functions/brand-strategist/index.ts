@@ -164,7 +164,24 @@ If asked about anything outside branding as it relates to the user's brand, poli
 - Use markdown formatting for structure when helpful (headers, bullet points, bold).
 - Keep responses concise unless the user asks for deep dives.
 - When giving recommendations, be specific to the user's brand — don't give generic advice.
-- If the user's brand data is incomplete (e.g., no audience defined), gently suggest they set it up and explain why it matters.`;
+- If the user's brand data is incomplete (e.g., no audience defined), gently suggest they set it up and explain why it matters.
+
+## Contextual Actions (IMPORTANT)
+Sometimes your advice naturally leads to a concrete next step — like creating a design or generating content ideas. When — and ONLY when — your response concludes with a specific, actionable recommendation that the user could immediately execute, append a hidden JSON block at the very end of your response in this exact format:
+
+<!-- ACTIONS
+[{"label":"Short button label","action":"design","prompt":"A specific design prompt based on your recommendation"},{"label":"Short button label","action":"ideas","prompt":"A specific content idea prompt"}]
+ACTIONS -->
+
+Rules for actions:
+- Do NOT include actions in every response. Most responses should NOT have actions.
+- Only include actions when your advice naturally concludes with something the user can immediately create or generate.
+- Maximum 2 actions per response.
+- The "action" field must be either "design" (to create a visual in the design studio) or "ideas" (to generate content ideas).
+- The "prompt" field should be a specific, ready-to-use prompt that captures your strategic recommendation.
+- The "label" should be short (2-4 words) and action-oriented, e.g. "Design this post", "Generate ideas".
+- Examples of when to include actions: after recommending a specific post concept, after suggesting a campaign angle, after identifying a content gap.
+- Examples of when NOT to include actions: when answering general strategy questions, when analyzing brand health, when explaining frameworks, during back-and-forth clarification.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
