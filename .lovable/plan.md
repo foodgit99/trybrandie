@@ -1,36 +1,40 @@
 
 
-# Plan: Make Trend Intel Cards Interactive
+# Plan: Weekly Credit Gate for Trend Intel Refresh
 
 ## What Changes
 
-Currently, trend cards are static display-only. We'll add an expandable detail view with actionable buttons so users can act on each trend.
+Add weekly credit tracking to the trend-scout flow, mirroring the existing content generation pattern: first refresh per week is free, subsequent refreshes cost 2 credits with a confirmation dialog.
 
 ## Implementation
 
-### File: `src/pages/ContentHub.tsx`
+### 1. Database Migration
 
-1. **Add state** for the selected trend: `const [selectedTrend, setSelectedTrend] = useState<any>(null);`
+Add two columns to `profiles` table:
+- `trend_intel_gen_count` (integer, default 0)
+- `trend_intel_gen_reset_at` (timestamptz, default now)
 
-2. **Make trend cards clickable** — add `onClick={() => setSelectedTrend(trend)}` and a cursor-pointer style to each card.
+Same pattern as the existing `content_hub_gen_count` / `content_hub_gen_reset_at`.
 
-3. **Add a Trend Detail Dialog** that shows when `selectedTrend` is set:
-   - Full trend title and complete summary (no truncation)
-   - "Why this matters for your brand" section showing `relevance_to_brand`
-   - All content angles listed as styled items (not truncated)
-   - Three action buttons at the bottom:
-     - **Generate Design** — navigates to `/studio?prompt={content_angle_text}` (uses the first content angle as a design prompt, prefixed with the trend title for context)
-     - **Create Content Idea** — opens the existing Add Idea dialog, pre-filling the prompt field with the trend title + first content angle
-     - **Ask Strategist** — navigates to `/studio?mode=plan&prompt=How can I leverage the trend "{trend.title}" for my brand?`
+### 2. Edge Function: `supabase/functions/trend-scout/index.ts`
 
-4. **Show all trends** — remove the `.slice(0, 4)` limit, or add a "Show all" toggle if there are more than 4 trends.
+Add the same credit-checking logic from `brand-engine`:
+- `getISOWeekStart()` helper
+- Fetch profile's `trend_intel_gen_count` and `trend_intel_gen_reset_at`
+- If count is 0 this week → free (no credit deduction)
+- If count ≥ 1 → require 2 credits, deduct using the same free→bonus→paid waterfall
+- Add a `check_only` mode: when `{ brand_id, check_only: true }` is sent, return `{ is_free, credits_required, available_credits }` without running the AI — this lets the frontend show the confirmation dialog before committing
+- After successful generation, increment `trend_intel_gen_count` and update `trend_intel_gen_reset_at`
 
-### No backend changes needed
-All data (`summary`, `relevance_to_brand`, `content_angles`) is already stored in the `brand_trend_intel.trends_data` JSONB column. This is purely a frontend enhancement.
+### 3. Frontend: `src/pages/ContentHub.tsx`
 
-### UI Details
-- Dialog uses the existing `Dialog` component already imported
-- Consistent with existing design patterns (dark cards, primary accent color, compact typography)
-- Content angles rendered as a numbered list for clarity
-- Action buttons use existing navigation patterns (`navigate("/studio?...")`)
+- Before calling `refreshTrendIntel`, call the trend-scout with `check_only: true`
+- If `is_free` → proceed directly
+- If not free → reuse the existing `creditDialogOpen` / `pendingAction` pattern to show the "This will cost 2 credits" confirmation dialog
+- Handle 402 errors (not enough credits) with a toast
+
+### Files to Modify
+1. **New migration** — add `trend_intel_gen_count` and `trend_intel_gen_reset_at` to profiles
+2. **`supabase/functions/trend-scout/index.ts`** — add credit check, deduction, and `check_only` mode
+3. **`src/pages/ContentHub.tsx`** — wrap `refreshTrendIntel` in credit check flow
 
