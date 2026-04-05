@@ -834,6 +834,18 @@ const ContentHub = () => {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={refreshTrendIntel}
+                    disabled={trendRefreshing}
+                  >
+                    {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    {trendIntel ? "Refresh" : "Research Trends"}
+                  </Button>
+                </div>
                 {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
                   <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
