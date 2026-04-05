@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, ArrowRight, Zap, CreditCard } from "lucide-react";
+import { Loader2, CheckCircle2, ArrowRight, Zap, CreditCard, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
+
+const FREE_MONTHLY = 5;
 
 const PRICE_PER_UNIT = 5000; // ₦5,000
 const CREDITS_PER_UNIT = 20;
