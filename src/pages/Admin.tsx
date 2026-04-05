@@ -703,6 +703,7 @@ function CampaignComposer({
         body,
         cta_text: ctaText,
         cta_url: ctaUrl,
+        sender_name: senderName || "Brandie",
         segment_filters: filters,
         status: "draft",
       };
