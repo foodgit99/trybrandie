@@ -259,6 +259,44 @@ export type Database = {
           },
         ]
       }
+      brand_trend_intel: {
+        Row: {
+          brand_id: string
+          created_at: string
+          generated_at: string
+          id: string
+          trends_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          trends_data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          trends_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_trend_intel_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_trend_preferences: {
         Row: {
           brand_id: string
