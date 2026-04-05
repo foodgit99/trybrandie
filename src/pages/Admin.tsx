@@ -705,7 +705,7 @@ function CampaignComposer({
         status: "draft",
       };
 
-      if (campaign) {
+      if (campaign?.id) {
         await adminAction({
           operation: "update",
           table: "email_campaigns",
