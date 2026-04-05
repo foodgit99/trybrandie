@@ -804,14 +804,17 @@ const ContentHub = () => {
             </div>
             {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {(trendIntel.trends_data as any[]).slice(0, 4).map((trend: any, i: number) => (
+                {(trendIntel.trends_data as any[]).slice(0, showAllTrends ? undefined : 4).map((trend: any, i: number) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                   >
-                    <Card className="hover:border-primary/30 transition-colors">
+                    <Card
+                      className="hover:border-primary/30 transition-colors cursor-pointer"
+                      onClick={() => setSelectedTrend(trend)}
+                    >
                       <CardContent className="p-3 space-y-1">
                         <div className="flex items-center gap-1.5">
                           <TrendingUp className="h-3 w-3 text-primary shrink-0" />
@@ -832,6 +835,17 @@ const ContentHub = () => {
                   </motion.div>
                 ))}
               </div>
+              {(trendIntel.trends_data as any[]).length > 4 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-7 text-xs gap-1"
+                  onClick={() => setShowAllTrends(!showAllTrends)}
+                >
+                  {showAllTrends ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {showAllTrends ? "Show less" : `Show all ${(trendIntel.trends_data as any[]).length} trends`}
+                </Button>
+              )}
             ) : !trendRefreshing && (
               <Card className="border-dashed">
                 <CardContent className="py-6 text-center space-y-2">
