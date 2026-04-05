@@ -47,6 +47,10 @@ const BrandCentre = () => {
   const [saving, setSaving] = useState(false);
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [websiteImportOpen, setWebsiteImportOpen] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [websiteScanning, setWebsiteScanning] = useState(false);
+  const [websiteScanMessage, setWebsiteScanMessage] = useState("");
   const [addingProduct, setAddingProduct] = useState(false);
   const [productForm, setProductForm] = useState({ label: "", description: "", product_type: "physical", price: "", features: [] as string[], image_url: "", duration: "", pricing_model: "", is_featured: false, gallery_images: [] as string[] });
   const [newFeature, setNewFeature] = useState("");
