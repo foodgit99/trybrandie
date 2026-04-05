@@ -800,6 +800,42 @@ const ContentHub = () => {
             </Button>
           </div>
 
+          {/* Strategist prompt banner */}
+          {strategistPrompt && (
+            <Card className="border-primary/30 bg-primary/[0.04]">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary shrink-0" />
+                  <p className="text-xs font-medium">From your Brand Strategist</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{strategistPrompt}</p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs gap-1.5 rounded-lg"
+                    onClick={() => {
+                      // Clear the param and generate weekly ideas
+                      setSearchParams({});
+                      handleGenerate("generate_weekly_ideas");
+                    }}
+                    disabled={!!generating}
+                  >
+                    {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Generate Ideas
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs rounded-lg"
+                    onClick={() => setSearchParams({})}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Upcoming Events Card */}
           {(() => {
             const upcoming = getUpcomingHolidays(14);
