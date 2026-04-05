@@ -9,13 +9,29 @@ const corsHeaders = {
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+function getISOWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - ((day + 6) % 7);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function jsonResp(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonResp({ error: "Unauthorized" }, 401);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -24,7 +40,7 @@ serve(async (req) => {
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
 
     if (!lovableKey) {
-      return new Response(JSON.stringify({ error: "AI service not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonResp({ error: "AI service not configured" }, 500);
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -35,19 +51,69 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonResp({ error: "Unauthorized" }, 401);
     }
     const userId = user.id;
 
-    const { brand_id, force_refresh } = await req.json();
+    const { brand_id, force_refresh, check_only } = await req.json();
     if (!brand_id) {
-      return new Response(JSON.stringify({ error: "brand_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonResp({ error: "brand_id is required" }, 400);
     }
 
     // Verify brand ownership
     const { data: brand, error: brandErr } = await supabase.from("brands").select("*").eq("id", brand_id).single();
     if (brandErr || !brand) {
-      return new Response(JSON.stringify({ error: "Brand not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonResp({ error: "Brand not found" }, 404);
+    }
+
+    // --- Credit check logic ---
+    const { data: profile, error: profileErr } = await serviceClient
+      .from("profiles")
+      .select("trend_intel_gen_count, trend_intel_gen_reset_at, bonus_credits, paid_credits, generations_count, generations_reset_at")
+      .eq("user_id", userId)
+      .single();
+
+    if (profileErr || !profile) {
+      return jsonResp({ error: "Profile not found" }, 404);
+    }
+
+    const now = new Date();
+    const weekStart = getISOWeekStart(now);
+    const resetAt = new Date(profile.trend_intel_gen_reset_at);
+    let genCount = profile.trend_intel_gen_count || 0;
+
+    // Reset counter if we're in a new week
+    if (resetAt < weekStart) {
+      genCount = 0;
+    }
+
+    const isFree = genCount === 0;
+    const creditsRequired = isFree ? 0 : 2;
+    const availableCredits = (profile.bonus_credits || 0) + (profile.paid_credits || 0);
+
+    // check_only mode — just return cost info
+    if (check_only) {
+      return jsonResp({ is_free: isFree, credits_required: creditsRequired, available_credits: availableCredits });
+    }
+
+    // If not free, check & deduct credits
+    if (!isFree) {
+      if (availableCredits < 2) {
+        return jsonResp({ error: "Not enough credits. You need 2 credits for an additional trend refresh this week." }, 402);
+      }
+
+      // Deduct 2 credits: bonus first, then paid
+      let toDeduct = 2;
+      let bonusDeduct = Math.min(toDeduct, profile.bonus_credits || 0);
+      let paidDeduct = toDeduct - bonusDeduct;
+
+      await serviceClient
+        .from("profiles")
+        .update({
+          bonus_credits: (profile.bonus_credits || 0) - bonusDeduct,
+          paid_credits: (profile.paid_credits || 0) - paidDeduct,
+        })
+        .eq("user_id", userId);
     }
 
     // Check cache — return existing if less than 7 days old (unless force_refresh)
@@ -62,9 +128,7 @@ serve(async (req) => {
         const ageMs = Date.now() - new Date(cached.generated_at).getTime();
         const sevenDays = 7 * 24 * 60 * 60 * 1000;
         if (ageMs < sevenDays) {
-          return new Response(JSON.stringify({ trends: cached.trends_data, generated_at: cached.generated_at, cached: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return jsonResp({ trends: cached.trends_data, generated_at: cached.generated_at, cached: true });
         }
       }
     }
@@ -78,7 +142,6 @@ serve(async (req) => {
     const audiences = audienceRes.data || [];
     const products = productsRes.data || [];
 
-    const now = new Date();
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const currentMonth = monthNames[now.getMonth()];
     const currentYear = now.getFullYear();
@@ -156,14 +219,14 @@ Do NOT make up trends — focus on real, observable patterns in digital marketin
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return jsonResp({ error: "Rate limit exceeded. Please try again in a moment." }, 429);
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI service temporarily unavailable." }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return jsonResp({ error: "AI service temporarily unavailable." }, 503);
       }
       const text = await response.text();
       console.error("AI gateway error:", response.status, text);
-      return new Response(JSON.stringify({ error: "Trend research failed" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonResp({ error: "Trend research failed" }, 500);
     }
 
     const json = await response.json();
@@ -178,7 +241,6 @@ Do NOT make up trends — focus on real, observable patterns in digital marketin
         console.error("Failed to parse trend data");
       }
     } else {
-      // Fallback: try content
       const content = json.choices?.[0]?.message?.content;
       if (content) {
         try {
@@ -189,7 +251,7 @@ Do NOT make up trends — focus on real, observable patterns in digital marketin
     }
 
     if (trendsData.length === 0) {
-      return new Response(JSON.stringify({ error: "Could not generate trend insights. Please try again." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return jsonResp({ error: "Could not generate trend insights. Please try again." }, 500);
     }
 
     // Upsert into cache
@@ -215,11 +277,18 @@ Do NOT make up trends — focus on real, observable patterns in digital marketin
       });
     }
 
-    return new Response(JSON.stringify({ trends: trendsData, generated_at: now_iso, cached: false }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Increment trend intel gen count
+    await serviceClient
+      .from("profiles")
+      .update({
+        trend_intel_gen_count: genCount + 1,
+        trend_intel_gen_reset_at: now.toISOString(),
+      })
+      .eq("user_id", userId);
+
+    return jsonResp({ trends: trendsData, generated_at: now_iso, cached: false });
   } catch (e) {
     console.error("trend-scout error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return jsonResp({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
   }
 });

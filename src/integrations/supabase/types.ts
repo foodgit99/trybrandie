@@ -939,6 +939,8 @@ export type Database = {
           referral_code: string | null
           referred_by: string | null
           subscription_tier: string
+          trend_intel_gen_count: number
+          trend_intel_gen_reset_at: string
           updated_at: string
           user_id: string
           whatsapp_number: string | null
@@ -960,6 +962,8 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
+          trend_intel_gen_count?: number
+          trend_intel_gen_reset_at?: string
           updated_at?: string
           user_id: string
           whatsapp_number?: string | null
@@ -981,6 +985,8 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
+          trend_intel_gen_count?: number
+          trend_intel_gen_reset_at?: string
           updated_at?: string
           user_id?: string
           whatsapp_number?: string | null

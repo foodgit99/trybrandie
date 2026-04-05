@@ -252,41 +252,69 @@ const ContentHub = () => {
     enabled: !!brandId,
   });
 
-  const refreshTrendIntel = async () => {
+  const callTrendScout = async (body: Record<string, any>) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) throw new Error("Not authenticated");
+
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trend-scout`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Failed" }));
+      if (res.status === 402) {
+        toast({ title: "Not enough credits", description: err.error || "You need more credits for this action.", variant: "destructive" });
+        throw new Error("Credits exhausted");
+      }
+      if (res.status === 429) {
+        toast({ title: "Rate limited", description: "Please try again in a moment.", variant: "destructive" });
+        throw new Error("Rate limited");
+      }
+      toast({ title: "Trend research failed", description: err.error || "Please try again.", variant: "destructive" });
+      throw new Error(err.error || "Failed");
+    }
+
+    return res.json();
+  };
+
+  const refreshTrendIntelInner = async () => {
     setTrendRefreshing(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trend-scout`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ brand_id: brandId, force_refresh: true }),
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        if (res.status === 429) {
-          toast({ title: "Rate limited", description: "Please try again in a moment.", variant: "destructive" });
-        } else {
-          toast({ title: "Trend research failed", description: err.error || "Please try again.", variant: "destructive" });
-        }
-        return;
-      }
-
+      await callTrendScout({ brand_id: brandId, force_refresh: true });
       queryClient.invalidateQueries({ queryKey: ["trend-intel", brandId] });
       toast({ title: "Trend intel updated!", description: "Latest industry trends have been researched." });
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      if (!["Rate limited", "Credits exhausted"].includes(e.message)) {
+        toast({ title: "Error", description: e.message, variant: "destructive" });
+      }
     } finally {
       setTrendRefreshing(false);
+    }
+  };
+
+  const refreshTrendIntel = async () => {
+    try {
+      const status = await callTrendScout({ brand_id: brandId, check_only: true });
+      if (status.is_free) {
+        await refreshTrendIntelInner();
+      } else {
+        setPendingAction(() => refreshTrendIntelInner);
+        setCreditDialogOpen(true);
+      }
+    } catch (e: any) {
+      // If check fails, proceed anyway
+      if (!["Rate limited", "Credits exhausted"].includes(e.message)) {
+        await refreshTrendIntelInner();
+      }
     }
   };
 
