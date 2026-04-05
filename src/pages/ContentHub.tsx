@@ -912,78 +912,60 @@ const ContentHub = () => {
           </Collapsible>
 
           {/* Pillars */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">Content Pillars</h2>
+          <Collapsible open={openSections.pillars} onOpenChange={() => toggleSection("pillars")}>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <Layers className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">Content Pillars</h2>
+                    {hasPillars && <Badge variant="secondary" className="text-[10px]">{pillars!.length}</Badge>}
+                    {openSections.pillars ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreatePillar}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_pillars")} disabled={!!generating}>
+                    {generating === "generate_pillars" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    AI Generate
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={openCreatePillar}
-                >
-                  <Plus className="h-3 w-3" />
-                  Add
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => handleGenerate("generate_pillars")}
-                  disabled={!!generating}
-                >
-                  {generating === "generate_pillars" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  AI Generate
-                </Button>
-              </div>
-            </div>
-            {hasPillars ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-                {pillars!.map((p: any, i: number) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                  >
-                    <Card className="h-full hover:border-primary/30 transition-colors group relative">
-                      <CardContent className="p-3 text-center space-y-1">
-                        <span className="text-2xl">{p.icon_emoji}</span>
-                        <p className="text-xs font-medium leading-tight">{p.name}</p>
-                        <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
-                      </CardContent>
-                      {/* Hover actions */}
-                      <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
-                        <button
-                          onClick={() => openEditPillar(p)}
-                          className="p-1 rounded-md hover:bg-muted transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => deletePillar(p.id)}
-                          className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive/70" />
-                        </button>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            ) : !generating && (
-              <Card className="border-dashed">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No pillars yet. Add one manually or let AI generate them.</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                {hasPillars ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                    {pillars!.map((p: any, i: number) => (
+                      <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <Card className="h-full hover:border-primary/30 transition-colors group relative">
+                          <CardContent className="p-3 text-center space-y-1">
+                            <span className="text-2xl">{p.icon_emoji}</span>
+                            <p className="text-xs font-medium leading-tight">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
+                          </CardContent>
+                          <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
+                            <button onClick={() => openEditPillar(p)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => deletePillar(p.id)} className="p-1 rounded-md hover:bg-destructive/10 transition-colors" title="Delete">
+                              <Trash2 className="h-3 w-3 text-destructive/70" />
+                            </button>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : !generating && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No pillars yet. Add one manually or let AI generate them.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
 
           {/* Weekly Calendar — always visible */}
           <section className="space-y-3">
