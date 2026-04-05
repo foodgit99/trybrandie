@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star, Globe } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import AppHeader from "@/components/AppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
