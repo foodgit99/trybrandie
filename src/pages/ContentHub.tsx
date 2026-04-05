@@ -116,6 +116,7 @@ const ContentHub = () => {
   const [initialSetupDone, setInitialSetupDone] = useState(false);
   const [regenPending, setRegenPending] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [trendRefreshing, setTrendRefreshing] = useState(false);
 
   // Credit confirmation dialog state
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
