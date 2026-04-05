@@ -5,6 +5,7 @@ import { sanitise } from "../_shared/sanitise.ts";
 import { Tracer } from "../_shared/tracer.ts";
 import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
 import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
+import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
 
 const corsHeaders = {
