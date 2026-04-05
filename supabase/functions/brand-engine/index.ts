@@ -400,58 +400,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         return { day: d, date: date.toISOString().split("T")[0] };
       });
 
-      // --- Holiday detection ---
-      const HOLIDAYS: { month: number; day: number; name: string; region: string; content_type: string }[] = [
-        // Global
-        { month: 1, day: 1, name: "New Year's Day", region: "global", content_type: "inspirational" },
-        { month: 2, day: 14, name: "Valentine's Day", region: "global", content_type: "engagement" },
-        { month: 3, day: 8, name: "International Women's Day", region: "global", content_type: "inspirational" },
-        { month: 4, day: 22, name: "Earth Day", region: "global", content_type: "engagement" },
-        { month: 5, day: 1, name: "International Workers' Day", region: "global", content_type: "inspirational" },
-        { month: 6, day: 21, name: "International Day of Yoga", region: "global", content_type: "engagement" },
-        { month: 10, day: 10, name: "World Mental Health Day", region: "global", content_type: "inspirational" },
-        { month: 11, day: 19, name: "International Men's Day", region: "global", content_type: "engagement" },
-        { month: 12, day: 25, name: "Christmas Day", region: "global", content_type: "promotional" },
-        { month: 12, day: 31, name: "New Year's Eve", region: "global", content_type: "engagement" },
-        // US
-        { month: 1, day: 20, name: "Martin Luther King Jr. Day", region: "US", content_type: "inspirational" },
-        { month: 2, day: 17, name: "Presidents' Day", region: "US", content_type: "engagement" },
-        { month: 7, day: 4, name: "Independence Day (US)", region: "US", content_type: "promotional" },
-        { month: 10, day: 31, name: "Halloween", region: "US", content_type: "engagement" },
-        { month: 11, day: 27, name: "Thanksgiving (US)", region: "US", content_type: "promotional" },
-        { month: 11, day: 28, name: "Black Friday", region: "US", content_type: "promotional" },
-        { month: 12, day: 1, name: "Cyber Monday", region: "US", content_type: "promotional" },
-        // UK
-        { month: 4, day: 23, name: "St George's Day", region: "UK", content_type: "engagement" },
-        { month: 11, day: 5, name: "Bonfire Night", region: "UK", content_type: "engagement" },
-        { month: 12, day: 26, name: "Boxing Day", region: "UK", content_type: "promotional" },
-        // Nigeria
-        { month: 1, day: 1, name: "New Year's Day", region: "NG", content_type: "inspirational" },
-        { month: 6, day: 12, name: "Democracy Day (Nigeria)", region: "NG", content_type: "inspirational" },
-        { month: 10, day: 1, name: "Independence Day (Nigeria)", region: "NG", content_type: "inspirational" },
-        // South Africa
-        { month: 3, day: 21, name: "Human Rights Day (SA)", region: "ZA", content_type: "inspirational" },
-        { month: 4, day: 27, name: "Freedom Day (SA)", region: "ZA", content_type: "inspirational" },
-        { month: 6, day: 16, name: "Youth Day (SA)", region: "ZA", content_type: "inspirational" },
-        { month: 9, day: 24, name: "Heritage Day (SA)", region: "ZA", content_type: "engagement" },
-        // Social media days
-        { month: 3, day: 20, name: "International Day of Happiness", region: "global", content_type: "engagement" },
-        { month: 6, day: 30, name: "Social Media Day", region: "global", content_type: "engagement" },
-        { month: 9, day: 21, name: "International Day of Peace", region: "global", content_type: "inspirational" },
-        { month: 11, day: 13, name: "World Kindness Day", region: "global", content_type: "inspirational" },
-        // Business / Entrepreneurship
-        { month: 4, day: 16, name: "National Entrepreneur Day", region: "global", content_type: "inspirational" },
-        { month: 8, day: 12, name: "International Youth Day", region: "global", content_type: "engagement" },
-        { month: 11, day: 26, name: "Small Business Saturday", region: "US", content_type: "promotional" },
-      ];
-
-      // Find holidays falling within this week
-      const weekHolidays = HOLIDAYS.filter((h) => {
-        const hDate = new Date(monday.getFullYear(), h.month - 1, h.day);
-        const weekStart = new Date(weekDates[0].date);
-        const weekEnd = new Date(weekDates[6].date);
-        return hDate >= weekStart && hDate <= weekEnd;
-      });
+      // --- Holiday detection (using shared calendar) ---
+      const weekHolidays = getWeekHolidays(monday);
 
       const holidayContext = weekHolidays.length > 0
         ? `\n\nHOLIDAYS THIS WEEK:\n${weekHolidays.map(h => `- ${h.name} (${h.month}/${h.day}, ${h.region}) — ${h.content_type} content`).join("\n")}\nIMPORTANT: Generate at least one idea themed around each holiday. Tag holiday ideas with idea_type "holiday".`

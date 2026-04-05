@@ -134,6 +134,8 @@ You have full context of the user's brand below. Reference their specific brand 
 
 ---
 ${brandContext}
+
+${getSeasonalContextString(14)}
 ---
 
 ## Your Personality & Tone
