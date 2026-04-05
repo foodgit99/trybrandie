@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
+import { sanitise } from "../_shared/sanitise.ts";
+import { Tracer } from "../_shared/tracer.ts";
+import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
+import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
+import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -212,7 +217,19 @@ serve(async (req) => {
       });
     }
 
+    // Initialize tracer for this request
+    const tracer = new Tracer(user.id);
+
     const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality, slide_count } = await req.json();
+
+    // Sanitise user-provided text inputs
+    if (messages && Array.isArray(messages)) {
+      for (const msg of messages) {
+        if (msg.role === "user" && typeof msg.content === "string") {
+          msg.content = sanitise(msg.content);
+        }
+      }
+    }
 
     // === CHAT ACTION (with brand context) ===
     if (action === "chat") {
@@ -1518,9 +1535,22 @@ ${brand.special_instructions}
       let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; explanation: string };
       let genomeData: any = null;
       try {
+        const briefSpan = tracer.startSpan("brief+genome");
         const results = await Promise.all([briefPromise, genomePromise]);
         briefResult = results[0];
         genomeData = results[1];
+        briefSpan.finish();
+
+        // Validate genome output
+        if (genomeData) {
+          const validation = validateGenome(genomeData);
+          if (validation) {
+            genomeData = validation.genome;
+            if (validation.fixes.length > 0) {
+              console.log(`Genome validation fixes: ${validation.fixes.join(", ")}`);
+            }
+          }
+        }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         if (errMsg === "RATE_LIMIT") {
@@ -1632,7 +1662,13 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
             const copyData = await copyResponse.json();
             const toolCall = copyData.choices?.[0]?.message?.tool_calls?.[0];
             if (toolCall?.function?.arguments) {
-              const result = JSON.parse(toolCall.function.arguments);
+              const rawResult = JSON.parse(toolCall.function.arguments);
+              // Validate copy structure
+              const validated = validateCopyStructure(rawResult);
+              if (!validated) {
+                console.warn("Copywriter output failed validation, using raw:", JSON.stringify(rawResult));
+              }
+              const result = validated || rawResult;
               console.log("Copywriter output:", JSON.stringify(result));
               return result;
             }
@@ -1933,6 +1969,9 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       const wasRefined = genomeData?._refined === true;
 
+      // Log structured trace for observability
+      tracer.log();
+
       return new Response(
         JSON.stringify({
           image_url: urlData.publicUrl,
@@ -1944,6 +1983,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(genomeScores ? { genome_scores: genomeScores } : {}),
           refined: wasRefined,
           ...(captionText ? { caption: captionText } : {}),
+          run_id: tracer.runId,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

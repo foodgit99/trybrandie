@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sanitiseScrapedContent, sanitiseUrl } from "../_shared/sanitise.ts";
+import { withTimeout, TIMEOUTS } from "../_shared/timeout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,7 +37,8 @@ Deno.serve(async (req) => {
     }
 
     const { url } = await req.json();
-    if (!url || typeof url !== "string" || url.trim().length < 4) {
+    const sanitisedUrl = sanitiseUrl(url);
+    if (!sanitisedUrl) {
       return new Response(JSON.stringify({ error: "A valid URL is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -50,15 +53,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    let formattedUrl = url.trim();
+    let formattedUrl = sanitisedUrl;
     if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
     console.log("Scraping URL:", formattedUrl);
 
-    // Step 1: Firecrawl scrape
-    const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+    // Step 1: Firecrawl scrape (with timeout)
+    const scrapeRes = await withTimeout(fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${firecrawlKey}`,
@@ -70,7 +73,7 @@ Deno.serve(async (req) => {
         onlyMainContent: false,
         waitFor: 3000,
       }),
-    });
+    }), TIMEOUTS.EXTERNAL_API, "Firecrawl scrape");
 
     const scrapeData = await scrapeRes.json();
     if (!scrapeRes.ok) {
@@ -82,7 +85,7 @@ Deno.serve(async (req) => {
     }
 
     const branding = scrapeData.data?.branding || scrapeData.branding || {};
-    const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
+    const markdown = sanitiseScrapedContent(scrapeData.data?.markdown || scrapeData.markdown || "");
     const metadata = scrapeData.data?.metadata || scrapeData.metadata || {};
 
     console.log("Branding extracted, analyzing with AI...");
