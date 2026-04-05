@@ -1969,6 +1969,9 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       const wasRefined = genomeData?._refined === true;
 
+      // Log structured trace for observability
+      tracer.log();
+
       return new Response(
         JSON.stringify({
           image_url: urlData.publicUrl,
@@ -1980,6 +1983,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(genomeScores ? { genome_scores: genomeScores } : {}),
           refined: wasRefined,
           ...(captionText ? { caption: captionText } : {}),
+          run_id: tracer.runId,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
