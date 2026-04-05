@@ -62,9 +62,6 @@ Deno.serve(async (req) => {
 
     // Step 1: Firecrawl scrape (with timeout)
     const scrapeRes = await withTimeout(fetch("https://api.firecrawl.dev/v1/scrape", {
-
-    // Step 1: Firecrawl scrape
-    const scrapeRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${firecrawlKey}`,
@@ -76,7 +73,7 @@ Deno.serve(async (req) => {
         onlyMainContent: false,
         waitFor: 3000,
       }),
-    });
+    }), TIMEOUTS.EXTERNAL_API, "Firecrawl scrape");
 
     const scrapeData = await scrapeRes.json();
     if (!scrapeRes.ok) {
