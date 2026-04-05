@@ -79,6 +79,7 @@ const TABLES = [
   { key: "affiliate_commissions", label: "Commissions", icon: DollarSign },
   { key: "affiliate_payouts", label: "Payouts", icon: DollarSign },
   { key: "user_roles", label: "Roles", icon: Users },
+  { key: "ai_traces", label: "AI Traces", icon: BarChart3 },
 ];
 
 async function adminAction(payload: Record<string, unknown>) {
