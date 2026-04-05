@@ -269,6 +269,7 @@ const Onboarding = () => {
           tone_of_voice: data.toneOfVoice.trim() || null,
           personality_traits: data.personalityTraits,
           onboarding_complete: true,
+          website_url: websiteUrl.trim() || null,
         } as any)
         .select()
         .single();
