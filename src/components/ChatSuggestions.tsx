@@ -1,41 +1,6 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-
-interface ContentIdea {
-  id: string;
-  title: string;
-  prompt: string;
-  status: string;
-}
-
-interface ChatSuggestionsProps {
-  brandName?: string;
-  brandVibe?: string | null;
-  brandDescription?: string | null;
-  onSelect: (text: string) => void;
-  hasMessages: boolean;
-  hasImage: boolean;
-  contentIdeas?: ContentIdea[];
-}
-
-const getSeasonalContext = () => {
-  const month = new Date().getMonth();
-  const seasonMap: Record<number, { season: string; events: string[] }> = {
-    0: { season: "Winter", events: ["New Year", "January sale"] },
-    1: { season: "Winter", events: ["Valentine's Day", "February promo"] },
-    2: { season: "Spring", events: ["Spring launch", "Women's Day"] },
-    3: { season: "Spring", events: ["Easter", "spring refresh"] },
-    4: { season: "Spring", events: ["Mother's Day", "May campaign"] },
-    5: { season: "Summer", events: ["summer sale", "mid-year promo"] },
-    6: { season: "Summer", events: ["summer vibes", "July offer"] },
-    7: { season: "Summer", events: ["back to school", "August sale"] },
-    8: { season: "Autumn", events: ["fall launch", "September promo"] },
-    9: { season: "Autumn", events: ["Halloween", "October special"] },
-    10: { season: "Autumn", events: ["Black Friday", "holiday prep"] },
-    11: { season: "Winter", events: ["Christmas", "year-end sale", "holiday"] },
-  };
-  return seasonMap[month];
-};
+import { getUpcomingHolidays, getCurrentSeason } from "@/lib/holidayCalendar";
 
 const ChatSuggestions = ({
   brandName,
