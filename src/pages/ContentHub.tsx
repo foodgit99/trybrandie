@@ -980,8 +980,32 @@ const ContentHub = () => {
                   {openSections.calendar ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                 </button>
               </CollapsibleTrigger>
-              <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
-                <Card>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {weekOffset !== 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setWeekOffset(0)}>Today</Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)} title="Next week">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating}>
+                    {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Generate Ideas
+                  </Button>
+                  <CalendarExport
+                    weeklyIdeas={weeklyIdeas}
+                    brand={brand}
+                    pillars={pillars}
+                    series={series}
+                    campaigns={campaigns}
+                    weekLabel={weekLabel}
+                    selectedMonday={selectedMonday}
+                    selectedSunday={selectedSunday}
+                  />
+                </div>
                   <CardContent className="p-0 divide-y divide-border">
                     {DAYS.map((day) => {
                       const dayIdeas = ideasByDay[day] || [];
