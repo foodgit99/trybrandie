@@ -825,16 +825,27 @@ function CampaignComposer({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>
-              Subject line <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Exciting updates from Brandie"
-              className="rounded-xl"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>
+                Subject line <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="e.g. Exciting updates from Brandie"
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Sender name</Label>
+              <Input
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="Brandie"
+                className="rounded-xl"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
