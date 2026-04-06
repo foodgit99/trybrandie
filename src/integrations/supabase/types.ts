@@ -145,6 +145,7 @@ export type Database = {
           created_at: string
           id: string
           location: string | null
+          milestones_notified: number[]
           recruited_by: string | null
           status: string
           total_earned: number
@@ -162,6 +163,7 @@ export type Database = {
           created_at?: string
           id?: string
           location?: string | null
+          milestones_notified?: number[]
           recruited_by?: string | null
           status?: string
           total_earned?: number
@@ -179,6 +181,7 @@ export type Database = {
           created_at?: string
           id?: string
           location?: string | null
+          milestones_notified?: number[]
           recruited_by?: string | null
           status?: string
           total_earned?: number

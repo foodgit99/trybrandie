@@ -54,6 +54,48 @@ const RATES = {
 
 const PAYOUT_THRESHOLD = 5000; // ₦5,000 minimum payout
 
+const MILESTONES = [10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+
+async function checkMilestones(
+  supabase: any,
+  supabaseUrl: string,
+  supabaseKey: string,
+  affiliateId: string,
+  previousEarned: number,
+  newTotal: number,
+  milestonesNotified: number[]
+) {
+  const crossed = MILESTONES.filter(
+    (m) => previousEarned < m && newTotal >= m && !milestonesNotified.includes(m)
+  );
+  if (crossed.length === 0) return;
+
+  // Update the notified list
+  const updated = [...milestonesNotified, ...crossed];
+  await supabase
+    .from("affiliates")
+    .update({ milestones_notified: updated })
+    .eq("id", affiliateId);
+
+  // Send email for the highest milestone crossed
+  const highest = Math.max(...crossed);
+  const { data: aff } = await supabase
+    .from("affiliates")
+    .select("user_id")
+    .eq("id", affiliateId)
+    .single();
+  if (aff?.user_id) {
+    const { data: authUser } = await supabase.auth.admin.getUserById(aff.user_id);
+    const email = authUser?.user?.email;
+    if (email) {
+      await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_milestone", email, {
+        milestone: highest,
+        total_earned: newTotal,
+      });
+    }
+  }
+}
+
 async function checkPayoutThreshold(
   supabase: any,
   supabaseUrl: string,
@@ -62,7 +104,6 @@ async function checkPayoutThreshold(
   previousEarned: number,
   newTotal: number
 ) {
-  // Only send if they just crossed the threshold
   if (previousEarned < PAYOUT_THRESHOLD && newTotal >= PAYOUT_THRESHOLD) {
     const { data: aff } = await supabase
       .from("affiliates")
@@ -145,7 +186,7 @@ Deno.serve(async (req) => {
           // --- Tier 1: Direct affiliate ---
           const { data: tier1Affiliate } = await supabase
             .from("affiliates")
-            .select("id, commission_rate, user_id, recruited_by, total_earned")
+            .select("id, commission_rate, user_id, recruited_by, total_earned, milestones_notified")
             .eq("id", referral.affiliate_id)
             .single();
 
@@ -174,7 +215,7 @@ Deno.serve(async (req) => {
             if (tier1Affiliate.recruited_by) {
               const { data: tier2Affiliate } = await supabase
                 .from("affiliates")
-                .select("id, user_id, total_earned")
+                .select("id, user_id, total_earned, milestones_notified")
                 .eq("id", tier1Affiliate.recruited_by)
                 .single();
 
@@ -217,6 +258,14 @@ Deno.serve(async (req) => {
                   supabase, supabaseUrl, supabaseKey,
                   tier2Affiliate.id, tier2PreviousEarned,
                   tier2PreviousEarned + tier2Commission
+                );
+
+                // Check milestones for Tier 2
+                await checkMilestones(
+                  supabase, supabaseUrl, supabaseKey,
+                  tier2Affiliate.id, tier2PreviousEarned,
+                  tier2PreviousEarned + tier2Commission,
+                  tier2Affiliate.milestones_notified || []
                 );
 
                 // Send network referral notification on first payment
@@ -265,6 +314,14 @@ Deno.serve(async (req) => {
               supabase, supabaseUrl, supabaseKey,
               tier1Affiliate.id, tier1PreviousEarned,
               tier1PreviousEarned + tier1Commission
+            );
+
+            // Check milestones for Tier 1
+            await checkMilestones(
+              supabase, supabaseUrl, supabaseKey,
+              tier1Affiliate.id, tier1PreviousEarned,
+              tier1PreviousEarned + tier1Commission,
+              tier1Affiliate.milestones_notified || []
             );
 
             // Send new referral notification (first payment only)

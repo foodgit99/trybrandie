@@ -1,0 +1,1 @@
+ALTER TABLE public.affiliates ADD COLUMN IF NOT EXISTS milestones_notified numeric[] NOT NULL DEFAULT '{}'::numeric[];
