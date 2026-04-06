@@ -596,7 +596,19 @@ Deno.serve(async (req) => {
         break;
       case "affiliate_commission_earned":
         subject = "You earned affiliate commission on Brandie! 💰";
-        html = affiliateCommissionEarnedHtml(data?.commission_amount || 0, data?.payment_amount || 0);
+        html = affiliateCommissionEarnedHtml(data?.commission_amount || 0, data?.payment_amount || 0, data?.commission_type || "");
+        break;
+      case "affiliate_new_recruit":
+        subject = "A new affiliate joined your network! 🤝";
+        html = affiliateNewRecruitHtml(data?.recruit_name || "", data?.recruit_code || "");
+        break;
+      case "affiliate_network_referral":
+        subject = "Your network brought a new customer! 🌐";
+        html = affiliateNetworkReferralHtml(data?.affiliate_name || "", data?.customer_email || "");
+        break;
+      case "affiliate_payout_threshold":
+        subject = "You've reached the payout threshold! 🎊";
+        html = affiliatePayoutThresholdHtml(data?.total_earned || 0);
         break;
       case "affiliate_payout_processed":
         subject = data?.status === "paid" 
