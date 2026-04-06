@@ -1131,6 +1131,7 @@ const ContentHub = () => {
                       />
                     </div>
                     {autopilotAll && (
+                      <>
                       <div className="flex items-center gap-3 pl-9.5">
                         <Label htmlFor="delivery-time" className="text-xs text-muted-foreground whitespace-nowrap">
                           Delivery time
