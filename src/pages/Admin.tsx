@@ -1332,6 +1332,163 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
   );
 }
 
+function PendingAffiliatesQueue() {
+  const queryClient = useQueryClient();
+
+  const { data: pending, isLoading } = useQuery({
+    queryKey: ["admin-pending-affiliates-list"],
+    queryFn: async () => {
+      const res = await adminAction({
+        operation: "list",
+        table: "affiliates",
+        offset: 0,
+        limit: 50,
+        search: "pending",
+      });
+      return (res.rows || []).filter(
+        (r: Record<string, unknown>) => r.status === "pending"
+      );
+    },
+  });
+
+  const actionMutation = useMutation({
+    mutationFn: async ({
+      id,
+      status,
+      affiliateCode,
+      userEmail,
+    }: {
+      id: string;
+      status: "approved" | "rejected";
+      affiliateCode?: string;
+      userEmail?: string;
+    }) => {
+      await adminAction({
+        operation: "update",
+        table: "affiliates",
+        id,
+        data: { status },
+      });
+
+      // Send approval/rejection email
+      if (userEmail) {
+        const emailType =
+          status === "approved" ? "affiliate_approved" : "affiliate_rejected";
+        const emailData =
+          status === "approved"
+            ? { affiliate_code: affiliateCode || "" }
+            : {};
+
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: { type: emailType, to: userEmail, data: emailData },
+          });
+        } catch (e) {
+          console.error("Failed to send status email:", e);
+        }
+      }
+    },
+    onSuccess: (_, vars) => {
+      toast.success(
+        vars.status === "approved"
+          ? "Affiliate approved!"
+          : "Affiliate rejected"
+      );
+      queryClient.invalidateQueries({ queryKey: ["admin-pending-affiliates"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-pending-affiliates-list"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-list", "affiliates"],
+      });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="rounded-2xl">
+        <CardContent className="p-6">
+          <Skeleton className="h-24 rounded-xl" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!pending?.length) return null;
+
+  return (
+    <Card className="rounded-2xl border-primary/30 bg-primary/5">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Clock className="h-5 w-5 text-primary" />
+          Pending Applications
+          <Badge variant="secondary" className="ml-auto">
+            {pending.length}
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          Review and approve or reject affiliate applications
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {pending.map((row: Record<string, unknown>) => (
+          <div
+            key={row.id as string}
+            className="flex items-center gap-3 p-3 rounded-xl bg-background border border-border"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm truncate">
+                {String(row.affiliate_code)}
+              </p>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
+                {row.whatsapp_number && (
+                  <span>{String(row.whatsapp_number)}</span>
+                )}
+                {row.location && <span>{String(row.location)}</span>}
+                {row.recruited_by && <span>Recruited ✓</span>}
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10 h-8 px-3 text-xs"
+                disabled={actionMutation.isPending}
+                onClick={() =>
+                  actionMutation.mutate({
+                    id: row.id as string,
+                    status: "rejected",
+                    userEmail: row._user_email as string | undefined,
+                  })
+                }
+              >
+                Reject
+              </Button>
+              <Button
+                size="sm"
+                className="rounded-xl h-8 px-3 text-xs"
+                disabled={actionMutation.isPending}
+                onClick={() =>
+                  actionMutation.mutate({
+                    id: row.id as string,
+                    status: "approved",
+                    affiliateCode: row.affiliate_code as string,
+                    userEmail: row._user_email as string | undefined,
+                  })
+                }
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                Approve
+              </Button>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DataTable({ tableName }: { tableName: string }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
