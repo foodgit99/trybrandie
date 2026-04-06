@@ -108,8 +108,9 @@ interface IdeaForm {
   series_id: string;
   campaign_id: string;
   content_format: string;
+  autopilot: boolean;
 }
-const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic" };
+const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", autopilot: false };
 
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
@@ -699,6 +700,7 @@ const ContentHub = () => {
       series_id: idea.series_id || "",
       campaign_id: idea.campaign_id || "",
       content_format: idea.content_format || "graphic",
+      autopilot: idea.autopilot || false,
     });
     setEditingIdeaId(idea.id);
     // Determine day from scheduled_for
@@ -721,6 +723,7 @@ const ContentHub = () => {
         series_id: ideaForm.series_id || null,
         campaign_id: ideaForm.campaign_id || null,
         content_format: ideaForm.content_format || "graphic",
+        autopilot: ideaForm.autopilot,
       };
 
       if (editingIdeaId) {
