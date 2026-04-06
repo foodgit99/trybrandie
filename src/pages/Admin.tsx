@@ -1569,6 +1569,19 @@ function DataTable({ tableName }: { tableName: string }) {
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
 
+  const { data: pendingCount } = useQuery({
+    queryKey: ["admin-pending-affiliates"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("affiliates")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    refetchInterval: 30_000,
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -1582,10 +1595,15 @@ export default function Admin() {
                 <TabsTrigger
                   key={t.key}
                   value={t.key}
-                  className="rounded-xl px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  className="rounded-xl px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm relative"
                 >
                   <t.icon className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">{t.label}</span>
+                  {t.key === "affiliates" && !!pendingCount && pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                      {pendingCount}
+                    </span>
+                  )}
                 </TabsTrigger>
               ))}
             </TabsList>
