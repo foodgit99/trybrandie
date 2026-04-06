@@ -1175,6 +1175,7 @@ const ContentHub = () => {
                           </SelectContent>
                         </Select>
                       </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
