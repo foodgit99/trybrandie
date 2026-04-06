@@ -167,12 +167,16 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
         {MILESTONES.map((m) => {
           const earned = totalEarned >= m.amount;
           const isNext = nextMilestone?.amount === m.amount;
+          const justUnlocked = newlyUnlocked === m.amount;
           return (
-            <div
+            <motion.div
               key={m.amount}
+              animate={justUnlocked ? { scale: [1, 1.15, 1], transition: { duration: 0.6, repeat: 2 } } : {}}
               className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all ${
                 earned
-                  ? "bg-primary/10 border border-primary/30"
+                  ? justUnlocked
+                    ? "bg-primary/20 border-2 border-primary shadow-lg shadow-primary/20"
+                    : "bg-primary/10 border border-primary/30"
                   : isNext
                   ? "bg-muted/80 border border-dashed border-primary/40"
                   : "bg-muted/40 border border-transparent opacity-50"
@@ -188,7 +192,7 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
               {earned && (
                 <CheckCircle2 className="absolute -top-1 -right-1 h-4 w-4 text-primary fill-background" />
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>
