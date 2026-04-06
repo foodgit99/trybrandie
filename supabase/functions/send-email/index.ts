@@ -667,13 +667,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { type, to, data } = await req.json();
+    let { type, to, data } = await req.json();
 
     if (!type || !to) {
       return new Response(JSON.stringify({ error: "Missing type or to" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Resolve user ID to email if needed (for server-side email resolution)
+    if (typeof to === "string" && to.startsWith("__resolve_user__:")) {
+      const userId = to.replace("__resolve_user__:", "");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+      const resolvedEmail = authUser?.user?.email;
+      if (!resolvedEmail) {
+        return new Response(JSON.stringify({ error: "Could not resolve user email" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      to = resolvedEmail;
     }
 
     let subject: string;
