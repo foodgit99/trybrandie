@@ -1,81 +1,69 @@
 
 
-## Autopilot: Automated Content Creation and Delivery
+## Plan: Fill All Autopilot Gaps
 
-### What It Does
-Users toggle "Autopilot" on specific content calendar days or ideas. At the scheduled time, a backend job automatically generates the design using the existing design-studio pipeline and emails the finished image to the user -- no manual intervention needed.
+After reviewing the full autopilot system, here are the gaps identified and the plan to address each.
 
-### Architecture
+### Identified Gaps
 
-```text
-User enables Autopilot on calendar idea(s)
-        ↓
-content_ideas row: autopilot = true
-        ↓
-pg_cron (daily, e.g. 6:00 AM UTC)
-        ↓
-Edge Function: "content-autopilot"
-  1. Query content_ideas WHERE scheduled_for = today AND autopilot = true AND status IN ('suggested','scheduled')
-  2. For each idea:
-     a. Load brand context (colors, tone, audience, trend prefs)
-     b. Call design-studio edge function internally (service role, passing the idea's prompt)
-     c. Store resulting design in the designs table
-     d. Send email with the design image attached via send-email
-     e. Update idea status → 'completed'
-        ↓
-User receives email with their ready-made design
-```
+1. **No retry mechanism** — Ideas that fail (no credits, design-studio errors) stay in `suggested`/`scheduled` status forever and are never retried since the function filters by `scheduled_for = today`
+2. **No visual failure indicator on calendar cards** — Users have no in-app way to know an autopilot idea failed
+3. **No status tracking for autopilot failures** — The `content_ideas` table has no way to record that autopilot attempted but failed
+4. **Input validation missing** — The edge function doesn't validate its input per best practices
+5. **No duplicate-run guard** — If the cron fires twice (or function is invoked manually), ideas could be processed again
+6. **Master autopilot toggle doesn't cascade** — Toggling "Enable Autopilot for all new ideas" only affects new ideas; no way to bulk-enable existing ideas
 
-### Database Changes
+---
 
-**Add column to `content_ideas`:**
+### Implementation Plan
+
+#### Step 1 — Database Migration
+
+Add a column to `content_ideas` to track autopilot failure:
+
 ```sql
-ALTER TABLE content_ideas ADD COLUMN autopilot boolean NOT NULL DEFAULT false;
+ALTER TABLE content_ideas 
+  ADD COLUMN autopilot_status text DEFAULT NULL;
+-- Values: NULL (not attempted), 'pending', 'processing', 'completed', 'failed_no_credits', 'failed_error'
 ```
 
-No new tables needed. The existing `content_ideas` table already has `scheduled_for`, `prompt`, `brand_id`, `user_id`, and `status`.
+#### Step 2 — Update Edge Function (`content-autopilot/index.ts`)
 
-### Backend: New Edge Function `content-autopilot`
+- **Mark ideas as `processing`** at the start of each idea loop (prevents duplicate runs)
+- **Filter out** ideas already in `processing` or `completed` autopilot_status
+- **On failure**: set `autopilot_status` to `failed_no_credits` or `failed_error`
+- **On success**: set `autopilot_status` to `completed`
+- **Retry logic**: Also query ideas where `autopilot_status IN ('failed_no_credits', 'failed_error')` and `scheduled_for` is within the last 3 days (gives a retry window)
+- **Add input validation** with basic checks on the `delivery_time` parameter
 
-Triggered daily via pg_cron (similar to `content-daily-reminder`). For each autopilot idea scheduled today:
-1. Fetch the user's brand, audience profile, and trend preferences
-2. Call the design-studio function internally with the idea's prompt and brand context
-3. Save the generated design to the `designs` table and link it back (`content_ideas.design_id`)
-4. Send the image to the user via the existing `send-email` function with a new `autopilot_design_ready` template
-5. Mark the idea's status as `completed`
+#### Step 3 — UI: Failure Badge on Calendar Cards (`ContentHub.tsx`)
 
-Credit deduction follows the same logic already in design-studio. If the user has no credits, the idea is skipped and a "no credits" notification email is sent instead.
+- Show a red warning badge on idea cards where `autopilot_status` starts with `failed`
+  - `failed_no_credits` → "⚠️ No credits" badge with tooltip
+  - `failed_error` → "⚠️ Failed" badge with tooltip
+- Show a green check badge for `autopilot_status = 'completed'`
+- Add a "Retry" button on failed cards that resets `autopilot_status` to `pending` and updates `scheduled_for` to today
 
-### Frontend UI Changes
+#### Step 4 — Bulk Toggle for Existing Ideas
 
-**Content Hub Calendar (`ContentHub.tsx`):**
-- Add an "Autopilot" toggle (Switch component) on each calendar idea card -- a small rocket/zap icon with a switch
-- When toggled on, the idea card gets a subtle accent glow/badge (e.g. "⚡ Autopilot") so users can see at a glance which days are automated
-- A collapsible "Autopilot Settings" section at the top of the Content Calendar with:
-  - A master toggle: "Enable Autopilot for all new ideas"
-  - Preferred delivery time (morning/afternoon/evening dropdown)
-  - A brief explanation: "Brandie will automatically create and email your designs on scheduled days"
+- When the master autopilot toggle is turned ON, prompt the user: "Enable autopilot for all existing scheduled ideas this week?"
+- If confirmed, batch-update all `weeklyIdeas` to set `autopilot = true`
 
-**Idea Creation/Edit Dialog:**
-- Add an Autopilot checkbox in the idea form dialog so users can enable it when creating or editing an idea
-
-**Email Template (`send-email/index.ts`):**
-- New `autopilot_design_ready` template: "Your design is ready! ✨" with the design image inline and a CTA to view in Design History
+---
 
 ### Files Changed
 
 | File | Change |
 |---|---|
-| `content_ideas` table | Add `autopilot` boolean column |
-| `supabase/functions/content-autopilot/index.ts` | New edge function: daily autopilot runner |
-| `supabase/functions/send-email/index.ts` | Add `autopilot_design_ready` email template |
-| `supabase/config.toml` | Add `[functions.content-autopilot]` config |
-| `src/pages/ContentHub.tsx` | Autopilot toggle on idea cards, settings section |
-| pg_cron job (via insert tool) | Schedule daily invocation of `content-autopilot` |
+| Migration SQL | Add `autopilot_status` column to `content_ideas` |
+| `supabase/functions/content-autopilot/index.ts` | Processing guard, failure tracking, retry window, input validation |
+| `src/pages/ContentHub.tsx` | Failure/success badges on cards, retry button, bulk toggle prompt |
+| `src/integrations/supabase/types.ts` | Auto-updated with new column |
 
-### UX Details
-- The Autopilot toggle uses a Switch with a Zap icon, colored in primary when active
-- Enabled ideas show a small "⚡" badge on the calendar card
-- Toast confirmation when toggling: "Autopilot enabled — Brandie will create this design automatically"
-- The autopilot settings section uses a clean collapsible card at the top of the calendar, matching existing Content Hub patterns
+### Technical Details
+
+- The retry window (3 days) ensures failed ideas get re-attempted on subsequent cron runs without manual intervention
+- The `processing` status acts as a mutex to prevent duplicate processing if cron fires twice
+- The retry specifically re-checks credit availability, so `failed_no_credits` ideas auto-resolve when credits are topped up
+- Badge colors: red for failures, green for completed, amber for processing
 
