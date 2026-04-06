@@ -8,6 +8,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -64,6 +71,7 @@ import {
   Zap,
   AlertTriangle,
   RotateCcw,
+  MoreHorizontal,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
@@ -1303,60 +1311,67 @@ const ContentHub = () => {
                                     {idea.idea_type === "campaign_post" && (
                                       <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
                                     )}
-                                    <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
-                                      {/* Retry button for failed autopilot ideas */}
-                                      {((idea as any).autopilot_status === "failed_no_credits" || (idea as any).autopilot_status === "failed_error") && (
-                                        <button
-                                          onClick={async () => {
-                                            const today = new Date().toISOString().split("T")[0];
-                                            await supabase.from("content_ideas").update({
-                                              autopilot_status: "pending",
-                                              scheduled_for: today,
-                                            } as any).eq("id", idea.id);
-                                            queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
-                                            toast({ title: "Retry queued", description: "This idea will be retried on the next autopilot run" });
-                                          }}
-                                          className="p-0.5 rounded transition-colors text-amber-600 hover:bg-amber-500/10"
-                                          title="Retry autopilot"
-                                        >
-                                          <RotateCcw className="h-2.5 w-2.5" />
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button className="p-0.5 rounded hover:bg-muted transition-colors ml-auto shrink-0 opacity-0 group-hover/idea:opacity-100 max-sm:opacity-100">
+                                          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
                                         </button>
-                                      )}
-                                      <button
-                                        onClick={async () => {
-                                          const newVal = !idea.autopilot;
-                                          await supabase.from("content_ideas").update({ autopilot: newVal } as any).eq("id", idea.id);
-                                          queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
-                                          toast({ title: newVal ? "Autopilot enabled ⚡" : "Autopilot disabled", description: newVal ? "Brandie will create this design automatically" : "You'll need to create this design manually" });
-                                        }}
-                                        className={`p-0.5 rounded transition-colors ${idea.autopilot ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-muted"}`}
-                                        title={idea.autopilot ? "Disable autopilot" : "Enable autopilot"}
-                                      >
-                                        <Zap className="h-2.5 w-2.5" />
-                                      </button>
-                                      <button onClick={() => openEditIdea(idea)} className="p-0.5 rounded hover:bg-muted transition-colors" title="Edit idea">
-                                        <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
-                                      </button>
-                                      <button onClick={() => deleteIdea(idea.id)} className="p-0.5 rounded hover:bg-destructive/10 transition-colors" title="Delete idea">
-                                        <Trash2 className="h-2.5 w-2.5 text-destructive/70" />
-                                      </button>
-                                    </div>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-44">
+                                        {idea.status !== "created" && (
+                                          <DropdownMenuItem onClick={() => handleFormatAction(idea)} className="text-xs gap-2">
+                                            {(idea.content_format || "graphic") === "carousel"
+                                              ? <><Layers className="h-3.5 w-3.5" /> Create carousel</>
+                                              : <><ArrowRight className="h-3.5 w-3.5" /> Create graphic</>
+                                            }
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem
+                                          onClick={async () => {
+                                            const newVal = !idea.autopilot;
+                                            await supabase.from("content_ideas").update({ autopilot: newVal } as any).eq("id", idea.id);
+                                            queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                                            toast({ title: newVal ? "Autopilot enabled ⚡" : "Autopilot disabled" });
+                                          }}
+                                          className="text-xs gap-2"
+                                        >
+                                          <Zap className={`h-3.5 w-3.5 ${idea.autopilot ? "text-primary" : ""}`} />
+                                          {idea.autopilot ? "Disable autopilot" : "Enable autopilot"}
+                                        </DropdownMenuItem>
+                                        {((idea as any).autopilot_status === "failed_no_credits" || (idea as any).autopilot_status === "failed_error") && (
+                                          <DropdownMenuItem
+                                            onClick={async () => {
+                                              const today = new Date().toISOString().split("T")[0];
+                                              await supabase.from("content_ideas").update({
+                                                autopilot_status: "pending",
+                                                scheduled_for: today,
+                                              } as any).eq("id", idea.id);
+                                              queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                                              toast({ title: "Retry queued", description: "Will be retried on the next autopilot run" });
+                                            }}
+                                            className="text-xs gap-2"
+                                          >
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                            Retry autopilot
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem onClick={() => openEditIdea(idea)} className="text-xs gap-2">
+                                          <Pencil className="h-3.5 w-3.5" />
+                                          Edit idea
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => deleteIdea(idea.id)} className="text-xs gap-2 text-destructive focus:text-destructive">
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   </div>
                                 ))}
                               </div>
                             )}
                           </div>
                           <div className="shrink-0 flex gap-1 items-center">
-                            {dayIdeas.filter((i: any) => i.status !== "created").map((idea: any) => {
-                              const format = idea.content_format || "graphic";
-                              const FormatIcon = format === "carousel" ? Layers : ArrowRight;
-                              const formatLabel = format === "carousel" ? "Create carousel" : "Create graphic";
-                              return (
-                                <Button key={idea.id} variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleFormatAction(idea)} title={formatLabel}>
-                                  <FormatIcon className="h-3.5 w-3.5" />
-                                </Button>
-                              );
-                            })}
                             <button onClick={() => openCreateIdea(day)} className="p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 sm:opacity-0 max-sm:opacity-100" title="Add idea">
                               <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
