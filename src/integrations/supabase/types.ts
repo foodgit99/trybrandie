@@ -144,12 +144,14 @@ export type Database = {
           commission_rate: number
           created_at: string
           id: string
+          location: string | null
           recruited_by: string | null
           status: string
           total_earned: number
           total_paid: number
           updated_at: string
           user_id: string
+          whatsapp_number: string | null
         }
         Insert: {
           account_name?: string | null
@@ -159,12 +161,14 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           id?: string
+          location?: string | null
           recruited_by?: string | null
           status?: string
           total_earned?: number
           total_paid?: number
           updated_at?: string
           user_id: string
+          whatsapp_number?: string | null
         }
         Update: {
           account_name?: string | null
@@ -174,12 +178,14 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           id?: string
+          location?: string | null
           recruited_by?: string | null
           status?: string
           total_earned?: number
           total_paid?: number
           updated_at?: string
           user_id?: string
+          whatsapp_number?: string | null
         }
         Relationships: [
           {
