@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
           // --- Tier 1: Direct affiliate ---
           const { data: tier1Affiliate } = await supabase
             .from("affiliates")
-            .select("id, commission_rate, user_id, recruited_by, total_earned")
+            .select("id, commission_rate, user_id, recruited_by, total_earned, milestones_notified")
             .eq("id", referral.affiliate_id)
             .single();
 
@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
             if (tier1Affiliate.recruited_by) {
               const { data: tier2Affiliate } = await supabase
                 .from("affiliates")
-                .select("id, user_id, total_earned")
+                .select("id, user_id, total_earned, milestones_notified")
                 .eq("id", tier1Affiliate.recruited_by)
                 .single();
 
