@@ -1122,14 +1122,29 @@ const ContentHub = () => {
                       </div>
                       <Switch
                         checked={autopilotAll}
-                        onCheckedChange={(checked) => {
-                          updateAutopilotSetting({ enabled: checked });
+                        onCheckedChange={async (checked) => {
+                          await updateAutopilotSetting({ enabled: checked });
                           toast({
                             title: checked ? "Autopilot enabled" : "Autopilot disabled",
                             description: checked
                               ? "New ideas will have autopilot enabled by default"
                               : "New ideas will no longer auto-generate",
                           });
+                          // Bulk cascade: when enabling, offer to enable for existing scheduled ideas
+                          if (checked && weeklyIdeas && weeklyIdeas.length > 0) {
+                            const nonAutopilotIdeas = weeklyIdeas.filter((i: any) => !i.autopilot && i.status !== "created");
+                            if (nonAutopilotIdeas.length > 0) {
+                              const confirm = window.confirm(
+                                `Enable autopilot for ${nonAutopilotIdeas.length} existing scheduled idea${nonAutopilotIdeas.length > 1 ? "s" : ""} this week?`
+                              );
+                              if (confirm) {
+                                const ids = nonAutopilotIdeas.map((i: any) => i.id);
+                                await supabase.from("content_ideas").update({ autopilot: true } as any).in("id", ids);
+                                queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                                toast({ title: `${nonAutopilotIdeas.length} ideas set to autopilot ⚡` });
+                              }
+                            }
+                          }
                         }}
                       />
                     </div>
