@@ -40,14 +40,15 @@ const LandingHero = () => (
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.5 }}
-      className="max-w-5xl mx-auto px-4 sm:px-8 pb-16"
+      className="relative max-w-5xl mx-auto px-4 sm:px-8 pb-16"
     >
+      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-b from-primary/10 via-primary/5 to-transparent blur-2xl pointer-events-none" />
       <img
         src={heroDesigns}
         alt="Brandie AI Design Studio — chat-driven social media graphic generation"
-        className="w-full rounded-2xl border border-border shadow-2xl"
-        width={1920}
-        height={1080}
+        className="relative w-full rounded-2xl border border-border shadow-2xl"
+        width={1408}
+        height={768}
       />
     </motion.div>
   </section>
