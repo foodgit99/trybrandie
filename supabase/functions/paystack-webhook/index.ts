@@ -54,7 +54,47 @@ const RATES = {
 
 const PAYOUT_THRESHOLD = 5000; // ₦5,000 minimum payout
 
-async function checkPayoutThreshold(
+const MILESTONES = [10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+
+async function checkMilestones(
+  supabase: any,
+  supabaseUrl: string,
+  supabaseKey: string,
+  affiliateId: string,
+  previousEarned: number,
+  newTotal: number,
+  milestonesNotified: number[]
+) {
+  const crossed = MILESTONES.filter(
+    (m) => previousEarned < m && newTotal >= m && !milestonesNotified.includes(m)
+  );
+  if (crossed.length === 0) return;
+
+  // Update the notified list
+  const updated = [...milestonesNotified, ...crossed];
+  await supabase
+    .from("affiliates")
+    .update({ milestones_notified: updated })
+    .eq("id", affiliateId);
+
+  // Send email for the highest milestone crossed
+  const highest = Math.max(...crossed);
+  const { data: aff } = await supabase
+    .from("affiliates")
+    .select("user_id")
+    .eq("id", affiliateId)
+    .single();
+  if (aff?.user_id) {
+    const { data: authUser } = await supabase.auth.admin.getUserById(aff.user_id);
+    const email = authUser?.user?.email;
+    if (email) {
+      await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_milestone", email, {
+        milestone: highest,
+        total_earned: newTotal,
+      });
+    }
+  }
+}
   supabase: any,
   supabaseUrl: string,
   supabaseKey: string,
