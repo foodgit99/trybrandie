@@ -160,6 +160,25 @@ const AffiliateSignup = () => {
         }
       }
 
+      // Notify admin(s) about the new application
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            type: "affiliate_application_admin_notify",
+            to: "__admins__",
+            data: {
+              name: fullName.trim() || user?.user_metadata?.full_name || "",
+              email: userEmail || "",
+              whatsapp: whatsappNumber.trim() || "",
+              location: location.trim() || "",
+              recruited_by: refCode || "",
+            },
+          },
+        });
+      } catch (emailErr) {
+        console.error("Failed to send admin notification:", emailErr);
+      }
+
       // Notify the recruiting affiliate that a new partner joined via their link
       if (recruitedBy) {
         try {
