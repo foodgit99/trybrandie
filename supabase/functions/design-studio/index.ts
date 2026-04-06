@@ -245,7 +245,7 @@ serve(async (req) => {
     // Initialize tracer for this request
     const tracer = new Tracer(user.id);
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality, slide_count } = await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality, slide_count } = (req as any)._parsedBody || await req.json();
 
     // Sanitise user-provided text inputs
     if (messages && Array.isArray(messages)) {
