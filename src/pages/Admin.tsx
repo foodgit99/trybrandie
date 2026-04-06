@@ -1632,7 +1632,24 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces").map((t) => (
+          <TabsContent value="affiliates">
+            <div className="space-y-6">
+              <PendingAffiliatesQueue />
+              <Card className="rounded-2xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5" />
+                    All Affiliates
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DataTable tableName="affiliates" />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
