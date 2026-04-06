@@ -653,6 +653,60 @@ function dailyContentReminderHtml(name: string, dateStr: string, ideas: Array<{ 
 </body></html>`;
 }
 
+function affiliateMonthlyDigestHtml(data: any): string {
+  const fmt = (n: number) => `₦${n.toLocaleString("en-NG")}`;
+  const hasNetwork = data.total_network > 0 || data.network_earnings > 0;
+
+  const networkSection = hasNetwork ? `
+    <tr><td colspan="2" style="padding:16px 0 8px;font-size:14px;font-weight:700;color:#c4a265;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #e5e7eb;">Network</td></tr>
+    <tr><td style="padding:6px 0;font-size:15px;color:#555;">Network earnings</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${fmt(data.network_earnings)}</td></tr>
+    <tr><td style="padding:6px 0;font-size:15px;color:#555;">New recruits this month</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${data.new_recruits}</td></tr>
+    <tr><td style="padding:6px 0;font-size:15px;color:#555;">Total network size</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${data.total_network}</td></tr>
+  ` : "";
+
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:26px;margin:0;font-weight:700;">Monthly Earnings Report 📊</h1>
+    <p style="color:#9ca3af;font-size:14px;margin:8px 0 0;">${data.month}</p>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr><td colspan="2" style="padding:0 0 8px;font-size:14px;font-weight:700;color:#c4a265;text-transform:uppercase;letter-spacing:1px;">Earnings</td></tr>
+      <tr><td style="padding:6px 0;font-size:15px;color:#555;">Total this month</td><td style="padding:6px 0;font-size:22px;color:#1a1a2e;font-weight:700;text-align:right;">${fmt(data.monthly_earnings)}</td></tr>
+      <tr><td style="padding:6px 0;font-size:15px;color:#555;">Direct commissions</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${fmt(data.direct_earnings)}</td></tr>
+
+      <tr><td colspan="2" style="padding:16px 0 8px;font-size:14px;font-weight:700;color:#c4a265;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #e5e7eb;">Referrals</td></tr>
+      <tr><td style="padding:6px 0;font-size:15px;color:#555;">New referrals this month</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${data.new_referrals}</td></tr>
+      <tr><td style="padding:6px 0;font-size:15px;color:#555;">Total referrals (lifetime)</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${data.total_referrals}</td></tr>
+
+      ${networkSection}
+
+      <tr><td colspan="2" style="padding:16px 0 8px;font-size:14px;font-weight:700;color:#c4a265;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #e5e7eb;">Account</td></tr>
+      <tr><td style="padding:6px 0;font-size:15px;color:#555;">Lifetime earned</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${fmt(data.total_earned)}</td></tr>
+      <tr><td style="padding:6px 0;font-size:15px;color:#555;">Total paid out</td><td style="padding:6px 0;font-size:15px;color:#1a1a2e;font-weight:600;text-align:right;">${fmt(data.total_paid)}</td></tr>
+      <tr><td style="padding:6px 0;font-size:15px;color:#555;">Available balance</td><td style="padding:6px 0;font-size:18px;color:#16a34a;font-weight:700;text-align:right;">${fmt(data.balance)}</td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:0 40px 32px;">
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate/dashboard" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View Full Dashboard
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because you're a Brandie affiliate partner. This is your monthly performance summary.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -777,6 +831,10 @@ Deno.serve(async (req) => {
       case "daily_content_reminder":
         subject = `Your content plan for today — ${data?.date || "today"} 📅`;
         html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
+        break;
+      case "affiliate_monthly_digest":
+        subject = `Your Brandie affiliate report — ${data?.month || "this month"} 📊`;
+        html = affiliateMonthlyDigestHtml(data || {});
         break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
