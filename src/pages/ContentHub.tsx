@@ -1304,6 +1304,24 @@ const ContentHub = () => {
                                       <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
                                     )}
                                     <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
+                                      {/* Retry button for failed autopilot ideas */}
+                                      {((idea as any).autopilot_status === "failed_no_credits" || (idea as any).autopilot_status === "failed_error") && (
+                                        <button
+                                          onClick={async () => {
+                                            const today = new Date().toISOString().split("T")[0];
+                                            await supabase.from("content_ideas").update({
+                                              autopilot_status: "pending",
+                                              scheduled_for: today,
+                                            } as any).eq("id", idea.id);
+                                            queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                                            toast({ title: "Retry queued", description: "This idea will be retried on the next autopilot run" });
+                                          }}
+                                          className="p-0.5 rounded transition-colors text-amber-600 hover:bg-amber-500/10"
+                                          title="Retry autopilot"
+                                        >
+                                          <RotateCcw className="h-2.5 w-2.5" />
+                                        </button>
+                                      )}
                                       <button
                                         onClick={async () => {
                                           const newVal = !idea.autopilot;
