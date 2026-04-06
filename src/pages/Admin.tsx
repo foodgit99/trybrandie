@@ -1459,7 +1459,9 @@ function PendingAffiliatesQueue() {
                   actionMutation.mutate({
                     id: row.id as string,
                     status: "rejected",
-                    userEmail: row._user_email as string | undefined,
+                    userEmail: row.user_id
+                      ? `__resolve_user__:${row.user_id}`
+                      : undefined,
                   })
                 }
               >
@@ -1474,7 +1476,9 @@ function PendingAffiliatesQueue() {
                     id: row.id as string,
                     status: "approved",
                     affiliateCode: row.affiliate_code as string,
-                    userEmail: row._user_email as string | undefined,
+                    userEmail: row.user_id
+                      ? `__resolve_user__:${row.user_id}`
+                      : undefined,
                   })
                 }
               >
