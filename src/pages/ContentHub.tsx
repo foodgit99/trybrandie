@@ -1583,6 +1583,19 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <Zap className={`h-4 w-4 ${ideaForm.autopilot ? "text-primary" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-xs font-medium">Autopilot</p>
+                  <p className="text-[10px] text-muted-foreground">Auto-create and email this design on the scheduled day</p>
+                </div>
+              </div>
+              <Switch
+                checked={ideaForm.autopilot}
+                onCheckedChange={(v) => setIdeaForm((f) => ({ ...f, autopilot: v }))}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIdeaDialogOpen(false)}>Cancel</Button>
