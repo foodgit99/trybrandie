@@ -138,57 +138,7 @@ const ContentHub = () => {
     campaigns: false,
   });
 
-  // Autopilot settings (persisted in localStorage per brand)
-  const [autopilotAll, setAutopilotAll] = useState(false);
-  const [deliveryTime, setDeliveryTime] = useState("morning");
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-
-  // Credit confirmation dialog state
-  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
-
-  // Pillar dialog
-  const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
-  const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
-  const [pillarForm, setPillarForm] = useState<PillarForm>(emptyPillar);
-  const [pillarSaving, setPillarSaving] = useState(false);
-
-  // Series dialog
-  const [seriesDialogOpen, setSeriesDialogOpen] = useState(false);
-  const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
-  const [seriesForm, setSeriesForm] = useState<SeriesForm>(emptySeries);
-  const [seriesSaving, setSeriesSaving] = useState(false);
-
-  // Campaign dialog
-  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
-  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
-  const [campaignForm, setCampaignForm] = useState<CampaignForm>(emptyCampaign);
-  const [campaignSaving, setCampaignSaving] = useState(false);
-
-  // Idea dialog
-  const [ideaDialogOpen, setIdeaDialogOpen] = useState(false);
-  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
-  const [ideaForm, setIdeaForm] = useState<IdeaForm>(emptyIdea);
-  const [ideaDay, setIdeaDay] = useState<string>("");
-  const [ideaSaving, setIdeaSaving] = useState(false);
-
-  const brandId = brand?.id;
-
-  // Autopilot: sync with localStorage per brand
-  const autopilotKey = brandId ? `brandie-autopilot-${brandId}` : null;
-  useEffect(() => {
-    if (!autopilotKey) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem(autopilotKey) || "{}");
-      setAutopilotAll(stored.enabled ?? false);
-      setDeliveryTime(stored.deliveryTime ?? "morning");
-    } catch { /* ignore */ }
-  }, [autopilotKey]);
-
-  useEffect(() => {
-    if (!autopilotKey) return;
-    localStorage.setItem(autopilotKey, JSON.stringify({ enabled: autopilotAll, deliveryTime }));
-  }, [autopilotAll, deliveryTime, autopilotKey]);
 
   // --- Queries ---
   const { data: pillars, isLoading: pillarsLoading } = useQuery({
