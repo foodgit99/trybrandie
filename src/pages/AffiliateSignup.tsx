@@ -163,17 +163,27 @@ const AffiliateSignup = () => {
       // Notify the recruiting affiliate that a new partner joined via their link
       if (recruitedBy) {
         try {
+          // We can't look up the recruiter's email client-side (auth.users is private),
+          // so we invoke send-email with the recruiter's user_id and let the edge function
+          // resolve it. But since send-email expects a "to" email, we use a server-side
+          // approach: invoke from the webhook context. Instead, we fire a lightweight
+          // notification via the existing send-email by passing data and using the
+          // recruiter's profile to find their email.
+          // For now, we'll look up the recruiter's user_id and use it in a workaround:
           const { data: recruiterData } = await supabase
             .from("affiliates")
-            .select("user_id, affiliate_code")
+            .select("user_id")
             .eq("id", recruitedBy)
             .single();
 
           if (recruiterData?.user_id) {
+            // We need the recruiter's email - use profiles or auth metadata
+            // Since we can't access auth.users, we check if the current session has info
+            // The safest approach: call send-email edge function which can resolve this server-side
             await supabase.functions.invoke("send-email", {
               body: {
                 type: "affiliate_new_recruit",
-                to: recruiterData.user_id, // Will be resolved server-side; but we need email
+                to: "__resolve_user__:" + recruiterData.user_id,
                 data: {
                   recruit_name: fullName.trim() || email.trim(),
                   recruit_code: "",
