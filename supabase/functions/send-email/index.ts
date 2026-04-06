@@ -950,6 +950,67 @@ Deno.serve(async (req) => {
         subject = `Your content plan for today — ${data?.date || "today"} 📅`;
         html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
         break;
+      case "autopilot_design_ready":
+        subject = `Your design is ready! ✨ — ${data?.idea_title || "New design"}`;
+        html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:linear-gradient(135deg,#1a1a2e,#2d1b4e);padding:32px 40px;text-align:center;">
+    <p style="font-size:48px;margin:0 0 8px;">⚡</p>
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Autopilot Delivered!</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Your scheduled design <strong>"${data?.idea_title || "Untitled"}"</strong> has been automatically created by Brandie.
+    </p>
+    ${data?.image_url ? `<img src="${data.image_url}" alt="Your design" style="width:100%;border-radius:12px;margin:0 0 24px;" />` : ""}
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/design-history" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View in Design History
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">This design was created automatically via Autopilot in your Content Hub.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+        break;
+      case "autopilot_no_credits":
+        subject = `Autopilot paused — not enough credits ⚡`;
+        html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Autopilot Paused ⏸️</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Your scheduled design <strong>"${data?.idea_title || "Untitled"}"</strong> couldn't be created because you've run out of credits.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Upgrade your plan or wait for your credits to reset to keep Autopilot running.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/plans" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View Plans
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because Autopilot tried to generate a design but you had no credits left.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+        break;
       case "affiliate_monthly_digest":
         subject = `Your Brandie affiliate report — ${data?.month || "this month"} 📊`;
         html = affiliateMonthlyDigestHtml(data || {});
