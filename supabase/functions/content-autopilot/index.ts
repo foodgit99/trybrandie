@@ -16,9 +16,18 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // Determine which delivery window this invocation is for
+    let deliveryWindow = "morning"; // default
+    try {
+      const body = await req.json();
+      if (body?.delivery_time) deliveryWindow = body.delivery_time;
+    } catch { /* no body or invalid JSON — use default */ }
+
+    console.log(`[autopilot] Running for delivery_time=${deliveryWindow}`);
+
     // Get today's date in YYYY-MM-DD
     const today = new Date().toISOString().split("T")[0];
-    console.log(`[autopilot] Running for date: ${today}`);
+    console.log(`[autopilot] Date: ${today}`);
 
     // Fetch all autopilot ideas scheduled for today
     const { data: ideas, error: ideasErr } = await supabase
@@ -42,6 +51,33 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Fetch autopilot_settings for all relevant brands to filter by delivery_time
+    const brandIds = [...new Set(ideas.map((i: any) => i.brand_id))];
+    const { data: allSettings } = await supabase
+      .from("autopilot_settings")
+      .select("brand_id, delivery_time")
+      .in("brand_id", brandIds);
+
+    const settingsMap = new Map<string, string>();
+    for (const s of allSettings || []) {
+      settingsMap.set(s.brand_id, s.delivery_time || "morning");
+    }
+
+    // Filter ideas to only those matching the current delivery window
+    const filteredIdeas = ideas.filter((idea: any) => {
+      const brandDeliveryTime = settingsMap.get(idea.brand_id) || "morning";
+      return brandDeliveryTime === deliveryWindow;
+    });
+
+    if (filteredIdeas.length === 0) {
+      console.log(`[autopilot] No ideas for delivery_time=${deliveryWindow}`);
+      return new Response(JSON.stringify({ processed: 0, delivery_time: deliveryWindow }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[autopilot] ${filteredIdeas.length} ideas match delivery_time=${deliveryWindow}`);
 
     console.log(`[autopilot] Found ${ideas.length} ideas to process`);
 
