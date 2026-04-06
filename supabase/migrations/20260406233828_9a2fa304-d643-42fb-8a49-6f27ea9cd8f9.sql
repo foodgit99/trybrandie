@@ -1,0 +1,1 @@
+ALTER TABLE public.autopilot_settings ADD COLUMN timezone text NOT NULL DEFAULT 'Africa/Lagos';
