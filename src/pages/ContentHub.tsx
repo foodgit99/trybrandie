@@ -1355,6 +1355,10 @@ const ContentHub = () => {
                                             Retry autopilot
                                           </DropdownMenuItem>
                                         )}
+                                        <DropdownMenuItem onClick={() => openCreateIdea(day)} className="text-xs gap-2">
+                                          <Plus className="h-3.5 w-3.5" />
+                                          Add idea
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => openEditIdea(idea)} className="text-xs gap-2">
                                           <Pencil className="h-3.5 w-3.5" />
                                           Edit idea
@@ -1371,11 +1375,23 @@ const ContentHub = () => {
                               </div>
                             )}
                           </div>
-                          <div className="shrink-0 flex gap-1 items-center">
-                            <button onClick={() => openCreateIdea(day)} className="p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 sm:opacity-0 max-sm:opacity-100" title="Add idea">
-                              <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                            </button>
-                          </div>
+                          {dayIdeas.length === 0 && (
+                            <div className="shrink-0">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className="p-0.5 rounded hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 max-sm:opacity-100">
+                                    <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-44">
+                                  <DropdownMenuItem onClick={() => openCreateIdea(day)} className="text-xs gap-2">
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Add idea
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
