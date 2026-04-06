@@ -140,7 +140,81 @@ const ContentHub = () => {
 
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  // --- Queries ---
+  // Credit confirmation dialog state
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+
+  // Pillar dialog
+  const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
+  const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
+  const [pillarForm, setPillarForm] = useState<PillarForm>(emptyPillar);
+  const [pillarSaving, setPillarSaving] = useState(false);
+
+  // Series dialog
+  const [seriesDialogOpen, setSeriesDialogOpen] = useState(false);
+  const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
+  const [seriesForm, setSeriesForm] = useState<SeriesForm>(emptySeries);
+  const [seriesSaving, setSeriesSaving] = useState(false);
+
+  // Campaign dialog
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [campaignForm, setCampaignForm] = useState<CampaignForm>(emptyCampaign);
+  const [campaignSaving, setCampaignSaving] = useState(false);
+
+  // Idea dialog
+  const [ideaDialogOpen, setIdeaDialogOpen] = useState(false);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [ideaForm, setIdeaForm] = useState<IdeaForm>(emptyIdea);
+  const [ideaDay, setIdeaDay] = useState<string>("");
+  const [ideaSaving, setIdeaSaving] = useState(false);
+
+  const brandId = brand?.id;
+
+  // Autopilot settings from database
+  const { data: autopilotSettings } = useQuery({
+    queryKey: ["autopilot-settings", brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("autopilot_settings")
+        .select("*")
+        .eq("brand_id", brandId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!brandId,
+  });
+
+  const autopilotAll = autopilotSettings?.enabled ?? false;
+  const deliveryTime = autopilotSettings?.delivery_time ?? "morning";
+
+  const updateAutopilotSetting = async (updates: { enabled?: boolean; delivery_time?: string }) => {
+    if (!brandId || !user) return;
+    const { data: existing } = await supabase
+      .from("autopilot_settings")
+      .select("id")
+      .eq("brand_id", brandId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("autopilot_settings")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("brand_id", brandId);
+    } else {
+      await supabase
+        .from("autopilot_settings")
+        .insert({
+          brand_id: brandId,
+          user_id: user.id,
+          enabled: updates.enabled ?? false,
+          delivery_time: updates.delivery_time ?? "morning",
+        });
+    }
+    queryClient.invalidateQueries({ queryKey: ["autopilot-settings", brandId] });
+  };
+
   const { data: pillars, isLoading: pillarsLoading } = useQuery({
     queryKey: ["content-pillars", brandId],
     queryFn: async () => {
