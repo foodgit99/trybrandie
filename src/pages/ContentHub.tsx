@@ -174,6 +174,22 @@ const ContentHub = () => {
 
   const brandId = brand?.id;
 
+  // Autopilot: sync with localStorage per brand
+  const autopilotKey = brandId ? `brandie-autopilot-${brandId}` : null;
+  useEffect(() => {
+    if (!autopilotKey) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(autopilotKey) || "{}");
+      setAutopilotAll(stored.enabled ?? false);
+      setDeliveryTime(stored.deliveryTime ?? "morning");
+    } catch { /* ignore */ }
+  }, [autopilotKey]);
+
+  useEffect(() => {
+    if (!autopilotKey) return;
+    localStorage.setItem(autopilotKey, JSON.stringify({ enabled: autopilotAll, deliveryTime }));
+  }, [autopilotAll, deliveryTime, autopilotKey]);
+
   // --- Queries ---
   const { data: pillars, isLoading: pillarsLoading } = useQuery({
     queryKey: ["content-pillars", brandId],
