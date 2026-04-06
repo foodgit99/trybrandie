@@ -1133,7 +1133,7 @@ const ContentHub = () => {
                         <Label htmlFor="delivery-time" className="text-xs text-muted-foreground whitespace-nowrap">
                           Delivery time
                         </Label>
-                        <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                        <Select value={deliveryTime} onValueChange={(val) => updateAutopilotSetting({ delivery_time: val })}>
                           <SelectTrigger id="delivery-time" className="h-8 text-xs w-40">
                             <SelectValue />
                           </SelectTrigger>
