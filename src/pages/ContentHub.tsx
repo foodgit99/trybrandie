@@ -1097,6 +1097,7 @@ const ContentHub = () => {
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <h2 className="text-base font-semibold">{openSections.calendar ? weekLabel : "Content Calendar"}</h2>
                     {regenPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                    {(() => { const count = (weeklyIdeas || []).filter((i: any) => i.autopilot).length; return count > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">⚡ {count}</span> : null; })()}
                   </div>
                   {openSections.calendar ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                 </button>
