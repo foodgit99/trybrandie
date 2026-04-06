@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
 import brandieLogo from "@/assets/brandie-logo.png";
-import { Users, DollarSign, Link2, ArrowRight } from "lucide-react";
+import { Users2, DollarSign, Link2, ArrowRight, Clock } from "lucide-react";
 
 const AffiliateSignup = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
 
-  // For non-logged-in users
+  const refCode = searchParams.get("ref") || "";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -29,7 +31,6 @@ const AffiliateSignup = () => {
       let userId = user?.id;
       let userEmail = user?.email;
 
-      // If not logged in, create account first
       if (!userId) {
         const { data: signupData, error: signupError } = await supabase.auth.signUp({
           email,
@@ -52,7 +53,6 @@ const AffiliateSignup = () => {
         }
       }
 
-      // Check if already an affiliate
       const { data: existing } = await supabase
         .from("affiliates")
         .select("id, status")
@@ -72,15 +72,30 @@ const AffiliateSignup = () => {
         return;
       }
 
-      // Create affiliate record
-      const { error } = await supabase.from("affiliates").insert({
+      let recruitedBy: string | null = null;
+      if (refCode) {
+        const { data: recruiter } = await supabase
+          .from("affiliates")
+          .select("id")
+          .eq("affiliate_code", refCode)
+          .eq("status", "approved")
+          .maybeSingle();
+        if (recruiter) {
+          recruitedBy = recruiter.id;
+        }
+      }
+
+      const insertData: Record<string, unknown> = {
         user_id: userId,
         status: "pending",
-      });
+      };
+      if (recruitedBy) {
+        insertData.recruited_by = recruitedBy;
+      }
 
+      const { error } = await supabase.from("affiliates").insert(insertData as any);
       if (error) throw error;
 
-      // Send application received email
       if (userEmail) {
         try {
           await supabase.functions.invoke("send-email", {
@@ -117,23 +132,25 @@ const AffiliateSignup = () => {
         >
           <img src={brandieLogo} alt="Brandie" className="h-12 w-12 mx-auto mb-4" />
           <h1 className="text-3xl sm:text-4xl font-serif tracking-tight mb-3">
-            Become a Brandie Affiliate
+            Become a Friend of Brandie
           </h1>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            Earn <span className="font-semibold text-foreground">20% commission</span> on every payment from users you refer. Share your link, grow your income.
+            Earn <span className="font-semibold text-foreground">20% on first payments</span> and{" "}
+            <span className="font-semibold text-foreground">5% lifetime</span> on every user you refer.
+            Plus, earn second-tier commissions by recruiting other affiliates.
           </p>
         </motion.div>
 
-        {/* Benefits */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-12"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12"
         >
           {[
-            { icon: DollarSign, title: "20% Commission", desc: "Earn on every payment your referrals make — recurring." },
-            { icon: Users, title: "Real-time Tracking", desc: "See signups, conversions and earnings in your dashboard." },
+            { icon: DollarSign, title: "20% First Payment", desc: "Earn 20% commission on every referral's first payment." },
+            { icon: Clock, title: "5% Lifetime", desc: "Keep earning 5% on all future payments your referrals make." },
+            { icon: Users2, title: "Recruit & Earn More", desc: "Earn 5% first + 3% lifetime from affiliates you recruit." },
             { icon: Link2, title: "Unique Affiliate Link", desc: "Get a personal link to share across your channels." },
           ].map((b) => (
             <div key={b.title} className="rounded-2xl border border-border p-6 text-center space-y-2">
@@ -146,7 +163,6 @@ const AffiliateSignup = () => {
           ))}
         </motion.div>
 
-        {/* Form */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -157,6 +173,12 @@ const AffiliateSignup = () => {
             <h2 className="text-xl font-serif tracking-tight text-center">
               {user ? "Apply as Affiliate" : "Create Affiliate Account"}
             </h2>
+
+            {refCode && (
+              <p className="text-center text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
+                Referred by affiliate: <span className="font-mono font-medium">{refCode}</span>
+              </p>
+            )}
 
             <form onSubmit={handleApply} className="space-y-4">
               {!user && (

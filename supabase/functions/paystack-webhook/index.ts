@@ -44,6 +44,14 @@ async function sendAffiliateEmail(
   }
 }
 
+// Commission rates for the two-tier system
+const RATES = {
+  tier1_first: 0.20,    // 20% on first payment
+  tier1_recurring: 0.05, // 5% on recurring payments
+  tier2_first: 0.05,     // 5% of first payment for recruiter
+  tier2_recurring: 0.03, // 3% of recurring payments for recruiter
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -92,65 +100,120 @@ Deno.serve(async (req) => {
           .eq("user_id", user_id);
       }
 
-      // Track affiliate commission
+      // Track affiliate commission (two-tier)
       if (user_id && amount) {
         const { data: referral } = await supabase
           .from("affiliate_referrals")
-          .select("id, affiliate_id")
+          .select("id, affiliate_id, payment_count")
           .eq("referred_user_id", user_id)
           .limit(1)
           .single();
 
         if (referral) {
           const paymentAmount = amount / 100;
-          const { data: affiliate } = await supabase
+          const isFirstPayment = (referral.payment_count ?? 0) === 0;
+
+          // --- Tier 1: Direct affiliate ---
+          const { data: tier1Affiliate } = await supabase
             .from("affiliates")
-            .select("commission_rate, user_id")
+            .select("id, commission_rate, user_id, recruited_by")
             .eq("id", referral.affiliate_id)
             .single();
 
-          const rate = affiliate?.commission_rate ?? 0.20;
-          const commissionAmount = paymentAmount * rate;
+          if (tier1Affiliate) {
+            const tier1Rate = isFirstPayment ? RATES.tier1_first : RATES.tier1_recurring;
+            const tier1Commission = paymentAmount * tier1Rate;
+            const tier1Type = isFirstPayment ? "tier1_first" : "tier1_recurring";
 
-          await supabase.from("affiliate_commissions").insert({
-            affiliate_id: referral.affiliate_id,
-            referral_id: referral.id,
-            payment_reference: reference,
-            payment_amount: paymentAmount,
-            commission_amount: commissionAmount,
-            status: "pending",
-          });
+            await supabase.from("affiliate_commissions").insert({
+              affiliate_id: tier1Affiliate.id,
+              referral_id: referral.id,
+              payment_reference: reference,
+              payment_amount: paymentAmount,
+              commission_amount: tier1Commission,
+              commission_type: tier1Type,
+              status: "pending",
+            });
 
-          await supabase.rpc("increment_affiliate_earned", {
-            p_affiliate_id: referral.affiliate_id,
-            p_amount: commissionAmount,
-          });
+            await supabase.rpc("increment_affiliate_earned", {
+              p_affiliate_id: tier1Affiliate.id,
+              p_amount: tier1Commission,
+            });
 
-          await supabase
-            .from("affiliate_referrals")
-            .update({ status: "converted" })
-            .eq("id", referral.id);
+            // --- Tier 2: Recruiting affiliate ---
+            if (tier1Affiliate.recruited_by) {
+              const { data: tier2Affiliate } = await supabase
+                .from("affiliates")
+                .select("id, user_id")
+                .eq("id", tier1Affiliate.recruited_by)
+                .single();
 
-          if (affiliate?.user_id) {
-            const { data: authUser } = await supabase.auth.admin.getUserById(affiliate.user_id);
-            const affiliateEmail = authUser?.user?.email;
-            if (affiliateEmail) {
-              await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_commission_earned", affiliateEmail, {
-                commission_amount: commissionAmount,
-                payment_amount: paymentAmount,
-              });
+              if (tier2Affiliate) {
+                const tier2Rate = isFirstPayment ? RATES.tier2_first : RATES.tier2_recurring;
+                const tier2Commission = paymentAmount * tier2Rate;
+                const tier2Type = isFirstPayment ? "tier2_first" : "tier2_recurring";
+
+                await supabase.from("affiliate_commissions").insert({
+                  affiliate_id: tier2Affiliate.id,
+                  referral_id: referral.id,
+                  payment_reference: reference,
+                  payment_amount: paymentAmount,
+                  commission_amount: tier2Commission,
+                  commission_type: tier2Type,
+                  status: "pending",
+                });
+
+                await supabase.rpc("increment_affiliate_earned", {
+                  p_affiliate_id: tier2Affiliate.id,
+                  p_amount: tier2Commission,
+                });
+
+                // Send tier 2 commission email
+                if (tier2Affiliate.user_id) {
+                  const { data: t2Auth } = await supabase.auth.admin.getUserById(tier2Affiliate.user_id);
+                  const t2Email = t2Auth?.user?.email;
+                  if (t2Email) {
+                    await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_commission_earned", t2Email, {
+                      commission_amount: tier2Commission,
+                      payment_amount: paymentAmount,
+                    });
+                  }
+                }
+              }
             }
-          }
 
-          if (affiliate?.user_id) {
-            const { data: authUser } = await supabase.auth.admin.getUserById(affiliate.user_id);
-            const affiliateEmail = authUser?.user?.email;
-            const { data: referredUser } = await supabase.auth.admin.getUserById(user_id);
-            const referredEmail = referredUser?.user?.email || "A new user";
-            if (affiliateEmail) {
-              await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_new_referral", affiliateEmail, {
-                referred_email: referredEmail,
-              });
+            // Update referral status & increment payment count
+            await supabase
+              .from("affiliate_referrals")
+              .update({
+                status: "converted",
+                payment_count: (referral.payment_count ?? 0) + 1,
+              })
+              .eq("id", referral.id);
+
+            // Send tier 1 commission email
+            if (tier1Affiliate.user_id) {
+              const { data: authUser } = await supabase.auth.admin.getUserById(tier1Affiliate.user_id);
+              const affiliateEmail = authUser?.user?.email;
+              if (affiliateEmail) {
+                await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_commission_earned", affiliateEmail, {
+                  commission_amount: tier1Commission,
+                  payment_amount: paymentAmount,
+                });
+              }
+            }
+
+            // Send new referral notification (first payment only)
+            if (isFirstPayment && tier1Affiliate.user_id) {
+              const { data: authUser } = await supabase.auth.admin.getUserById(tier1Affiliate.user_id);
+              const affiliateEmail = authUser?.user?.email;
+              const { data: referredUser } = await supabase.auth.admin.getUserById(user_id);
+              const referredEmail = referredUser?.user?.email || "A new user";
+              if (affiliateEmail) {
+                await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_new_referral", affiliateEmail, {
+                  referred_email: referredEmail,
+                });
+              }
             }
           }
         }

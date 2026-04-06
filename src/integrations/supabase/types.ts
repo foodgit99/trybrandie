@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           affiliate_id: string
           commission_amount: number
+          commission_type: string
           created_at: string
           id: string
           payment_amount: number
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           affiliate_id: string
           commission_amount?: number
+          commission_type?: string
           created_at?: string
           id?: string
           payment_amount?: number
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           affiliate_id?: string
           commission_amount?: number
+          commission_type?: string
           created_at?: string
           id?: string
           payment_amount?: number
@@ -102,6 +105,7 @@ export type Database = {
           affiliate_id: string
           created_at: string
           id: string
+          payment_count: number
           referred_user_id: string
           status: string
         }
@@ -109,6 +113,7 @@ export type Database = {
           affiliate_id: string
           created_at?: string
           id?: string
+          payment_count?: number
           referred_user_id: string
           status?: string
         }
@@ -116,6 +121,7 @@ export type Database = {
           affiliate_id?: string
           created_at?: string
           id?: string
+          payment_count?: number
           referred_user_id?: string
           status?: string
         }
@@ -138,6 +144,7 @@ export type Database = {
           commission_rate: number
           created_at: string
           id: string
+          recruited_by: string | null
           status: string
           total_earned: number
           total_paid: number
@@ -152,6 +159,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           id?: string
+          recruited_by?: string | null
           status?: string
           total_earned?: number
           total_paid?: number
@@ -166,13 +174,22 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           id?: string
+          recruited_by?: string | null
           status?: string
           total_earned?: number
           total_paid?: number
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "affiliates_recruited_by_fkey"
+            columns: ["recruited_by"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       brand_inspiration: {
         Row: {
