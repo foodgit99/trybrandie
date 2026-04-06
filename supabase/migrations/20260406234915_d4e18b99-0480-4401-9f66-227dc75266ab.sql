@@ -1,0 +1,1 @@
+ALTER TABLE public.content_ideas ADD COLUMN autopilot_status text DEFAULT NULL;
