@@ -1,0 +1,1 @@
+ALTER TABLE public.content_ideas ADD COLUMN autopilot boolean NOT NULL DEFAULT false;
