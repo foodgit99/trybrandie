@@ -259,6 +259,14 @@ Deno.serve(async (req) => {
                   tier2PreviousEarned + tier2Commission
                 );
 
+                // Check milestones for Tier 2
+                await checkMilestones(
+                  supabase, supabaseUrl, supabaseKey,
+                  tier2Affiliate.id, tier2PreviousEarned,
+                  tier2PreviousEarned + tier2Commission,
+                  tier2Affiliate.milestones_notified || []
+                );
+
                 // Send network referral notification on first payment
                 if (isFirstPayment && tier2Affiliate.user_id) {
                   const { data: t2Auth } = await supabase.auth.admin.getUserById(tier2Affiliate.user_id);
@@ -305,6 +313,14 @@ Deno.serve(async (req) => {
               supabase, supabaseUrl, supabaseKey,
               tier1Affiliate.id, tier1PreviousEarned,
               tier1PreviousEarned + tier1Commission
+            );
+
+            // Check milestones for Tier 1
+            await checkMilestones(
+              supabase, supabaseUrl, supabaseKey,
+              tier1Affiliate.id, tier1PreviousEarned,
+              tier1PreviousEarned + tier1Commission,
+              tier1Affiliate.milestones_notified || []
             );
 
             // Send new referral notification (first payment only)
