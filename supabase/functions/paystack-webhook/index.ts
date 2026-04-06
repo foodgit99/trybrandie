@@ -95,6 +95,8 @@ async function checkMilestones(
     }
   }
 }
+
+async function checkPayoutThreshold(
   supabase: any,
   supabaseUrl: string,
   supabaseKey: string,
@@ -102,7 +104,6 @@ async function checkMilestones(
   previousEarned: number,
   newTotal: number
 ) {
-  // Only send if they just crossed the threshold
   if (previousEarned < PAYOUT_THRESHOLD && newTotal >= PAYOUT_THRESHOLD) {
     const { data: aff } = await supabase
       .from("affiliates")
