@@ -46,11 +46,40 @@ async function sendAffiliateEmail(
 
 // Commission rates for the two-tier system
 const RATES = {
-  tier1_first: 0.20,    // 20% on first payment
-  tier1_recurring: 0.05, // 5% on recurring payments
-  tier2_first: 0.05,     // 5% of first payment for recruiter
-  tier2_recurring: 0.03, // 3% of recurring payments for recruiter
+  tier1_first: 0.20,
+  tier1_recurring: 0.05,
+  tier2_first: 0.05,
+  tier2_recurring: 0.03,
 };
+
+const PAYOUT_THRESHOLD = 5000; // ₦5,000 minimum payout
+
+async function checkPayoutThreshold(
+  supabase: any,
+  supabaseUrl: string,
+  supabaseKey: string,
+  affiliateId: string,
+  previousEarned: number,
+  newTotal: number
+) {
+  // Only send if they just crossed the threshold
+  if (previousEarned < PAYOUT_THRESHOLD && newTotal >= PAYOUT_THRESHOLD) {
+    const { data: aff } = await supabase
+      .from("affiliates")
+      .select("user_id")
+      .eq("id", affiliateId)
+      .single();
+    if (aff?.user_id) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(aff.user_id);
+      const email = authUser?.user?.email;
+      if (email) {
+        await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_payout_threshold", email, {
+          total_earned: newTotal,
+        });
+      }
+    }
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -116,7 +145,7 @@ Deno.serve(async (req) => {
           // --- Tier 1: Direct affiliate ---
           const { data: tier1Affiliate } = await supabase
             .from("affiliates")
-            .select("id, commission_rate, user_id, recruited_by")
+            .select("id, commission_rate, user_id, recruited_by, total_earned")
             .eq("id", referral.affiliate_id)
             .single();
 
@@ -124,6 +153,7 @@ Deno.serve(async (req) => {
             const tier1Rate = isFirstPayment ? RATES.tier1_first : RATES.tier1_recurring;
             const tier1Commission = paymentAmount * tier1Rate;
             const tier1Type = isFirstPayment ? "tier1_first" : "tier1_recurring";
+            const tier1PreviousEarned = tier1Affiliate.total_earned || 0;
 
             await supabase.from("affiliate_commissions").insert({
               affiliate_id: tier1Affiliate.id,
@@ -144,7 +174,7 @@ Deno.serve(async (req) => {
             if (tier1Affiliate.recruited_by) {
               const { data: tier2Affiliate } = await supabase
                 .from("affiliates")
-                .select("id, user_id")
+                .select("id, user_id, total_earned")
                 .eq("id", tier1Affiliate.recruited_by)
                 .single();
 
@@ -152,6 +182,7 @@ Deno.serve(async (req) => {
                 const tier2Rate = isFirstPayment ? RATES.tier2_first : RATES.tier2_recurring;
                 const tier2Commission = paymentAmount * tier2Rate;
                 const tier2Type = isFirstPayment ? "tier2_first" : "tier2_recurring";
+                const tier2PreviousEarned = tier2Affiliate.total_earned || 0;
 
                 await supabase.from("affiliate_commissions").insert({
                   affiliate_id: tier2Affiliate.id,
@@ -168,7 +199,7 @@ Deno.serve(async (req) => {
                   p_amount: tier2Commission,
                 });
 
-                // Send tier 2 commission email
+                // Send tier 2 commission email with type context
                 if (tier2Affiliate.user_id) {
                   const { data: t2Auth } = await supabase.auth.admin.getUserById(tier2Affiliate.user_id);
                   const t2Email = t2Auth?.user?.email;
@@ -176,6 +207,31 @@ Deno.serve(async (req) => {
                     await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_commission_earned", t2Email, {
                       commission_amount: tier2Commission,
                       payment_amount: paymentAmount,
+                      commission_type: tier2Type,
+                    });
+                  }
+                }
+
+                // Check payout threshold for Tier 2
+                await checkPayoutThreshold(
+                  supabase, supabaseUrl, supabaseKey,
+                  tier2Affiliate.id, tier2PreviousEarned,
+                  tier2PreviousEarned + tier2Commission
+                );
+
+                // Send network referral notification on first payment
+                if (isFirstPayment && tier2Affiliate.user_id) {
+                  const { data: t2Auth } = await supabase.auth.admin.getUserById(tier2Affiliate.user_id);
+                  const t2Email = t2Auth?.user?.email;
+                  // Get the tier 1 affiliate's name for context
+                  const { data: t1Auth } = await supabase.auth.admin.getUserById(tier1Affiliate.user_id);
+                  const t1Name = t1Auth?.user?.user_metadata?.full_name || t1Auth?.user?.email || "An affiliate";
+                  const { data: referredUser } = await supabase.auth.admin.getUserById(user_id);
+                  const customerEmail = referredUser?.user?.email || "A new customer";
+                  if (t2Email) {
+                    await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_network_referral", t2Email, {
+                      affiliate_name: t1Name,
+                      customer_email: customerEmail,
                     });
                   }
                 }
@@ -191,7 +247,7 @@ Deno.serve(async (req) => {
               })
               .eq("id", referral.id);
 
-            // Send tier 1 commission email
+            // Send tier 1 commission email with type context
             if (tier1Affiliate.user_id) {
               const { data: authUser } = await supabase.auth.admin.getUserById(tier1Affiliate.user_id);
               const affiliateEmail = authUser?.user?.email;
@@ -199,9 +255,17 @@ Deno.serve(async (req) => {
                 await sendAffiliateEmail(supabaseUrl, supabaseKey, "affiliate_commission_earned", affiliateEmail, {
                   commission_amount: tier1Commission,
                   payment_amount: paymentAmount,
+                  commission_type: tier1Type,
                 });
               }
             }
+
+            // Check payout threshold for Tier 1
+            await checkPayoutThreshold(
+              supabase, supabaseUrl, supabaseKey,
+              tier1Affiliate.id, tier1PreviousEarned,
+              tier1PreviousEarned + tier1Commission
+            );
 
             // Send new referral notification (first payment only)
             if (isFirstPayment && tier1Affiliate.user_id) {

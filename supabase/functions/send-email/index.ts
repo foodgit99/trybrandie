@@ -325,7 +325,11 @@ function affiliateNewReferralHtml(referredEmail: string): string {
 </body></html>`;
 }
 
-function affiliateCommissionEarnedHtml(commissionAmount: number, paymentAmount: number): string {
+function affiliateCommissionEarnedHtml(
+  commissionAmount: number,
+  paymentAmount: number,
+  commissionType?: string
+): string {
   const formattedCommission = new Intl.NumberFormat('en-NG', { 
     style: 'currency', 
     currency: 'NGN',
@@ -336,6 +340,15 @@ function affiliateCommissionEarnedHtml(commissionAmount: number, paymentAmount: 
     currency: 'NGN',
     minimumFractionDigits: 0 
   }).format(paymentAmount);
+
+  const typeLabels: Record<string, { source: string; rate: string }> = {
+    tier1_first: { source: "Direct referral", rate: "20%" },
+    tier1_recurring: { source: "Direct referral", rate: "5% lifetime" },
+    tier2_first: { source: "Network (2nd-tier)", rate: "5%" },
+    tier2_recurring: { source: "Network (2nd-tier)", rate: "3% lifetime" },
+  };
+  const info = typeLabels[commissionType || ""] || { source: "Referral", rate: "" };
+  const rateLabel = info.rate ? ` (${info.rate})` : "";
 
   return `
 <!DOCTYPE html>
@@ -348,11 +361,14 @@ function affiliateCommissionEarnedHtml(commissionAmount: number, paymentAmount: 
   </td></tr>
   <tr><td style="padding:32px 40px;">
     <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
-      Cha-ching! One of your referrals just made a payment.
+      Cha-ching! A payment came through your ${info.source.toLowerCase()} network.
+    </p>
+    <p style="font-size:14px;color:#6b7280;margin:0 0 16px;padding:12px 16px;background:#f3f4f6;border-radius:8px;">
+      Source: <strong style="color:#1a1a2e;">${info.source}</strong>
     </p>
     <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
       Payment amount: <strong>${formattedPayment}</strong><br/>
-      Your commission (20%): <strong style="color:#16a34a;">${formattedCommission}</strong>
+      Your commission${rateLabel}: <strong style="color:#16a34a;">${formattedCommission}</strong>
     </p>
     <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
       This has been added to your pending balance. Request a payout anytime from your dashboard.
@@ -365,6 +381,113 @@ function affiliateCommissionEarnedHtml(commissionAmount: number, paymentAmount: 
   </td></tr>
   <tr><td style="padding:16px 40px 32px;text-align:center;">
     <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because you earned an affiliate commission on Brandie.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+// ============ NEW AFFILIATE TEMPLATES ============
+
+function affiliateNewRecruitHtml(recruitName: string, recruitCode: string): string {
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">New Affiliate Recruited! 🤝</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Great news — <strong>${recruitName || "someone"}</strong> just joined the Brandie Affiliate Program using your recruitment link!
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      As their recruiter, you'll automatically earn <strong>5% on their referrals' first payments</strong> and <strong>3% lifetime</strong> on recurring payments.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Your network is growing — keep recruiting to build your passive income stream!
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View My Network
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because someone joined Brandie using your recruitment link.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function affiliateNetworkReferralHtml(affiliateName: string, customerEmail: string): string {
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Network Referral! 🌐</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Your recruited affiliate <strong>${affiliateName || "one of your partners"}</strong> just brought a new customer to Brandie!
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      <strong>${customerEmail}</strong> signed up and when they make a payment, you'll earn your 2nd-tier commission automatically.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Your network is working for you — keep growing it!
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        View Network Earnings
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because a customer signed up via your recruited affiliate's link.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function affiliatePayoutThresholdHtml(totalEarned: number): string {
+  const formatted = new Intl.NumberFormat('en-NG', { 
+    style: 'currency', 
+    currency: 'NGN',
+    minimumFractionDigits: 0 
+  }).format(totalEarned);
+
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Payout Ready! 🎊</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Congratulations! Your total earnings have reached <strong style="color:#16a34a;">${formatted}</strong> — you've hit the minimum payout threshold!
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Head to your dashboard to request a payout. Make sure your bank details are up to date.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/affiliate" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Request Payout
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because your Brandie affiliate earnings reached the payout threshold.</p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -544,13 +667,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { type, to, data } = await req.json();
+    let { type, to, data } = await req.json();
 
     if (!type || !to) {
       return new Response(JSON.stringify({ error: "Missing type or to" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Resolve user ID to email if needed (for server-side email resolution)
+    if (typeof to === "string" && to.startsWith("__resolve_user__:")) {
+      const userId = to.replace("__resolve_user__:", "");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+      const resolvedEmail = authUser?.user?.email;
+      if (!resolvedEmail) {
+        return new Response(JSON.stringify({ error: "Could not resolve user email" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      to = resolvedEmail;
     }
 
     let subject: string;
@@ -596,7 +736,19 @@ Deno.serve(async (req) => {
         break;
       case "affiliate_commission_earned":
         subject = "You earned affiliate commission on Brandie! 💰";
-        html = affiliateCommissionEarnedHtml(data?.commission_amount || 0, data?.payment_amount || 0);
+        html = affiliateCommissionEarnedHtml(data?.commission_amount || 0, data?.payment_amount || 0, data?.commission_type || "");
+        break;
+      case "affiliate_new_recruit":
+        subject = "A new affiliate joined your network! 🤝";
+        html = affiliateNewRecruitHtml(data?.recruit_name || "", data?.recruit_code || "");
+        break;
+      case "affiliate_network_referral":
+        subject = "Your network brought a new customer! 🌐";
+        html = affiliateNetworkReferralHtml(data?.affiliate_name || "", data?.customer_email || "");
+        break;
+      case "affiliate_payout_threshold":
+        subject = "You've reached the payout threshold! 🎊";
+        html = affiliatePayoutThresholdHtml(data?.total_earned || 0);
         break;
       case "affiliate_payout_processed":
         subject = data?.status === "paid" 
