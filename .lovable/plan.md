@@ -1,85 +1,35 @@
 
 
-# Complete the Multi-Agent Operationalisation Plan
+## Plan: Generate & Integrate a Conversion-Optimised Hero Image
 
-## Status Summary
-Phase 1 (Safety) is ~80% done. Phases 2–4 are largely unimplemented — shared utilities were created but never wired in.
+### Context
+The landing page hero currently uses a static `.jpg` screenshot (`landing-hero-designs.jpg`). This is the most prominent visual on the page and directly impacts conversion. We'll use AI image generation (Gemini 3.1 Flash Image — the latest fast model with pro-level quality) to create a compelling, on-brand hero image, then replace the static import.
 
-## Remaining Work
+### What the Image Should Show
+A conversion-optimised hero image for an AI brand studio needs to:
+- **Show the product in action** — a sleek, modern UI mockup with a chat interface on the left and beautiful social media designs on the right
+- **Convey instant value** — multiple polished social graphics visible, suggesting variety and speed
+- **Feel premium** — Apple-level polish, warm neutral tones matching Brandie's palette (warm beige `#FAF8F5`, dark charcoal `#2B2D33`, gold accent `#C4993B`)
+- **Create aspiration** — the designs shown should look professionally crafted
+- **Include social proof cues** — subtle UI elements like "Generated in 8s" or brand consistency indicators
 
-### 1. Wire circuit breaker into design-studio AI calls
-**File:** `supabase/functions/design-studio/index.ts`
-- Before each AI gateway fetch (Copywriter, Creative Director, Renderer), check `isCircuitOpen("ai-gateway")`
-- If open, return a user-friendly error immediately
-- After successful calls, call `recordSuccess("ai-gateway")`
-- After failures, call `recordFailure("ai-gateway")`
+### Steps
 
-### 2. Wire model fallback into design-studio AI calls
-**File:** `supabase/functions/design-studio/index.ts`
-- Replace direct `retryFetch` calls to the AI gateway with `callWithFallback` using the appropriate chain (`MODEL_CHAINS.reasoning` for Copywriter/Creative Director, `MODEL_CHAINS.fast` for classification)
-- Keep `retryFetch` for non-AI calls (renderer)
+1. **Generate the hero image** using `google/gemini-3.1-flash-image-preview` (Nano Banana 2) via the AI gateway script with a detailed, conversion-focused prompt. The prompt will describe a premium product screenshot mockup showing Brandie's split-screen interface with chat + beautiful generated designs.
 
-### 3. Add sanitisation to brand-strategist
-**File:** `supabase/functions/brand-strategist/index.ts`
-- Import `sanitise` from shared
-- Sanitise user messages before injecting into the strategist prompt
+2. **QA the generated image** — convert to viewable format and inspect for quality, layout, text legibility, and brand alignment. Regenerate if needed.
 
-### 4. Create design_traces database table
-**Migration SQL:**
-```sql
-CREATE TABLE public.design_traces (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  run_id text NOT NULL,
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  spans jsonb DEFAULT '[]',
-  total_latency_ms integer,
-  total_input_tokens integer DEFAULT 0,
-  total_output_tokens integer DEFAULT 0,
-  error text,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE public.design_traces ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own traces" ON public.design_traces FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE INDEX idx_design_traces_user ON public.design_traces(user_id);
-CREATE INDEX idx_design_traces_created ON public.design_traces(created_at);
-```
+3. **Replace the existing hero image** — save as `landing-hero-designs.jpg` (or `.png`) in `src/assets/` and update the import in `LandingHero.tsx` if the extension changes.
 
-### 5. Persist traces to database
-**File:** `supabase/functions/design-studio/index.ts`
-- After `tracer.log()`, insert the trace summary into `design_traces` using the admin Supabase client
-- Include run_id, user_id, spans, total latency, token counts
+4. **Enhance the hero image presentation** — add a subtle gradient overlay or glow effect behind the image to make it pop more against the page background, improving visual hierarchy and conversion.
 
-### 6. Implement genome quality gating
-**File:** `supabase/functions/design-studio/index.ts`
-- After `computeGenomeScores`, check if `scores.overall < 45`
-- If below threshold, send genome back to Creative Director with flagged low-scoring dimensions
-- Cap at 1 refinement pass to avoid loops
-- Log refinement in tracer
+### Latency & Cost
+- One-time generation cost (not per-user). No runtime impact.
+- `google/gemini-3.1-flash-image-preview` is the latest model with fast generation and pro-level quality.
 
-### 7. Add brand consistency enforcement pre-render
-**File:** `supabase/functions/design-studio/index.ts`
-- Before renderer call, verify genome colours align with brand palette
-- Verify font personality matches brand tone mapping
-- Auto-correct mismatched locked genes per VSGS rules already in genomeTypes.ts
-
-### 8. Implement context compression for long chats
-**File:** `supabase/functions/design-studio/index.ts`
-- When chat history exceeds 15 messages, summarise older messages into a `[Session Summary]` block using `gemini-2.5-flash-lite`
-- Keep the last 8 messages in full
-- Use the fast model chain with timeout guard
-
-## Files Affected
-| File | Changes |
-|------|---------|
-| `supabase/functions/design-studio/index.ts` | Circuit breaker wiring, model fallback, quality gate, brand enforcement, context compression, trace persistence |
-| `supabase/functions/brand-strategist/index.ts` | Input sanitisation |
-| New migration | `design_traces` table |
-
-## Implementation Order
-1. Circuit breaker + model fallback wiring (reliability)
-2. Brand-strategist sanitisation (security)
-3. Design traces table + persistence (observability)
-4. Genome quality gating (quality)
-5. Brand consistency enforcement (quality)
-6. Context compression (scalability)
+### Technical Details
+- Image will be generated at high resolution for crisp display on retina screens
+- Output saved to `src/assets/` to replace the current static asset
+- No changes to edge functions or database — purely a frontend asset swap
+- The `LandingHero.tsx` component structure stays the same; only the image source changes
 
