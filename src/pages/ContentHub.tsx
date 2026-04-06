@@ -1254,6 +1254,31 @@ const ContentHub = () => {
                                         autopilot
                                       </Badge>
                                     )}
+                                    {/* Autopilot status badges */}
+                                    {(idea as any).autopilot_status === "completed" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
+                                        <Check className="h-2 w-2" />
+                                        auto-created
+                                      </Badge>
+                                    )}
+                                    {(idea as any).autopilot_status === "failed_no_credits" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot couldn't create — no credits remaining">
+                                        <AlertTriangle className="h-2 w-2" />
+                                        no credits
+                                      </Badge>
+                                    )}
+                                    {(idea as any).autopilot_status === "failed_error" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot encountered an error — will retry automatically">
+                                        <AlertTriangle className="h-2 w-2" />
+                                        failed
+                                      </Badge>
+                                    )}
+                                    {(idea as any).autopilot_status === "processing" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                                        <Loader2 className="h-2 w-2 animate-spin" />
+                                        creating…
+                                      </Badge>
+                                    )}
                                     {(() => {
                                       const fmt = idea.content_format || "graphic";
                                       const colorMap: Record<string, string> = {
