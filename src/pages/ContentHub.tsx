@@ -137,6 +137,33 @@ const ContentHub = () => {
     series: false,
     campaigns: false,
   });
+
+  // Autopilot settings (persisted in localStorage per brand)
+  const autopilotKey = brandId ? `brandie-autopilot-${brandId}` : null;
+  const [autopilotAll, setAutopilotAll] = useState(() => {
+    if (!brandId) return false;
+    try { return JSON.parse(localStorage.getItem(`brandie-autopilot-${brandId}`) || "{}").enabled ?? false; } catch { return false; }
+  });
+  const [deliveryTime, setDeliveryTime] = useState(() => {
+    if (!brandId) return "morning";
+    try { return JSON.parse(localStorage.getItem(`brandie-autopilot-${brandId}`) || "{}").deliveryTime ?? "morning"; } catch { return "morning"; }
+  });
+
+  // Sync autopilot settings to localStorage
+  useEffect(() => {
+    if (!autopilotKey) return;
+    localStorage.setItem(autopilotKey, JSON.stringify({ enabled: autopilotAll, deliveryTime }));
+  }, [autopilotAll, deliveryTime, autopilotKey]);
+
+  // Re-read settings when brand changes
+  useEffect(() => {
+    if (!autopilotKey) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(autopilotKey) || "{}");
+      setAutopilotAll(stored.enabled ?? false);
+      setDeliveryTime(stored.deliveryTime ?? "morning");
+    } catch { /* ignore */ }
+  }, [autopilotKey]);
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Credit confirmation dialog state
