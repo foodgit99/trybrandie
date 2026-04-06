@@ -832,6 +832,10 @@ Deno.serve(async (req) => {
         subject = `Your content plan for today — ${data?.date || "today"} 📅`;
         html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
         break;
+      case "affiliate_monthly_digest":
+        subject = `Your Brandie affiliate report — ${data?.month || "this month"} 📊`;
+        html = affiliateMonthlyDigestHtml(data || {});
+        break;
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
           status: 400,
