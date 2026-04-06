@@ -56,18 +56,42 @@ Deno.serve(async (req) => {
     const brandIds = [...new Set(ideas.map((i: any) => i.brand_id))];
     const { data: allSettings } = await supabase
       .from("autopilot_settings")
-      .select("brand_id, delivery_time")
+      .select("brand_id, delivery_time, timezone")
       .in("brand_id", brandIds);
 
-    const settingsMap = new Map<string, string>();
+    // Map of delivery_time windows to their UTC trigger hours
+    const windowUtcHours: Record<string, number> = { morning: 6, afternoon: 12, evening: 18 };
+
+    const settingsMap = new Map<string, { delivery_time: string; timezone: string }>();
     for (const s of allSettings || []) {
-      settingsMap.set(s.brand_id, s.delivery_time || "morning");
+      settingsMap.set(s.brand_id, {
+        delivery_time: s.delivery_time || "morning",
+        timezone: s.timezone || "Africa/Lagos",
+      });
     }
 
-    // Filter ideas to only those matching the current delivery window
+    // Filter ideas: check if the current UTC hour matches the brand's
+    // desired delivery time converted from their local timezone to UTC.
+    const nowUtc = new Date();
+    const currentUtcHour = nowUtc.getUTCHours();
+
     const filteredIdeas = ideas.filter((idea: any) => {
-      const brandDeliveryTime = settingsMap.get(idea.brand_id) || "morning";
-      return brandDeliveryTime === deliveryWindow;
+      const settings = settingsMap.get(idea.brand_id) || { delivery_time: "morning", timezone: "Africa/Lagos" };
+      // Only process if the delivery_time label matches the invocation window
+      if (settings.delivery_time !== deliveryWindow) return false;
+
+      // Calculate what UTC hour the brand's local delivery time corresponds to
+      const localHour = windowUtcHours[settings.delivery_time] ?? 6;
+      // Get the timezone offset by formatting a date in that timezone
+      const formatter = new Intl.DateTimeFormat("en-US", { timeZone: settings.timezone, hour: "numeric", hour12: false });
+      const localNowHour = parseInt(formatter.format(nowUtc), 10);
+      const offsetHours = localNowHour - currentUtcHour;
+      const targetUtcHour = ((localHour - offsetHours) % 24 + 24) % 24;
+
+      // Allow a 2-hour window around the target UTC hour to account for cron timing
+      const diff = Math.abs(currentUtcHour - targetUtcHour);
+      const hourDiff = Math.min(diff, 24 - diff);
+      return hourDiff <= 1;
     });
 
     if (filteredIdeas.length === 0) {

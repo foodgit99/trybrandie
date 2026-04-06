@@ -207,6 +207,7 @@ export type Database = {
           delivery_time: string
           enabled: boolean
           id: string
+          timezone: string
           updated_at: string
           user_id: string
         }
@@ -216,6 +217,7 @@ export type Database = {
           delivery_time?: string
           enabled?: boolean
           id?: string
+          timezone?: string
           updated_at?: string
           user_id: string
         }
@@ -225,6 +227,7 @@ export type Database = {
           delivery_time?: string
           enabled?: boolean
           id?: string
+          timezone?: string
           updated_at?: string
           user_id?: string
         }

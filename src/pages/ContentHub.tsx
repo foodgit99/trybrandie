@@ -188,8 +188,9 @@ const ContentHub = () => {
 
   const autopilotAll = autopilotSettings?.enabled ?? false;
   const deliveryTime = autopilotSettings?.delivery_time ?? "morning";
+  const autopilotTimezone = (autopilotSettings as any)?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const updateAutopilotSetting = async (updates: { enabled?: boolean; delivery_time?: string }) => {
+  const updateAutopilotSetting = async (updates: { enabled?: boolean; delivery_time?: string; timezone?: string }) => {
     if (!brandId || !user) return;
     const { data: existing } = await supabase
       .from("autopilot_settings")
@@ -210,6 +211,7 @@ const ContentHub = () => {
           user_id: user.id,
           enabled: updates.enabled ?? false,
           delivery_time: updates.delivery_time ?? "morning",
+          timezone: updates.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
         });
     }
     queryClient.invalidateQueries({ queryKey: ["autopilot-settings", brandId] });
@@ -1129,6 +1131,7 @@ const ContentHub = () => {
                       />
                     </div>
                     {autopilotAll && (
+                      <>
                       <div className="flex items-center gap-3 pl-9.5">
                         <Label htmlFor="delivery-time" className="text-xs text-muted-foreground whitespace-nowrap">
                           Delivery time
@@ -1144,6 +1147,35 @@ const ContentHub = () => {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="flex items-center gap-3 pl-9.5">
+                        <Label htmlFor="timezone" className="text-xs text-muted-foreground whitespace-nowrap">
+                          Timezone
+                        </Label>
+                        <Select value={autopilotTimezone} onValueChange={(val) => updateAutopilotSetting({ timezone: val })}>
+                          <SelectTrigger id="timezone" className="h-8 text-xs w-52">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60">
+                            <SelectItem value="Africa/Lagos">🇳🇬 Lagos (WAT)</SelectItem>
+                            <SelectItem value="Africa/Johannesburg">🇿🇦 Johannesburg (SAST)</SelectItem>
+                            <SelectItem value="Africa/Nairobi">🇰🇪 Nairobi (EAT)</SelectItem>
+                            <SelectItem value="Africa/Cairo">🇪🇬 Cairo (EET)</SelectItem>
+                            <SelectItem value="Africa/Accra">🇬🇭 Accra (GMT)</SelectItem>
+                            <SelectItem value="Europe/London">🇬🇧 London (GMT/BST)</SelectItem>
+                            <SelectItem value="Europe/Paris">🇫🇷 Paris (CET)</SelectItem>
+                            <SelectItem value="America/New_York">🇺🇸 New York (EST)</SelectItem>
+                            <SelectItem value="America/Chicago">🇺🇸 Chicago (CST)</SelectItem>
+                            <SelectItem value="America/Denver">🇺🇸 Denver (MST)</SelectItem>
+                            <SelectItem value="America/Los_Angeles">🇺🇸 Los Angeles (PST)</SelectItem>
+                            <SelectItem value="Asia/Dubai">🇦🇪 Dubai (GST)</SelectItem>
+                            <SelectItem value="Asia/Kolkata">🇮🇳 Mumbai (IST)</SelectItem>
+                            <SelectItem value="Asia/Singapore">🇸🇬 Singapore (SGT)</SelectItem>
+                            <SelectItem value="Asia/Tokyo">🇯🇵 Tokyo (JST)</SelectItem>
+                            <SelectItem value="Australia/Sydney">🇦🇺 Sydney (AEST)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
