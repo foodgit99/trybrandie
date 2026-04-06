@@ -91,6 +91,41 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
   const progress = nextMilestone
     ? Math.min(100, (totalEarned / nextMilestone.amount) * 100)
     : 100;
+  const [newlyUnlocked, setNewlyUnlocked] = useState<number | null>(null);
+  const confettiFired = useRef(false);
+
+  useEffect(() => {
+    if (confettiFired.current) return;
+    const storageKey = "brandie_milestones_seen";
+    const seen: number[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    const earnedMilestones = MILESTONES.filter((m) => totalEarned >= m.amount).map((m) => m.amount);
+    const newOnes = earnedMilestones.filter((a) => !seen.includes(a));
+
+    if (newOnes.length > 0) {
+      confettiFired.current = true;
+      const highest = Math.max(...newOnes);
+      setNewlyUnlocked(highest);
+      localStorage.setItem(storageKey, JSON.stringify(earnedMilestones));
+
+      // Fire confetti
+      import("canvas-confetti").then((mod) => {
+        const confetti = mod.default;
+        // First burst
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        // Second burst after a short delay
+        setTimeout(() => {
+          confetti({ particleCount: 50, spread: 100, origin: { y: 0.65 }, angle: 60 });
+          confetti({ particleCount: 50, spread: 100, origin: { y: 0.65 }, angle: 120 });
+        }, 300);
+      });
+
+      // Clear the highlight after a few seconds
+      setTimeout(() => setNewlyUnlocked(null), 4000);
+    } else {
+      // Sync storage with current state (in case they earned milestones offline)
+      localStorage.setItem(storageKey, JSON.stringify(earnedMilestones));
+    }
+  }, [totalEarned]);
 
   return (
     <motion.div
