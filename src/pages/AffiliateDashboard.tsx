@@ -76,6 +76,91 @@ const COMMISSION_TYPE_LABELS: Record<string, { label: string; color: string }> =
   tier2_recurring: { label: "Network · Recurring", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
 };
 
+const MILESTONES = [
+  { amount: 10000, emoji: "🎉", label: "₦10K", title: "Rising Star" },
+  { amount: 25000, emoji: "⭐", label: "₦25K", title: "Trailblazer" },
+  { amount: 50000, emoji: "🔥", label: "₦50K", title: "Powerhouse" },
+  { amount: 100000, emoji: "💎", label: "₦100K", title: "Diamond" },
+  { amount: 250000, emoji: "🏆", label: "₦250K", title: "Champion" },
+  { amount: 500000, emoji: "💎", label: "₦500K", title: "Elite" },
+  { amount: 1000000, emoji: "👑", label: "₦1M", title: "Legend" },
+];
+
+const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; notified: number[] }) => {
+  const nextMilestone = MILESTONES.find((m) => totalEarned < m.amount);
+  const progress = nextMilestone
+    ? Math.min(100, (totalEarned / nextMilestone.amount) * 100)
+    : 100;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-border p-5 space-y-4"
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-primary" /> Milestones
+        </h3>
+        {nextMilestone && (
+          <span className="text-xs text-muted-foreground">
+            ₦{(nextMilestone.amount - totalEarned).toLocaleString()} to {nextMilestone.title}
+          </span>
+        )}
+      </div>
+
+      {/* Progress bar to next milestone */}
+      {nextMilestone && (
+        <div className="space-y-1.5">
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-primary"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>₦{totalEarned.toLocaleString()}</span>
+            <span>{nextMilestone.label}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Milestone badges */}
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
+        {MILESTONES.map((m) => {
+          const earned = totalEarned >= m.amount;
+          const isNext = nextMilestone?.amount === m.amount;
+          return (
+            <div
+              key={m.amount}
+              className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all ${
+                earned
+                  ? "bg-primary/10 border border-primary/30"
+                  : isNext
+                  ? "bg-muted/80 border border-dashed border-primary/40"
+                  : "bg-muted/40 border border-transparent opacity-50"
+              }`}
+            >
+              <span className={`text-2xl ${earned ? "" : "grayscale opacity-60"}`}>{m.emoji}</span>
+              <span className={`text-[10px] font-semibold ${earned ? "text-primary" : "text-muted-foreground"}`}>
+                {m.label}
+              </span>
+              <span className={`text-[9px] ${earned ? "text-foreground" : "text-muted-foreground"}`}>
+                {m.title}
+              </span>
+              {earned && (
+                <CheckCircle2 className="absolute -top-1 -right-1 h-4 w-4 text-primary fill-background" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
+
 const AffiliateDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
