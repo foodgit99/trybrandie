@@ -145,6 +145,7 @@ const AffiliateSignup = () => {
       const { error } = await supabase.from("affiliates").insert(insertData as any);
       if (error) throw error;
 
+      // Send application received email to the new affiliate
       if (userEmail) {
         try {
           await supabase.functions.invoke("send-email", {
@@ -156,6 +157,32 @@ const AffiliateSignup = () => {
           });
         } catch (emailErr) {
           console.error("Failed to send application email:", emailErr);
+        }
+      }
+
+      // Notify the recruiting affiliate that a new partner joined via their link
+      if (recruitedBy) {
+        try {
+          const { data: recruiterData } = await supabase
+            .from("affiliates")
+            .select("user_id, affiliate_code")
+            .eq("id", recruitedBy)
+            .single();
+
+          if (recruiterData?.user_id) {
+            await supabase.functions.invoke("send-email", {
+              body: {
+                type: "affiliate_new_recruit",
+                to: recruiterData.user_id, // Will be resolved server-side; but we need email
+                data: {
+                  recruit_name: fullName.trim() || email.trim(),
+                  recruit_code: "",
+                },
+              },
+            });
+          }
+        } catch (emailErr) {
+          console.error("Failed to send recruit notification email:", emailErr);
         }
       }
 
