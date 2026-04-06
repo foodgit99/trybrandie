@@ -20,6 +20,7 @@ import {
   Share2,
   Users2,
   Link2,
+  Trophy,
 } from "lucide-react";
 
 interface Affiliate {
@@ -33,6 +34,7 @@ interface Affiliate {
   account_number: string | null;
   account_name: string | null;
   recruited_by: string | null;
+  milestones_notified: number[];
 }
 
 interface Referral {
