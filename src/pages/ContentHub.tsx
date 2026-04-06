@@ -61,7 +61,9 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronUp,
+  Zap,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 
