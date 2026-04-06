@@ -706,7 +706,7 @@ const ContentHub = () => {
   };
 
   const openCreateIdea = (day: string) => {
-    setIdeaForm(emptyIdea);
+    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll });
     setEditingIdeaId(null);
     setIdeaDay(day);
     setIdeaDialogOpen(true);
