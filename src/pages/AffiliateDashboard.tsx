@@ -301,6 +301,9 @@ const AffiliateDashboard = () => {
           ))}
         </div>
 
+        {/* Milestones */}
+        <MilestonesSection totalEarned={affiliate.total_earned} notified={affiliate.milestones_notified || []} />
+
         {/* Links */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="rounded-2xl border border-border p-5 space-y-3">
