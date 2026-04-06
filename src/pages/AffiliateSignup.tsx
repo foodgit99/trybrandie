@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
 import brandieLogo from "@/assets/brandie-logo.png";
-import { Users, DollarSign, Link2, ArrowRight, Users2 } from "lucide-react";
+import { Users2, DollarSign, Link2, ArrowRight, Clock } from "lucide-react";
 
 const AffiliateSignup = () => {
   const { user } = useAuth();
@@ -19,7 +19,6 @@ const AffiliateSignup = () => {
 
   const refCode = searchParams.get("ref") || "";
 
-  // For non-logged-in users
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -32,7 +31,6 @@ const AffiliateSignup = () => {
       let userId = user?.id;
       let userEmail = user?.email;
 
-      // If not logged in, create account first
       if (!userId) {
         const { data: signupData, error: signupError } = await supabase.auth.signUp({
           email,
@@ -55,7 +53,6 @@ const AffiliateSignup = () => {
         }
       }
 
-      // Check if already an affiliate
       const { data: existing } = await supabase
         .from("affiliates")
         .select("id, status")
@@ -75,7 +72,6 @@ const AffiliateSignup = () => {
         return;
       }
 
-      // Look up recruiting affiliate if ref code provided
       let recruitedBy: string | null = null;
       if (refCode) {
         const { data: recruiter } = await supabase
@@ -89,8 +85,7 @@ const AffiliateSignup = () => {
         }
       }
 
-      // Create affiliate record
-      const insertData: any = {
+      const insertData: Record<string, unknown> = {
         user_id: userId,
         status: "pending",
       };
@@ -98,11 +93,9 @@ const AffiliateSignup = () => {
         insertData.recruited_by = recruitedBy;
       }
 
-      const { error } = await supabase.from("affiliates").insert(insertData);
-
+      const { error } = await supabase.from("affiliates").insert(insertData as any);
       if (error) throw error;
 
-      // Send application received email
       if (userEmail) {
         try {
           await supabase.functions.invoke("send-email", {
@@ -148,7 +141,6 @@ const AffiliateSignup = () => {
           </p>
         </motion.div>
 
-        {/* Benefits */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -171,7 +163,6 @@ const AffiliateSignup = () => {
           ))}
         </motion.div>
 
-        {/* Form */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -228,8 +219,5 @@ const AffiliateSignup = () => {
     </div>
   );
 };
-
-// Need Clock import
-import { Clock } from "lucide-react";
 
 export default AffiliateSignup;
