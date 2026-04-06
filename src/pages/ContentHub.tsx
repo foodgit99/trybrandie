@@ -1118,7 +1118,7 @@ const ContentHub = () => {
                       <Switch
                         checked={autopilotAll}
                         onCheckedChange={(checked) => {
-                          setAutopilotAll(checked);
+                          updateAutopilotSetting({ enabled: checked });
                           toast({
                             title: checked ? "Autopilot enabled" : "Autopilot disabled",
                             description: checked
