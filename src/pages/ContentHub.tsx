@@ -1104,6 +1104,12 @@ const ContentHub = () => {
                                     <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                                       {idea.title}
                                     </span>
+                                    {idea.autopilot && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-primary/15 text-primary border-primary/20">
+                                        <Zap className="h-2 w-2" />
+                                        autopilot
+                                      </Badge>
+                                    )}
                                     {(() => {
                                       const fmt = idea.content_format || "graphic";
                                       const colorMap: Record<string, string> = {
@@ -1129,6 +1135,18 @@ const ContentHub = () => {
                                       <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
                                     )}
                                     <div className="flex md:hidden md:group-hover/idea:flex gap-0.5 ml-auto shrink-0">
+                                      <button
+                                        onClick={async () => {
+                                          const newVal = !idea.autopilot;
+                                          await supabase.from("content_ideas").update({ autopilot: newVal } as any).eq("id", idea.id);
+                                          queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                                          toast({ title: newVal ? "Autopilot enabled ⚡" : "Autopilot disabled", description: newVal ? "Brandie will create this design automatically" : "You'll need to create this design manually" });
+                                        }}
+                                        className={`p-0.5 rounded transition-colors ${idea.autopilot ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-muted"}`}
+                                        title={idea.autopilot ? "Disable autopilot" : "Enable autopilot"}
+                                      >
+                                        <Zap className="h-2.5 w-2.5" />
+                                      </button>
                                       <button onClick={() => openEditIdea(idea)} className="p-0.5 rounded hover:bg-muted transition-colors" title="Edit idea">
                                         <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
                                       </button>
