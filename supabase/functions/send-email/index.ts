@@ -989,18 +989,26 @@ Deno.serve(async (req) => {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
 <table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
   <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
-    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Autopilot Paused ⏸️</h1>
+    <p style="font-size:48px;margin:0 0 8px;">⏸️</p>
+    <h1 style="color:#c4a265;font-size:28px;margin:0;font-weight:700;">Autopilot Paused</h1>
   </td></tr>
   <tr><td style="padding:32px 40px;">
     <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
       Your scheduled design <strong>"${data?.idea_title || "Untitled"}"</strong> couldn't be created because you've run out of credits.
     </p>
-    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
-      Upgrade your plan or wait for your credits to reset to keep Autopilot running.
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      <strong>Good news:</strong> Brandie will automatically retry this design for the next 3 days. Top up your credits and it'll pick up right where it left off.
     </p>
-    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      You can also manually retry from the Content Hub calendar.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center" style="padding-bottom:12px;">
       <a href="${APP_URL}/plans" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
-        View Plans
+        Get More Credits
+      </a>
+    </td></tr><tr><td align="center">
+      <a href="${APP_URL}/content" style="display:inline-block;color:#c4a265;font-weight:500;font-size:14px;text-decoration:underline;">
+        Open Content Hub
       </a>
     </td></tr></table>
   </td></tr>
