@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -91,6 +91,41 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
   const progress = nextMilestone
     ? Math.min(100, (totalEarned / nextMilestone.amount) * 100)
     : 100;
+  const [newlyUnlocked, setNewlyUnlocked] = useState<number | null>(null);
+  const confettiFired = useRef(false);
+
+  useEffect(() => {
+    if (confettiFired.current) return;
+    const storageKey = "brandie_milestones_seen";
+    const seen: number[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    const earnedMilestones = MILESTONES.filter((m) => totalEarned >= m.amount).map((m) => m.amount);
+    const newOnes = earnedMilestones.filter((a) => !seen.includes(a));
+
+    if (newOnes.length > 0) {
+      confettiFired.current = true;
+      const highest = Math.max(...newOnes);
+      setNewlyUnlocked(highest);
+      localStorage.setItem(storageKey, JSON.stringify(earnedMilestones));
+
+      // Fire confetti
+      import("canvas-confetti").then((mod) => {
+        const confetti = mod.default;
+        // First burst
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        // Second burst after a short delay
+        setTimeout(() => {
+          confetti({ particleCount: 50, spread: 100, origin: { y: 0.65 }, angle: 60 });
+          confetti({ particleCount: 50, spread: 100, origin: { y: 0.65 }, angle: 120 });
+        }, 300);
+      });
+
+      // Clear the highlight after a few seconds
+      setTimeout(() => setNewlyUnlocked(null), 4000);
+    } else {
+      // Sync storage with current state (in case they earned milestones offline)
+      localStorage.setItem(storageKey, JSON.stringify(earnedMilestones));
+    }
+  }, [totalEarned]);
 
   return (
     <motion.div
@@ -132,12 +167,16 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
         {MILESTONES.map((m) => {
           const earned = totalEarned >= m.amount;
           const isNext = nextMilestone?.amount === m.amount;
+          const justUnlocked = newlyUnlocked === m.amount;
           return (
-            <div
+            <motion.div
               key={m.amount}
+              animate={justUnlocked ? { scale: [1, 1.15, 1], transition: { duration: 0.6, repeat: 2 } } : {}}
               className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all ${
                 earned
-                  ? "bg-primary/10 border border-primary/30"
+                  ? justUnlocked
+                    ? "bg-primary/20 border-2 border-primary shadow-lg shadow-primary/20"
+                    : "bg-primary/10 border border-primary/30"
                   : isNext
                   ? "bg-muted/80 border border-dashed border-primary/40"
                   : "bg-muted/40 border border-transparent opacity-50"
@@ -153,7 +192,7 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
               {earned && (
                 <CheckCircle2 className="absolute -top-1 -right-1 h-4 w-4 text-primary fill-background" />
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>
