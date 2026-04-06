@@ -138,9 +138,6 @@ const ContentHub = () => {
     campaigns: false,
   });
 
-  // Autopilot settings (persisted in localStorage per brand)
-  const [autopilotAll, setAutopilotAll] = useState(false);
-  const [deliveryTime, setDeliveryTime] = useState("morning");
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Credit confirmation dialog state
@@ -174,23 +171,50 @@ const ContentHub = () => {
 
   const brandId = brand?.id;
 
-  // Autopilot: sync with localStorage per brand
-  const autopilotKey = brandId ? `brandie-autopilot-${brandId}` : null;
-  useEffect(() => {
-    if (!autopilotKey) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem(autopilotKey) || "{}");
-      setAutopilotAll(stored.enabled ?? false);
-      setDeliveryTime(stored.deliveryTime ?? "morning");
-    } catch { /* ignore */ }
-  }, [autopilotKey]);
+  // Autopilot settings from database
+  const { data: autopilotSettings } = useQuery({
+    queryKey: ["autopilot-settings", brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("autopilot_settings")
+        .select("*")
+        .eq("brand_id", brandId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!brandId,
+  });
 
-  useEffect(() => {
-    if (!autopilotKey) return;
-    localStorage.setItem(autopilotKey, JSON.stringify({ enabled: autopilotAll, deliveryTime }));
-  }, [autopilotAll, deliveryTime, autopilotKey]);
+  const autopilotAll = autopilotSettings?.enabled ?? false;
+  const deliveryTime = autopilotSettings?.delivery_time ?? "morning";
 
-  // --- Queries ---
+  const updateAutopilotSetting = async (updates: { enabled?: boolean; delivery_time?: string }) => {
+    if (!brandId || !user) return;
+    const { data: existing } = await supabase
+      .from("autopilot_settings")
+      .select("id")
+      .eq("brand_id", brandId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("autopilot_settings")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("brand_id", brandId);
+    } else {
+      await supabase
+        .from("autopilot_settings")
+        .insert({
+          brand_id: brandId,
+          user_id: user.id,
+          enabled: updates.enabled ?? false,
+          delivery_time: updates.delivery_time ?? "morning",
+        });
+    }
+    queryClient.invalidateQueries({ queryKey: ["autopilot-settings", brandId] });
+  };
+
   const { data: pillars, isLoading: pillarsLoading } = useQuery({
     queryKey: ["content-pillars", brandId],
     queryFn: async () => {
@@ -1094,7 +1118,7 @@ const ContentHub = () => {
                       <Switch
                         checked={autopilotAll}
                         onCheckedChange={(checked) => {
-                          setAutopilotAll(checked);
+                          updateAutopilotSetting({ enabled: checked });
                           toast({
                             title: checked ? "Autopilot enabled" : "Autopilot disabled",
                             description: checked
@@ -1109,7 +1133,7 @@ const ContentHub = () => {
                         <Label htmlFor="delivery-time" className="text-xs text-muted-foreground whitespace-nowrap">
                           Delivery time
                         </Label>
-                        <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                        <Select value={deliveryTime} onValueChange={(val) => updateAutopilotSetting({ delivery_time: val })}>
                           <SelectTrigger id="delivery-time" className="h-8 text-xs w-40">
                             <SelectValue />
                           </SelectTrigger>
