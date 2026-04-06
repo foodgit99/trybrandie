@@ -206,16 +206,40 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader! } },
-    });
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Check if the caller is using the service role key (internal autopilot calls)
+    const token = authHeader?.replace("Bearer ", "") ?? "";
+    const isServiceRole = token === serviceRoleKey;
+
+    let user: { id: string; email?: string } | null = null;
+
+    if (isServiceRole) {
+      // Service role call — expect user_id in body (parsed below after req.json)
+      // We'll set user after parsing the body
+      const bodyText = await req.text();
+      const body = JSON.parse(bodyText);
+      if (!body.user_id) {
+        return new Response(JSON.stringify({ error: "Service role calls require user_id in body" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      user = { id: body.user_id };
+      // Re-attach body for downstream parsing (store parsed body)
+      (req as any)._parsedBody = body;
+    } else {
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader! } },
       });
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      if (userError || !authUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      user = authUser;
     }
 
     // Initialize tracer for this request
