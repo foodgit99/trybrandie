@@ -1,102 +1,82 @@
 
 
-## Plan: Friends of Brandie — Two-Tier Affiliate System
+## Plan: Two-Tier Affiliate Email Notification System
 
-### What Exists Today
+### Current State
 
-- **Single-tier affiliate system**: affiliates earn a flat `commission_rate` (20%) on payments from referred users
-- **Tables**: `affiliates`, `affiliate_referrals`, `affiliate_commissions`, `affiliate_payouts`
-- **Commission logic**: in `paystack-webhook` — looks up the direct affiliate for the paying user, calculates commission, inserts into `affiliate_commissions`, increments `total_earned`
-- **Dashboard**: shows stats, referrals, commissions, bank details, payout requests
-- **No concept of**: recurring vs first-payment rates, second-tier affiliates, or affiliate-recruits-affiliate relationships
+The `send-email` edge function already has these affiliate templates:
+- `affiliate_application_received` — sent on signup
+- `affiliate_approved` / `affiliate_rejected` — admin actions
+- `affiliate_new_referral` — Tier 1 notified when a customer signs up
+- `affiliate_commission_earned` — generic commission email (no tier distinction)
+- `affiliate_payout_processed` — payout updates
 
-### What Needs to Change
+The `paystack-webhook` already sends commission emails to both Tier 1 and Tier 2 affiliates, and sends `affiliate_new_referral` to Tier 1 only.
 
-#### 1. Database Migrations
+### What's Missing
 
-**A. Add `recruited_by` column to `affiliates` table**
-- `recruited_by uuid REFERENCES affiliates(id) ON DELETE SET NULL` — tracks which affiliate recruited this affiliate
-- This single column enables the entire two-tier hierarchy (max depth = 1 parent)
+| # | Notification | Recipient | Trigger |
+|---|---|---|---|
+| 1 | New affiliate recruited | Tier 2 (recruiter) | Affiliate signs up via `?ref=CODE` |
+| 2 | Tier 2 customer signup | Tier 2 (recruiter) | Customer signs up via a recruited affiliate's link |
+| 3 | Commission type distinction | Both tiers | Payment — emails should say "direct" vs "network" and "first" vs "recurring" |
+| 4 | Payout threshold reached | Either tier | `total_earned` crosses minimum payout amount |
 
-**B. Add `commission_type` column to `affiliate_commissions` table**
-- `commission_type text NOT NULL DEFAULT 'tier1_first'` — values: `tier1_first`, `tier1_recurring`, `tier2_first`, `tier2_recurring`
-- Enables the dashboard to distinguish earning sources
+**Additional notifications you didn't mention (recommended):**
+- **Monthly earnings summary** — scheduled digest with total earned, new referrals, network growth
+- **Payout threshold reached** — "You've earned enough to request a payout!"
 
-**C. Add `is_first_payment` tracking**
-- Add `payment_count` column to `affiliate_referrals` (default 0) to distinguish first vs recurring payments
-- Increment on each successful payment
+### Changes
 
-#### 2. Commission Logic Update (`paystack-webhook`)
+#### 1. New Email Templates (in `send-email/index.ts`)
 
-Current: flat 20% on all payments.
+**A. `affiliate_new_recruit`** — Sent to Tier 2 affiliate when someone they recruited becomes an affiliate
+- Data: recruited affiliate's name/code
+- CTA: "View My Network" → dashboard
 
-New logic per payment:
+**B. `affiliate_network_referral`** — Sent to Tier 2 affiliate when a customer signs up via their recruited affiliate
+- Data: which affiliate brought the customer
+- CTA: "View Network Earnings" → dashboard
 
-```text
-1. Look up direct affiliate (Tier 1)
-2. Check if this is the customer's first payment (payment_count = 0)
-3. Tier 1 commission:
-   - First payment: 20%
-   - Recurring: 5%
-4. Look up Tier 1 affiliate's `recruited_by` → Tier 2 affiliate
-5. If Tier 2 exists:
-   - First payment: 5%
-   - Recurring: 3%
-6. Insert commission records with appropriate `commission_type`
-7. Increment `total_earned` for both affiliates
-8. Increment `payment_count` on the referral
-```
+**C. Update `affiliate_commission_earned`** — Add tier/type context
+- Show whether it's "Direct commission" or "Network commission"
+- Show whether it's "First payment bonus (20%)" or "Lifetime share (5%)" etc.
+- Data: `commission_type` (`tier1_first`, `tier1_recurring`, `tier2_first`, `tier2_recurring`), `commission_amount`, `payment_amount`
 
-#### 3. Affiliate Signup — Recruitment Tracking
+**D. `affiliate_payout_threshold`** — Sent when earnings cross the minimum payout threshold
+- CTA: "Request Payout" → dashboard
 
-**A. Add recruitment link support**
-- Affiliates get a second link: `trybrandie.lovable.app/affiliate/signup?ref=AFFILIATE_CODE`
-- When a new affiliate signs up via this link, set `recruited_by` to the recruiting affiliate's ID
+#### 2. Trigger Points
 
-**B. Update `AffiliateSignup.tsx`**
-- Read `ref` query param
-- On affiliate record creation, look up the recruiting affiliate and set `recruited_by`
+**A. `AffiliateSignup.tsx`** — After creating affiliate record with `recruited_by`:
+- Look up the recruiting affiliate's email
+- Send `affiliate_new_recruit` to them
 
-#### 4. Dashboard Enhancements (`AffiliateDashboard.tsx`)
+**B. `paystack-webhook/index.ts`** — Already sends Tier 1 and Tier 2 commission emails. Updates needed:
+- Pass `commission_type` to the email so it shows tier context
+- After Tier 2 commission, check if `total_earned` crossed payout threshold → send `affiliate_payout_threshold`
+- Same check for Tier 1
 
-**A. Stats cards update**
-- Split earnings display: "Direct Earnings" vs "Network Earnings"
-- Show recruited affiliates count
+**C. `handle_new_user` trigger or webhook** — When a customer signs up with an `affiliate_code`:
+- The existing flow already sends `affiliate_new_referral` to the direct affiliate
+- NEW: Look up the direct affiliate's `recruited_by` → send `affiliate_network_referral` to the Tier 2 affiliate
 
-**B. New "My Network" tab/section**
-- List of affiliates recruited by this user
-- Each row: affiliate code (masked), status, referrals count, your Tier 2 earnings from them
+#### 3. Network Referral Notification
 
-**C. Commission table update**
-- Add "Type" column showing tier/type badge (Tier 1 First, Tier 1 Recurring, Tier 2 First, Tier 2 Recurring)
+The `handle_new_user` DB trigger currently creates the `affiliate_referrals` row but doesn't send emails (that happens elsewhere). The best place to add the Tier 2 customer signup notification is in the `paystack-webhook` — on first payment, notify the Tier 2 affiliate that a new customer in their network made their first purchase. This is already partially done but needs the network referral email added.
 
-**D. Recruitment link section**
-- New card with the affiliate recruitment link + copy/share buttons
-
-#### 5. Affiliate Signup Page Updates
-
-- Update benefit cards to mention two-tier earnings: "Earn 20% on first payments, 5% lifetime, plus second-tier commissions"
-- Add a "Recruit Affiliates" benefit card
-
-#### 6. Admin Visibility
-
-- No admin panel changes strictly required — existing admin views already show all affiliates and commissions
-- The `commission_type` column will naturally appear in commission records
-
-### Technical Details
-
-- **Migration**: 1 SQL migration adding `recruited_by` to `affiliates`, `commission_type` to `affiliate_commissions`, `payment_count` to `affiliate_referrals`
-- **Edge function**: Update `paystack-webhook/index.ts` with the tiered commission calculation
-- **Frontend**: Update `AffiliateDashboard.tsx` (network section, commission types), `AffiliateSignup.tsx` (recruitment link handling)
-- **No new tables** — extends existing schema
-- **Guardrail**: Only 2 tiers max enforced by design (single `recruited_by` column, no recursive lookups)
+Alternatively, add a lightweight check in the signup flow (client-side `AffiliateSignup.tsx` or a new edge function) to notify Tier 2 when a new customer signs up via a recruited affiliate's link.
 
 ### Files Changed
 
 | File | Change |
-|------|--------|
-| New migration SQL | Add 3 columns across 3 tables |
-| `supabase/functions/paystack-webhook/index.ts` | Tiered commission logic |
-| `src/pages/AffiliateDashboard.tsx` | Network tab, commission types, recruitment link |
-| `src/pages/AffiliateSignup.tsx` | Read `ref` param, set `recruited_by` |
+|---|---|
+| `supabase/functions/send-email/index.ts` | Add 3 new templates, update commission template with tier context |
+| `supabase/functions/paystack-webhook/index.ts` | Pass `commission_type` to emails, add payout threshold check, add Tier 2 network referral notification on first payment |
+| `src/pages/AffiliateSignup.tsx` | Send `affiliate_new_recruit` email to recruiting affiliate on signup |
+
+### Suggested Additional Notifications (Phase 2)
+
+- **Monthly earnings digest** — pg_cron job summarizing the month's affiliate performance
+- **Affiliate milestone badges** — "You've earned ₦50,000!" celebration emails
 
