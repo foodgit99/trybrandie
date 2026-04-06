@@ -542,6 +542,7 @@ export type Database = {
       content_ideas: {
         Row: {
           autopilot: boolean
+          autopilot_status: string | null
           brand_id: string
           campaign_id: string | null
           content_format: string
@@ -559,6 +560,7 @@ export type Database = {
         }
         Insert: {
           autopilot?: boolean
+          autopilot_status?: string | null
           brand_id: string
           campaign_id?: string | null
           content_format?: string
@@ -576,6 +578,7 @@ export type Database = {
         }
         Update: {
           autopilot?: boolean
+          autopilot_status?: string | null
           brand_id?: string
           campaign_id?: string | null
           content_format?: string
