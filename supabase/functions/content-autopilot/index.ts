@@ -270,10 +270,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[autopilot] Done. Processed: ${processed}, Skipped: ${skipped}`);
+    console.log(`[autopilot] Done (${deliveryWindow}). Processed: ${processed}, Skipped: ${skipped}`);
 
     return new Response(
-      JSON.stringify({ processed, skipped, total: ideas.length }),
+      JSON.stringify({ processed, skipped, total: filteredIdeas.length, delivery_time: deliveryWindow }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
