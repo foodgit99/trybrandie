@@ -79,12 +79,12 @@ Deno.serve(async (req) => {
 
     console.log(`[autopilot] ${filteredIdeas.length} ideas match delivery_time=${deliveryWindow}`);
 
-    console.log(`[autopilot] Found ${ideas.length} ideas to process`);
+    console.log(`[autopilot] Found ${filteredIdeas.length} ideas to process`);
 
     let processed = 0;
     let skipped = 0;
 
-    for (const idea of ideas) {
+    for (const idea of filteredIdeas) {
       try {
         // Load brand
         const { data: brand } = await supabase
