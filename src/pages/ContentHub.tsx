@@ -1076,6 +1076,53 @@ const ContentHub = () => {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                {/* Autopilot Settings */}
+                <Card className={`border transition-colors ${autopilotAll ? "border-primary/40 bg-primary/[0.04]" : "border-border/60"}`}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`flex items-center justify-center h-7 w-7 rounded-lg ${autopilotAll ? "bg-primary/15" : "bg-muted"} transition-colors`}>
+                          <Zap className={`h-3.5 w-3.5 ${autopilotAll ? "text-primary" : "text-muted-foreground"} transition-colors`} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">Autopilot</p>
+                          <p className="text-[11px] text-muted-foreground leading-tight">
+                            Brandie will automatically create and email your designs on scheduled days
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={autopilotAll}
+                        onCheckedChange={(checked) => {
+                          setAutopilotAll(checked);
+                          toast({
+                            title: checked ? "Autopilot enabled" : "Autopilot disabled",
+                            description: checked
+                              ? "New ideas will have autopilot enabled by default"
+                              : "New ideas will no longer auto-generate",
+                          });
+                        }}
+                      />
+                    </div>
+                    {autopilotAll && (
+                      <div className="flex items-center gap-3 pl-9.5">
+                        <Label htmlFor="delivery-time" className="text-xs text-muted-foreground whitespace-nowrap">
+                          Delivery time
+                        </Label>
+                        <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                          <SelectTrigger id="delivery-time" className="h-8 text-xs w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="morning">🌅 Morning (6 AM)</SelectItem>
+                            <SelectItem value="afternoon">☀️ Afternoon (12 PM)</SelectItem>
+                            <SelectItem value="evening">🌙 Evening (6 PM)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
                 <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
                     <ChevronLeft className="h-4 w-4" />
