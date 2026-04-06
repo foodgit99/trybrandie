@@ -2,10 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import brandConsistency from "@/assets/landing-brand-consistency.jpg";
-import contentHub from "@/assets/landing-content-hub.jpg";
+import brandConsistency from "@/assets/landing-brand.jpg";
+import contentHub from "@/assets/landing-content.jpg";
 import carouselPreview from "@/assets/landing-carousel.jpg";
-import aiIntelligence from "@/assets/landing-ai-intelligence.jpg";
+import aiIntelligence from "@/assets/landing-ai.jpg";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -15,6 +15,21 @@ const fadeUp = {
     transition: { duration: 0.6, delay: i * 0.12, ease: "easeOut" as const },
   }),
 };
+
+const ShowcaseImage = ({ src, alt, direction = "right" }: { src: string; alt: string; direction?: "left" | "right" }) => (
+  <motion.div
+    initial={{ opacity: 0, x: direction === "right" ? 30 : -30 }}
+    whileInView={{ opacity: 1, x: 0 }}
+    viewport={{ once: true, margin: "-80px" }}
+    transition={{ duration: 0.6 }}
+    className={direction === "left" ? "order-2 md:order-1" : ""}
+  >
+    <div className="relative">
+      <div className="absolute -inset-3 rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent blur-xl pointer-events-none" />
+      <img src={src} alt={alt} className="relative w-full rounded-2xl border border-border shadow-lg" loading="lazy" />
+    </div>
+  </motion.div>
+);
 
 const LandingShowcase = () => {
   const navigate = useNavigate();
@@ -37,14 +52,7 @@ const LandingShowcase = () => {
               </Button>
             </motion.div>
           </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6 }}
-          >
-            <img src={brandConsistency} alt="Brand Centre dashboard with colours, typography, and tone settings" className="w-full rounded-2xl border border-border shadow-lg" loading="lazy" />
-          </motion.div>
+          <ShowcaseImage src={brandConsistency} alt="Brand Centre dashboard with colours, typography, and tone settings" />
         </div>
       </section>
 
@@ -52,15 +60,7 @@ const LandingShowcase = () => {
       <section className="bg-secondary/30 border-y border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-8 py-20 sm:py-28">
           <div className="grid md:grid-cols-2 gap-10 sm:gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.6 }}
-              className="order-2 md:order-1"
-            >
-              <img src={contentHub} alt="Content Hub calendar with AI-generated ideas and content pillars" className="w-full rounded-2xl border border-border shadow-lg" loading="lazy" />
-            </motion.div>
+            <ShowcaseImage src={contentHub} alt="Content Hub calendar with AI-generated ideas and content pillars" direction="left" />
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} className="space-y-5 order-1 md:order-2">
               <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
                 Plan, create, and schedule — all in one place
@@ -96,14 +96,7 @@ const LandingShowcase = () => {
               </Button>
             </motion.div>
           </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6 }}
-          >
-            <img src={carouselPreview} alt="Multi-slide carousel preview with Hook, Problem, Solution, Proof, CTA flow" className="w-full rounded-2xl border border-border shadow-lg" loading="lazy" />
-          </motion.div>
+          <ShowcaseImage src={carouselPreview} alt="Multi-slide carousel preview with Hook, Problem, Solution, Proof, CTA flow" />
         </div>
       </section>
 
@@ -118,7 +111,10 @@ const LandingShowcase = () => {
               transition={{ duration: 0.6 }}
               className="order-2 md:order-1"
             >
-              <img src={aiIntelligence} alt="Visual Style Genome with Trend Lab and Audience Intelligence" className="w-full rounded-2xl border border-primary-foreground/10 shadow-lg" loading="lazy" />
+              <div className="relative">
+                <div className="absolute -inset-3 rounded-3xl bg-gradient-to-br from-primary-foreground/10 via-primary-foreground/5 to-transparent blur-xl pointer-events-none" />
+                <img src={aiIntelligence} alt="Visual Style Genome with Trend Lab and Audience Intelligence" className="relative w-full rounded-2xl border border-primary-foreground/10 shadow-lg" loading="lazy" />
+              </div>
             </motion.div>
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} className="space-y-5 order-1 md:order-2">
               <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
