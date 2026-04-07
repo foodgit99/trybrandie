@@ -1205,6 +1205,49 @@ const ContentHub = () => {
                     )}
                   </CardContent>
                 </Card>
+                {/* Autopilot run summary */}
+                {autopilotAll && (() => {
+                  const allIdeas = weeklyIdeas || [];
+                  const autopilotIdeas = allIdeas.filter((i: any) => i.autopilot);
+                  if (autopilotIdeas.length === 0) return null;
+                  const completed = autopilotIdeas.filter((i: any) => i.autopilot_status === "completed").length;
+                  const processing = autopilotIdeas.filter((i: any) => i.autopilot_status === "processing").length;
+                  const failedCredits = autopilotIdeas.filter((i: any) => i.autopilot_status === "failed_no_credits").length;
+                  const failedError = autopilotIdeas.filter((i: any) => i.autopilot_status === "failed_error").length;
+                  const pending = autopilotIdeas.filter((i: any) => !i.autopilot_status || i.autopilot_status === "pending").length;
+                  const failed = failedCredits + failedError;
+                  if (completed === 0 && failed === 0 && processing === 0) return null;
+                  return (
+                    <div className="flex items-center gap-3 flex-wrap text-[11px] px-1">
+                      <span className="text-muted-foreground font-medium">Autopilot this week:</span>
+                      {completed > 0 && (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <Check className="h-3 w-3" /> {completed} created
+                        </span>
+                      )}
+                      {processing > 0 && (
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                          <Loader2 className="h-3 w-3 animate-spin" /> {processing} processing
+                        </span>
+                      )}
+                      {pending > 0 && (
+                        <span className="inline-flex items-center gap-1 text-muted-foreground">
+                          <Zap className="h-3 w-3" /> {pending} queued
+                        </span>
+                      )}
+                      {failedCredits > 0 && (
+                        <span className="inline-flex items-center gap-1 text-destructive">
+                          <AlertTriangle className="h-3 w-3" /> {failedCredits} no credits
+                        </span>
+                      )}
+                      {failedError > 0 && (
+                        <span className="inline-flex items-center gap-1 text-destructive">
+                          <RotateCcw className="h-3 w-3" /> {failedError} retrying
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
                     <ChevronLeft className="h-4 w-4" />
