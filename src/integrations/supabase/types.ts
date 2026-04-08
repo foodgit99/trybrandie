@@ -833,6 +833,7 @@ export type Database = {
           trend_intensity: number | null
           trend_used: string | null
           user_id: string
+          variation_of: string | null
           vote: number | null
         }
         Insert: {
@@ -851,6 +852,7 @@ export type Database = {
           trend_intensity?: number | null
           trend_used?: string | null
           user_id: string
+          variation_of?: string | null
           vote?: number | null
         }
         Update: {
@@ -869,6 +871,7 @@ export type Database = {
           trend_intensity?: number | null
           trend_used?: string | null
           user_id?: string
+          variation_of?: string | null
           vote?: number | null
         }
         Relationships: [
@@ -877,6 +880,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designs_variation_of_fkey"
+            columns: ["variation_of"]
+            isOneToOne: false
+            referencedRelation: "designs"
             referencedColumns: ["id"]
           },
         ]
