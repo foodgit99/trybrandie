@@ -432,7 +432,9 @@ const DesignStudio = () => {
 
     const lockedQuality = renderQuality;
     const baseCost = lockedQuality === "hd" ? 2 : 1;
-    const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
+    const isEdit = !!currentImage && !!currentPrompt;
+    // New generations cost 2x for dual variations; edits stay single
+    const creditCost = isCarouselMode ? baseCost * slideCount : isEdit ? baseCost : baseCost * 2;
 
     if (creditCost > totalAvailable) {
       setShowLimitModal(true);
