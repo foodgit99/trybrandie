@@ -576,9 +576,10 @@ const DesignStudio = () => {
       }
 
       const freeLabel = r.free_edit ? " (free edit — no credit used)" : "";
+      const variationLabel = r.variations && r.variations.length === 2 ? " I've created two visual variations for you — pick your favourite!" : "";
       const assistantMsg: Message = {
         role: "assistant",
-        content: r.explanation + freeLabel,
+        content: r.explanation + freeLabel + variationLabel,
         imageUrl: r.image_url,
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -590,6 +591,16 @@ const DesignStudio = () => {
       setWasRefined(r.refined);
       setShowScores(false);
       setSaved(true);
+
+      // Set up variations
+      if (r.variations && r.variations.length === 2) {
+        setVariations(r.variations);
+        setSelectedVariationIdx(0);
+      } else {
+        setVariations([]);
+        setSelectedVariationIdx(0);
+      }
+
       if (r.design_id) {
         setCurrentDesignId(r.design_id);
         // Mark content idea as created if navigated from Content Hub
