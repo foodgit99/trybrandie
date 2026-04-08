@@ -1951,212 +1951,322 @@ User request: "${userPrompt}"`;
       copyStructure = copyResult;
       captionText = captionResult;
 
-      // --- GENOME SCORING ENGINE (using extracted function) ---
-      let genomeScores: Record<string, number> | null = null;
-      if (genomeData) {
-        genomeScores = computeGenomeScores(genomeData, brand, trend, trend_intensity, copyStructure);
-        console.log("Genome Scores:", JSON.stringify(genomeScores));
-        genomeData._scores = genomeScores;
-
-        // --- DESIGN STABILITY GATE ---
-        let stabilityRefined = false;
-        if (genomeScores.overall < 55) {
-          console.log(`Stability Gate triggered: overall=${genomeScores.overall}, applying deterministic fixes...`);
+      // --- HELPER: Apply stability gate to a genome ---
+      function applyStabilityGate(genome: any, brandData: any, trendId: string | undefined, trendInt: number | undefined, copy: any): { genome: any; scores: Record<string, number> } {
+        let scores = computeGenomeScores(genome, brandData, trendId, trendInt, copy);
+        genome._scores = scores;
+        if (scores.overall < 55) {
+          console.log(`Stability Gate triggered: overall=${scores.overall}`);
           const dimensions = ["brand_alignment", "trend_balance", "visual_clarity", "conversion", "visual_balance"];
-          const weakest = dimensions.reduce((a, b) => (genomeScores![a] < genomeScores![b] ? a : b));
-
+          const weakest = dimensions.reduce((a, b) => (scores[a] < scores[b] ? a : b));
           if (weakest === "visual_clarity") {
-            genomeData.color.contrast = "high";
-            genomeData.typography.hierarchy_logic = "strong_headline_dominance";
-            genomeData.layout.spacing_density = "balanced";
-            genomeData.composition.focal_strategy = "single_focal_point";
-            genomeData.texture.distortion = "none";
+            genome.color.contrast = "high";
+            genome.typography.hierarchy_logic = "strong_headline_dominance";
+            genome.layout.spacing_density = "balanced";
+            genome.composition.focal_strategy = "single_focal_point";
+            genome.texture.distortion = "none";
           } else if (weakest === "brand_alignment") {
             const vibeEmotions: Record<string, string> = { cinematic: "luxurious", minimal: "calm", bold: "energetic", playful: "playful", luxury: "luxurious", corporate: "authoritative" };
-            genomeData.emotion = vibeEmotions[(brand?.vibe || "").toLowerCase()] || genomeData.emotion;
+            genome.emotion = vibeEmotions[(brandData?.vibe || "").toLowerCase()] || genome.emotion;
             const toneFonts: Record<string, string> = { professional: "corporate", humourous: "friendly", formal: "corporate", casual: "friendly", inspirational: "editorial" };
-            genomeData.typography.font_personality = toneFonts[(brand?.tone_of_voice || "").toLowerCase()] || genomeData.typography.font_personality;
+            genome.typography.font_personality = toneFonts[(brandData?.tone_of_voice || "").toLowerCase()] || genome.typography.font_personality;
           } else if (weakest === "conversion") {
-            genomeData.composition.focal_strategy = "single_focal_point";
-            genomeData.typography.hierarchy_logic = "strong_headline_dominance";
-            if (!["energetic", "authoritative", "rebellious"].includes(genomeData.emotion)) genomeData.emotion = "energetic";
+            genome.composition.focal_strategy = "single_focal_point";
+            genome.typography.hierarchy_logic = "strong_headline_dominance";
+            if (!["energetic", "authoritative", "rebellious"].includes(genome.emotion)) genome.emotion = "energetic";
           } else if (weakest === "visual_balance") {
-            genomeData.layout.balance = "asymmetrical";
-            genomeData.composition.layering_depth = "medium";
-            genomeData.layout.spacing_density = "balanced";
+            genome.layout.balance = "asymmetrical";
+            genome.composition.layering_depth = "medium";
+            genome.layout.spacing_density = "balanced";
           }
-
-          genomeData._refined = true;
-          stabilityRefined = true;
-          console.log("Stability Gate: genome refined deterministically for", weakest);
-
-          // Re-compute actual scores after fixes (instead of just +15)
-          genomeScores = computeGenomeScores(genomeData, brand, trend, trend_intensity, copyStructure);
-          console.log("Genome Scores (post-refinement):", JSON.stringify(genomeScores));
-          genomeData._scores = genomeScores;
+          genome._refined = true;
+          scores = computeGenomeScores(genome, brandData, trendId, trendInt, copy);
+          genome._scores = scores;
         }
+        return { genome, scores };
       }
 
-      const copyInjection = copyStructure
-        ? `\n\nEXACT TEXT TO RENDER ON THE DESIGN (use these EXACT words, do NOT modify, rephrase, or add ANY other text):
+      // --- HELPER: Serialize genome into a context string for the image prompt ---
+      function serializeGenomeContext(gd: any): string {
+        if (!gd) return "";
+        return `
+
+VISUAL STYLE GENOME (follow these precise styling instructions):
+- Color: ${gd.color.palette_type.replace(/_/g, " ")} palette, ${gd.color.temperature} temperature, ${gd.color.contrast} contrast, ${gd.color.saturation} saturation, ${gd.color.gradient_logic.replace(/_/g, " ")}
+- Typography: ${gd.typography.font_personality} personality, ${gd.typography.weight_system.replace(/_/g, " ")} weight, ${gd.typography.hierarchy_logic.replace(/_/g, " ")}, ${gd.typography.typography_layout.replace(/_/g, " ")} layout${gd.typography.text_effect !== "none" ? `, ${gd.typography.text_effect.replace(/_/g, " ")} effect` : ""}
+- Layout: ${gd.layout.grid_type.replace(/_/g, " ")}, ${gd.layout.balance} balance, ${gd.layout.spacing_density} density, ${gd.layout.content_ratio.replace(/_/g, " ")}
+- Composition: ${gd.composition.visual_direction} direction, ${gd.composition.focal_strategy.replace(/_/g, " ")}, ${gd.composition.layering_depth.replace(/_/g, " ")} layering
+- Texture: ${gd.texture.texture_type.replace(/_/g, " ")}${gd.texture.texture_type !== "none" ? `, ${gd.texture.intensity} intensity` : ""}${gd.texture.distortion !== "none" ? `, ${gd.texture.distortion} distortion` : ""}
+- Image Style: ${gd.image_style.lighting} lighting, ${gd.image_style.color_grading} grading, ${gd.image_style.framing.replace(/_/g, " ")} framing
+- Emotion: ${gd.emotion}`;
+      }
+
+      // --- HELPER: Re-apply mutation engine to create a genome variant ---
+      function mutateGenomeCopy(source: any): any {
+        const clone = JSON.parse(JSON.stringify(source));
+        // Remove scoring/refined markers from clone
+        delete clone._scores;
+        delete clone._refined;
+        const MUTATION_RATE = 0.35; // Higher rate for variation B to ensure visual difference
+        const freeGeneOptions: Record<string, Record<string, string[]>> = {
+          layout: {
+            grid_type: ["strict_grid", "modular_grid", "broken_grid", "freeform"],
+            balance: ["symmetrical", "asymmetrical", "dynamic"],
+            spacing_density: ["minimal", "balanced", "dense"],
+            content_ratio: ["image_dominant", "text_dominant", "balanced"],
+          },
+          composition: {
+            visual_direction: ["vertical", "horizontal", "diagonal", "radial"],
+            focal_strategy: ["single_focal_point", "dual_focal", "distributed"],
+            layering_depth: ["flat", "medium", "deep_layered"],
+          },
+          texture: {
+            texture_type: ["none", "grain", "paper", "digital_noise", "plastic", "metallic"],
+            intensity: ["subtle", "medium", "heavy"],
+            distortion: ["none", "glitch", "warp", "pixel_sort"],
+          },
+          image_style: {
+            lighting: ["natural", "dramatic", "neon", "soft"],
+            color_grading: ["cinematic", "vintage", "vibrant", "monochrome"],
+            framing: ["close_crop", "wide", "portrait"],
+          },
+        };
+        const semiFlexGeneOptions: Record<string, Record<string, string[]>> = {
+          typography: {
+            weight_system: ["light", "regular", "bold", "ultra_bold"],
+            text_effect: ["none", "outline", "drop_shadow", "gradient", "glitch", "neon"],
+            typography_layout: ["centered", "left_editorial", "split_text", "overlay"],
+          },
+          color: {
+            gradient_logic: ["flat", "soft_gradient", "metallic_gradient", "multi_spectrum"],
+          },
+        };
+        const emotionOptions = ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"];
+
+        let mutationCount = 0;
+        for (const [category, fields] of Object.entries(freeGeneOptions)) {
+          for (const [field, options] of Object.entries(fields)) {
+            if (clone[category] && Math.random() < MUTATION_RATE) {
+              const alts = options.filter((o: string) => o !== clone[category][field]);
+              if (alts.length > 0) { clone[category][field] = alts[Math.floor(Math.random() * alts.length)]; mutationCount++; }
+            }
+          }
+        }
+        for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
+          for (const [field, options] of Object.entries(fields)) {
+            if (clone[category] && Math.random() < MUTATION_RATE / 2) {
+              const alts = options.filter((o: string) => o !== clone[category][field]);
+              if (alts.length > 0) { clone[category][field] = alts[Math.floor(Math.random() * alts.length)]; mutationCount++; }
+            }
+          }
+        }
+        if (Math.random() < MUTATION_RATE / 2) {
+          const alts = emotionOptions.filter((e: string) => e !== clone.emotion);
+          clone.emotion = alts[Math.floor(Math.random() * alts.length)];
+          mutationCount++;
+        }
+        console.log(`Variation B: ${mutationCount} gene(s) mutated`);
+        return clone;
+      }
+
+      // --- HELPER: Render a single image given genome + shared context ---
+      async function renderVariation(
+        varGenome: any,
+        varGenomeScores: Record<string, number> | null,
+        label: string,
+      ): Promise<{ image_url: string; genome: any; genome_scores: Record<string, number> | null; refined: boolean }> {
+        const varGenomeContext = serializeGenomeContext(varGenome);
+        const varCopyInjection = copyStructure
+          ? `\n\nEXACT TEXT TO RENDER ON THE DESIGN (use these EXACT words, do NOT modify, rephrase, or add ANY other text):
 - Headline: "${copyStructure.headline}"${copyStructure.subheadline ? `\n- Subheadline: "${copyStructure.subheadline}"` : ""}${copyStructure.cta ? `\n- CTA: "${copyStructure.cta}"` : ""}${copyStructure.supporting_text ? `\n- Supporting text: "${copyStructure.supporting_text}"` : ""}
 CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any text. Every word on the graphic must match exactly.`
-        : "";
+          : "";
 
-      // Build image generation content
-      const userImageInstruction = user_image_url
-        ? ` CRITICAL: The user has provided a reference image (attached). Incorporate it into the design EXACTLY as the user describes. This image is the PRIMARY visual reference and must be used prominently.`
-        : "";
-      const dimensionEnforcement = size === "1080x1080"
-        ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be PERFECTLY SQUARE — equal width and height (1:1 aspect ratio). The canvas is 1080x1080 pixels. Do NOT create a landscape or portrait image. It MUST be a SQUARE."
-        : size === "1080x1920"
-        ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be TALL PORTRAIT format — 9:16 aspect ratio (1080x1920 pixels). It must be significantly taller than it is wide. Do NOT create a landscape or square image."
-        : "CRITICAL DIMENSION REQUIREMENT: This image MUST be WIDE LANDSCAPE format — 16:9 aspect ratio (1920x1080 pixels). It must be significantly wider than it is tall. Do NOT create a square or portrait image.";
+        const userImageInstruction = user_image_url
+          ? ` CRITICAL: The user has provided a reference image (attached). Incorporate it into the design EXACTLY as the user describes. This image is the PRIMARY visual reference and must be used prominently.`
+          : "";
+        const dimensionEnforcement = size === "1080x1080"
+          ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be PERFECTLY SQUARE — equal width and height (1:1 aspect ratio). The canvas is 1080x1080 pixels. Do NOT create a landscape or portrait image. It MUST be a SQUARE."
+          : size === "1080x1920"
+          ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be TALL PORTRAIT format — 9:16 aspect ratio (1080x1920 pixels). It must be significantly taller than it is wide. Do NOT create a landscape or square image."
+          : "CRITICAL DIMENSION REQUIREMENT: This image MUST be WIDE LANDSCAPE format — 16:9 aspect ratio (1920x1080 pixels). It must be significantly wider than it is tall. Do NOT create a square or portrait image.";
 
-      const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${copyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${genomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""}`;
+        const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${varCopyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${varGenomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
 
-      // Collect all image references
-      const imageRefs: { type: string; image_url: { url: string } }[] = [];
-      if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
-      if (user_image_url) imageRefs.push({ type: "image_url", image_url: { url: user_image_url } });
-      if (action === "edit" && previous_image_url) imageRefs.push({ type: "image_url", image_url: { url: previous_image_url } });
-      for (const inspUrl of inspirationUrls.slice(0, 2)) {
-        imageRefs.push({ type: "image_url", image_url: { url: inspUrl } });
-      }
-      const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
-      const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
-      if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
-        for (const prodUrl of productImageUrls.slice(0, 2)) {
-          imageRefs.push({ type: "image_url", image_url: { url: prodUrl } });
+        // Collect all image references
+        const imageRefs: { type: string; image_url: { url: string } }[] = [];
+        if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
+        if (user_image_url) imageRefs.push({ type: "image_url", image_url: { url: user_image_url } });
+        if (action === "edit" && previous_image_url) imageRefs.push({ type: "image_url", image_url: { url: previous_image_url } });
+        for (const inspUrl of inspirationUrls.slice(0, 2)) {
+          imageRefs.push({ type: "image_url", image_url: { url: inspUrl } });
         }
-        console.log(`Product images injected: ${Math.min(2, productImageUrls.length)} (prompt matched product context)`);
-      }
-
-      const imageContent = imageRefs.length > 0
-        ? [
-            { type: "text", text: imagePromptText + (action === "edit" && previous_image_url ? " EDIT: Keep the overall layout similar to the previous design but apply the user's changes." : "") },
-            ...imageRefs,
-          ]
-        : imagePromptText;
-
-      // Image Renderer (with retry)
-      const imageResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
-          messages: [
-            {
-              role: "user",
-              content: imageContent,
-            },
-          ],
-          modalities: ["image", "text"],
-        }),
-      });
-
-      if (!imageResponse.ok) {
-        if (imageResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (imageResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in workspace settings." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        const errText = await imageResponse.text();
-        console.error("Image generation error:", imageResponse.status, errText);
-        throw new Error("Failed to generate image");
-      }
-
-      let imageBase64: string | undefined;
-
-      // Retry up to 2 more times if model returns no image (text-only response)
-      const maxImageRetries = 2;
-      let imageAttempt = 0;
-      let lastImageData: any = null;
-
-      while (imageAttempt <= maxImageRetries) {
-        let resp: Response;
-        if (imageAttempt === 0) {
-          // Use the already-fetched response on first attempt
-          resp = imageResponse;
-        } else {
-          console.log(`Image retry ${imageAttempt}/${maxImageRetries}: model returned no image, retrying...`);
-          await new Promise(r => setTimeout(r, 1500 * imageAttempt));
-          resp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
-              messages: [{ role: "user", content: imageContent }],
-              modalities: ["image", "text"],
-            }),
-          });
-          if (!resp.ok) {
-            console.error(`Image retry ${imageAttempt} failed with status ${resp.status}`);
-            imageAttempt++;
-            continue;
+        const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
+        const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
+        if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
+          for (const prodUrl of productImageUrls.slice(0, 2)) {
+            imageRefs.push({ type: "image_url", image_url: { url: prodUrl } });
           }
         }
 
-        lastImageData = await resp.json();
-        imageBase64 = lastImageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        if (imageBase64) break;
+        const imageContent = imageRefs.length > 0
+          ? [
+              { type: "text", text: imagePromptText + (action === "edit" && previous_image_url ? " EDIT: Keep the overall layout similar to the previous design but apply the user's changes." : "") },
+              ...imageRefs,
+            ]
+          : imagePromptText;
 
-        console.warn(`Image attempt ${imageAttempt}: no image in response. Text: ${lastImageData.choices?.[0]?.message?.content?.substring(0, 200)}`);
-        imageAttempt++;
-      }
+        // Image Renderer (with retry)
+        const imageResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+            messages: [{ role: "user", content: imageContent }],
+            modalities: ["image", "text"],
+          }),
+        });
 
-      if (!imageBase64) {
-        console.error("All image generation attempts returned no image. Last response:", JSON.stringify(lastImageData?.choices?.[0]?.message || {}).substring(0, 500));
-        throw new Error("No image was generated. The AI model returned text instead of an image. Please try again or simplify your prompt.");
-      }
-
-      let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-      let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-
-      // --- POST-PROCESS: Log actual dimensions from PNG header ---
-      const targetW = parseInt(w);
-      const targetH = parseInt(h);
-      try {
-        if (binaryData.length > 24 && binaryData[1] === 0x50 && binaryData[2] === 0x4E && binaryData[3] === 0x47) {
-          const view = new DataView(binaryData.buffer, binaryData.byteOffset, binaryData.byteLength);
-          const actualW = view.getUint32(16, false);
-          const actualH = view.getUint32(20, false);
-          console.log(`Generated image dimensions: ${actualW}x${actualH}, target: ${targetW}x${targetH}`);
+        if (!imageResponse.ok) {
+          if (imageResponse.status === 429) throw new Error("RATE_LIMIT");
+          if (imageResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
+          const errText = await imageResponse.text();
+          console.error(`Render ${label} error:`, imageResponse.status, errText);
+          throw new Error(`Failed to generate image (variation ${label})`);
         }
-      } catch (dimErr) {
-        console.error("Dimension check failed:", dimErr);
+
+        // Retry loop for no-image responses
+        let imageBase64: string | undefined;
+        const maxImageRetries = 2;
+        let imageAttempt = 0;
+        let lastImageData: any = null;
+
+        while (imageAttempt <= maxImageRetries) {
+          let resp: Response;
+          if (imageAttempt === 0) {
+            resp = imageResponse;
+          } else {
+            console.log(`Render ${label} retry ${imageAttempt}/${maxImageRetries}`);
+            await new Promise(r => setTimeout(r, 1500 * imageAttempt));
+            resp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+                messages: [{ role: "user", content: imageContent }],
+                modalities: ["image", "text"],
+              }),
+            });
+            if (!resp.ok) { imageAttempt++; continue; }
+          }
+          lastImageData = await resp.json();
+          imageBase64 = lastImageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          if (imageBase64) break;
+          imageAttempt++;
+        }
+
+        if (!imageBase64) throw new Error(`No image generated for variation ${label}`);
+
+        let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+        const filePath = `${user.id}/${crypto.randomUUID()}.png`;
+        const { error: uploadError } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
+        if (uploadError) throw new Error(`Failed to save image (variation ${label})`);
+        const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
+
+        return {
+          image_url: urlData.publicUrl,
+          genome: varGenome,
+          genome_scores: varGenomeScores,
+          refined: varGenome?._refined === true,
+        };
       }
 
-      const filePath = `${user.id}/${crypto.randomUUID()}.png`;
+      // --- DUAL VARIATION LOGIC ---
+      const isNewGeneration = action === "generate";
 
-      const { error: uploadError } = await adminClient.storage
-        .from("designs")
-        .upload(filePath, binaryData, { contentType: "image/png" });
+      if (isNewGeneration && genomeData) {
+        // Score + stabilize variation A (the original genome)
+        const resultA = applyStabilityGate(genomeData, brand, trend, trend_intensity, copyStructure);
+        console.log("Variation A Genome Scores:", JSON.stringify(resultA.scores));
 
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw new Error("Failed to save generated image");
+        // Create variation B by re-mutating a clone of the original genome
+        const genomeDataB = mutateGenomeCopy(genomeData);
+        // Re-apply brand locks to variation B
+        if (brand) {
+          if (brand.primary_colors && brand.primary_colors.length > 0) {
+            const colorAnalysis = analyzeBrandColors(brand.primary_colors);
+            genomeDataB.color.temperature = colorAnalysis.temperature;
+          }
+          if (brand.typography_primary) {
+            const mappedPersonality = mapFontToPersonality(brand.typography_primary);
+            if (mappedPersonality) genomeDataB.typography.font_personality = mappedPersonality;
+          }
+        }
+        const resultB = applyStabilityGate(genomeDataB, brand, trend, trend_intensity, copyStructure);
+        console.log("Variation B Genome Scores:", JSON.stringify(resultB.scores));
+
+        // Render both in parallel
+        const renderSpan = tracer.startSpan("dual-render");
+        const [variationA, variationB] = await Promise.all([
+          renderVariation(resultA.genome, resultA.scores, "A"),
+          renderVariation(resultB.genome, resultB.scores, "B"),
+        ]);
+        renderSpan.finish();
+
+        // Log trace
+        tracer.log();
+        try {
+          const summary = tracer.summary();
+          await adminClient.from("design_traces").insert({
+            run_id: tracer.runId,
+            user_id: user.id,
+            spans: summary.spans,
+            total_latency_ms: summary.total_latency_ms,
+            total_input_tokens: summary.total_input_tokens,
+            total_output_tokens: summary.total_output_tokens,
+            error: summary.error_count > 0 ? JSON.stringify(tracer.getSpans().filter(s => s.status === "error").map(s => s.error)) : null,
+          });
+        } catch (traceErr) {
+          console.error("Failed to persist trace:", traceErr);
+        }
+
+        return new Response(
+          JSON.stringify({
+            image_url: variationA.image_url,
+            explanation,
+            design_prompt: designPrompt,
+            free_edit: isFreeEdit,
+            ...(copyStructure ? { copy_structure: copyStructure } : {}),
+            ...(genomeData ? { genome: variationA.genome } : {}),
+            ...(variationA.genome_scores ? { genome_scores: variationA.genome_scores } : {}),
+            refined: variationA.refined,
+            ...(captionText ? { caption: captionText } : {}),
+            run_id: tracer.runId,
+            variations: [
+              { image_url: variationA.image_url, genome: variationA.genome, genome_scores: variationA.genome_scores },
+              { image_url: variationB.image_url, genome: variationB.genome, genome_scores: variationB.genome_scores },
+            ],
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
-      const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
+      // --- SINGLE VARIATION (edits, or no genome) ---
+      let genomeScores: Record<string, number> | null = null;
+      if (genomeData) {
+        const stabilized = applyStabilityGate(genomeData, brand, trend, trend_intensity, copyStructure);
+        genomeScores = stabilized.scores;
+      }
 
-      const wasRefined = genomeData?._refined === true;
+      const singleResult = await renderVariation(genomeData, genomeScores, "A");
 
-      // Log structured trace for observability
+      // Log trace
       tracer.log();
-
-      // Persist trace to design_traces table
       try {
         const summary = tracer.summary();
         await adminClient.from("design_traces").insert({
@@ -2174,14 +2284,14 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       return new Response(
         JSON.stringify({
-          image_url: urlData.publicUrl,
+          image_url: singleResult.image_url,
           explanation,
           design_prompt: designPrompt,
           free_edit: isFreeEdit,
           ...(copyStructure ? { copy_structure: copyStructure } : {}),
           ...(genomeData ? { genome: genomeData } : {}),
           ...(genomeScores ? { genome_scores: genomeScores } : {}),
-          refined: wasRefined,
+          refined: singleResult.refined,
           ...(captionText ? { caption: captionText } : {}),
           run_id: tracer.runId,
         }),
