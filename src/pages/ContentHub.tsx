@@ -227,6 +227,30 @@ const ContentHub = () => {
     queryClient.invalidateQueries({ queryKey: ["autopilot-settings", brandId] });
   };
 
+  const [runningAutopilot, setRunningAutopilot] = useState(false);
+  const triggerAutopilotNow = async () => {
+    if (!brandId || runningAutopilot) return;
+    setRunningAutopilot(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("content-autopilot", {
+        body: { delivery_time: deliveryTime },
+      });
+      toast({
+        title: data?.processed > 0 ? `✅ ${data.processed} design${data.processed > 1 ? "s" : ""} created` : "No ideas to process",
+        description: data?.processed > 0
+          ? "Check your calendar for the new designs"
+          : data?.total === 0
+            ? "No autopilot ideas are scheduled for today"
+            : `${data?.skipped || 0} skipped, ${data?.errors || 0} errors`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+    } catch (e) {
+      toast({ title: "Autopilot run failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRunningAutopilot(false);
+    }
+  };
+
   const { data: pillars, isLoading: pillarsLoading } = useQuery({
     queryKey: ["content-pillars", brandId],
     queryFn: async () => {
