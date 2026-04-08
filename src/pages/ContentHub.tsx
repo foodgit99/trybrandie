@@ -1227,6 +1227,20 @@ const ContentHub = () => {
                       </div>
                       </>
                     )}
+                    {autopilotAll && (
+                      <div className="flex items-center gap-2 pl-9.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          disabled={runningAutopilot}
+                          onClick={triggerAutopilotNow}
+                        >
+                          {runningAutopilot ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                          Run Autopilot Now
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 {/* Autopilot run summary */}
