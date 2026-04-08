@@ -1,53 +1,75 @@
 
 
-## Plan: Fill All Autopilot Gaps
+## Plan: Dual Design Variations (Same Copy, Two Visual Treatments)
 
-After reviewing the full autopilot system, here are the gaps identified and the plan to address each.
+### How It Works
 
-### Identified Gaps
+The system generates **one copy structure** (headline, subheadline, CTA) and then branches into **two genome/render passes** — producing two visually distinct designs with identical text. The user picks their preferred variation.
 
-1. **No retry mechanism** — Ideas that fail (no credits, design-studio errors) stay in `suggested`/`scheduled` status forever and are never retried since the function filters by `scheduled_for = today`
-2. **No visual failure indicator on calendar cards** — Users have no in-app way to know an autopilot idea failed
-3. **No status tracking for autopilot failures** — The `content_ideas` table has no way to record that autopilot attempted but failed
-4. **Input validation missing** — The edge function doesn't validate its input per best practices
-5. **No duplicate-run guard** — If the cron fires twice (or function is invoked manually), ideas could be processed again
-6. **Master autopilot toggle doesn't cascade** — Toggling "Enable Autopilot for all new ideas" only affects new ideas; no way to bulk-enable existing ideas
+### Cost & Credits
 
----
+- Charges **2 credits** per generation (1 per variation) — or 1.5 if you prefer a discount model
+- The shared pipeline stages (context assembly, brief, copywriter, caption) run **once**
+- Only the genome composition + image render run **twice**
 
-### Implementation Plan
+### Implementation
 
-#### Step 1 — Database Migration
+#### Step 1 — Edge Function (`design-studio/index.ts`)
 
-Add a column to `content_ideas` to track autopilot failure:
+In the `action === "generate"` branch, after the copywriter and caption agents complete (line ~1948):
 
-```sql
-ALTER TABLE content_ideas 
-  ADD COLUMN autopilot_status text DEFAULT NULL;
--- Values: NULL (not attempted), 'pending', 'processing', 'completed', 'failed_no_credits', 'failed_error'
+- **Run the Genome Composer twice** with different random seeds (the mutation engine already uses `Math.random()`, so two calls naturally produce different genomes)
+- **Run two image renders in parallel** — each with a different genome context but the same copy injection, brand context, and brief
+- **Upload both images** to storage
+- **Return both variations** in the response:
+
+```json
+{
+  "image_url": "variation_a_url",
+  "variations": [
+    { "image_url": "...", "genome": {...}, "genome_scores": {...} },
+    { "image_url": "...", "genome": {...}, "genome_scores": {...} }
+  ],
+  "copy_structure": { ... },
+  "caption": "...",
+  "explanation": "...",
+  "design_prompt": "..."
+}
 ```
 
-#### Step 2 — Update Edge Function (`content-autopilot/index.ts`)
+- `image_url` remains the first variation (backwards compatible)
+- Credit deduction changes from `1` to `2` for standard quality, `2` to `4` for HD
+- The edit flow (`action === "edit"`) stays single-variation (no change)
 
-- **Mark ideas as `processing`** at the start of each idea loop (prevents duplicate runs)
-- **Filter out** ideas already in `processing` or `completed` autopilot_status
-- **On failure**: set `autopilot_status` to `failed_no_credits` or `failed_error`
-- **On success**: set `autopilot_status` to `completed`
-- **Retry logic**: Also query ideas where `autopilot_status IN ('failed_no_credits', 'failed_error')` and `scheduled_for` is within the last 3 days (gives a retry window)
-- **Add input validation** with basic checks on the `delivery_time` parameter
+#### Step 2 — Generation Context (`DesignGenerationContext.tsx`)
 
-#### Step 3 — UI: Failure Badge on Calendar Cards (`ContentHub.tsx`)
+- Add `variations` array to the `GenerationResult` interface
+- Update the `startGeneration` callback to handle the new response shape
+- When auto-saving: save variation A as the primary design, save variation B as a linked design (same `title` with " (B)" suffix, or a `variation_of` column)
 
-- Show a red warning badge on idea cards where `autopilot_status` starts with `failed`
-  - `failed_no_credits` → "⚠️ No credits" badge with tooltip
-  - `failed_error` → "⚠️ Failed" badge with tooltip
-- Show a green check badge for `autopilot_status = 'completed'`
-- Add a "Retry" button on failed cards that resets `autopilot_status` to `pending` and updates `scheduled_for` to today
+#### Step 3 — Database Migration
 
-#### Step 4 — Bulk Toggle for Existing Ideas
+Add a column to link variations:
 
-- When the master autopilot toggle is turned ON, prompt the user: "Enable autopilot for all existing scheduled ideas this week?"
-- If confirmed, batch-update all `weeklyIdeas` to set `autopilot = true`
+```sql
+ALTER TABLE designs ADD COLUMN variation_of uuid REFERENCES designs(id) ON DELETE SET NULL;
+```
+
+This lets variation B point to variation A, keeping the design history clean.
+
+#### Step 4 — Design Studio UI (`DesignStudio.tsx`)
+
+- When `result.variations` exists (length 2), show a **variation picker** below the canvas:
+  - Two thumbnail cards side by side (A and B)
+  - Clicking a thumbnail swaps the main canvas image
+  - The selected variation's genome and scores are displayed
+- The "Download" and "Edit" actions apply to the currently selected variation
+- Subsequent edits work on the selected variation's design ID
+
+#### Step 5 — Autopilot (`content-autopilot/index.ts`)
+
+- Autopilot continues generating **single variations** (no change) to keep credit costs predictable for background tasks
+- A future enhancement could let users opt into dual variations for autopilot
 
 ---
 
@@ -55,15 +77,14 @@ ALTER TABLE content_ideas
 
 | File | Change |
 |---|---|
-| Migration SQL | Add `autopilot_status` column to `content_ideas` |
-| `supabase/functions/content-autopilot/index.ts` | Processing guard, failure tracking, retry window, input validation |
-| `src/pages/ContentHub.tsx` | Failure/success badges on cards, retry button, bulk toggle prompt |
-| `src/integrations/supabase/types.ts` | Auto-updated with new column |
+| `supabase/functions/design-studio/index.ts` | Duplicate genome + render for `generate` action, return `variations` array, double credit cost |
+| `src/contexts/DesignGenerationContext.tsx` | Add `variations` to `GenerationResult`, handle new response shape |
+| Migration SQL | Add `variation_of` column to `designs` |
+| `src/pages/DesignStudio.tsx` | Variation picker UI (two thumbnails below canvas) |
 
-### Technical Details
+### Performance Notes
 
-- The retry window (3 days) ensures failed ideas get re-attempted on subsequent cron runs without manual intervention
-- The `processing` status acts as a mutex to prevent duplicate processing if cron fires twice
-- The retry specifically re-checks credit availability, so `failed_no_credits` ideas auto-resolve when credits are topped up
-- Badge colors: red for failures, green for completed, amber for processing
+- Two renders run **in parallel** (`Promise.all`), so latency increases by only ~10-15% (not 2x)
+- The shared stages (brief, copywriter, caption, context assembly) are unchanged
+- Net token cost increase: ~1.4-1.5x (genome composer is deterministic/free, only the render calls double)
 
