@@ -1,0 +1,1 @@
+ALTER TABLE public.designs ADD COLUMN variation_of uuid REFERENCES public.designs(id) ON DELETE SET NULL;

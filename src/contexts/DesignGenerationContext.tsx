@@ -3,6 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type GenerationStatus = "idle" | "generating" | "complete" | "error";
 
+export interface DesignVariation {
+  image_url: string;
+  genome: any;
+  genome_scores: Record<string, number> | null;
+  design_id?: string | null;
+}
+
 export interface GenerationResult {
   image_url: string;
   design_id: string | null;
@@ -15,6 +22,7 @@ export interface GenerationResult {
   free_edit: boolean;
   carousel_id?: string;
   slides?: Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>;
+  variations?: DesignVariation[];
 }
 
 export interface GenerationParams {
@@ -264,6 +272,35 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           }
         }
 
+        // Save variation B if present
+        let variations: DesignVariation[] | undefined;
+        if (data.variations && data.variations.length === 2 && designId && user_id && brand_id) {
+          try {
+            const varB = data.variations[1];
+            const { data: varDesign } = await supabase.from("designs").insert({
+              user_id,
+              brand_id,
+              title: (title.slice(0, 95) || "Untitled") + " (B)",
+              prompt: data.design_prompt || title,
+              image_url: varB.image_url,
+              canvas_size: params.canvas_size,
+              vote: 0,
+              variation_of: designId,
+              ...(selected_trend && selected_trend !== "none" && { trend_used: selected_trend, trend_intensity: params.trend_intensity }),
+              ...(varB.genome && { genome: varB.genome }),
+              ...(data.caption && { caption: data.caption }),
+              ...(data.copy_structure && { copy_structure: data.copy_structure }),
+            } as any).select("id").single();
+
+            variations = [
+              { image_url: data.variations[0].image_url, genome: data.variations[0].genome, genome_scores: data.variations[0].genome_scores, design_id: designId },
+              { image_url: varB.image_url, genome: varB.genome, genome_scores: varB.genome_scores, design_id: varDesign?.id || null },
+            ];
+          } catch (varSaveErr) {
+            console.error("Variation B save failed:", varSaveErr);
+          }
+        }
+
         stopProgressTimer(100);
         setResult({
           image_url: data.image_url,
@@ -275,6 +312,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           genome_scores: data.genome_scores || null,
           refined: data.refined === true,
           free_edit: data.free_edit === true,
+          variations,
         });
         setStatus("complete");
       } catch (err: any) {
