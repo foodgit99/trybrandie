@@ -971,7 +971,9 @@ TREND RULES:
 
       // Check and increment generation count — skip for free edits
       if (!isFreeEdit) {
-        const creditCost = render_quality === "hd" ? 2 : 1;
+        // Dual variations: 2 credits for standard, 4 for HD (edits stay single)
+        const isNewGeneration = action === "generate";
+        const creditCost = (render_quality === "hd" ? 2 : 1) * (isNewGeneration ? 2 : 1);
         const { data: profile } = await adminClient
           .from("profiles")
           .select("generations_count, generations_reset_at, bonus_credits, referral_code, subscription_tier, paid_credits")
