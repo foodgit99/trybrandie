@@ -125,13 +125,13 @@ Deno.serve(async (req) => {
           .from("content_ideas")
           .update({ autopilot_status: "processing" } as any)
           .eq("id", idea.id)
-          .neq("autopilot_status", "processing")
-          .neq("autopilot_status", "completed")
+          .or("autopilot_status.is.null,and(autopilot_status.neq.processing,autopilot_status.neq.completed)")
           .select("id")
           .maybeSingle();
 
         if (lockErr || !lockResult) {
           console.log(`[autopilot] Skipping idea ${idea.id} — already processing or completed`);
+          skipped++;
           continue;
         }
 
