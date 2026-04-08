@@ -1464,15 +1464,52 @@ const DesignStudio = () => {
                         </Button>
                       </div>
                     )}
-                    {/* Regular single image */}
+                    {/* Regular single image (or active variation) */}
                     {(carouselSlides.length === 0 || msg.imageUrl !== carouselSlides[currentSlideIndex]?.image_url) && (
+                    <>
                     <img
-                      src={msg.imageUrl}
+                      src={variations.length === 2 && i === messages.length - 1 ? variations[selectedVariationIdx].image_url : msg.imageUrl}
                       alt="Generated design"
                       className="w-full rounded-2xl border border-border cursor-pointer hover:opacity-95 transition-opacity"
                       style={{ aspectRatio: currentAspect }}
-                      onClick={() => setPreviewImage(msg.imageUrl!)}
+                      onClick={() => setPreviewImage(variations.length === 2 && i === messages.length - 1 ? variations[selectedVariationIdx].image_url : msg.imageUrl!)}
                     />
+                    {/* Variation picker (A / B thumbnails) */}
+                    {variations.length === 2 && i === messages.length - 1 && (
+                      <div className="flex items-center gap-2 mt-2">
+                        {variations.map((v, vIdx) => (
+                          <button
+                            key={vIdx}
+                            onClick={() => {
+                              setSelectedVariationIdx(vIdx);
+                              setCurrentImage(v.image_url);
+                              setCurrentGenome(v.genome);
+                              setGenomeScores(v.genome_scores);
+                              if (v.design_id) setCurrentDesignId(v.design_id);
+                            }}
+                            className={`relative flex-1 rounded-xl overflow-hidden border-2 transition-all ${
+                              vIdx === selectedVariationIdx
+                                ? "border-primary ring-2 ring-primary/20"
+                                : "border-border hover:border-primary/40"
+                            }`}
+                          >
+                            <img
+                              src={v.image_url}
+                              alt={`Variation ${vIdx === 0 ? "A" : "B"}`}
+                              className="w-full aspect-square object-cover"
+                            />
+                            <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              vIdx === selectedVariationIdx
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-background/80 text-muted-foreground backdrop-blur-sm"
+                            }`}>
+                              {vIdx === 0 ? "A" : "B"}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    </>
                     )}
                     <div className="flex items-center gap-1 px-1">
                       <button
