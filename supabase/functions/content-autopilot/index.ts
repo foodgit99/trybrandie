@@ -13,20 +13,19 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Parse and validate delivery window
+  try {
+    // Parse delivery window
     let deliveryWindow = "morning";
     try {
       const body = await req.json();
       if (body?.delivery_time) deliveryWindow = body.delivery_time;
-    } catch { /* no body or invalid JSON — use default */ }
+    } catch { /* no body — use default */ }
 
     if (!VALID_DELIVERY_TIMES.includes(deliveryWindow)) {
-      console.error(`[autopilot] Invalid delivery_time: ${deliveryWindow}`);
       return new Response(JSON.stringify({ error: `Invalid delivery_time. Must be one of: ${VALID_DELIVERY_TIMES.join(", ")}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,92 +34,105 @@ Deno.serve(async (req) => {
 
     console.log(`[autopilot] Running for delivery_time=${deliveryWindow}`);
 
-    const today = new Date().toISOString().split("T")[0];
-    // Retry window: also pick up failed ideas from the last 3 days
-    const retryDate = new Date();
-    retryDate.setDate(retryDate.getDate() - 3);
-    const retryFrom = retryDate.toISOString().split("T")[0];
+    // Create durable run record
+    const { data: run } = await supabase
+      .from("autopilot_runs")
+      .insert({ delivery_time: deliveryWindow })
+      .select("id")
+      .single();
+    const runId = run?.id;
 
-    console.log(`[autopilot] Date: ${today}, retry window from: ${retryFrom}`);
-
-    // Fetch today's autopilot ideas + failed ideas within retry window
-    // Exclude ideas already processing or completed
-    const { data: ideas, error: ideasErr } = await supabase
-      .from("content_ideas")
-      .select("*")
-      .eq("autopilot", true)
-      .in("status", ["suggested", "scheduled"])
-      .or(
-        `and(scheduled_for.eq.${today},autopilot_status.is.null),` +
-        `and(scheduled_for.eq.${today},autopilot_status.eq.pending),` +
-        `and(scheduled_for.gte.${retryFrom},scheduled_for.lte.${today},autopilot_status.in.(failed_no_credits,failed_error))`
-      );
-
-    if (ideasErr) {
-      console.error("[autopilot] Failed to fetch ideas:", ideasErr);
-      return new Response(JSON.stringify({ error: ideasErr.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!ideas || ideas.length === 0) {
-      console.log("[autopilot] No autopilot ideas to process.");
-      return new Response(JSON.stringify({ processed: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch autopilot_settings for delivery_time filtering
-    const brandIds = [...new Set(ideas.map((i: any) => i.brand_id))];
-    const { data: allSettings } = await supabase
+    // Fetch autopilot_settings where enabled = true and delivery_time matches
+    const { data: allSettings, error: settingsErr } = await supabase
       .from("autopilot_settings")
-      .select("brand_id, delivery_time, timezone")
-      .in("brand_id", brandIds);
+      .select("brand_id, delivery_time, timezone, enabled")
+      .eq("enabled", true)
+      .eq("delivery_time", deliveryWindow);
 
-    const windowUtcHours: Record<string, number> = { morning: 6, afternoon: 12, evening: 18 };
-
-    const settingsMap = new Map<string, { delivery_time: string; timezone: string }>();
-    for (const s of allSettings || []) {
-      settingsMap.set(s.brand_id, {
-        delivery_time: s.delivery_time || "morning",
-        timezone: s.timezone || "Africa/Lagos",
-      });
+    if (settingsErr) {
+      console.error("[autopilot] Failed to fetch settings:", settingsErr);
+      await finalizeRun(supabase, runId, 0, 0, 0, 0, [{ error: settingsErr.message }]);
+      return errorResponse(500, settingsErr.message);
     }
 
+    if (!allSettings || allSettings.length === 0) {
+      console.log(`[autopilot] No enabled brands for delivery_time=${deliveryWindow}`);
+      await finalizeRun(supabase, runId, 0, 0, 0, 0, []);
+      return jsonResponse({ processed: 0, skipped: 0, total: 0, delivery_time: deliveryWindow });
+    }
+
+    // Build brand settings map and check time window per brand timezone
     const nowUtc = new Date();
-    const currentUtcHour = nowUtc.getUTCHours();
+    const eligibleBrandIds: string[] = [];
+    const settingsMap = new Map<string, { delivery_time: string; timezone: string }>();
 
-    const filteredIdeas = ideas.filter((idea: any) => {
-      const settings = settingsMap.get(idea.brand_id) || { delivery_time: "morning", timezone: "Africa/Lagos" };
-      if (settings.delivery_time !== deliveryWindow) return false;
+    const windowLocalHours: Record<string, number> = { morning: 8, afternoon: 13, evening: 18 };
 
-      const localHour = windowUtcHours[settings.delivery_time] ?? 6;
-      const formatter = new Intl.DateTimeFormat("en-US", { timeZone: settings.timezone, hour: "numeric", hour12: false });
+    for (const s of allSettings) {
+      const targetLocalHour = windowLocalHours[s.delivery_time] ?? 8;
+      const tz = s.timezone || "Africa/Lagos";
+
+      // Get current local hour in brand's timezone
+      const formatter = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false });
       const localNowHour = parseInt(formatter.format(nowUtc), 10);
-      const offsetHours = localNowHour - currentUtcHour;
-      const targetUtcHour = ((localHour - offsetHours) % 24 + 24) % 24;
 
-      const diff = Math.abs(currentUtcHour - targetUtcHour);
-      const hourDiff = Math.min(diff, 24 - diff);
-      return hourDiff <= 1;
-    });
-
-    if (filteredIdeas.length === 0) {
-      console.log(`[autopilot] No ideas for delivery_time=${deliveryWindow}`);
-      return new Response(JSON.stringify({ processed: 0, delivery_time: deliveryWindow }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const hourDiff = Math.abs(localNowHour - targetLocalHour);
+      if (hourDiff <= 1) {
+        eligibleBrandIds.push(s.brand_id);
+        settingsMap.set(s.brand_id, { delivery_time: s.delivery_time, timezone: tz });
+      }
     }
 
-    console.log(`[autopilot] ${filteredIdeas.length} ideas to process`);
+    if (eligibleBrandIds.length === 0) {
+      console.log(`[autopilot] No brands within time window for ${deliveryWindow}`);
+      await finalizeRun(supabase, runId, 0, 0, 0, 0, []);
+      return jsonResponse({ processed: 0, skipped: 0, total: 0, delivery_time: deliveryWindow });
+    }
+
+    // For each eligible brand, compute local "today" and fetch ideas
+    let allIdeas: any[] = [];
+    for (const brandId of eligibleBrandIds) {
+      const tz = settingsMap.get(brandId)!.timezone;
+      const localToday = getLocalDate(nowUtc, tz);
+      const retryFrom = getLocalDate(new Date(nowUtc.getTime() - 3 * 86400000), tz);
+
+      const { data: ideas, error: ideasErr } = await supabase
+        .from("content_ideas")
+        .select("*")
+        .eq("brand_id", brandId)
+        .eq("autopilot", true)
+        .in("status", ["suggested", "scheduled"])
+        .or(
+          `and(scheduled_for.eq.${localToday},autopilot_status.is.null),` +
+          `and(scheduled_for.eq.${localToday},autopilot_status.eq.pending),` +
+          `and(scheduled_for.gte.${retryFrom},scheduled_for.lte.${localToday},autopilot_status.in.(failed_no_credits,failed_error))`
+        );
+
+      if (ideasErr) {
+        console.error(`[autopilot] Failed to fetch ideas for brand ${brandId}:`, ideasErr);
+        continue;
+      }
+      if (ideas && ideas.length > 0) {
+        allIdeas = allIdeas.concat(ideas);
+      }
+    }
+
+    if (allIdeas.length === 0) {
+      console.log(`[autopilot] No autopilot ideas to process.`);
+      await finalizeRun(supabase, runId, 0, 0, 0, 0, []);
+      return jsonResponse({ processed: 0, skipped: 0, total: 0, delivery_time: deliveryWindow });
+    }
+
+    console.log(`[autopilot] ${allIdeas.length} ideas to process`);
 
     let processed = 0;
     let skipped = 0;
+    let errors = 0;
+    const errorDetails: any[] = [];
 
-    for (const idea of filteredIdeas) {
+    for (const idea of allIdeas) {
       try {
-        // Duplicate-run guard: mark as processing atomically
+        // Duplicate-run guard: mark as processing atomically (NULL-safe)
         const { data: lockResult, error: lockErr } = await supabase
           .from("content_ideas")
           .update({ autopilot_status: "processing" } as any)
@@ -132,14 +144,17 @@ Deno.serve(async (req) => {
         if (lockErr || !lockResult) {
           console.log(`[autopilot] Skipping idea ${idea.id} — already processing or completed`);
           skipped++;
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "skipped_locked");
           continue;
         }
 
-        const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey, settingsMap);
+        const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey);
         if (result.success) {
           processed++;
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed");
         } else {
           skipped++;
+          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error);
         }
       } catch (ideaErr) {
         console.error(`[autopilot] Error processing idea ${idea.id}:`, ideaErr);
@@ -147,32 +162,74 @@ Deno.serve(async (req) => {
           .from("content_ideas")
           .update({ autopilot_status: "failed_error" } as any)
           .eq("id", idea.id);
-        skipped++;
+        errors++;
+        errorDetails.push({ idea_id: idea.id, error: (ideaErr as Error).message });
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message);
       }
     }
 
-    console.log(`[autopilot] Done (${deliveryWindow}). Processed: ${processed}, Skipped: ${skipped}`);
+    await finalizeRun(supabase, runId, allIdeas.length, processed, skipped, errors, errorDetails);
 
-    return new Response(
-      JSON.stringify({ processed, skipped, total: filteredIdeas.length, delivery_time: deliveryWindow }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.log(`[autopilot] Done (${deliveryWindow}). Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
+
+    return jsonResponse({ processed, skipped, errors, total: allIdeas.length, delivery_time: deliveryWindow });
   } catch (err) {
     console.error("[autopilot] Fatal error:", err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return errorResponse(500, (err as Error).message);
   }
 });
+
+// ─── Helpers ──────────────────────────────────────────────
+
+function getLocalDate(date: Date, tz: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+  return formatter.format(date); // returns YYYY-MM-DD
+}
+
+function jsonResponse(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function errorResponse(status: number, message: string) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function finalizeRun(supabase: any, runId: string | undefined, found: number, processed: number, skipped: number, errors: number, errorDetails: any[]) {
+  if (!runId) return;
+  await supabase
+    .from("autopilot_runs")
+    .update({
+      ideas_found: found,
+      processed,
+      skipped,
+      errors,
+      error_details: errorDetails,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", runId);
+}
+
+async function logEvent(supabase: any, runId: string | undefined, ideaId: string, brandId: string, status: string, errorMessage?: string) {
+  if (!runId) return;
+  await supabase
+    .from("autopilot_run_events")
+    .insert({ run_id: runId, idea_id: ideaId, brand_id: brandId, status, error_message: errorMessage || null });
+}
+
+// ─── Process a single idea ──────────────────────────────
 
 async function processIdea(
   supabase: any,
   idea: any,
   supabaseUrl: string,
   serviceRoleKey: string,
-  settingsMap: Map<string, any>,
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; status?: string; error?: string }> {
   // Load brand
   const { data: brand } = await supabase
     .from("brands")
@@ -183,7 +240,7 @@ async function processIdea(
   if (!brand) {
     console.warn(`[autopilot] No brand found for idea ${idea.id}`);
     await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-    return { success: false };
+    return { success: false, status: "failed_error", error: "brand_not_found" };
   }
 
   // Load user profile
@@ -196,7 +253,7 @@ async function processIdea(
   if (!profile) {
     console.warn(`[autopilot] No profile for user ${idea.user_id}`);
     await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-    return { success: false };
+    return { success: false, status: "failed_error", error: "profile_not_found" };
   }
 
   // Get user email
@@ -269,27 +326,19 @@ async function processIdea(
     console.error(`[autopilot] design-studio failed for idea ${idea.id}: ${designRes.status} ${errBody}`);
 
     if (designRes.status === 402) {
-      // No credits — mark appropriately
       await supabase.from("content_ideas").update({ autopilot_status: "failed_no_credits" } as any).eq("id", idea.id);
-
       if (userEmail) {
         await fetch(`${supabaseUrl}/functions/v1/send-email`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceRoleKey}`,
-          },
-          body: JSON.stringify({
-            type: "autopilot_no_credits",
-            to: userEmail,
-            data: { idea_title: idea.title },
-          }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+          body: JSON.stringify({ type: "autopilot_no_credits", to: userEmail, data: { idea_title: idea.title } }),
         }).catch(() => {});
       }
-    } else {
-      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
+      return { success: false, status: "failed_no_credits", error: errBody };
     }
-    return { success: false };
+
+    await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
+    return { success: false, status: "failed_error", error: errBody };
   }
 
   const designData = await designRes.json();
@@ -297,7 +346,7 @@ async function processIdea(
   if (!designData?.image_url) {
     console.error(`[autopilot] No image_url returned for idea ${idea.id}`);
     await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-    return { success: false };
+    return { success: false, status: "failed_error", error: "no_image_url" };
   }
 
   // Save design
@@ -325,35 +374,24 @@ async function processIdea(
   if (saveErr) {
     console.error(`[autopilot] Failed to save design for idea ${idea.id}:`, saveErr);
     await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-    return { success: false };
+    return { success: false, status: "failed_error", error: saveErr.message };
   }
 
-  // Update content_ideas with design_id, status, and autopilot_status
+  // Update content_ideas
   await supabase
     .from("content_ideas")
-    .update({
-      design_id: savedDesign.id,
-      status: "created",
-      autopilot_status: "completed",
-    } as any)
+    .update({ design_id: savedDesign.id, status: "created", autopilot_status: "completed" } as any)
     .eq("id", idea.id);
 
   // Send email notification
   if (userEmail) {
     await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
       body: JSON.stringify({
         type: "autopilot_design_ready",
         to: userEmail,
-        data: {
-          idea_title: idea.title,
-          image_url: designData.image_url,
-          design_id: savedDesign.id,
-        },
+        data: { idea_title: idea.title, image_url: designData.image_url, design_id: savedDesign.id },
       }),
     }).catch((e) => console.error(`[autopilot] Email failed for idea ${idea.id}:`, e));
   }
