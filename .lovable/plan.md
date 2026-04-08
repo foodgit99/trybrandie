@@ -1,90 +1,50 @@
 
 
-## Plan: Dual Design Variations (Same Copy, Two Visual Treatments)
+## Investigation Results: Autopilot Not Processing Ideas
 
-### How It Works
+### Root Cause
 
-The system generates **one copy structure** (headline, subheadline, CTA) and then branches into **two genome/render passes** — producing two visually distinct designs with identical text. The user picks their preferred variation.
+**SQL NULL comparison bug in the lock-acquisition query (line 128-129).**
 
-### Cost & Credits
+The autopilot function finds the correct ideas (confirmed: `total: 2` in the 6 AM UTC response), but the "duplicate-run guard" silently rejects every idea because of how SQL handles NULL comparisons.
 
-- Charges **2 credits** per generation (1 per variation) — or 1.5 if you prefer a discount model
-- The shared pipeline stages (context assembly, brief, copywriter, caption) run **once**
-- Only the genome composition + image render run **twice**
+The lock query is:
+```typescript
+.update({ autopilot_status: "processing" })
+.eq("id", idea.id)
+.neq("autopilot_status", "processing")   // line 128
+.neq("autopilot_status", "completed")    // line 129
+```
 
-### Implementation
+All autopilot ideas have `autopilot_status = NULL`. In SQL, `NULL != 'processing'` evaluates to `NULL` (not `TRUE`), so the `.neq()` filter **excludes every row where `autopilot_status` is NULL**. The update matches zero rows, `lockResult` is `null`, and the idea is silently skipped via `continue` (line 135) — without even incrementing the `skipped` counter.
 
-#### Step 1 — Edge Function (`design-studio/index.ts`)
-
-In the `action === "generate"` branch, after the copywriter and caption agents complete (line ~1948):
-
-- **Run the Genome Composer twice** with different random seeds (the mutation engine already uses `Math.random()`, so two calls naturally produce different genomes)
-- **Run two image renders in parallel** — each with a different genome context but the same copy injection, brand context, and brief
-- **Upload both images** to storage
-- **Return both variations** in the response:
-
+This is confirmed by the pg_net response log from today's 6 AM UTC run:
 ```json
-{
-  "image_url": "variation_a_url",
-  "variations": [
-    { "image_url": "...", "genome": {...}, "genome_scores": {...} },
-    { "image_url": "...", "genome": {...}, "genome_scores": {...} }
-  ],
-  "copy_structure": { ... },
-  "caption": "...",
-  "explanation": "...",
-  "design_prompt": "..."
-}
+{"processed":0,"skipped":0,"total":2,"delivery_time":"morning"}
 ```
 
-- `image_url` remains the first variation (backwards compatible)
-- Credit deduction changes from `1` to `2` for standard quality, `2` to `4` for HD
-- The edit flow (`action === "edit"`) stays single-variation (no change)
+### Fix (1 file change)
 
-#### Step 2 — Generation Context (`DesignGenerationContext.tsx`)
+**`supabase/functions/content-autopilot/index.ts`** — Replace the `.neq()` filters with a combined `.or()` that explicitly handles NULL:
 
-- Add `variations` array to the `GenerationResult` interface
-- Update the `startGeneration` callback to handle the new response shape
-- When auto-saving: save variation A as the primary design, save variation B as a linked design (same `title` with " (B)" suffix, or a `variation_of` column)
+```typescript
+// Before (broken with NULLs):
+.eq("id", idea.id)
+.neq("autopilot_status", "processing")
+.neq("autopilot_status", "completed")
 
-#### Step 3 — Database Migration
-
-Add a column to link variations:
-
-```sql
-ALTER TABLE designs ADD COLUMN variation_of uuid REFERENCES designs(id) ON DELETE SET NULL;
+// After (NULL-safe):
+.eq("id", idea.id)
+.or("autopilot_status.is.null,and(autopilot_status.neq.processing,autopilot_status.neq.completed)")
 ```
 
-This lets variation B point to variation A, keeping the design history clean.
+Also increment `skipped` on the `continue` path (line 135) so the response accurately reports skipped ideas.
 
-#### Step 4 — Design Studio UI (`DesignStudio.tsx`)
+### Secondary issue: silent skip counter
 
-- When `result.variations` exists (length 2), show a **variation picker** below the canvas:
-  - Two thumbnail cards side by side (A and B)
-  - Clicking a thumbnail swaps the main canvas image
-  - The selected variation's genome and scores are displayed
-- The "Download" and "Edit" actions apply to the currently selected variation
-- Subsequent edits work on the selected variation's design ID
+When the lock fails, `continue` is called without incrementing `skipped`, so the response misleadingly reports `skipped: 0` even when ideas were skipped. This will be fixed by adding `skipped++` before the `continue`.
 
-#### Step 5 — Autopilot (`content-autopilot/index.ts`)
+### After fix
 
-- Autopilot continues generating **single variations** (no change) to keep credit costs predictable for background tasks
-- A future enhancement could let users opt into dual variations for autopilot
-
----
-
-### Files Changed
-
-| File | Change |
-|---|---|
-| `supabase/functions/design-studio/index.ts` | Duplicate genome + render for `generate` action, return `variations` array, double credit cost |
-| `src/contexts/DesignGenerationContext.tsx` | Add `variations` to `GenerationResult`, handle new response shape |
-| Migration SQL | Add `variation_of` column to `designs` |
-| `src/pages/DesignStudio.tsx` | Variation picker UI (two thumbnails below canvas) |
-
-### Performance Notes
-
-- Two renders run **in parallel** (`Promise.all`), so latency increases by only ~10-15% (not 2x)
-- The shared stages (brief, copywriter, caption, context assembly) are unchanged
-- Net token cost increase: ~1.4-1.5x (genome composer is deterministic/free, only the render calls double)
+Redeploy the `content-autopilot` edge function. The next scheduled cron run will pick up today's ideas (they are still in `autopilot_status: null` and within the 3-day retry window).
 
