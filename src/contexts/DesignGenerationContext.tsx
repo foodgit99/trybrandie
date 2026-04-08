@@ -3,6 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type GenerationStatus = "idle" | "generating" | "complete" | "error";
 
+export interface DesignVariation {
+  image_url: string;
+  genome: any;
+  genome_scores: Record<string, number> | null;
+  design_id?: string | null;
+}
+
 export interface GenerationResult {
   image_url: string;
   design_id: string | null;
@@ -15,6 +22,7 @@ export interface GenerationResult {
   free_edit: boolean;
   carousel_id?: string;
   slides?: Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>;
+  variations?: DesignVariation[];
 }
 
 export interface GenerationParams {
