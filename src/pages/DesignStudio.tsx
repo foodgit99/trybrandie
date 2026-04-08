@@ -338,6 +338,8 @@ const DesignStudio = () => {
       setShowScores(false);
       setAttachedImage(null);
       setPreviewImage(null);
+      setVariations([]);
+      setSelectedVariationIdx(0);
       generationInitiated.current = false;
       generation.clearResult();
     }
