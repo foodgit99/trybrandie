@@ -200,6 +200,80 @@ export type Database = {
           },
         ]
       }
+      autopilot_run_events: {
+        Row: {
+          brand_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          idea_id: string
+          run_id: string
+          status: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idea_id: string
+          run_id: string
+          status: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idea_id?: string
+          run_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopilot_run_events_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "autopilot_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      autopilot_runs: {
+        Row: {
+          completed_at: string | null
+          delivery_time: string
+          error_details: Json | null
+          errors: number
+          id: string
+          ideas_found: number
+          processed: number
+          skipped: number
+          started_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          delivery_time: string
+          error_details?: Json | null
+          errors?: number
+          id?: string
+          ideas_found?: number
+          processed?: number
+          skipped?: number
+          started_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          delivery_time?: string
+          error_details?: Json | null
+          errors?: number
+          id?: string
+          ideas_found?: number
+          processed?: number
+          skipped?: number
+          started_at?: string
+        }
+        Relationships: []
+      }
       autopilot_settings: {
         Row: {
           brand_id: string
