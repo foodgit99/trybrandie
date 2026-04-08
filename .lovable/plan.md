@@ -1,50 +1,94 @@
 
+Goal: make Autopilot reliable end-to-end so scheduled designs actually run at the selected time, generate the design, and send the email.
 
-## Investigation Results: Autopilot Not Processing Ideas
+What I found
+- The previous NULL-lock bug is already fixed in `supabase/functions/content-autopilot/index.ts`.
+- There is real data waiting to run:
+  - `autopilot_settings` has an enabled evening setup for brand `9b3ea2d9-...` with timezone `Africa/Lagos`.
+  - `content_ideas` contains an idea for today (`2026-04-08`) with `autopilot = true` and `autopilot_status = null`.
+- But there are no backend invocation logs for:
+  - `content-autopilot`
+  - `send-email`
+  - `design-studio`
+- I also checked the migrations: `pg_cron` and `pg_net` are enabled, but there is no migration that actually schedules `content-autopilot`.
 
-### Root Cause
+Most likely root cause
+- Autopilot is not failing during processing anymore; it is not being triggered at all.
+- So the 6 PM job the UI implies exists is not actually scheduled in the backend.
 
-**SQL NULL comparison bug in the lock-acquisition query (line 128-129).**
+Secondary issues I would fix at the same time
+- `content-autopilot` does not currently enforce `autopilot_settings.enabled`, so the master toggle is not truly a master switch.
+- The worker uses a single UTC “today” date before timezone filtering. That can drift for non-UTC brands and should be changed to brand-local date logic.
+- There is no durable run history, so when something goes wrong it is too easy to miss.
 
-The autopilot function finds the correct ideas (confirmed: `total: 2` in the 6 AM UTC response), but the "duplicate-run guard" silently rejects every idea because of how SQL handles NULL comparisons.
+Implementation plan
 
-The lock query is:
-```typescript
-.update({ autopilot_status: "processing" })
-.eq("id", idea.id)
-.neq("autopilot_status", "processing")   // line 128
-.neq("autopilot_status", "completed")    // line 129
-```
+1. Add the missing backend scheduler
+- Create explicit cron jobs for `morning`, `afternoon`, and `evening`.
+- Each cron job should call `content-autopilot` with the proper `delivery_time` payload and authenticated headers.
+- Use stable job names so the schedule is easy to update safely later.
 
-All autopilot ideas have `autopilot_status = NULL`. In SQL, `NULL != 'processing'` evaluates to `NULL` (not `TRUE`), so the `.neq()` filter **excludes every row where `autopilot_status` is NULL**. The update matches zero rows, `lockResult` is `null`, and the idea is silently skipped via `continue` (line 135) — without even incrementing the `skipped` counter.
+2. Harden `content-autopilot` itself
+- Filter brands by `autopilot_settings.enabled = true`.
+- Resolve “today” per brand timezone instead of using one global UTC date.
+- Keep the existing NULL-safe lock logic.
+- Return structured diagnostics for:
+  - ideas found
+  - ideas skipped by disabled setting
+  - ideas skipped by time window
+  - processed count
+  - failure reasons
 
-This is confirmed by the pg_net response log from today's 6 AM UTC run:
-```json
-{"processed":0,"skipped":0,"total":2,"delivery_time":"morning"}
-```
+3. Add durable observability
+- Create an `autopilot_runs` table to store each run:
+  - `delivery_time`
+  - `started_at`, `completed_at`
+  - `brand_id` / `idea_id` where relevant
+  - processed/skipped/error counts
+  - error payloads
+- Optionally add an `autopilot_run_events` child table for per-idea diagnostics.
+- This makes future failures visible even when edge logs are sparse.
 
-### Fix (1 file change)
+4. Add a manual recovery path
+- Add a protected “Run autopilot now” action in admin or the content calendar.
+- Allow running for:
+  - current brand
+  - selected delivery window
+  - optionally a single idea
+- This gives a safe retry path without waiting for the next cron window.
 
-**`supabase/functions/content-autopilot/index.ts`** — Replace the `.neq()` filters with a combined `.or()` that explicitly handles NULL:
+5. Improve the calendar UX so expectations match reality
+- Show:
+  - next scheduled run in the brand’s local timezone
+  - last successful run
+  - last failure reason
+- If autopilot is enabled but no scheduler heartbeat has been recorded recently, show a warning badge instead of silently looking healthy.
 
-```typescript
-// Before (broken with NULLs):
-.eq("id", idea.id)
-.neq("autopilot_status", "processing")
-.neq("autopilot_status", "completed")
+6. Add regression tests
+- Edge function tests for:
+  - evening run in `Africa/Lagos`
+  - timezone date-boundary cases
+  - disabled autopilot settings
+  - NULL autopilot status lock acquisition
+  - failed render / no credits paths
+- Verify the cron payloads match what `content-autopilot` expects.
 
-// After (NULL-safe):
-.eq("id", idea.id)
-.or("autopilot_status.is.null,and(autopilot_status.neq.processing,autopilot_status.neq.completed)")
-```
+Definition of done
+- A 6 PM brand-local autopilot item is picked up automatically.
+- A design row is created.
+- The content idea moves to `autopilot_status = completed` and `status = created`.
+- The email notification is sent.
+- A durable run record exists showing what happened.
+- The UI shows the next run and last run clearly.
 
-Also increment `skipped` on the `continue` path (line 135) so the response accurately reports skipped ideas.
+Files likely involved
+- `supabase/functions/content-autopilot/index.ts`
+- new migration for cron jobs and run-tracking table(s)
+- `src/pages/ContentHub.tsx`
+- optionally `supabase/config.toml` for function-specific hardening if needed
 
-### Secondary issue: silent skip counter
-
-When the lock fails, `continue` is called without incrementing `skipped`, so the response misleadingly reports `skipped: 0` even when ideas were skipped. This will be fixed by adding `skipped++` before the `continue`.
-
-### After fix
-
-Redeploy the `content-autopilot` edge function. The next scheduled cron run will pick up today's ideas (they are still in `autopilot_status: null` and within the 3-day retry window).
-
+Why this should solve it once and for all
+- It fixes the actual missing trigger, not just downstream processing.
+- It makes scheduling observable.
+- It removes timezone ambiguity.
+- It adds a manual fallback for support/debugging.
