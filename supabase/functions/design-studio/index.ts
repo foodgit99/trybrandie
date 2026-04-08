@@ -1738,17 +1738,7 @@ ${brand.special_instructions}
       const designPrompt = briefResult.creative_direction;
       const explanation = briefResult.explanation;
 
-      // Serialize genome into a human-readable styling block for the image prompt
-      const genomeContext = genomeData ? `
-
-VISUAL STYLE GENOME (follow these precise styling instructions):
-- Color: ${genomeData.color.palette_type.replace(/_/g, " ")} palette, ${genomeData.color.temperature} temperature, ${genomeData.color.contrast} contrast, ${genomeData.color.saturation} saturation, ${genomeData.color.gradient_logic.replace(/_/g, " ")}
-- Typography: ${genomeData.typography.font_personality} personality, ${genomeData.typography.weight_system.replace(/_/g, " ")} weight, ${genomeData.typography.hierarchy_logic.replace(/_/g, " ")}, ${genomeData.typography.typography_layout.replace(/_/g, " ")} layout${genomeData.typography.text_effect !== "none" ? `, ${genomeData.typography.text_effect.replace(/_/g, " ")} effect` : ""}
-- Layout: ${genomeData.layout.grid_type.replace(/_/g, " ")}, ${genomeData.layout.balance} balance, ${genomeData.layout.spacing_density} density, ${genomeData.layout.content_ratio.replace(/_/g, " ")}
-- Composition: ${genomeData.composition.visual_direction} direction, ${genomeData.composition.focal_strategy.replace(/_/g, " ")}, ${genomeData.composition.layering_depth.replace(/_/g, " ")} layering
-- Texture: ${genomeData.texture.texture_type.replace(/_/g, " ")}${genomeData.texture.texture_type !== "none" ? `, ${genomeData.texture.intensity} intensity` : ""}${genomeData.texture.distortion !== "none" ? `, ${genomeData.texture.distortion} distortion` : ""}
-- Image Style: ${genomeData.image_style.lighting} lighting, ${genomeData.image_style.color_grading} grading, ${genomeData.image_style.framing.replace(/_/g, " ")} framing
-- Emotion: ${genomeData.emotion}` : "";
+      // genomeContext is now built per-variation inside renderVariation()
 
       // --- PARALLEL: COPYWRITER + CAPTION AGENTS ---
       let copyStructure: { headline: string; subheadline: string; cta: string; supporting_text: string } | null = null;
