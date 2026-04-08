@@ -147,6 +147,9 @@ const DesignStudio = () => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [carouselId, setCarouselId] = useState<string | null>(null);
 
+  // Dual variation state
+  const [variations, setVariations] = useState<DesignVariation[]>([]);
+  const [selectedVariationIdx, setSelectedVariationIdx] = useState(0);
 
   const planAbortRef = useRef<AbortController | null>(null);
   const recommendationFetched = useRef(false);
