@@ -1,94 +1,54 @@
 
-Goal: make Autopilot reliable end-to-end so scheduled designs actually run at the selected time, generate the design, and send the email.
 
-What I found
-- The previous NULL-lock bug is already fixed in `supabase/functions/content-autopilot/index.ts`.
-- There is real data waiting to run:
-  - `autopilot_settings` has an enabled evening setup for brand `9b3ea2d9-...` with timezone `Africa/Lagos`.
-  - `content_ideas` contains an idea for today (`2026-04-08`) with `autopilot = true` and `autopilot_status = null`.
-- But there are no backend invocation logs for:
-  - `content-autopilot`
-  - `send-email`
-  - `design-studio`
-- I also checked the migrations: `pg_cron` and `pg_net` are enabled, but there is no migration that actually schedules `content-autopilot`.
+## Fix Autopilot Lock Query — Final Root Cause & Plan
 
-Most likely root cause
-- Autopilot is not failing during processing anymore; it is not being triggered at all.
-- So the 6 PM job the UI implies exists is not actually scheduled in the backend.
+### What's happening now
 
-Secondary issues I would fix at the same time
-- `content-autopilot` does not currently enforce `autopilot_settings.enabled`, so the master toggle is not truly a master switch.
-- The worker uses a single UTC “today” date before timezone filtering. That can drift for non-UTC brands and should be changed to brand-local date logic.
-- There is no durable run history, so when something goes wrong it is too easy to miss.
+The cron jobs ARE running. The morning run at 6 AM UTC correctly found 2 ideas. But both were logged as `skipped_locked` — meaning the lock update returned no rows.
 
-Implementation plan
+The ideas have `autopilot_status = NULL`. The lock query uses `.or("autopilot_status.is.null,and(autopilot_status.neq.processing,autopilot_status.neq.completed)")` which should match NULL rows — but it doesn't.
 
-1. Add the missing backend scheduler
-- Create explicit cron jobs for `morning`, `afternoon`, and `evening`.
-- Each cron job should call `content-autopilot` with the proper `delivery_time` payload and authenticated headers.
-- Use stable job names so the schedule is easy to update safely later.
+### Root cause
 
-2. Harden `content-autopilot` itself
-- Filter brands by `autopilot_settings.enabled = true`.
-- Resolve “today” per brand timezone instead of using one global UTC date.
-- Keep the existing NULL-safe lock logic.
-- Return structured diagnostics for:
-  - ideas found
-  - ideas skipped by disabled setting
-  - ideas skipped by time window
-  - processed count
-  - failure reasons
+The supabase-js client's `.or()` filter combined with `.update()` and the nested `and()` syntax is not producing the expected PostgREST query for NULL handling. This is a known edge case with PostgREST's `and()` inside `or()` on PATCH requests. The `.or()` approach has now failed twice despite being theoretically correct.
 
-3. Add durable observability
-- Create an `autopilot_runs` table to store each run:
-  - `delivery_time`
-  - `started_at`, `completed_at`
-  - `brand_id` / `idea_id` where relevant
-  - processed/skipped/error counts
-  - error payloads
-- Optionally add an `autopilot_run_events` child table for per-idea diagnostics.
-- This makes future failures visible even when edge logs are sparse.
+### The fix: Use a database function for atomic locking
 
-4. Add a manual recovery path
-- Add a protected “Run autopilot now” action in admin or the content calendar.
-- Allow running for:
-  - current brand
-  - selected delivery window
-  - optionally a single idea
-- This gives a safe retry path without waiting for the next cron window.
+Instead of fighting PostgREST filter syntax, create a simple SQL function that does the lock atomically using plain SQL `IS NULL` — which is guaranteed to work:
 
-5. Improve the calendar UX so expectations match reality
-- Show:
-  - next scheduled run in the brand’s local timezone
-  - last successful run
-  - last failure reason
-- If autopilot is enabled but no scheduler heartbeat has been recorded recently, show a warning badge instead of silently looking healthy.
+```sql
+CREATE FUNCTION lock_autopilot_idea(p_idea_id uuid)
+RETURNS uuid AS $$
+  UPDATE content_ideas
+  SET autopilot_status = 'processing'
+  WHERE id = p_idea_id
+    AND (autopilot_status IS NULL
+      OR autopilot_status NOT IN ('processing', 'completed'))
+  RETURNING id;
+$$ LANGUAGE sql SECURITY DEFINER;
+```
 
-6. Add regression tests
-- Edge function tests for:
-  - evening run in `Africa/Lagos`
-  - timezone date-boundary cases
-  - disabled autopilot settings
-  - NULL autopilot status lock acquisition
-  - failed render / no credits paths
-- Verify the cron payloads match what `content-autopilot` expects.
+Then in the edge function, replace the fragile `.update().or()` chain with:
+```typescript
+const { data: lockResult } = await supabase.rpc('lock_autopilot_idea', { p_idea_id: idea.id });
+```
 
-Definition of done
-- A 6 PM brand-local autopilot item is picked up automatically.
-- A design row is created.
-- The content idea moves to `autopilot_status = completed` and `status = created`.
-- The email notification is sent.
-- A durable run record exists showing what happened.
-- The UI shows the next run and last run clearly.
+### Implementation steps
 
-Files likely involved
-- `supabase/functions/content-autopilot/index.ts`
-- new migration for cron jobs and run-tracking table(s)
-- `src/pages/ContentHub.tsx`
-- optionally `supabase/config.toml` for function-specific hardening if needed
+1. **Create migration** with the `lock_autopilot_idea` database function (SECURITY DEFINER to bypass RLS)
+2. **Update `content-autopilot/index.ts`** — replace the `.update().eq().or().select().maybeSingle()` lock with a single `supabase.rpc('lock_autopilot_idea', ...)` call
+3. **Reset stuck ideas** — update existing ideas that should have been processed (those with `autopilot_status = NULL` and `scheduled_for` in the past few days) so they get retried
+4. **Deploy and test** — redeploy the edge function and invoke it to verify the lock works
 
-Why this should solve it once and for all
-- It fixes the actual missing trigger, not just downstream processing.
-- It makes scheduling observable.
-- It removes timezone ambiguity.
-- It adds a manual fallback for support/debugging.
+### Why this is the definitive fix
+
+- Pure SQL `IS NULL` is guaranteed to work — no PostgREST filter ambiguity
+- `SECURITY DEFINER` bypasses RLS, matching the service-role intent
+- Atomic: a single UPDATE with RETURNING — no race conditions
+- Simple: one RPC call replaces 5 chained method calls
+
+### Files involved
+
+- New migration: `lock_autopilot_idea` function + reset stuck ideas
+- `supabase/functions/content-autopilot/index.ts` — replace lock logic
+
