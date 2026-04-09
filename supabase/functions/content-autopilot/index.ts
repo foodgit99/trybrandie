@@ -132,13 +132,9 @@ Deno.serve(async (req) => {
 
     for (const idea of allIdeas) {
       try {
-        // Duplicate-run guard: mark as processing atomically (NULL-safe)
+        // Duplicate-run guard: atomic lock via SQL function (bypasses PostgREST NULL filter issues)
         const { data: lockResult, error: lockErr } = await supabase
-          .from("content_ideas")
-          .update({ autopilot_status: "processing" } as any)
-          .eq("id", idea.id)
-          .or("autopilot_status.is.null,and(autopilot_status.neq.processing,autopilot_status.neq.completed)")
-          .select("id")
+          .rpc("lock_autopilot_idea", { p_idea_id: idea.id })
           .maybeSingle();
 
         if (lockErr || !lockResult) {

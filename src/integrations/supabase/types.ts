@@ -1483,6 +1483,7 @@ export type Database = {
         Args: { p_affiliate_id: string; p_amount: number }
         Returns: undefined
       }
+      lock_autopilot_idea: { Args: { p_idea_id: string }; Returns: string }
       process_referral: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
