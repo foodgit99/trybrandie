@@ -72,6 +72,7 @@ import {
   AlertTriangle,
   RotateCcw,
   MoreHorizontal,
+  Clock,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
