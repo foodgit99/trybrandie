@@ -1279,6 +1279,30 @@ const ContentHub = () => {
                         </Button>
                       </div>
                     )}
+                    {autopilotAll && (
+                      <div className="space-y-1.5 pl-9.5">
+                        {(() => {
+                          const next = getNextRunTime();
+                          if (!next) return null;
+                          return (
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>Next run: <span className="font-medium text-foreground">{next.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span></span>
+                            </div>
+                          );
+                        })()}
+                        {(() => {
+                          const result = formatRunResult(lastAutopilotRun);
+                          if (!result) return null;
+                          return (
+                            <div className={`flex items-center gap-1.5 text-[11px] ${result.status === "success" ? "text-emerald-600 dark:text-emerald-400" : result.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+                              {result.status === "success" ? <Check className="h-3 w-3" /> : result.status === "error" ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                              <span>Last run: {result.label}</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 {/* Autopilot run summary */}
