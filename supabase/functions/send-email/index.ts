@@ -967,11 +967,18 @@ Deno.serve(async (req) => {
       Your scheduled design <strong>"${data?.idea_title || "Untitled"}"</strong> has been automatically created by Brandie.
     </p>
     ${data?.image_url ? `<img src="${data.image_url}" alt="Your design" style="width:100%;border-radius:12px;margin:0 0 24px;" />` : ""}
-    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
-      <a href="${APP_URL}/design-history" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
-        View in Design History
-      </a>
-    </td></tr></table>
+    <table cellpadding="0" cellspacing="0" width="100%">
+      <tr><td align="center" style="padding-bottom:12px;">
+        <a href="${data?.image_url || `${APP_URL}/design-history`}" download style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+          📥 Download Design
+        </a>
+      </td></tr>
+      <tr><td align="center">
+        <a href="${APP_URL}/design-history" style="display:inline-block;color:#c4a265;font-weight:500;font-size:14px;text-decoration:underline;">
+          View in Design History
+        </a>
+      </td></tr>
+    </table>
   </td></tr>
   <tr><td style="padding:16px 40px 32px;text-align:center;">
     <p style="font-size:13px;color:#9ca3af;margin:0;">This design was created automatically via Autopilot in your Content Hub.</p>
