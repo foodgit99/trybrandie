@@ -228,6 +228,43 @@ const ContentHub = () => {
     queryClient.invalidateQueries({ queryKey: ["autopilot-settings", brandId] });
   };
 
+  // Last autopilot run
+  const { data: lastAutopilotRun } = useQuery({
+    queryKey: ["last-autopilot-run"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("autopilot_runs")
+        .select("*")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: autopilotAll,
+  });
+
+  // Compute next scheduled run time
+  const getNextRunTime = () => {
+    if (!autopilotAll) return null;
+    const timeMap: Record<string, number> = { morning: 6, afternoon: 12, evening: 18 };
+    const targetHourUTC = timeMap[deliveryTime] ?? 6;
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(targetHourUTC, 0, 0, 0);
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    return next;
+  };
+
+  const formatRunResult = (run: any) => {
+    if (!run) return null;
+    const date = new Date(run.started_at);
+    const timeStr = date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    if (run.errors > 0 && run.processed === 0) return { label: `Failed — ${timeStr}`, status: "error" as const };
+    if (run.processed > 0) return { label: `${run.processed} created — ${timeStr}`, status: "success" as const };
+    return { label: `No ideas — ${timeStr}`, status: "neutral" as const };
+  };
+
   const [runningAutopilot, setRunningAutopilot] = useState(false);
   const triggerAutopilotNow = async () => {
     if (!brandId || runningAutopilot) return;
