@@ -72,6 +72,7 @@ import {
   AlertTriangle,
   RotateCcw,
   MoreHorizontal,
+  Clock,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
@@ -225,6 +226,43 @@ const ContentHub = () => {
         });
     }
     queryClient.invalidateQueries({ queryKey: ["autopilot-settings", brandId] });
+  };
+
+  // Last autopilot run
+  const { data: lastAutopilotRun } = useQuery({
+    queryKey: ["last-autopilot-run"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("autopilot_runs")
+        .select("*")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: autopilotAll,
+  });
+
+  // Compute next scheduled run time
+  const getNextRunTime = () => {
+    if (!autopilotAll) return null;
+    const timeMap: Record<string, number> = { morning: 6, afternoon: 12, evening: 18 };
+    const targetHourUTC = timeMap[deliveryTime] ?? 6;
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(targetHourUTC, 0, 0, 0);
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    return next;
+  };
+
+  const formatRunResult = (run: any) => {
+    if (!run) return null;
+    const date = new Date(run.started_at);
+    const timeStr = date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    if (run.errors > 0 && run.processed === 0) return { label: `Failed — ${timeStr}`, status: "error" as const };
+    if (run.processed > 0) return { label: `${run.processed} created — ${timeStr}`, status: "success" as const };
+    return { label: `No ideas — ${timeStr}`, status: "neutral" as const };
   };
 
   const [runningAutopilot, setRunningAutopilot] = useState(false);
@@ -1239,6 +1277,30 @@ const ContentHub = () => {
                           {runningAutopilot ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
                           Run Autopilot Now
                         </Button>
+                      </div>
+                    )}
+                    {autopilotAll && (
+                      <div className="space-y-1.5 pl-9.5">
+                        {(() => {
+                          const next = getNextRunTime();
+                          if (!next) return null;
+                          return (
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>Next run: <span className="font-medium text-foreground">{next.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span></span>
+                            </div>
+                          );
+                        })()}
+                        {(() => {
+                          const result = formatRunResult(lastAutopilotRun);
+                          if (!result) return null;
+                          return (
+                            <div className={`flex items-center gap-1.5 text-[11px] ${result.status === "success" ? "text-emerald-600 dark:text-emerald-400" : result.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+                              {result.status === "success" ? <Check className="h-3 w-3" /> : result.status === "error" ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                              <span>Last run: {result.label}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </CardContent>
