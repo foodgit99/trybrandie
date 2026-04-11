@@ -79,6 +79,7 @@ const Index = () => {
   };
 
 
+  const { data: profile } = useQuery({
     queryKey: ["profile-referral", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
