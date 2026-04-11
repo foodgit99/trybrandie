@@ -501,7 +501,7 @@ const Index = () => {
               )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {(!designs || designs.length === 0) ? (
+              {groupedDesigns.length === 0 ? (
                 [1, 2, 3].map((i) => (
                   <div
                     key={i}
@@ -511,15 +511,15 @@ const Index = () => {
                   </div>
                 ))
               ) : (
-                designs.map((design) => (
+                groupedDesigns.map((design) => (
                   <motion.div
                     key={design.id}
                     layout
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.2 }}
-                    className="aspect-square rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
-                    onClick={() => navigate(`/studio?design=${design.id}`)}
+                    className="relative aspect-square rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
+                    onClick={() => openDesignViewer(design)}
                   >
                     <img
                       src={design.image_url}
@@ -527,11 +527,31 @@ const Index = () => {
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
+                    {(design as any)._slideCount > 1 && (
+                      <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-white text-[10px] font-medium backdrop-blur-sm">
+                        <Layers className="h-3 w-3" />
+                        {(design as any)._slideCount} slides
+                      </div>
+                    )}
                   </motion.div>
                 ))
               )}
             </div>
           </section>
+
+          <DesignViewer
+            designs={viewerDesigns.map((d: any) => ({
+              id: d.id,
+              title: d.title,
+              prompt: d.prompt,
+              image_url: d.image_url,
+              created_at: d.created_at,
+              canvas_size: d.canvas_size,
+            }))}
+            initialIndex={viewerIndex}
+            open={viewerOpen}
+            onClose={() => setViewerOpen(false)}
+          />
         </motion.div>
       </main>
     </div>
