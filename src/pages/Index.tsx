@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap, Flame, ChevronDown, ChevronUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import confetti from "canvas-confetti";
 import { useToast } from "@/hooks/use-toast";
 import { useBrand } from "@/hooks/useBrand";
 import { Badge } from "@/components/ui/badge";
+import DesignViewer from "@/components/DesignViewer";
 
 const Index = () => {
   const { user } = useAuth();
