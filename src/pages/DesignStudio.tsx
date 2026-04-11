@@ -29,6 +29,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import DesignViewer from "@/components/DesignViewer";
 import ReactMarkdown from "react-markdown";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -146,6 +147,8 @@ const DesignStudio = () => {
   const [carouselSlides, setCarouselSlides] = useState<Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [carouselId, setCarouselId] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   // Dual variation state
   const [variations, setVariations] = useState<DesignVariation[]>([]);
@@ -1434,7 +1437,7 @@ const DesignStudio = () => {
                             alt={`Slide ${currentSlideIndex + 1}`}
                             className="w-full rounded-2xl border border-border cursor-pointer hover:opacity-95 transition-opacity"
                             style={{ aspectRatio: currentAspect }}
-                            onClick={() => setPreviewImage(carouselSlides[currentSlideIndex].image_url)}
+                            onClick={() => { setViewerIndex(currentSlideIndex); setViewerOpen(true); }}
                           />
                           {currentSlideIndex > 0 && (
                             <button onClick={() => navigateSlide(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors shadow-sm">
@@ -1892,35 +1895,51 @@ const DesignStudio = () => {
       </div>
       )}
 
-      {/* Fullscreen image preview overlay */}
-      <AnimatePresence>
-        {previewImage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center"
-            onClick={() => setPreviewImage(null)}
-          >
-            <button
+      {/* Fullscreen image preview — carousel viewer or single image */}
+      {carouselSlides.length > 0 ? (
+        <DesignViewer
+          designs={carouselSlides.map((slide, idx) => ({
+            id: slide.design_id || `carousel-${idx}`,
+            title: `Slide ${idx + 1}`,
+            prompt: "",
+            image_url: slide.image_url,
+            created_at: new Date().toISOString(),
+            canvas_size: canvasSize,
+          }))}
+          initialIndex={viewerIndex}
+          open={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+        />
+      ) : (
+        <AnimatePresence>
+          {previewImage && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center"
               onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-foreground hover:bg-muted transition-colors z-10"
             >
-              <X className="h-5 w-5" />
-            </button>
-            <motion.img
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              src={previewImage}
-              alt="Design preview"
-              className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl border border-border"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-foreground hover:bg-muted transition-colors z-10"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <motion.img
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                src={previewImage}
+                alt="Design preview"
+                className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl border border-border"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Limit reached modal */}
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
