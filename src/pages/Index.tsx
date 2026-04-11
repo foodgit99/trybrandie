@@ -21,6 +21,9 @@ const Index = () => {
   const [copied, setCopied] = useState(false);
   const [showAllDesigns, setShowAllDesigns] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(() => sessionStorage.getItem("referral-banner-dismissed") === "true");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerDesigns, setViewerDesigns] = useState<any[]>([]);
 
   const { data: designs } = useQuery({
     queryKey: ["recent-designs", user?.id, showAllDesigns],
