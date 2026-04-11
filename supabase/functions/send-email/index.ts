@@ -969,12 +969,12 @@ Deno.serve(async (req) => {
     ${data?.image_url ? `<img src="${data.image_url}" alt="Your design" style="width:100%;border-radius:12px;margin:0 0 24px;" />` : ""}
     <table cellpadding="0" cellspacing="0" width="100%">
       <tr><td align="center" style="padding-bottom:12px;">
-        <a href="${data?.image_url || `${APP_URL}/design-history`}" download style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        <a href="${data?.image_url || `${APP_URL}/history`}" download style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
           📥 Download Design
         </a>
       </td></tr>
       <tr><td align="center">
-        <a href="${APP_URL}/design-history" style="display:inline-block;color:#c4a265;font-weight:500;font-size:14px;text-decoration:underline;">
+        <a href="${APP_URL}/history" style="display:inline-block;color:#c4a265;font-weight:500;font-size:14px;text-decoration:underline;">
           View in Design History
         </a>
       </td></tr>
