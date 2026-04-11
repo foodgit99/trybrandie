@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap, Flame, ChevronDown, ChevronUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import confetti from "canvas-confetti";
 import { useToast } from "@/hooks/use-toast";
 import { useBrand } from "@/hooks/useBrand";
 import { Badge } from "@/components/ui/badge";
+import DesignViewer from "@/components/DesignViewer";
 
 const Index = () => {
   const { user } = useAuth();
@@ -20,6 +21,9 @@ const Index = () => {
   const [copied, setCopied] = useState(false);
   const [showAllDesigns, setShowAllDesigns] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(() => sessionStorage.getItem("referral-banner-dismissed") === "true");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerDesigns, setViewerDesigns] = useState<any[]>([]);
 
   const { data: designs } = useQuery({
     queryKey: ["recent-designs", user?.id, showAllDesigns],
@@ -37,6 +41,43 @@ const Index = () => {
     },
     enabled: !!user,
   });
+
+  // Group carousel slides like /history page
+  const groupedDesigns = useMemo(() => {
+    if (!designs) return [];
+    const carouselMap = new Map<string, typeof designs>();
+    const result: Array<(typeof designs)[0] & { _slideCount?: number; _carouselSlides?: typeof designs }> = [];
+
+    for (const d of designs) {
+      const cid = (d as any).carousel_id;
+      if (cid) {
+        if (!carouselMap.has(cid)) carouselMap.set(cid, []);
+        carouselMap.get(cid)!.push(d);
+      } else {
+        result.push(d);
+      }
+    }
+
+    for (const [, slides] of carouselMap) {
+      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      result.push({ ...sorted[0], _slideCount: sorted.length, _carouselSlides: sorted });
+    }
+
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return result;
+  }, [designs]);
+
+  const openDesignViewer = (design: any) => {
+    if (design._carouselSlides && design._carouselSlides.length > 1) {
+      const sorted = [...design._carouselSlides].sort((a: any, b: any) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      setViewerDesigns(sorted);
+      setViewerIndex(0);
+      setViewerOpen(true);
+    } else {
+      navigate(`/studio?design=${design.id}`);
+    }
+  };
+
 
   const { data: profile } = useQuery({
     queryKey: ["profile-referral", user?.id],
@@ -460,7 +501,7 @@ const Index = () => {
               )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {(!designs || designs.length === 0) ? (
+              {groupedDesigns.length === 0 ? (
                 [1, 2, 3].map((i) => (
                   <div
                     key={i}
@@ -470,15 +511,15 @@ const Index = () => {
                   </div>
                 ))
               ) : (
-                designs.map((design) => (
+                groupedDesigns.map((design) => (
                   <motion.div
                     key={design.id}
                     layout
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.2 }}
-                    className="aspect-square rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
-                    onClick={() => navigate(`/studio?design=${design.id}`)}
+                    className="relative aspect-square rounded-xl border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
+                    onClick={() => openDesignViewer(design)}
                   >
                     <img
                       src={design.image_url}
@@ -486,11 +527,31 @@ const Index = () => {
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
+                    {(design as any)._slideCount > 1 && (
+                      <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-white text-[10px] font-medium backdrop-blur-sm">
+                        <Layers className="h-3 w-3" />
+                        {(design as any)._slideCount} slides
+                      </div>
+                    )}
                   </motion.div>
                 ))
               )}
             </div>
           </section>
+
+          <DesignViewer
+            designs={viewerDesigns.map((d: any) => ({
+              id: d.id,
+              title: d.title,
+              prompt: d.prompt,
+              image_url: d.image_url,
+              created_at: d.created_at,
+              canvas_size: d.canvas_size,
+            }))}
+            initialIndex={viewerIndex}
+            open={viewerOpen}
+            onClose={() => setViewerOpen(false)}
+          />
         </motion.div>
       </main>
     </div>
