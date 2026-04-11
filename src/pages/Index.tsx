@@ -42,7 +42,43 @@ const Index = () => {
     enabled: !!user,
   });
 
-  const { data: profile } = useQuery({
+  // Group carousel slides like /history page
+  const groupedDesigns = useMemo(() => {
+    if (!designs) return [];
+    const carouselMap = new Map<string, typeof designs>();
+    const result: Array<(typeof designs)[0] & { _slideCount?: number; _carouselSlides?: typeof designs }> = [];
+
+    for (const d of designs) {
+      const cid = (d as any).carousel_id;
+      if (cid) {
+        if (!carouselMap.has(cid)) carouselMap.set(cid, []);
+        carouselMap.get(cid)!.push(d);
+      } else {
+        result.push(d);
+      }
+    }
+
+    for (const [, slides] of carouselMap) {
+      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      result.push({ ...sorted[0], _slideCount: sorted.length, _carouselSlides: sorted });
+    }
+
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return result;
+  }, [designs]);
+
+  const openDesignViewer = (design: any) => {
+    if (design._carouselSlides && design._carouselSlides.length > 1) {
+      const sorted = [...design._carouselSlides].sort((a: any, b: any) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      setViewerDesigns(sorted);
+      setViewerIndex(0);
+      setViewerOpen(true);
+    } else {
+      navigate(`/studio?design=${design.id}`);
+    }
+  };
+
+
     queryKey: ["profile-referral", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
