@@ -1,27 +1,27 @@
 
 
-## Fix: Carousel Slide Preview in Design Studio
+## Plan: Navigate Carousel Designs to Studio with Full Carousel View
 
 ### Problem
-When a user clicks on a carousel slide in the Design Studio, a fullscreen overlay opens showing only that single image. There are no previous/next buttons or slide indicators, so the user is stuck viewing one slide with no navigation. The expected behavior is a full viewer with prev/next controls, dot indicators, and thumbnail strip — identical to how `DesignViewer` works in Design History.
-
-### Root Cause
-The Design Studio uses a simple `previewImage` string state (lines 1895-1923) that renders a single `<img>` in a modal overlay. It has no awareness of the carousel slides array.
+Clicking a carousel on the dashboard opens a `DesignViewer` overlay instead of navigating to the Design Studio. The studio currently only supports loading a single design via `?design=ID` and has no way to load an existing carousel by its `carousel_id`.
 
 ### Solution
-Replace the simple single-image preview overlay with the existing `DesignViewer` component when carousel slides are present. `DesignViewer` already supports prev/next navigation, dot indicators, thumbnail strip, keyboard shortcuts, and download — exactly what's needed.
 
-### Changes
+**1. `src/pages/DesignStudio.tsx`** — Add carousel loading via URL param `?carousel=CAROUSEL_ID`
 
-**`src/pages/DesignStudio.tsx`**:
-1. Import `DesignViewer` component
-2. Add a `viewerOpen` boolean state and `viewerIndex` number state
-3. When clicking a carousel slide image, instead of `setPreviewImage(url)`, set `viewerOpen = true` and `viewerIndex` to the clicked slide's index
-4. Replace the carousel preview overlay section (lines 1895-1923) with a conditional: if `carouselSlides.length > 0 && viewerOpen`, render `DesignViewer` with the carousel slides mapped to its expected format; otherwise keep the existing single-image preview for non-carousel designs
-5. Map `carouselSlides` to the `Design` shape that `DesignViewer` expects (id, title, prompt, image_url, created_at, canvas_size)
+- In the reset effect (line ~328), also check for `carousel` param — don't reset if present
+- Add a new `useEffect` that reads `searchParams.get("carousel")`:
+  - Fetches all designs with that `carousel_id`, ordered by `slide_index`
+  - Populates `carouselSlides`, `carouselId`, `currentSlideIndex`, `currentImage`, `currentDesignId`
+  - Sets `isCarouselMode = true`
+  - Loads chat history from the first slide's `design_id`
 
-This reuses the existing, well-tested `DesignViewer` component rather than duplicating navigation logic.
+**2. `src/pages/Index.tsx`** — Change carousel click to navigate instead of opening overlay
+
+- In `openDesignViewer`, when a design has `_carouselSlides`, navigate to `/studio?carousel=CAROUSEL_ID` instead of opening the `DesignViewer`
+- The `DesignViewer` state and component can remain for any other use, or be removed if no longer needed on this page
 
 ### Files
-- `src/pages/DesignStudio.tsx`
+- `src/pages/DesignStudio.tsx` — new carousel loading effect
+- `src/pages/Index.tsx` — update navigation handler
 
