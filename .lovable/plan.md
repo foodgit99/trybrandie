@@ -1,27 +1,25 @@
 
 
-## Plan: Navigate Carousel Designs to Studio with Full Carousel View
+## Fix: Password Reset Link Redirects to Wrong Page
 
 ### Problem
-Clicking a carousel on the dashboard opens a `DesignViewer` overlay instead of navigating to the Design Studio. The studio currently only supports loading a single design via `?design=ID` and has no way to load an existing carousel by its `carousel_id`.
+When a user clicks the password reset link in their email, they're taken to a Lovable page instead of the `/reset-password` page on the app. This happens because the Supabase auth redirect URL allowlist doesn't include all the domains the app is served from (`trybrandie.com`, `trybrandie.lovable.app`).
+
+### Root Cause
+The `resetPasswordForEmail` call in `Auth.tsx` uses `window.location.origin` as the `redirectTo` URL. This is correct, but Supabase only allows redirects to URLs that are explicitly allowlisted in its auth configuration. If the domain isn't in the allowlist, Supabase redirects to its default site URL instead.
 
 ### Solution
+Use the `configure_auth` tool to add all project domains to the Supabase redirect URL allowlist:
+- `https://trybrandie.com/reset-password`
+- `https://trybrandie.lovable.app/reset-password`
+- `https://trybrandie.com/**`  
+- `https://trybrandie.lovable.app/**`
 
-**1. `src/pages/DesignStudio.tsx`** — Add carousel loading via URL param `?carousel=CAROUSEL_ID`
+This ensures the password reset flow works regardless of which domain the user is on.
 
-- In the reset effect (line ~328), also check for `carousel` param — don't reset if present
-- Add a new `useEffect` that reads `searchParams.get("carousel")`:
-  - Fetches all designs with that `carousel_id`, ordered by `slide_index`
-  - Populates `carouselSlides`, `carouselId`, `currentSlideIndex`, `currentImage`, `currentDesignId`
-  - Sets `isCarouselMode = true`
-  - Loads chat history from the first slide's `design_id`
-
-**2. `src/pages/Index.tsx`** — Change carousel click to navigate instead of opening overlay
-
-- In `openDesignViewer`, when a design has `_carouselSlides`, navigate to `/studio?carousel=CAROUSEL_ID` instead of opening the `DesignViewer`
-- The `DesignViewer` state and component can remain for any other use, or be removed if no longer needed on this page
+### No Code Changes Needed
+The existing code in `Auth.tsx` and `ResetPassword.tsx` is correct. This is purely a backend auth configuration update.
 
 ### Files
-- `src/pages/DesignStudio.tsx` — new carousel loading effect
-- `src/pages/Index.tsx` — update navigation handler
+- No file changes — only Supabase auth redirect URL configuration update
 
