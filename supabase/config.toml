@@ -1,5 +1,13 @@
 project_id = "pcmwvadretlclaljhzpv"
 
+[auth]
+site_url = "https://trybrandie.lovable.app"
+additional_redirect_urls = [
+  "https://trybrandie.com/**",
+  "https://trybrandie.lovable.app/**",
+  "https://id-preview--f185ef22-ae27-4a7f-ae52-4c627ab4f15d.lovable.app/**"
+]
+
 [functions.design-studio]
 verify_jwt = false
 
