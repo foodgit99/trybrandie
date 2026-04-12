@@ -324,10 +324,11 @@ const DesignStudio = () => {
     }
   }, [messages, planMessages, chatMode]);
 
-  // Reset state when opening studio fresh (no design param)
+  // Reset state when opening studio fresh (no design or carousel param)
   useEffect(() => {
     const designId = searchParams.get("design");
-    if (!designId) {
+    const carouselParam = searchParams.get("carousel");
+    if (!designId && !carouselParam) {
       setMessages([]);
       setCurrentImage(null);
       setCurrentPrompt(null);
@@ -393,6 +394,63 @@ const DesignStudio = () => {
       }
     };
     loadDesign();
+  }, [searchParams, user]);
+
+  // Load existing carousel from ?carousel= param
+  useEffect(() => {
+    const carouselParam = searchParams.get("carousel");
+    if (!carouselParam || !user) return;
+    const loadCarousel = async () => {
+      const { data, error } = await supabase
+        .from("designs")
+        .select("*")
+        .eq("carousel_id", carouselParam)
+        .eq("user_id", user.id)
+        .order("slide_index", { ascending: true });
+      if (error || !data || data.length === 0) return;
+
+      const slides = data.map((d: any) => ({
+        image_url: d.image_url,
+        slide_index: d.slide_index ?? 0,
+        copy_structure: d.copy_structure,
+        design_id: d.id,
+      }));
+
+      setCarouselSlides(slides);
+      setCarouselId(carouselParam);
+      setIsCarouselMode(true);
+      setCurrentSlideIndex(0);
+      setCurrentImage(slides[0].image_url);
+      setCurrentDesignId(slides[0].design_id);
+      setCanvasSize(data[0].canvas_size || "1080x1080");
+      setCurrentPrompt(data[0].prompt);
+      setCurrentCaption((data[0] as any).caption || null);
+      setSaved(true);
+
+      // Load chat history from the first slide
+      const { data: msgData } = await supabase
+        .from("design_messages")
+        .select("role, content, image_url, attached_image_url")
+        .eq("design_id", slides[0].design_id)
+        .order("created_at", { ascending: true });
+
+      if (msgData && msgData.length > 0) {
+        setMessages(
+          msgData.map((m: any) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            imageUrl: m.image_url || undefined,
+            attachedImageUrl: m.attached_image_url || undefined,
+          }))
+        );
+      } else {
+        setMessages([
+          { role: "user", content: data[0].prompt },
+          { role: "assistant", content: "Here's your carousel.", imageUrl: slides[0].image_url },
+        ]);
+      }
+    };
+    loadCarousel();
   }, [searchParams, user]);
 
   // Pick up hero prompt from sessionStorage (set on landing page → auth)

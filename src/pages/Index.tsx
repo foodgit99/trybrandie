@@ -69,10 +69,8 @@ const Index = () => {
 
   const openDesignViewer = (design: any) => {
     if (design._carouselSlides && design._carouselSlides.length > 1) {
-      const sorted = [...design._carouselSlides].sort((a: any, b: any) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
-      setViewerDesigns(sorted);
-      setViewerIndex(0);
-      setViewerOpen(true);
+      const carouselId = (design._carouselSlides[0] as any).carousel_id;
+      navigate(`/studio?carousel=${carouselId}`);
     } else {
       navigate(`/studio?design=${design.id}`);
     }
