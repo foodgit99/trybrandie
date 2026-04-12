@@ -1487,7 +1487,7 @@ const DesignStudio = () => {
                 {msg.imageUrl && (
                   <div className="mt-3 space-y-2">
                     {/* Carousel slide navigator */}
-                    {carouselSlides.length > 0 && msg.imageUrl === carouselSlides[currentSlideIndex]?.image_url && (
+                    {carouselSlides.length > 0 && carouselSlides.some(s => s.image_url === msg.imageUrl) && (
                       <div className="space-y-2">
                         <div className="relative">
                           <img
