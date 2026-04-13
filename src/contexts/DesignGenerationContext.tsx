@@ -272,34 +272,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           }
         }
 
-        // Save variation B if present
-        let variations: DesignVariation[] | undefined;
-        if (data.variations && data.variations.length === 2 && designId && user_id && brand_id) {
-          try {
-            const varB = data.variations[1];
-            const { data: varDesign } = await supabase.from("designs").insert({
-              user_id,
-              brand_id,
-              title: (title.slice(0, 95) || "Untitled") + " (B)",
-              prompt: data.design_prompt || title,
-              image_url: varB.image_url,
-              canvas_size: params.canvas_size,
-              vote: 0,
-              variation_of: designId,
-              ...(selected_trend && selected_trend !== "none" && { trend_used: selected_trend, trend_intensity: params.trend_intensity }),
-              ...(varB.genome && { genome: varB.genome }),
-              ...(data.caption && { caption: data.caption }),
-              ...(data.copy_structure && { copy_structure: data.copy_structure }),
-            } as any).select("id").single();
-
-            variations = [
-              { image_url: data.variations[0].image_url, genome: data.variations[0].genome, genome_scores: data.variations[0].genome_scores, design_id: designId },
-              { image_url: varB.image_url, genome: varB.genome, genome_scores: varB.genome_scores, design_id: varDesign?.id || null },
-            ];
-          } catch (varSaveErr) {
-            console.error("Variation B save failed:", varSaveErr);
-          }
-        }
+        // Variations removed — single generation per call
 
         stopProgressTimer(100);
         setResult({
@@ -312,7 +285,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           genome_scores: data.genome_scores || null,
           refined: data.refined === true,
           free_edit: data.free_edit === true,
-          variations,
+          variations: undefined,
         });
         setStatus("complete");
       } catch (err: any) {

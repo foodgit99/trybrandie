@@ -971,9 +971,8 @@ TREND RULES:
 
       // Check and increment generation count — skip for free edits
       if (!isFreeEdit) {
-        // Dual variations: 2 credits for standard, 4 for HD (edits stay single)
-        const isNewGeneration = action === "generate";
-        const creditCost = (render_quality === "hd" ? 2 : 1) * (isNewGeneration ? 2 : 1);
+        // Single generation: 1 credit for standard, 2 for HD
+        const creditCost = render_quality === "hd" ? 2 : 1;
         const { data: profile } = await adminClient
           .from("profiles")
           .select("generations_count, generations_reset_at, bonus_credits, referral_code, subscription_tier, paid_credits")
@@ -1991,73 +1990,7 @@ VISUAL STYLE GENOME (follow these precise styling instructions):
 - Emotion: ${gd.emotion}`;
       }
 
-      // --- HELPER: Re-apply mutation engine to create a genome variant ---
-      function mutateGenomeCopy(source: any): any {
-        const clone = JSON.parse(JSON.stringify(source));
-        // Remove scoring/refined markers from clone
-        delete clone._scores;
-        delete clone._refined;
-        const MUTATION_RATE = 0.35; // Higher rate for variation B to ensure visual difference
-        const freeGeneOptions: Record<string, Record<string, string[]>> = {
-          layout: {
-            grid_type: ["strict_grid", "modular_grid", "broken_grid", "freeform"],
-            balance: ["symmetrical", "asymmetrical", "dynamic"],
-            spacing_density: ["minimal", "balanced", "dense"],
-            content_ratio: ["image_dominant", "text_dominant", "balanced"],
-          },
-          composition: {
-            visual_direction: ["vertical", "horizontal", "diagonal", "radial"],
-            focal_strategy: ["single_focal_point", "dual_focal", "distributed"],
-            layering_depth: ["flat", "medium", "deep_layered"],
-          },
-          texture: {
-            texture_type: ["none", "grain", "paper", "digital_noise", "plastic", "metallic"],
-            intensity: ["subtle", "medium", "heavy"],
-            distortion: ["none", "glitch", "warp", "pixel_sort"],
-          },
-          image_style: {
-            lighting: ["natural", "dramatic", "neon", "soft"],
-            color_grading: ["cinematic", "vintage", "vibrant", "monochrome"],
-            framing: ["close_crop", "wide", "portrait"],
-          },
-        };
-        const semiFlexGeneOptions: Record<string, Record<string, string[]>> = {
-          typography: {
-            weight_system: ["light", "regular", "bold", "ultra_bold"],
-            text_effect: ["none", "outline", "drop_shadow", "gradient", "glitch", "neon"],
-            typography_layout: ["centered", "left_editorial", "split_text", "overlay"],
-          },
-          color: {
-            gradient_logic: ["flat", "soft_gradient", "metallic_gradient", "multi_spectrum"],
-          },
-        };
-        const emotionOptions = ["energetic", "calm", "luxurious", "playful", "rebellious", "authoritative", "warm", "futuristic", "organic"];
-
-        let mutationCount = 0;
-        for (const [category, fields] of Object.entries(freeGeneOptions)) {
-          for (const [field, options] of Object.entries(fields)) {
-            if (clone[category] && Math.random() < MUTATION_RATE) {
-              const alts = options.filter((o: string) => o !== clone[category][field]);
-              if (alts.length > 0) { clone[category][field] = alts[Math.floor(Math.random() * alts.length)]; mutationCount++; }
-            }
-          }
-        }
-        for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
-          for (const [field, options] of Object.entries(fields)) {
-            if (clone[category] && Math.random() < MUTATION_RATE / 2) {
-              const alts = options.filter((o: string) => o !== clone[category][field]);
-              if (alts.length > 0) { clone[category][field] = alts[Math.floor(Math.random() * alts.length)]; mutationCount++; }
-            }
-          }
-        }
-        if (Math.random() < MUTATION_RATE / 2) {
-          const alts = emotionOptions.filter((e: string) => e !== clone.emotion);
-          clone.emotion = alts[Math.floor(Math.random() * alts.length)];
-          mutationCount++;
-        }
-        console.log(`Variation B: ${mutationCount} gene(s) mutated`);
-        return clone;
-      }
+      // (mutateGenomeCopy removed — single generation per call)
 
       // --- HELPER: Render a single image given genome + shared context ---
       async function renderVariation(
@@ -2176,77 +2109,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         };
       }
 
-      // --- DUAL VARIATION LOGIC ---
-      const isNewGeneration = action === "generate";
-
-      if (isNewGeneration && genomeData) {
-        // Score + stabilize variation A (the original genome)
-        const resultA = applyStabilityGate(genomeData, brand, trend, trend_intensity, copyStructure);
-        console.log("Variation A Genome Scores:", JSON.stringify(resultA.scores));
-
-        // Create variation B by re-mutating a clone of the original genome
-        const genomeDataB = mutateGenomeCopy(genomeData);
-        // Re-apply brand locks to variation B
-        if (brand) {
-          if (brand.primary_colors && brand.primary_colors.length > 0) {
-            const colorAnalysis = analyzeBrandColors(brand.primary_colors);
-            genomeDataB.color.temperature = colorAnalysis.temperature;
-          }
-          if (brand.typography_primary) {
-            const mappedPersonality = mapFontToPersonality(brand.typography_primary);
-            if (mappedPersonality) genomeDataB.typography.font_personality = mappedPersonality;
-          }
-        }
-        const resultB = applyStabilityGate(genomeDataB, brand, trend, trend_intensity, copyStructure);
-        console.log("Variation B Genome Scores:", JSON.stringify(resultB.scores));
-
-        // Render both in parallel
-        const renderSpan = tracer.startSpan("dual-render");
-        const [variationA, variationB] = await Promise.all([
-          renderVariation(resultA.genome, resultA.scores, "A"),
-          renderVariation(resultB.genome, resultB.scores, "B"),
-        ]);
-        renderSpan.finish();
-
-        // Log trace
-        tracer.log();
-        try {
-          const summary = tracer.summary();
-          await adminClient.from("design_traces").insert({
-            run_id: tracer.runId,
-            user_id: user.id,
-            spans: summary.spans,
-            total_latency_ms: summary.total_latency_ms,
-            total_input_tokens: summary.total_input_tokens,
-            total_output_tokens: summary.total_output_tokens,
-            error: summary.error_count > 0 ? JSON.stringify(tracer.getSpans().filter(s => s.status === "error").map(s => s.error)) : null,
-          });
-        } catch (traceErr) {
-          console.error("Failed to persist trace:", traceErr);
-        }
-
-        return new Response(
-          JSON.stringify({
-            image_url: variationA.image_url,
-            explanation,
-            design_prompt: designPrompt,
-            free_edit: isFreeEdit,
-            ...(copyStructure ? { copy_structure: copyStructure } : {}),
-            ...(genomeData ? { genome: variationA.genome } : {}),
-            ...(variationA.genome_scores ? { genome_scores: variationA.genome_scores } : {}),
-            refined: variationA.refined,
-            ...(captionText ? { caption: captionText } : {}),
-            run_id: tracer.runId,
-            variations: [
-              { image_url: variationA.image_url, genome: variationA.genome, genome_scores: variationA.genome_scores },
-              { image_url: variationB.image_url, genome: variationB.genome, genome_scores: variationB.genome_scores },
-            ],
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // --- SINGLE VARIATION (edits, or no genome) ---
+      // --- SINGLE GENERATION (all actions) ---
       let genomeScores: Record<string, number> | null = null;
       if (genomeData) {
         const stabilized = applyStabilityGate(genomeData, brand, trend, trend_intensity, copyStructure);
