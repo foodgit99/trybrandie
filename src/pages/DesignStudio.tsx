@@ -494,8 +494,8 @@ const DesignStudio = () => {
     const lockedQuality = renderQuality;
     const baseCost = lockedQuality === "hd" ? 2 : 1;
     const isEdit = !!currentImage && !!currentPrompt;
-    // New generations cost 2x for dual variations; edits stay single
-    const creditCost = isCarouselMode ? baseCost * slideCount : isEdit ? baseCost : baseCost * 2;
+    // Single generation: 1 credit standard, 2 for HD
+    const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
 
     if (creditCost > totalAvailable) {
       setShowLimitModal(true);
@@ -641,10 +641,9 @@ const DesignStudio = () => {
       }
 
       const freeLabel = r.free_edit ? " (free edit — no credit used)" : "";
-      const variationLabel = r.variations && r.variations.length === 2 ? " I've created two visual variations for you — pick your favourite!" : "";
       const assistantMsg: Message = {
         role: "assistant",
-        content: r.explanation + freeLabel + variationLabel,
+        content: r.explanation + freeLabel,
         imageUrl: r.image_url,
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -657,14 +656,8 @@ const DesignStudio = () => {
       setShowScores(false);
       setSaved(true);
 
-      // Set up variations
-      if (r.variations && r.variations.length === 2) {
-        setVariations(r.variations);
-        setSelectedVariationIdx(0);
-      } else {
-        setVariations([]);
-        setSelectedVariationIdx(0);
-      }
+      setVariations([]);
+      setSelectedVariationIdx(0);
 
       if (r.design_id) {
         setCurrentDesignId(r.design_id);
@@ -1531,11 +1524,11 @@ const DesignStudio = () => {
                     {(carouselSlides.length === 0 || msg.imageUrl !== carouselSlides[currentSlideIndex]?.image_url) && (
                     <>
                     <img
-                      src={variations.length === 2 && i === messages.length - 1 ? variations[selectedVariationIdx].image_url : msg.imageUrl}
+                      src={msg.imageUrl}
                       alt="Generated design"
                       className="w-full rounded-2xl border border-border cursor-pointer hover:opacity-95 transition-opacity"
                       style={{ aspectRatio: currentAspect }}
-                      onClick={() => setPreviewImage(variations.length === 2 && i === messages.length - 1 ? variations[selectedVariationIdx].image_url : msg.imageUrl!)}
+                      onClick={() => setPreviewImage(msg.imageUrl!)}
                     />
                     {/* Variation picker (A / B thumbnails) */}
                     {variations.length === 2 && i === messages.length - 1 && (
