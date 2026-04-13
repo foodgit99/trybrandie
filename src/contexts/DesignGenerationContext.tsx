@@ -285,7 +285,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           genome_scores: data.genome_scores || null,
           refined: data.refined === true,
           free_edit: data.free_edit === true,
-          variations,
+          variations: undefined,
         });
         setStatus("complete");
       } catch (err: any) {
