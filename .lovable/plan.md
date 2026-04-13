@@ -1,25 +1,36 @@
 
 
-## Fix: Password Reset Link Redirects to Wrong Page
+## Plan: Single Generation Per Call — Maximum Quality Focus
 
 ### Problem
-When a user clicks the password reset link in their email, they're taken to a Lovable page instead of the `/reset-password` page on the app. This happens because the Supabase auth redirect URL allowlist doesn't include all the domains the app is served from (`trybrandie.com`, `trybrandie.lovable.app`).
+Currently, new designs generate **two variations** (A and B) in parallel, costing 2 credits per standard generation. The user wants to reduce this to **one generation per call** and focus all pipeline effort on producing the highest-quality single output.
 
-### Root Cause
-The `resetPasswordForEmail` call in `Auth.tsx` uses `window.location.origin` as the `redirectTo` URL. This is correct, but Supabase only allows redirects to URLs that are explicitly allowlisted in its auth configuration. If the domain isn't in the allowlist, Supabase redirects to its default site URL instead.
+### Changes
 
-### Solution
-Use the `configure_auth` tool to add all project domains to the Supabase redirect URL allowlist:
-- `https://trybrandie.com/reset-password`
-- `https://trybrandie.lovable.app/reset-password`
-- `https://trybrandie.com/**`  
-- `https://trybrandie.lovable.app/**`
+**1. `supabase/functions/design-studio/index.ts`** — Backend: Single render for new generations
 
-This ensures the password reset flow works regardless of which domain the user is on.
+- **Credit cost** (line ~976): Change `(isNewGeneration ? 2 : 1)` to `1` — new generations now cost 1 credit (or 2 for HD)
+- **Remove dual variation logic** (lines ~2182-2247): Instead of creating variation B, mutating its genome, and rendering both in parallel, just apply the stability gate to the single genome and render once (reuse the existing single-variation path at lines 2249-2289)
+- **Remove `mutateGenomeCopy` helper** (lines ~1994-2060): No longer needed
+- **Remove `variations` array from response**: The response for new generations will match the edit response shape (single `image_url`, no `variations` array)
 
-### No Code Changes Needed
-The existing code in `Auth.tsx` and `ResetPassword.tsx` is correct. This is purely a backend auth configuration update.
+**2. `src/pages/DesignStudio.tsx`** — Frontend: Remove variation picker UI
+
+- **Credit cost display** (line ~498): Change `isEdit ? baseCost : baseCost * 2` to just `baseCost` — both new and edit cost the same
+- **Remove variation state usage**: The variation picker (A/B thumbnails) below the generated image becomes unnecessary. Remove the conditional rendering of the variation picker and simplify the image display to always use `msg.imageUrl`
+- **Clean up variation state**: Keep `variations` state for backward compatibility but it will always be empty for new designs
+
+### Quality Focus
+The existing pipeline already maximizes quality through:
+- Brief Agent (structured creative direction)
+- Genome Composer with stability gate (score threshold < 55 triggers fixes)
+- Brand lock enforcement
+- RAG preference learning
+- Copywriter + Caption agents
+
+By rendering one image instead of two, the pipeline concentrates the same intelligence into a single output without splitting attention.
 
 ### Files
-- No file changes — only Supabase auth redirect URL configuration update
+- `supabase/functions/design-studio/index.ts`
+- `src/pages/DesignStudio.tsx`
 
