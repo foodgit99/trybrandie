@@ -1371,14 +1371,32 @@ ${brand.special_instructions}
         })();
       }
 
-      // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis ---
+      // --- PARALLEL: Content Category Classification ---
+      // Run in parallel with inspiration analysis — zero added latency
+      const contentCategoryPromise = (async (): Promise<string> => {
+        const ruleResult = classifyCategoryByRules(userPrompt);
+        if (ruleResult) {
+          console.log(`Content category (rule-based): ${ruleResult}`);
+          return ruleResult;
+        }
+        console.log("Content category: no rule match, falling back to LLM");
+        const llmResult = await classifyCategoryWithLLM(userPrompt, LOVABLE_API_KEY);
+        console.log(`Content category (LLM): ${llmResult}`);
+        return llmResult;
+      })();
+
+      // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis + Category ---
       // Brief Agent and Genome Composer are independent — run them in parallel for latency savings
 
-      // Brief Agent Promise (structured tool calling)
+      // Brief Agent Promise (structured tool calling) — awaits category first (fast)
       const briefPromise = (async () => {
+        const contentCategory = await contentCategoryPromise;
+        const categoryData = CONTENT_CATEGORIES[contentCategory];
+        const categoryContext = categoryData ? `\n\nCONTENT CATEGORY: ${categoryData.name}\n${categoryData.brief_directive}` : "";
+
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
-          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
           const briefMessages = [
             { role: "system", content: briefSystemContent },
             ...compressedMessages.slice(0, -1),
