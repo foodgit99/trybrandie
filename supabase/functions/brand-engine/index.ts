@@ -419,10 +419,9 @@ Special Instructions: ${brand.special_instructions || "N/A"}
 CRITICAL — CONTENT FORMAT ASSIGNMENT:
 You MUST assign a content_format to each idea based on the content type and pillar. Use this expert mapping:
 - "carousel" → Educational, How-to, Tips & Tricks, Storytelling, Case Study, Product Showcase, Step-by-step guides, Listicles, Before/After
-- "graphic" → Promotional, Sales, Announcements, Testimonials, Quotes, Engagement/Interactive, Inspirational, UGC/Community, Single visual CTA
-- "video" → Behind the Scenes, Process/Tutorial, Culture/Team, Event/Recap, Demonstrations, Walkthroughs, Dynamic highlights
+- "graphic" → Promotional, Sales, Announcements, Testimonials, Quotes, Engagement/Interactive, Inspirational, UGC/Community, Single visual CTA, Behind the Scenes, Process highlights, Culture/Team, Event/Recap
 
-Choose the format that best serves the content's PURPOSE, not just its pillar label. Educational content works best as carousels (swipeable learning). Promotional content works best as single graphics (punchy CTA). Behind-the-scenes content works best as video (authenticity, motion).
+Choose the format that best serves the content's PURPOSE, not just its pillar label. Educational content works best as carousels (swipeable learning). All other content works best as single graphics or carousels. Do NOT assign "video" format.
 
 HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
 
@@ -446,7 +445,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     series_name: { type: "string" },
                     campaign_name: { type: "string" },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
-                    content_format: { type: "string", enum: ["graphic", "carousel", "video"] },
+                    content_format: { type: "string", enum: ["graphic", "carousel"] },
                   },
                   required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format"],
                   additionalProperties: false,
