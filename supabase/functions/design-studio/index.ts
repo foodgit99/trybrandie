@@ -1884,6 +1884,12 @@ ${brand.special_instructions}
       let copyStructure: { headline: string; subheadline: string; cta: string; supporting_text: string } | null = null;
       let captionText: string | null = null;
 
+      // Resolve content category (already completed during brief — instant)
+      const resolvedCategory = await contentCategoryPromise;
+      const resolvedCategoryData = CONTENT_CATEGORIES[resolvedCategory];
+      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}` : "";
+      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}` : "";
+
       const trendPresetForCopy = trend && trend !== "none" ? (({
         "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
         "hyper-chromatic": "High-energy promotional language — bold, punchy, exclamatory, confident",
@@ -1908,7 +1914,7 @@ CONTEXT:
 - Brand personality: ${(brand?.personality_traits || []).join(", ") || "Professional"}
 - Brand vibe: ${brand?.vibe || "Modern"}
 ${audienceContext ? `\n${audienceContext}` : ""}
-${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}${chatHistoryContext}
+${trendPresetForCopy ? `\nCOPY TONE ADJUSTMENT: ${trendPresetForCopy}` : ""}${canvasFormatCopy}${chatHistoryContext}${copyCategoryContext}
 ${genomeData ? `\nVISUAL DENSITY CONTEXT: The design uses ${genomeData.layout.content_ratio.replace(/_/g, " ")} content ratio with ${genomeData.typography.hierarchy_logic.replace(/_/g, " ")}. Adjust copy length accordingly — text_minimal means fewer words, text_dominant means richer copy.` : ""}
 
 RULES:
