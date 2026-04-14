@@ -2294,6 +2294,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           refined: singleResult.refined,
           ...(captionText ? { caption: captionText } : {}),
           run_id: tracer.runId,
+          content_category: resolvedCategory,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
