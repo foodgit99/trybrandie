@@ -1,36 +1,25 @@
 
 
-## Plan: Single Generation Per Call — Maximum Quality Focus
+## Fix: Double Credit Deposit (80 credits instead of 40)
 
-### Problem
-Currently, new designs generate **two variations** (A and B) in parallel, costing 2 credits per standard generation. The user wants to reduce this to **one generation per call** and focus all pipeline effort on producing the highest-quality single output.
+### Root Cause
+Two separate functions both deposit credits for the same payment:
+- `paystack-webhook/index.ts` (lines 155-171) — triggered by Paystack server callback
+- `paystack-verify/index.ts` (lines 57-82) — triggered by frontend when user returns to /plans
+
+Both read the current `paid_credits`, add the purchased credits, and write back. This results in exactly double the credits.
+
+### Solution
+Remove the credit deposit logic from `paystack-verify`. The webhook is the authoritative, tamper-proof source (signature-verified). The verify function should only confirm payment status and return the result to the frontend for UI feedback — it should NOT modify the database.
 
 ### Changes
 
-**1. `supabase/functions/design-studio/index.ts`** — Backend: Single render for new generations
-
-- **Credit cost** (line ~976): Change `(isNewGeneration ? 2 : 1)` to `1` — new generations now cost 1 credit (or 2 for HD)
-- **Remove dual variation logic** (lines ~2182-2247): Instead of creating variation B, mutating its genome, and rendering both in parallel, just apply the stability gate to the single genome and render once (reuse the existing single-variation path at lines 2249-2289)
-- **Remove `mutateGenomeCopy` helper** (lines ~1994-2060): No longer needed
-- **Remove `variations` array from response**: The response for new generations will match the edit response shape (single `image_url`, no `variations` array)
-
-**2. `src/pages/DesignStudio.tsx`** — Frontend: Remove variation picker UI
-
-- **Credit cost display** (line ~498): Change `isEdit ? baseCost : baseCost * 2` to just `baseCost` — both new and edit cost the same
-- **Remove variation state usage**: The variation picker (A/B thumbnails) below the generated image becomes unnecessary. Remove the conditional rendering of the variation picker and simplify the image display to always use `msg.imageUrl`
-- **Clean up variation state**: Keep `variations` state for backward compatibility but it will always be empty for new designs
-
-### Quality Focus
-The existing pipeline already maximizes quality through:
-- Brief Agent (structured creative direction)
-- Genome Composer with stability gate (score threshold < 55 triggers fixes)
-- Brand lock enforcement
-- RAG preference learning
-- Copywriter + Caption agents
-
-By rendering one image instead of two, the pipeline concentrates the same intelligence into a single output without splitting attention.
+**`supabase/functions/paystack-verify/index.ts`**
+- Remove lines 57-82 (the entire block that reads `paid_credits` and updates the profile)
+- Keep the payment confirmation email sending (move it to webhook if not already there — but it IS already handled there implicitly via the verify flow, so just remove the email block from verify too since webhook handles affiliate logic)
+- Actually, the webhook does NOT send a payment confirmation email — only the verify function does. So we should move the email sending to the webhook, or keep it in verify but just remove the credit deposit.
+- Simplest fix: Remove only the credit deposit block (lines 64-82). Keep the email sending in verify since it doesn't cause data issues.
 
 ### Files
-- `supabase/functions/design-studio/index.ts`
-- `src/pages/DesignStudio.tsx`
+- `supabase/functions/paystack-verify/index.ts` — remove credit deposit logic, keep email sending
 
