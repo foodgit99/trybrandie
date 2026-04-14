@@ -53,33 +53,12 @@ Deno.serve(async (req) => {
     const amount = data.data.amount / 100;
     const currency = data.data.currency;
 
-    // Deposit paid credits additively
+    // Credits are deposited by paystack-webhook (authoritative, signature-verified).
+    // This function only verifies status and sends confirmation email.
     if (user_id && credits > 0) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
-
-      console.log(`Depositing ${credits} credits for user ${user_id}`);
-
-      // Get current paid_credits
-      const { data: currentProfile } = await supabase
-        .from("profiles")
-        .select("paid_credits")
-        .eq("user_id", user_id)
-        .single();
-
-      const currentPaid = (currentProfile as any)?.paid_credits || 0;
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ paid_credits: currentPaid + credits })
-        .eq("user_id", user_id);
-
-      if (updateError) {
-        console.error("Profile update failed:", JSON.stringify(updateError));
-      } else {
-        console.log(`Credits deposited: ${currentPaid} + ${credits} = ${currentPaid + credits}`);
-      }
 
       // Send payment confirmation email
       try {
