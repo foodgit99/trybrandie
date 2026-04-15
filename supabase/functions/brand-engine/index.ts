@@ -387,6 +387,7 @@ Each campaign should target a specific content category. Vary categories across 
         name: c.name,
         description: c.description,
         post_count: c.post_count,
+        content_category: c.content_category || null,
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("campaigns").insert(campaignsToInsert).select();
       if (insertErr) throw new Error(`Insert campaigns failed: ${insertErr.message}`);
