@@ -10,6 +10,22 @@ const corsHeaders = {
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+const CONTENT_CATEGORIES_REF = `
+THE 10 CONTENT CATEGORIES:
+1. Announcement — New launches, updates, pivots. Bold headline energy.
+2. Educational — Tips, how-tos, industry insights. Builds audience status. Authority tone.
+3. Informational — Logistics: hours, pricing, policies. Removes buying friction.
+4. Entertainment — Memes, relatable moments, scroll-stoppers. Makes brand human.
+5. Promotional — Direct CTA: buy, sign up, click. The ask.
+6. Trending — Current cultural moments, audio trends, formats. Algorithmic reach play.
+7. Holidays & Greetings — Cultural moments, national days, festivities. Real-world connection.
+8. Social Proof / UGC — Testimonials, case studies, customer stories. Affiliation trigger.
+9. Behind-the-Scenes (BTS) — Team, process, messy middle. Trust and authenticity.
+10. Interactive / Engagement — Polls, Q&A, "this or that", feedback requests. Two-way conversation.
+`.trim();
+
+const CONTENT_CATEGORY_ENUM = ["announcement", "educational", "informational", "entertainment", "promotional", "trending", "holidays", "social_proof", "bts", "interactive"];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
