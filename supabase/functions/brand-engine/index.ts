@@ -209,7 +209,11 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       if (creditCheck.blocked) return creditCheck.response;
 
       const result = await callAI(lovableKey, {
-        system: `You are a brand content strategist. Given a brand's identity, audience, and past content, generate exactly 5 content pillars — recurring content themes that will build the brand's presence on social media. Each pillar should have a name, description, and emoji icon. Be specific to this brand, not generic.`,
+        system: `You are a brand content strategist. Given a brand's identity, audience, and past content, generate exactly 5 content pillars — recurring content themes that will build the brand's presence on social media. Each pillar should have a name, description, emoji icon, and a content_categories field listing which content categories this pillar serves.
+
+${CONTENT_CATEGORIES_REF}
+
+IMPORTANT: Each pillar should map to 1-3 content categories from the list above. The 5 pillars together MUST collectively cover at least 7 of the 10 categories. Ensure variety — don't cluster all pillars under Educational and Promotional. Be specific to this brand, not generic.`,
         user: `Generate 5 content pillars for this brand:\n\n${fullContext}`,
         tool: {
           name: "create_pillars",
@@ -225,8 +229,9 @@ Special Instructions: ${brand.special_instructions || "N/A"}
                     name: { type: "string" },
                     description: { type: "string" },
                     icon_emoji: { type: "string" },
+                    content_categories: { type: "string", description: "Comma-separated list of content categories this pillar covers, e.g. 'educational, social_proof'" },
                   },
-                  required: ["name", "description", "icon_emoji"],
+                  required: ["name", "description", "icon_emoji", "content_categories"],
                   additionalProperties: false,
                 },
               },
