@@ -1,61 +1,46 @@
 
 
-## Plan: Add Content Categorisation to the Design Pipeline
+## Plan: Inject Content Categories into Content Hub Strategy Generation
 
 ### Problem
-The design pipeline currently has no awareness of *what type* of content the user is requesting. An announcement post, a promotional graphic, and an educational infographic all go through identical creative logic. This means the Brief Agent, Copywriter, and Renderer don't adapt their visual strategy, copy tone, or composition to the content category — resulting in designs that may not fully align with the user's intent.
+The Content Hub's AI prompts for pillars, series, campaigns, and weekly calendar have no awareness of the 10 content categories (Announcement, Educational, Informational, Entertainment, Promotional, Trending, Holidays, Social Proof, BTS, Interactive). This means the generated output skews toward a narrow subset of categories — typically educational and promotional — instead of giving the brand a well-rounded content mix.
 
-### Approach: Lightweight Categoriser + Context Injection
+### Approach
+Add a shared `CONTENT_CATEGORIES` reference block and inject category-aware instructions into each of the 4 generation prompts in `supabase/functions/brand-engine/index.ts`. No new agents or edge functions needed.
 
-Add a fast, deterministic-first content categoriser that runs early in the pipeline, then inject the category and its creative guidelines into the **Brief Agent**, **Copywriter**, and **Caption Agent** prompts. No new edge function or standalone agent needed — this is a prompt enrichment layer inside `design-studio/index.ts`.
+### Changes — `supabase/functions/brand-engine/index.ts`
 
-### The 10 Content Categories
+**1. Add a shared categories constant** (top of file)
+A string constant listing all 10 categories with short descriptions, reusable across all prompts.
 
-| # | Category | Key Visual/Copy Signals |
-|---|----------|------------------------|
-| 1 | Announcement | Bold headline, "new/launch/introducing", high energy |
-| 2 | Educational | Structured info, tips/steps, authority tone |
-| 3 | Informational | Clean/minimal, factual, logistical details |
-| 4 | Entertainment | Playful, meme-like, relatable, scroll-stopping |
-| 5 | Promotional | CTA-heavy, offer/price, urgency signals |
-| 6 | Trending | Cultural moment, format-aware, reach-focused |
-| 7 | Holidays & Greetings | Festive, warm, celebratory, seasonal |
-| 8 | Social Proof / UGC | Testimonials, quotes, trust-building |
-| 9 | Behind-the-Scenes | Authentic, raw, human, candid feel |
-| 10 | Interactive / Engagement | Question-driven, poll-like, conversation starter |
+**2. `generate_pillars` prompt (line ~196)**
+- Instruct the AI that pillars should collectively cover a healthy spread of the 10 content categories
+- Add: "Each pillar should map to one or more content categories. Ensure the 5 pillars together cover at least 7 of the 10 categories."
+- Add a `content_categories` string field to the pillar tool schema so the AI outputs which categories each pillar serves
 
-### Changes — `supabase/functions/design-studio/index.ts`
+**3. `generate_series` prompt (line ~258)**
+- Instruct: "Each series should align with a specific content category. Ensure variety — avoid clustering all series under the same category."
+- Add a `content_category` enum field to the series tool schema
 
-**Step 1: Add category definitions map (~50 lines)**
-- Define a `CONTENT_CATEGORIES` constant mapping each category ID to its name, description, and creative directives for copy, visual style, and composition.
-- Example: `promotional` → CTA must be prominent, urgency language, high-contrast, product-focused layout.
+**4. `generate_campaigns` prompt (line ~320)**
+- Instruct: "Each campaign should target a specific content category. Vary categories across campaigns."
+- Add a `content_category` enum field to the campaign tool schema
 
-**Step 2: Add rule-based categoriser with LLM fallback (~40 lines)**
-- First attempt deterministic classification using keyword/regex patterns against the user prompt (e.g., "launching" → announcement, "tips" → educational, "sale/offer/discount" → promotional, "happy birthday/merry christmas" → holidays).
-- If no confident match (no pattern fires), use a single fast LLM call (`gemini-2.5-flash-lite`) with a structured tool call to classify into one of the 10 categories. This runs in parallel with the existing Inspiration Analysis promise — zero added latency.
+**5. `generate_weekly_ideas` prompt (line ~417)**
+- Replace generic format guidance with category-aware instructions:
+  - "Each idea MUST be assigned a `content_category` from the 10 categories."
+  - "The week's ideas must represent at least 4 different content categories. Aim for maximum variety."
+  - "Use the content category to determine the visual approach and copy tone in the prompt."
+- Add `content_category` enum field to the weekly ideas tool schema
+- Map the category into the `content_ideas` insert (the DB column may need adding)
 
-**Step 3: Inject category context into Brief Agent prompt (~5 lines)**
-- Append a `CONTENT CATEGORY` section to the Brief Agent's system prompt with the category name and its visual/composition directives.
-- Example: "This is PROMOTIONAL content. The composition must foreground the offer/CTA. Use high-energy, action-oriented visual direction."
+**6. Database migration**
+- Add `content_category text` column to `content_ideas`, `content_pillars`, `post_series`, and `campaigns` tables (nullable, no breaking change)
 
-**Step 4: Inject category context into Copywriter Agent prompt (~5 lines)**
-- Append category-specific copy guidelines to the Copywriter's system prompt.
-- Example: "This is EDUCATIONAL content. Structure the copy as clear, digestible insight. Use authority-building language. The headline should promise value."
-
-**Step 5: Inject category context into Caption Agent prompt (~3 lines)**
-- Append category name so the caption matches the content intent.
-- Example: "This is SOCIAL PROOF content. The caption should reinforce trust and encourage sharing."
-
-**Step 6: Include category in the response payload (~2 lines)**
-- Add `content_category` to the JSON response so the frontend can display or log it.
-
-### Why This Approach
-
-- **No new agent or edge function** — the categoriser is a lightweight step inside the existing pipeline
-- **Zero added latency** — rule-based classification is instant; LLM fallback runs in parallel with existing async work
-- **All agents benefit** — Brief, Copywriter, and Caption each receive category-specific directives without overloading any single agent
-- **Genome is not affected** — visual style genome remains brand-driven; the category influences *composition intent* and *copy strategy*, not low-level gene values
+### Result
+Every layer of the Content Hub — from strategic pillars down to individual daily ideas — will be aware of and distribute across all 10 content categories. This feeds directly into the design-studio's existing content categorisation layer, creating end-to-end category alignment.
 
 ### Files
-- `supabase/functions/design-studio/index.ts` — all changes in this single file
+- `supabase/functions/brand-engine/index.ts` — prompt + schema updates for all 4 actions
+- Database migration — add `content_category` column to 4 tables
 
