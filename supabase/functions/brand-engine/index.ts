@@ -450,6 +450,18 @@ Each campaign should target a specific content category. Vary categories across 
       const result = await callAI(lovableKey, {
         system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
 
+${CONTENT_CATEGORIES_REF}
+
+CRITICAL — CONTENT CATEGORY ASSIGNMENT:
+Each idea MUST be assigned a content_category from the 10 categories above. The week's ideas MUST represent at least 4 different content categories. Aim for maximum variety. Use the content category to determine the visual approach and copy tone in the design prompt:
+- Announcement → bold, high-energy headline prompt
+- Educational → structured, tip-based prompt with clear hierarchy
+- Promotional → CTA-forward, offer-driven prompt
+- Entertainment → playful, relatable, scroll-stopping prompt
+- Social Proof → testimonial/quote-driven prompt
+- BTS → authentic, candid, behind-the-scenes prompt
+- Interactive → question-driven, engagement-focused prompt
+
 CRITICAL — CONTENT FORMAT ASSIGNMENT:
 You MUST assign a content_format to each idea based on the content type and pillar. Use this expert mapping:
 - "carousel" → Educational, How-to, Tips & Tricks, Storytelling, Case Study, Product Showcase, Step-by-step guides, Listicles, Before/After
@@ -457,7 +469,7 @@ You MUST assign a content_format to each idea based on the content type and pill
 
 Choose the format that best serves the content's PURPOSE, not just its pillar label. Educational content works best as carousels (swipeable learning). All other content works best as single graphics or carousels. Do NOT assign "video" format.
 
-HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
+HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday" and content_category "holidays". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
 
 TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.`,
         user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}`,
@@ -480,8 +492,9 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     campaign_name: { type: "string" },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
-                  required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format"],
+                  required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format", "content_category"],
                   additionalProperties: false,
                 },
               },
