@@ -10,6 +10,22 @@ const corsHeaders = {
 
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+const CONTENT_CATEGORIES_REF = `
+THE 10 CONTENT CATEGORIES:
+1. Announcement — New launches, updates, pivots. Bold headline energy.
+2. Educational — Tips, how-tos, industry insights. Builds audience status. Authority tone.
+3. Informational — Logistics: hours, pricing, policies. Removes buying friction.
+4. Entertainment — Memes, relatable moments, scroll-stoppers. Makes brand human.
+5. Promotional — Direct CTA: buy, sign up, click. The ask.
+6. Trending — Current cultural moments, audio trends, formats. Algorithmic reach play.
+7. Holidays & Greetings — Cultural moments, national days, festivities. Real-world connection.
+8. Social Proof / UGC — Testimonials, case studies, customer stories. Affiliation trigger.
+9. Behind-the-Scenes (BTS) — Team, process, messy middle. Trust and authenticity.
+10. Interactive / Engagement — Polls, Q&A, "this or that", feedback requests. Two-way conversation.
+`.trim();
+
+const CONTENT_CATEGORY_ENUM = ["announcement", "educational", "informational", "entertainment", "promotional", "trending", "holidays", "social_proof", "bts", "interactive"];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -193,7 +209,11 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       if (creditCheck.blocked) return creditCheck.response;
 
       const result = await callAI(lovableKey, {
-        system: `You are a brand content strategist. Given a brand's identity, audience, and past content, generate exactly 5 content pillars — recurring content themes that will build the brand's presence on social media. Each pillar should have a name, description, and emoji icon. Be specific to this brand, not generic.`,
+        system: `You are a brand content strategist. Given a brand's identity, audience, and past content, generate exactly 5 content pillars — recurring content themes that will build the brand's presence on social media. Each pillar should have a name, description, emoji icon, and a content_categories field listing which content categories this pillar serves.
+
+${CONTENT_CATEGORIES_REF}
+
+IMPORTANT: Each pillar should map to 1-3 content categories from the list above. The 5 pillars together MUST collectively cover at least 7 of the 10 categories. Ensure variety — don't cluster all pillars under Educational and Promotional. Be specific to this brand, not generic.`,
         user: `Generate 5 content pillars for this brand:\n\n${fullContext}`,
         tool: {
           name: "create_pillars",
@@ -209,8 +229,9 @@ Special Instructions: ${brand.special_instructions || "N/A"}
                     name: { type: "string" },
                     description: { type: "string" },
                     icon_emoji: { type: "string" },
+                    content_categories: { type: "string", description: "Comma-separated list of content categories this pillar covers, e.g. 'educational, social_proof'" },
                   },
-                  required: ["name", "description", "icon_emoji"],
+                  required: ["name", "description", "icon_emoji", "content_categories"],
                   additionalProperties: false,
                 },
               },
@@ -232,6 +253,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         description: p.description,
         icon_emoji: p.icon_emoji,
         sort_order: i,
+        content_category: p.content_categories || null,
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("content_pillars").insert(pillarsToInsert).select();
       if (insertErr) throw new Error(`Insert pillars failed: ${insertErr.message}`);
@@ -255,7 +277,11 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const pillarContext = (pillars || []).map((p: any) => `${p.icon_emoji} ${p.name}: ${p.description}`).join("\n");
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content strategist. Given a brand and its content pillars, generate 3-4 recurring post series. Each series is a repeating content format (e.g. "Tip Tuesday", "Customer Spotlight Sunday"). Assign each to a day of the week and a pillar. Be creative and specific to this brand.`,
+        system: `You are a social media content strategist. Given a brand and its content pillars, generate 3-4 recurring post series. Each series is a repeating content format (e.g. "Tip Tuesday", "Customer Spotlight Sunday"). Assign each to a day of the week, a pillar, and a primary content_category.
+
+${CONTENT_CATEGORIES_REF}
+
+Each series should align with a specific content category. Ensure variety — avoid clustering all series under the same category. The series together should cover at least 3 different categories. Be creative and specific to this brand.`,
         user: `Generate recurring post series for this brand:\n\n${fullContext}\n\nCONTENT PILLARS:\n${pillarContext}`,
         tool: {
           name: "create_series",
@@ -274,8 +300,9 @@ Special Instructions: ${brand.special_instructions || "N/A"}
                     preferred_day: { type: "string", enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] },
                     pillar_name: { type: "string" },
                     visual_style_notes: { type: "string" },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
-                  required: ["name", "description", "recurrence", "preferred_day", "pillar_name", "visual_style_notes"],
+                  required: ["name", "description", "recurrence", "preferred_day", "pillar_name", "visual_style_notes", "content_category"],
                   additionalProperties: false,
                 },
               },
@@ -299,6 +326,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         recurrence: s.recurrence,
         preferred_day: s.preferred_day,
         visual_style_notes: s.visual_style_notes,
+        content_category: s.content_category || null,
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("post_series").insert(seriesToInsert).select();
       if (insertErr) throw new Error(`Insert series failed: ${insertErr.message}`);
@@ -317,7 +345,11 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       }
 
       const result = await callAI(lovableKey, {
-        system: `You are a brand campaign strategist. Generate 2-3 campaign ideas for this brand. Each campaign should have a catchy name, description, and a post count (3-7 posts per campaign). Be specific and seasonal/topical.`,
+        system: `You are a brand campaign strategist. Generate 2-3 campaign ideas for this brand. Each campaign should have a catchy name, description, post count (3-7 posts), and a primary content_category.
+
+${CONTENT_CATEGORIES_REF}
+
+Each campaign should target a specific content category. Vary categories across campaigns — e.g. one promotional campaign, one social proof campaign, one announcement campaign. Be specific and seasonal/topical.`,
         user: `Generate campaign ideas:\n\n${fullContext}`,
         tool: {
           name: "create_campaigns",
@@ -333,8 +365,9 @@ Special Instructions: ${brand.special_instructions || "N/A"}
                     name: { type: "string" },
                     description: { type: "string" },
                     post_count: { type: "number" },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
-                  required: ["name", "description", "post_count"],
+                  required: ["name", "description", "post_count", "content_category"],
                   additionalProperties: false,
                 },
               },
@@ -354,6 +387,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         name: c.name,
         description: c.description,
         post_count: c.post_count,
+        content_category: c.content_category || null,
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("campaigns").insert(campaignsToInsert).select();
       if (insertErr) throw new Error(`Insert campaigns failed: ${insertErr.message}`);
@@ -416,6 +450,18 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const result = await callAI(lovableKey, {
         system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
 
+${CONTENT_CATEGORIES_REF}
+
+CRITICAL — CONTENT CATEGORY ASSIGNMENT:
+Each idea MUST be assigned a content_category from the 10 categories above. The week's ideas MUST represent at least 4 different content categories. Aim for maximum variety. Use the content category to determine the visual approach and copy tone in the design prompt:
+- Announcement → bold, high-energy headline prompt
+- Educational → structured, tip-based prompt with clear hierarchy
+- Promotional → CTA-forward, offer-driven prompt
+- Entertainment → playful, relatable, scroll-stopping prompt
+- Social Proof → testimonial/quote-driven prompt
+- BTS → authentic, candid, behind-the-scenes prompt
+- Interactive → question-driven, engagement-focused prompt
+
 CRITICAL — CONTENT FORMAT ASSIGNMENT:
 You MUST assign a content_format to each idea based on the content type and pillar. Use this expert mapping:
 - "carousel" → Educational, How-to, Tips & Tricks, Storytelling, Case Study, Product Showcase, Step-by-step guides, Listicles, Before/After
@@ -423,7 +469,7 @@ You MUST assign a content_format to each idea based on the content type and pill
 
 Choose the format that best serves the content's PURPOSE, not just its pillar label. Educational content works best as carousels (swipeable learning). All other content works best as single graphics or carousels. Do NOT assign "video" format.
 
-HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
+HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday" and content_category "holidays". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
 
 TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.`,
         user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}`,
@@ -446,8 +492,9 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     campaign_name: { type: "string" },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
-                  required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format"],
+                  required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format", "content_category"],
                   additionalProperties: false,
                 },
               },
@@ -485,6 +532,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         prompt: idea.prompt,
         idea_type: idea.idea_type,
         content_format: idea.content_format || "graphic",
+        content_category: idea.content_category || null,
         status: "suggested",
         scheduled_for: dateMap.get(idea.day) || null,
       }));
