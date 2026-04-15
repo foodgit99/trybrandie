@@ -253,6 +253,7 @@ IMPORTANT: Each pillar should map to 1-3 content categories from the list above.
         description: p.description,
         icon_emoji: p.icon_emoji,
         sort_order: i,
+        content_category: p.content_categories || null,
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("content_pillars").insert(pillarsToInsert).select();
       if (insertErr) throw new Error(`Insert pillars failed: ${insertErr.message}`);
