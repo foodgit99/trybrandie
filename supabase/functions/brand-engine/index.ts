@@ -326,6 +326,7 @@ Each series should align with a specific content category. Ensure variety — av
         recurrence: s.recurrence,
         preferred_day: s.preferred_day,
         visual_style_notes: s.visual_style_notes,
+        content_category: s.content_category || null,
       }));
       const { data: inserted, error: insertErr } = await serviceClient.from("post_series").insert(seriesToInsert).select();
       if (insertErr) throw new Error(`Insert series failed: ${insertErr.message}`);
