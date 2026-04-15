@@ -551,6 +551,7 @@ export type Database = {
       campaigns: {
         Row: {
           brand_id: string
+          content_category: string | null
           created_at: string
           description: string
           id: string
@@ -560,6 +561,7 @@ export type Database = {
         }
         Insert: {
           brand_id: string
+          content_category?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -569,6 +571,7 @@ export type Database = {
         }
         Update: {
           brand_id?: string
+          content_category?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -619,6 +622,7 @@ export type Database = {
           autopilot_status: string | null
           brand_id: string
           campaign_id: string | null
+          content_category: string | null
           content_format: string
           created_at: string
           design_id: string | null
@@ -637,6 +641,7 @@ export type Database = {
           autopilot_status?: string | null
           brand_id: string
           campaign_id?: string | null
+          content_category?: string | null
           content_format?: string
           created_at?: string
           design_id?: string | null
@@ -655,6 +660,7 @@ export type Database = {
           autopilot_status?: string | null
           brand_id?: string
           campaign_id?: string | null
+          content_category?: string | null
           content_format?: string
           created_at?: string
           design_id?: string | null
@@ -709,6 +715,7 @@ export type Database = {
       content_pillars: {
         Row: {
           brand_id: string
+          content_category: string | null
           created_at: string
           description: string
           icon_emoji: string
@@ -720,6 +727,7 @@ export type Database = {
         }
         Insert: {
           brand_id: string
+          content_category?: string | null
           created_at?: string
           description?: string
           icon_emoji?: string
@@ -731,6 +739,7 @@ export type Database = {
         }
         Update: {
           brand_id?: string
+          content_category?: string | null
           created_at?: string
           description?: string
           icon_emoji?: string
@@ -1063,6 +1072,7 @@ export type Database = {
       post_series: {
         Row: {
           brand_id: string
+          content_category: string | null
           created_at: string
           description: string
           id: string
@@ -1076,6 +1086,7 @@ export type Database = {
         }
         Insert: {
           brand_id: string
+          content_category?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -1089,6 +1100,7 @@ export type Database = {
         }
         Update: {
           brand_id?: string
+          content_category?: string | null
           created_at?: string
           description?: string
           id?: string
