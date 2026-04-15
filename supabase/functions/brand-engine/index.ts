@@ -277,7 +277,11 @@ IMPORTANT: Each pillar should map to 1-3 content categories from the list above.
       const pillarContext = (pillars || []).map((p: any) => `${p.icon_emoji} ${p.name}: ${p.description}`).join("\n");
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content strategist. Given a brand and its content pillars, generate 3-4 recurring post series. Each series is a repeating content format (e.g. "Tip Tuesday", "Customer Spotlight Sunday"). Assign each to a day of the week and a pillar. Be creative and specific to this brand.`,
+        system: `You are a social media content strategist. Given a brand and its content pillars, generate 3-4 recurring post series. Each series is a repeating content format (e.g. "Tip Tuesday", "Customer Spotlight Sunday"). Assign each to a day of the week, a pillar, and a primary content_category.
+
+${CONTENT_CATEGORIES_REF}
+
+Each series should align with a specific content category. Ensure variety — avoid clustering all series under the same category. The series together should cover at least 3 different categories. Be creative and specific to this brand.`,
         user: `Generate recurring post series for this brand:\n\n${fullContext}\n\nCONTENT PILLARS:\n${pillarContext}`,
         tool: {
           name: "create_series",
@@ -296,8 +300,9 @@ IMPORTANT: Each pillar should map to 1-3 content categories from the list above.
                     preferred_day: { type: "string", enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] },
                     pillar_name: { type: "string" },
                     visual_style_notes: { type: "string" },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
-                  required: ["name", "description", "recurrence", "preferred_day", "pillar_name", "visual_style_notes"],
+                  required: ["name", "description", "recurrence", "preferred_day", "pillar_name", "visual_style_notes", "content_category"],
                   additionalProperties: false,
                 },
               },
