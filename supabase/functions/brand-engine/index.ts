@@ -345,7 +345,11 @@ Each series should align with a specific content category. Ensure variety — av
       }
 
       const result = await callAI(lovableKey, {
-        system: `You are a brand campaign strategist. Generate 2-3 campaign ideas for this brand. Each campaign should have a catchy name, description, and a post count (3-7 posts per campaign). Be specific and seasonal/topical.`,
+        system: `You are a brand campaign strategist. Generate 2-3 campaign ideas for this brand. Each campaign should have a catchy name, description, post count (3-7 posts), and a primary content_category.
+
+${CONTENT_CATEGORIES_REF}
+
+Each campaign should target a specific content category. Vary categories across campaigns — e.g. one promotional campaign, one social proof campaign, one announcement campaign. Be specific and seasonal/topical.`,
         user: `Generate campaign ideas:\n\n${fullContext}`,
         tool: {
           name: "create_campaigns",
@@ -361,8 +365,9 @@ Each series should align with a specific content category. Ensure variety — av
                     name: { type: "string" },
                     description: { type: "string" },
                     post_count: { type: "number" },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
-                  required: ["name", "description", "post_count"],
+                  required: ["name", "description", "post_count", "content_category"],
                   additionalProperties: false,
                 },
               },
