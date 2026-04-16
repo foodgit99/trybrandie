@@ -223,7 +223,7 @@ Requirements:
         .update({ logo_generations_used: 1 })
         .eq("user_id", user.id);
     } else {
-      // Deduction order: free monthly → bonus → paid
+      // Deduction order: free monthly → bonus → reward → paid
       const FREE_MONTHLY = 5;
       const resetAt = new Date(profile.generations_reset_at);
       const now = new Date();
@@ -245,6 +245,23 @@ Requirements:
         updates.bonus_credits = bonusCredits - 1;
         remainingCost = 0;
       }
+
+      // Consume reward credits
+      if (remainingCost > 0) {
+        const { data: rewardRows } = await adminSupabase
+          .from("credit_rewards")
+          .select("id, remaining")
+          .eq("user_id", user.id)
+          .gt("remaining", 0)
+          .gt("expires_at", now.toISOString())
+          .order("expires_at", { ascending: true });
+        if (rewardRows && rewardRows.length > 0) {
+          const toUse = Math.min(remainingCost, rewardRows[0].remaining);
+          await adminSupabase.from("credit_rewards").update({ remaining: rewardRows[0].remaining - toUse }).eq("id", rewardRows[0].id);
+          remainingCost -= toUse;
+        }
+      }
+
       if (remainingCost > 0) {
         updates.paid_credits = paidCredits - 1;
       }
