@@ -144,12 +144,23 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const monthReset = now.getMonth() !== genResetAt.getMonth() || now.getFullYear() !== genResetAt.getFullYear();
       const effectiveGenCount = monthReset ? 0 : profile.generations_count;
       const freeRemaining = Math.max(0, FREE_MONTHLY - effectiveGenCount);
-      const availableCredits = freeRemaining + (profile.bonus_credits || 0) + ((profile as any).paid_credits || 0);
 
-      return { is_free: isFree, credits_required: isFree ? 0 : 2, available_credits: availableCredits, profile };
+      // Query active reward credits
+      const { data: rewardRows } = await serviceClient
+        .from("credit_rewards")
+        .select("id, remaining")
+        .eq("user_id", userId)
+        .gt("remaining", 0)
+        .gt("expires_at", now.toISOString())
+        .order("expires_at", { ascending: true });
+      const rewardCredits = (rewardRows || []).reduce((s: number, r: any) => s + r.remaining, 0);
+
+      const availableCredits = freeRemaining + (profile.bonus_credits || 0) + rewardCredits + ((profile as any).paid_credits || 0);
+
+      return { is_free: isFree, credits_required: isFree ? 0 : 2, available_credits: availableCredits, profile, rewardRows: rewardRows || [] };
     };
 
-    const deductAndTrackGeneration = async (profile: any) => {
+    const deductAndTrackGeneration = async (profile: any, rewardRows?: any[]) => {
       const weekStart = getISOWeekStart();
       const resetAt = new Date(profile.content_hub_gen_reset_at);
       const currentCount = resetAt < weekStart ? 0 : (profile.content_hub_gen_count || 0);
@@ -160,7 +171,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       };
 
       if (currentCount >= 1) {
-        // Deduction order: free monthly → bonus → paid
+        // Deduction order: free monthly → bonus → reward → paid
         const FREE_MONTHLY = 5;
         const genResetAt = new Date(profile.generations_reset_at);
         const now = new Date();
@@ -181,6 +192,17 @@ Special Instructions: ${brand.special_instructions || "N/A"}
           updates.bonus_credits = bonusCredits - bonusToUse;
           remainingCost -= bonusToUse;
         }
+
+        // Consume reward credits (soonest-expiring first)
+        if (remainingCost > 0 && rewardRows && rewardRows.length > 0) {
+          for (const rw of rewardRows) {
+            if (remainingCost <= 0) break;
+            const toUse = Math.min(remainingCost, rw.remaining);
+            await serviceClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+            remainingCost -= toUse;
+          }
+        }
+
         if (remainingCost > 0) {
           updates.paid_credits = paidCredits - remainingCost;
         }
@@ -194,7 +216,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       if (!status.is_free && status.available_credits < 2) {
         return { blocked: true, response: new Response(JSON.stringify({ error: "Not enough credits. You need 2 credits for this generation." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }) };
       }
-      return { blocked: false, profile: status.profile };
+      return { blocked: false, profile: status.profile, rewardRows: status.rewardRows };
     };
 
     // --- ACTION HANDLERS ---

@@ -152,7 +152,18 @@ Deno.serve(async (req) => {
       const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
       const bonus = profile.bonus_credits ?? 0;
       const paid = (profile as any).paid_credits ?? 0;
-      if (5 > freeRemaining + bonus + paid) {
+
+      // Query active reward credits
+      const { data: rewardRows } = await supabaseAdmin
+        .from("credit_rewards")
+        .select("id, remaining")
+        .eq("user_id", userId)
+        .gt("remaining", 0)
+        .gt("expires_at", now.toISOString())
+        .order("expires_at", { ascending: true });
+      const rewardCredits = (rewardRows || []).reduce((s: number, r: any) => s + r.remaining, 0);
+
+      if (5 > freeRemaining + bonus + rewardCredits + paid) {
         return new Response(JSON.stringify({ error: "Insufficient credits. Video rendering requires 5 credits." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -335,6 +346,26 @@ Deno.serve(async (req) => {
         updates.bonus_credits = bonusCredits - bonusToUse;
         remainingCost -= bonusToUse;
       }
+
+      // Consume reward credits (soonest-expiring first)
+      if (remainingCost > 0) {
+        const { data: rewardRows } = await supabaseAdmin
+          .from("credit_rewards")
+          .select("id, remaining")
+          .eq("user_id", userId)
+          .gt("remaining", 0)
+          .gt("expires_at", now.toISOString())
+          .order("expires_at", { ascending: true });
+        if (rewardRows) {
+          for (const rw of rewardRows) {
+            if (remainingCost <= 0) break;
+            const toUse = Math.min(remainingCost, rw.remaining);
+            await supabaseAdmin.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+            remainingCost -= toUse;
+          }
+        }
+      }
+
       if (remainingCost > 0) {
         updates.paid_credits = paidCredits - remainingCost;
       }

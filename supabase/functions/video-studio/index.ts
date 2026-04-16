@@ -484,7 +484,18 @@ serve(async (req) => {
       const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
       const bonus = profile.bonus_credits || 0;
       const paid = (profile as any).paid_credits || 0;
-      if (VIDEO_CREDIT_COST > freeRemaining + bonus + paid) {
+
+      // Query active reward credits
+      const { data: rewardRows } = await supabase
+        .from("credit_rewards")
+        .select("id, remaining")
+        .eq("user_id", user.id)
+        .gt("remaining", 0)
+        .gt("expires_at", now.toISOString())
+        .order("expires_at", { ascending: true });
+      const rewardCredits = (rewardRows || []).reduce((s: number, r: any) => s + r.remaining, 0);
+
+      if (VIDEO_CREDIT_COST > freeRemaining + bonus + rewardCredits + paid) {
         return new Response(JSON.stringify({ error: "Insufficient credits for video generation" }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
