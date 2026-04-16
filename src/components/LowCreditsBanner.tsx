@@ -19,18 +19,28 @@ const LowCreditsBanner = () => {
   const { data: credits } = useQuery({
     queryKey: ["low-credits-check", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("generations_count, generations_reset_at, bonus_credits, paid_credits")
-        .eq("user_id", user!.id)
-        .single();
-      if (error) throw error;
+      const [profileRes, rewardRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("generations_count, generations_reset_at, bonus_credits, paid_credits")
+          .eq("user_id", user!.id)
+          .single(),
+        supabase
+          .from("credit_rewards")
+          .select("remaining")
+          .eq("user_id", user!.id)
+          .gt("remaining", 0)
+          .gt("expires_at", new Date().toISOString()),
+      ]);
+      if (profileRes.error) throw profileRes.error;
+      const data = profileRes.data;
       const resetAt = new Date(data.generations_reset_at);
       const now = new Date();
       const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
       const monthlyUsed = isCurrentMonth ? data.generations_count : 0;
       const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
-      return freeRemaining + (data.bonus_credits ?? 0) + (data.paid_credits ?? 0);
+      const rewardCredits = (rewardRes.data || []).reduce((s, r) => s + r.remaining, 0);
+      return freeRemaining + (data.bonus_credits ?? 0) + rewardCredits + (data.paid_credits ?? 0);
     },
     enabled: !!user,
     staleTime: 60_000,

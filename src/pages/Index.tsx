@@ -380,7 +380,8 @@ const Index = () => {
             const bonus = profile.bonus_credits ?? 0;
             const paid = (profile as any)?.paid_credits ?? 0;
             const freeRemaining = Math.max(0, FREE_MONTHLY - used);
-            const remaining = freeRemaining + bonus + paid;
+            const reward = rewardCreditsTotal ?? 0;
+            const remaining = freeRemaining + bonus + reward + paid;
 
             return (
               <motion.section
@@ -403,7 +404,7 @@ const Index = () => {
                   <span className="text-sm text-muted-foreground mb-1">credits remaining</span>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p>{freeRemaining} free monthly · {bonus} bonus · {paid} paid</p>
+                  <p>{freeRemaining} free monthly · {bonus} bonus{reward > 0 ? ` · ${reward} reward` : ""} · {paid} paid</p>
                   {bonus > 0 && (
                     <p className="flex items-center gap-1">
                       <Gift className="h-3 w-3" />
