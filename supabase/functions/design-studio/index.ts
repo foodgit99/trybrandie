@@ -2345,7 +2345,18 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
         const bonusCredits = profile.bonus_credits || 0;
         const paidCredits = (profile as any).paid_credits || 0;
-        const totalAvailable = freeRemaining + bonusCredits + paidCredits;
+
+        // Query active reward credits
+        const { data: rewardRows } = await adminClient
+          .from("credit_rewards")
+          .select("id, remaining")
+          .eq("user_id", user.id)
+          .gt("remaining", 0)
+          .gt("expires_at", now.toISOString())
+          .order("expires_at", { ascending: true });
+        const rewardCredits = (rewardRows || []).reduce((s: number, r: any) => s + r.remaining, 0);
+
+        const totalAvailable = freeRemaining + bonusCredits + rewardCredits + paidCredits;
 
         if (creditCost > totalAvailable) {
           return new Response(JSON.stringify({ error: "Not enough credits for carousel. You need " + creditCost + " credits." }), {
@@ -2353,7 +2364,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           });
         }
 
-        // Deduction order: free monthly → bonus → paid
+        // Deduction order: free monthly → bonus → reward → paid
         let remainingCost = creditCost;
         const updates: any = {};
         if (needsReset) updates.generations_reset_at = now.toISOString();
@@ -2367,6 +2378,17 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           updates.bonus_credits = bonusCredits - bonusToUse;
           remainingCost -= bonusToUse;
         }
+
+        // Consume reward credits (soonest-expiring first)
+        if (remainingCost > 0 && rewardRows && rewardRows.length > 0) {
+          for (const rw of rewardRows) {
+            if (remainingCost <= 0) break;
+            const toUse = Math.min(remainingCost, rw.remaining);
+            await adminClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+            remainingCost -= toUse;
+          }
+        }
+
         if (remainingCost > 0) {
           updates.paid_credits = paidCredits - remainingCost;
         }
