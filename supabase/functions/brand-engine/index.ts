@@ -281,7 +281,7 @@ IMPORTANT: Each pillar should map to 1-3 content categories from the list above.
       if (insertErr) throw new Error(`Insert pillars failed: ${insertErr.message}`);
 
       // Track generation
-      await deductAndTrackGeneration(creditCheck.profile);
+      await deductAndTrackGeneration(creditCheck.profile, creditCheck.rewardRows);
 
       return jsonResponse({ pillars: inserted });
     }
