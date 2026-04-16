@@ -64,6 +64,7 @@ import {
   Filter,
   CalendarIcon,
   X,
+  Gift,
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
