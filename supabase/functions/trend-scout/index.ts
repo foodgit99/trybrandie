@@ -89,7 +89,18 @@ serve(async (req) => {
 
     const isFree = genCount === 0;
     const creditsRequired = isFree ? 0 : 2;
-    const availableCredits = (profile.bonus_credits || 0) + (profile.paid_credits || 0);
+
+    // Query active reward credits
+    const { data: rewardRows } = await serviceClient
+      .from("credit_rewards")
+      .select("id, remaining")
+      .eq("user_id", userId)
+      .gt("remaining", 0)
+      .gt("expires_at", now.toISOString())
+      .order("expires_at", { ascending: true });
+    const rewardCredits = (rewardRows || []).reduce((s: number, r: any) => s + r.remaining, 0);
+
+    const availableCredits = (profile.bonus_credits || 0) + rewardCredits + (profile.paid_credits || 0);
 
     // check_only mode — just return cost info
     if (check_only) {
@@ -102,10 +113,22 @@ serve(async (req) => {
         return jsonResp({ error: "Not enough credits. You need 2 credits for an additional trend refresh this week." }, 402);
       }
 
-      // Deduct 2 credits: bonus first, then paid
+      // Deduct 2 credits: bonus → reward → paid
       let toDeduct = 2;
       let bonusDeduct = Math.min(toDeduct, profile.bonus_credits || 0);
-      let paidDeduct = toDeduct - bonusDeduct;
+      toDeduct -= bonusDeduct;
+
+      // Consume reward credits
+      if (toDeduct > 0 && rewardRows && rewardRows.length > 0) {
+        for (const rw of rewardRows) {
+          if (toDeduct <= 0) break;
+          const toUse = Math.min(toDeduct, rw.remaining);
+          await serviceClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+          toDeduct -= toUse;
+        }
+      }
+
+      let paidDeduct = toDeduct;
 
       await serviceClient
         .from("profiles")

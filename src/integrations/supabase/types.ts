@@ -759,6 +759,39 @@ export type Database = {
           },
         ]
       }
+      credit_rewards: {
+        Row: {
+          amount: number
+          created_at: string
+          expires_at: string
+          granted_by: string
+          id: string
+          reason: string
+          remaining: number
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expires_at: string
+          granted_by: string
+          id?: string
+          reason?: string
+          remaining: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expires_at?: string
+          granted_by?: string
+          id?: string
+          reason?: string
+          remaining?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       design_folder_assignments: {
         Row: {
           created_at: string

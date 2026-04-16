@@ -46,6 +46,22 @@ const AppHeader = () => {
     enabled: !!user,
   });
 
+  const { data: rewardCredits } = useQuery({
+    queryKey: ["reward-credits", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("credit_rewards")
+        .select("remaining")
+        .eq("user_id", user!.id)
+        .gt("remaining", 0)
+        .gt("expires_at", new Date().toISOString());
+      if (error) return 0;
+      return (data || []).reduce((sum, r) => sum + r.remaining, 0);
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
   const getCreditsRemaining = () => {
     if (!profile) return FREE_MONTHLY;
     const resetAt = new Date(profile.generations_reset_at);
@@ -55,7 +71,7 @@ const AppHeader = () => {
     const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
     const bonus = (profile as any)?.bonus_credits ?? 0;
     const paid = (profile as any)?.paid_credits ?? 0;
-    return freeRemaining + bonus + paid;
+    return freeRemaining + bonus + (rewardCredits ?? 0) + paid;
   };
 
   const creditsRemaining = getCreditsRemaining();
