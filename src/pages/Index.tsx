@@ -91,6 +91,22 @@ const Index = () => {
     enabled: !!user,
   });
 
+  const { data: rewardCreditsTotal } = useQuery({
+    queryKey: ["reward-credits-home", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("credit_rewards")
+        .select("remaining")
+        .eq("user_id", user!.id)
+        .gt("remaining", 0)
+        .gt("expires_at", new Date().toISOString());
+      if (error) return 0;
+      return (data || []).reduce((sum, r) => sum + r.remaining, 0);
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
   const todayISO = new Date().toISOString().split("T")[0];
 
   const { data: todaysContent } = useQuery({
