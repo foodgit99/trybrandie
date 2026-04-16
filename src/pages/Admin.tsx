@@ -1293,6 +1293,36 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
     fetchEmail();
   }, [detailItem?.user_id]);
 
+  const [grantOpen, setGrantOpen] = useState(false);
+  const [grantAmount, setGrantAmount] = useState(5);
+  const [grantReason, setGrantReason] = useState("");
+  const [grantExpiry, setGrantExpiry] = useState(30);
+  const [granting, setGranting] = useState(false);
+
+  const handleGrant = async () => {
+    if (!detailItem?.user_id || grantAmount < 1) return;
+    setGranting(true);
+    try {
+      await adminAction({
+        operation: "grant_reward",
+        data: {
+          user_id: detailItem.user_id,
+          amount: grantAmount,
+          reason: grantReason,
+          expires_in_days: grantExpiry,
+        },
+      });
+      toast.success(`Granted ${grantAmount} reward credits`);
+      setGrantOpen(false);
+      setGrantAmount(5);
+      setGrantReason("");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setGranting(false);
+    }
+  };
+
   return (
     <Dialog open={!!detailItem} onOpenChange={() => onClose()}>
       <DialogContent className="rounded-2xl max-w-md max-h-[80vh] overflow-y-auto">
@@ -1325,6 +1355,64 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
                 </p>
               </div>
             ))}
+
+            <Separator />
+
+            <Button
+              size="sm"
+              className="w-full rounded-xl gap-2"
+              onClick={() => setGrantOpen(true)}
+            >
+              <Gift className="h-4 w-4" />
+              Grant Reward Credits
+            </Button>
+
+            {grantOpen && (
+              <div className="space-y-3 p-3 rounded-xl border bg-muted/30">
+                <div>
+                  <Label className="text-xs">Credits Amount</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={grantAmount}
+                    onChange={(e) => setGrantAmount(Number(e.target.value))}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Reason</Label>
+                  <Input
+                    placeholder="e.g. Contest winner, beta tester"
+                    value={grantReason}
+                    onChange={(e) => setGrantReason(e.target.value)}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Expires In</Label>
+                  <select
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm mt-1"
+                    value={grantExpiry}
+                    onChange={(e) => setGrantExpiry(Number(e.target.value))}
+                  >
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={30}>30 days</option>
+                    <option value={60}>60 days</option>
+                    <option value={90}>90 days</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1 rounded-lg" onClick={handleGrant} disabled={granting || grantAmount < 1}>
+                    {granting ? "Granting..." : "Confirm"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => setGrantOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
