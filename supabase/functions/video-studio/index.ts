@@ -600,7 +600,7 @@ serve(async (req) => {
       await supabase.from("video_scenes").insert(sceneRows);
     }
 
-    // 9. Deduct credits — bonus-first
+    // 9. Deduct credits — free → bonus → reward → paid
     if (profile) {
       const FREE_MONTHLY = 5;
       const resetAt = new Date(profile.generations_reset_at);
@@ -624,6 +624,26 @@ serve(async (req) => {
         updates.bonus_credits = bonusCredits - bonusToUse;
         remainingCost -= bonusToUse;
       }
+
+      // Consume reward credits (soonest-expiring first)
+      if (remainingCost > 0) {
+        const { data: rewardRows } = await supabase
+          .from("credit_rewards")
+          .select("id, remaining")
+          .eq("user_id", user.id)
+          .gt("remaining", 0)
+          .gt("expires_at", now.toISOString())
+          .order("expires_at", { ascending: true });
+        if (rewardRows) {
+          for (const rw of rewardRows) {
+            if (remainingCost <= 0) break;
+            const toUse = Math.min(remainingCost, rw.remaining);
+            await supabase.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+            remainingCost -= toUse;
+          }
+        }
+      }
+
       if (remainingCost > 0) {
         updates.paid_credits = paidCredits - remainingCost;
       }

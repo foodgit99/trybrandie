@@ -64,7 +64,18 @@ serve(async (req) => {
       const monthReset = now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear();
       const currentCount = monthReset ? 0 : profile.generations_count;
       const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
-      const totalAvailable = freeRemaining + profile.bonus_credits + ((profile as any).paid_credits || 0);
+
+      // Query active reward credits
+      const { data: rewardRows } = await adminSupabase
+        .from("credit_rewards")
+        .select("id, remaining")
+        .eq("user_id", user.id)
+        .gt("remaining", 0)
+        .gt("expires_at", now.toISOString())
+        .order("expires_at", { ascending: true });
+      const rewardCredits = (rewardRows || []).reduce((s: number, r: any) => s + r.remaining, 0);
+
+      const totalAvailable = freeRemaining + profile.bonus_credits + rewardCredits + ((profile as any).paid_credits || 0);
 
       if (totalAvailable < 1) {
         return new Response(JSON.stringify({ error: "No credits remaining. Please upgrade your plan or purchase more credits.", requires_credits: true }), {
