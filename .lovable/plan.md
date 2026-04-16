@@ -1,46 +1,76 @@
 
 
-## Plan: Inject Content Categories into Content Hub Strategy Generation
+## Plan: Admin Credit Reward System
 
-### Problem
-The Content Hub's AI prompts for pillars, series, campaigns, and weekly calendar have no awareness of the 10 content categories (Announcement, Educational, Informational, Entertainment, Promotional, Trending, Holidays, Social Proof, BTS, Interactive). This means the generated output skews toward a narrow subset of categories — typically educational and promotional — instead of giving the brand a well-rounded content mix.
+### Concept
+A new credit bucket — **reward credits** — that admins can grant to specific users with a set expiry date. These credits are non-renewable, expire automatically, and slot into the existing deduction hierarchy between Bonus and Paid credits.
 
-### Approach
-Add a shared `CONTENT_CATEGORIES` reference block and inject category-aware instructions into each of the 4 generation prompts in `supabase/functions/brand-engine/index.ts`. No new agents or edge functions needed.
+**Deduction order becomes:** Free Monthly → Bonus → **Reward** → Paid
 
-### Changes — `supabase/functions/brand-engine/index.ts`
+### Database
 
-**1. Add a shared categories constant** (top of file)
-A string constant listing all 10 categories with short descriptions, reusable across all prompts.
+**New table: `credit_rewards`**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| user_id | uuid | recipient |
+| amount | integer | credits granted |
+| remaining | integer | credits left to use |
+| reason | text | admin note (e.g. "contest winner") |
+| granted_by | uuid | admin user_id |
+| expires_at | timestamptz | when these credits expire |
+| created_at | timestamptz | grant date |
 
-**2. `generate_pillars` prompt (line ~196)**
-- Instruct the AI that pillars should collectively cover a healthy spread of the 10 content categories
-- Add: "Each pillar should map to one or more content categories. Ensure the 5 pillars together cover at least 7 of the 10 categories."
-- Add a `content_categories` string field to the pillar tool schema so the AI outputs which categories each pillar serves
+RLS: admins full access, users can SELECT own rows. Service role full access for edge functions.
 
-**3. `generate_series` prompt (line ~258)**
-- Instruct: "Each series should align with a specific content category. Ensure variety — avoid clustering all series under the same category."
-- Add a `content_category` enum field to the series tool schema
+### Admin UI — `src/pages/Admin.tsx`
 
-**4. `generate_campaigns` prompt (line ~320)**
-- Instruct: "Each campaign should target a specific content category. Vary categories across campaigns."
-- Add a `content_category` enum field to the campaign tool schema
+- Add a "Grant Credits" button on user detail sheets
+- Dialog with fields: amount (number), reason (text), expires in (dropdown: 7 days, 14 days, 30 days, 60 days, 90 days, custom date)
+- Uses the existing `admin-action` edge function with a new `grant_reward` operation
+- Show active rewards on user detail view with remaining balance and expiry countdown
 
-**5. `generate_weekly_ideas` prompt (line ~417)**
-- Replace generic format guidance with category-aware instructions:
-  - "Each idea MUST be assigned a `content_category` from the 10 categories."
-  - "The week's ideas must represent at least 4 different content categories. Aim for maximum variety."
-  - "Use the content category to determine the visual approach and copy tone in the prompt."
-- Add `content_category` enum field to the weekly ideas tool schema
-- Map the category into the `content_ideas` insert (the DB column may need adding)
+### Edge Function — `supabase/functions/admin-action/index.ts`
 
-**6. Database migration**
-- Add `content_category text` column to `content_ideas`, `content_pillars`, `post_series`, and `campaigns` tables (nullable, no breaking change)
+- Add `grant_reward` operation that inserts into `credit_rewards`
+- Add `credit_rewards` to `ALLOWED_TABLES` for admin list/view
 
-### Result
-Every layer of the Content Hub — from strategic pillars down to individual daily ideas — will be aware of and distribute across all 10 content categories. This feeds directly into the design-studio's existing content categorisation layer, creating end-to-end category alignment.
+### Credit Deduction — All 6 Edge Functions
+
+Update the deduction logic in these files to:
+1. Query `credit_rewards` for the user where `remaining > 0` and `expires_at > now()`, ordered by `expires_at ASC` (use soonest-expiring first)
+2. After consuming bonus credits and before paid credits, consume from reward credits
+3. Decrement `remaining` on each reward row used
+
+Files to update:
+- `supabase/functions/design-studio/index.ts`
+- `supabase/functions/brand-engine/index.ts`
+- `supabase/functions/video-render/index.ts`
+- `supabase/functions/video-studio/index.ts`
+- `supabase/functions/logo-designer/index.ts`
+- `supabase/functions/trend-scout/index.ts`
+
+### Credit Display — Frontend
+
+Update credit calculation in these files to include reward credits in the total:
+- `src/components/AppHeader.tsx`
+- `src/components/LowCreditsBanner.tsx`
+- `src/pages/Index.tsx`
+- `src/pages/Plans.tsx` (if it shows balance)
+
+Query: `SELECT COALESCE(SUM(remaining), 0) FROM credit_rewards WHERE user_id = ? AND remaining > 0 AND expires_at > now()`
 
 ### Files
-- `supabase/functions/brand-engine/index.ts` — prompt + schema updates for all 4 actions
-- Database migration — add `content_category` column to 4 tables
+- New migration — `credit_rewards` table + RLS
+- `supabase/functions/admin-action/index.ts` — new `grant_reward` operation + table allowlist
+- `supabase/functions/design-studio/index.ts` — reward deduction step
+- `supabase/functions/brand-engine/index.ts` — reward deduction step
+- `supabase/functions/video-render/index.ts` — reward deduction step
+- `supabase/functions/video-studio/index.ts` — reward deduction step
+- `supabase/functions/logo-designer/index.ts` — reward deduction step
+- `supabase/functions/trend-scout/index.ts` — reward deduction step
+- `src/components/AppHeader.tsx` — include reward credits in balance
+- `src/components/LowCreditsBanner.tsx` — include reward credits
+- `src/pages/Index.tsx` — include reward credits
+- `src/pages/Admin.tsx` — grant credits UI + reward display
 
