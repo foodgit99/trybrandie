@@ -1112,7 +1112,18 @@ TREND RULES:
           const freeRemaining = Math.max(0, FREE_MONTHLY - currentCount);
           const bonusCredits = profile.bonus_credits || 0;
           const paidCredits = (profile as any).paid_credits || 0;
-          const totalAvailable = freeRemaining + bonusCredits + paidCredits;
+
+          // Query active reward credits
+          const { data: rewardRows } = await adminClient
+            .from("credit_rewards")
+            .select("id, remaining")
+            .eq("user_id", user.id)
+            .gt("remaining", 0)
+            .gt("expires_at", now.toISOString())
+            .order("expires_at", { ascending: true });
+          const rewardCredits = (rewardRows || []).reduce((s: number, r: any) => s + r.remaining, 0);
+
+          const totalAvailable = freeRemaining + bonusCredits + rewardCredits + paidCredits;
 
           if (creditCost > totalAvailable) {
             return new Response(JSON.stringify({ error: "Not enough credits. Please upgrade your plan or purchase more credits." }), {
@@ -1121,7 +1132,7 @@ TREND RULES:
             });
           }
 
-          // Deduction order: free monthly → bonus → paid
+          // Deduction order: free monthly → bonus → reward → paid
           let remainingCost = creditCost;
           const updates: any = {};
           if (needsReset) {
@@ -1142,7 +1153,17 @@ TREND RULES:
             remainingCost -= bonusToUse;
           }
 
-          // 3. Consume paid credits
+          // 3. Consume reward credits (soonest-expiring first)
+          if (remainingCost > 0 && rewardRows && rewardRows.length > 0) {
+            for (const rw of rewardRows) {
+              if (remainingCost <= 0) break;
+              const toUse = Math.min(remainingCost, rw.remaining);
+              await adminClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+              remainingCost -= toUse;
+            }
+          }
+
+          // 4. Consume paid credits
           if (remainingCost > 0) {
             updates.paid_credits = paidCredits - remainingCost;
           }
