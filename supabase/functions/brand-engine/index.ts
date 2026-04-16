@@ -353,7 +353,7 @@ Each series should align with a specific content category. Ensure variety — av
       const { data: inserted, error: insertErr } = await serviceClient.from("post_series").insert(seriesToInsert).select();
       if (insertErr) throw new Error(`Insert series failed: ${insertErr.message}`);
 
-      if (creditProfile) await deductAndTrackGeneration(creditProfile, enforceResult?.rewardRows);
+      if (creditProfile) await deductAndTrackGeneration(creditProfile, creditCheck?.rewardRows);
 
       return jsonResponse({ series: inserted });
     }
@@ -414,7 +414,7 @@ Each campaign should target a specific content category. Vary categories across 
       const { data: inserted, error: insertErr } = await serviceClient.from("campaigns").insert(campaignsToInsert).select();
       if (insertErr) throw new Error(`Insert campaigns failed: ${insertErr.message}`);
 
-      if (creditProfile) await deductAndTrackGeneration(creditProfile, enforceResult?.rewardRows);
+      if (creditProfile) await deductAndTrackGeneration(creditProfile, creditCheck?.rewardRows);
 
       return jsonResponse({ campaigns: inserted });
     }
@@ -562,7 +562,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
 
-      if (creditProfile) await deductAndTrackGeneration(creditProfile, enforceResult?.rewardRows);
+      if (creditProfile) await deductAndTrackGeneration(creditProfile, creditCheck?.rewardRows);
 
       return jsonResponse({ ideas: inserted });
     }
