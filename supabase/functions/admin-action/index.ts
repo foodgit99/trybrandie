@@ -24,6 +24,7 @@ const ALLOWED_TABLES = [
   "user_roles",
   "email_campaigns",
   "email_campaign_logs",
+  "credit_rewards",
 ];
 
 async function sendAffiliateEmail(
@@ -509,6 +510,38 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         return new Response(JSON.stringify({ row }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "grant_reward": {
+        const { user_id: targetUserId, amount: rewardAmount, reason: rewardReason, expires_in_days } = data || {};
+        if (!targetUserId || !rewardAmount || rewardAmount < 1) {
+          return new Response(JSON.stringify({ error: "user_id and amount (>= 1) are required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + (expires_in_days || 30));
+
+        const { data: reward, error: rewardErr } = await adminClient
+          .from("credit_rewards")
+          .insert({
+            user_id: targetUserId,
+            amount: rewardAmount,
+            remaining: rewardAmount,
+            reason: rewardReason || "",
+            granted_by: userId,
+            expires_at: expiresAt.toISOString(),
+          })
+          .select()
+          .single();
+
+        if (rewardErr) throw rewardErr;
+
+        return new Response(JSON.stringify({ reward }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
