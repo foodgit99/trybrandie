@@ -837,7 +837,7 @@ function EditRewardDialog({
   const [submitting, setSubmitting] = useState(false);
 
   // Initialize when opened
-  useMemo(() => {
+  useEffect(() => {
     if (reward) {
       setAmount(reward.amount);
       setReason(reward.reason || "");
