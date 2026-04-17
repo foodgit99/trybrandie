@@ -515,7 +515,7 @@ Deno.serve(async (req) => {
       }
 
       case "grant_reward": {
-        const { user_id: targetUserId, amount: rewardAmount, reason: rewardReason, expires_in_days } = data || {};
+        const { user_id: targetUserId, amount: rewardAmount, reason: rewardReason, expires_in_days, expires_at: customExpiresAt } = data || {};
         if (!targetUserId || !rewardAmount || rewardAmount < 1) {
           return new Response(JSON.stringify({ error: "user_id and amount (>= 1) are required" }), {
             status: 400,
@@ -523,8 +523,13 @@ Deno.serve(async (req) => {
           });
         }
 
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + (expires_in_days || 30));
+        let expiresAt: Date;
+        if (customExpiresAt) {
+          expiresAt = new Date(customExpiresAt);
+        } else {
+          expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + (expires_in_days || 30));
+        }
 
         const { data: reward, error: rewardErr } = await adminClient
           .from("credit_rewards")
@@ -542,6 +547,244 @@ Deno.serve(async (req) => {
         if (rewardErr) throw rewardErr;
 
         return new Response(JSON.stringify({ reward }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "bulk_grant_reward": {
+        const {
+          recipients,
+          user_ids: providedUserIds,
+          tiers,
+          amount: bulkAmount,
+          reason: bulkReason,
+          expires_in_days: bulkDays,
+          expires_at: bulkExpiresAt,
+        } = data || {};
+
+        if (!bulkAmount || bulkAmount < 1) {
+          return new Response(JSON.stringify({ error: "amount (>= 1) is required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        let recipientIds: string[] = [];
+
+        if (recipients === "specific") {
+          if (!Array.isArray(providedUserIds) || providedUserIds.length === 0) {
+            return new Response(JSON.stringify({ error: "user_ids array required" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          recipientIds = providedUserIds;
+        } else if (recipients === "tier") {
+          if (!Array.isArray(tiers) || tiers.length === 0) {
+            return new Response(JSON.stringify({ error: "tiers array required" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const { data: tierProfiles, error: tpErr } = await adminClient
+            .from("profiles")
+            .select("user_id")
+            .in("subscription_tier", tiers);
+          if (tpErr) throw tpErr;
+          recipientIds = (tierProfiles || []).map((p) => p.user_id);
+        } else if (recipients === "all") {
+          const { data: allProfiles, error: apErr } = await adminClient
+            .from("profiles")
+            .select("user_id");
+          if (apErr) throw apErr;
+          recipientIds = (allProfiles || []).map((p) => p.user_id);
+        } else {
+          return new Response(JSON.stringify({ error: "invalid recipients mode" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (recipientIds.length === 0) {
+          return new Response(JSON.stringify({ granted: 0, user_count: 0 }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        let expiresAt: Date;
+        if (bulkExpiresAt) {
+          expiresAt = new Date(bulkExpiresAt);
+        } else {
+          expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + (bulkDays || 30));
+        }
+
+        const rows = recipientIds.map((uid) => ({
+          user_id: uid,
+          amount: bulkAmount,
+          remaining: bulkAmount,
+          reason: bulkReason || "",
+          granted_by: userId,
+          expires_at: expiresAt.toISOString(),
+        }));
+
+        // Insert in batches of 500 to stay safe
+        let inserted = 0;
+        for (let i = 0; i < rows.length; i += 500) {
+          const batch = rows.slice(i, i + 500);
+          const { error: insErr, count } = await adminClient
+            .from("credit_rewards")
+            .insert(batch, { count: "exact" });
+          if (insErr) throw insErr;
+          inserted += count || batch.length;
+        }
+
+        return new Response(
+          JSON.stringify({ granted: inserted, user_count: recipientIds.length }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "update_reward": {
+        const { id: rewardId, amount: newAmount, reason: newReason, expires_at: newExpiresAt } = data || {};
+        if (!rewardId) {
+          return new Response(JSON.stringify({ error: "id required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: existing, error: exErr } = await adminClient
+          .from("credit_rewards")
+          .select("*")
+          .eq("id", rewardId)
+          .single();
+        if (exErr) throw exErr;
+
+        const update: Record<string, unknown> = {};
+        if (typeof newReason === "string") update.reason = newReason;
+        if (newExpiresAt) update.expires_at = new Date(newExpiresAt).toISOString();
+
+        if (typeof newAmount === "number" && newAmount >= 1) {
+          const consumed = (existing.amount || 0) - (existing.remaining || 0);
+          const newRemaining = Math.max(0, newAmount - consumed);
+          update.amount = newAmount;
+          update.remaining = newRemaining;
+        }
+
+        const { data: updated, error: updErr } = await adminClient
+          .from("credit_rewards")
+          .update(update)
+          .eq("id", rewardId)
+          .select()
+          .single();
+        if (updErr) throw updErr;
+
+        return new Response(JSON.stringify({ reward: updated }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "reward_stats": {
+        const nowIso = new Date().toISOString();
+        const { data: allRewards, error: rsErr } = await adminClient
+          .from("credit_rewards")
+          .select("amount, remaining, expires_at, user_id");
+        if (rsErr) throw rsErr;
+
+        const rewards = allRewards || [];
+        let totalGranted = 0;
+        let outstanding = 0;
+        let expiredUnused = 0;
+        const activeRecipients = new Set<string>();
+
+        for (const r of rewards) {
+          totalGranted += r.amount || 0;
+          const isExpired = new Date(r.expires_at) <= new Date(nowIso);
+          if (!isExpired && (r.remaining || 0) > 0) {
+            outstanding += r.remaining || 0;
+            activeRecipients.add(r.user_id);
+          }
+          if (isExpired) {
+            expiredUnused += r.remaining || 0;
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            stats: {
+              totalRewards: rewards.length,
+              totalGranted,
+              outstanding,
+              expiredUnused,
+              activeRecipients: activeRecipients.size,
+            },
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "search_users": {
+        const { query: searchQuery, limit: searchLimit = 20 } = data || {};
+        if (!searchQuery || typeof searchQuery !== "string" || searchQuery.trim().length < 2) {
+          return new Response(JSON.stringify({ users: [] }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const term = `%${searchQuery.trim()}%`;
+        const { data: profileMatches, error: pmErr } = await adminClient
+          .from("profiles")
+          .select("user_id, full_name, referral_code, subscription_tier")
+          .or(`full_name.ilike.${term},referral_code.ilike.${term}`)
+          .limit(searchLimit);
+        if (pmErr) throw pmErr;
+
+        const results: Array<{
+          user_id: string;
+          full_name: string | null;
+          email: string | null;
+          subscription_tier: string;
+        }> = [];
+
+        for (const p of profileMatches || []) {
+          const { data: au } = await adminClient.auth.admin.getUserById(p.user_id);
+          results.push({
+            user_id: p.user_id,
+            full_name: p.full_name,
+            email: au?.user?.email || null,
+            subscription_tier: p.subscription_tier,
+          });
+        }
+
+        // Also search by email — list a page and filter
+        if (searchQuery.includes("@") || results.length < searchLimit) {
+          try {
+            const { data: page } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 200 });
+            const emailMatches = (page?.users || []).filter((u) =>
+              u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+            for (const u of emailMatches) {
+              if (results.find((r) => r.user_id === u.id)) continue;
+              const { data: prof } = await adminClient
+                .from("profiles")
+                .select("full_name, subscription_tier")
+                .eq("user_id", u.id)
+                .maybeSingle();
+              results.push({
+                user_id: u.id,
+                full_name: prof?.full_name || null,
+                email: u.email || null,
+                subscription_tier: prof?.subscription_tier || "free",
+              });
+              if (results.length >= searchLimit) break;
+            }
+          } catch (_e) {
+            // ignore
+          }
+        }
+
+        return new Response(JSON.stringify({ users: results.slice(0, searchLimit) }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

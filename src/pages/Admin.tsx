@@ -69,6 +69,7 @@ import {
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
 import AdminTracesTab from "@/components/admin/AdminTracesTab";
+import RewardsTab from "@/components/admin/RewardsTab";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
@@ -79,6 +80,7 @@ const TABLES = [
   { key: "affiliates", label: "Affiliates", icon: UserCheck },
   { key: "affiliate_commissions", label: "Commissions", icon: DollarSign },
   { key: "affiliate_payouts", label: "Payouts", icon: DollarSign },
+  { key: "rewards", label: "Rewards", icon: Gift },
   { key: "user_roles", label: "Roles", icon: Users },
   { key: "ai_traces", label: "AI Traces", icon: BarChart3 },
 ];
@@ -1899,7 +1901,7 @@ export default function Admin() {
             </div>
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates").map((t) => (
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates" && t.key !== "rewards").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
@@ -1914,6 +1916,10 @@ export default function Admin() {
               </Card>
             </TabsContent>
           ))}
+
+          <TabsContent value="rewards">
+            <RewardsTab />
+          </TabsContent>
 
           <TabsContent value="ai_traces">
             <AdminTracesTab />
