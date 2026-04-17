@@ -1901,7 +1901,7 @@ export default function Admin() {
             </div>
           </TabsContent>
 
-          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates").map((t) => (
+          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates" && t.key !== "rewards").map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
@@ -1916,6 +1916,10 @@ export default function Admin() {
               </Card>
             </TabsContent>
           ))}
+
+          <TabsContent value="rewards">
+            <RewardsTab />
+          </TabsContent>
 
           <TabsContent value="ai_traces">
             <AdminTracesTab />
