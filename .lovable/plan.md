@@ -1,76 +1,63 @@
 
 
-## Plan: Admin Credit Reward System
+## Plan: Rewards Tab in Admin Panel
 
-### Concept
-A new credit bucket — **reward credits** — that admins can grant to specific users with a set expiry date. These credits are non-renewable, expire automatically, and slot into the existing deduction hierarchy between Bonus and Paid credits.
+### Goal
+Add a dedicated "Rewards" tab to the Admin page where admins can manage all credit rewards in one place — view history, edit, delete, and grant rewards to multiple users (or all) at once.
 
-**Deduction order becomes:** Free Monthly → Bonus → **Reward** → Paid
+### UI — New `RewardsTab` component in `src/pages/Admin.tsx`
 
-### Database
+**Tab placement**: Add "Rewards" as a new tab alongside the existing Admin tabs (Users, Brands, Designs, Affiliates, Campaigns, Traces, etc.).
 
-**New table: `credit_rewards`**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid | PK |
-| user_id | uuid | recipient |
-| amount | integer | credits granted |
-| remaining | integer | credits left to use |
-| reason | text | admin note (e.g. "contest winner") |
-| granted_by | uuid | admin user_id |
-| expires_at | timestamptz | when these credits expire |
-| created_at | timestamptz | grant date |
+**Section 1 — Stats header**
+- Total rewards granted (all time)
+- Total credits outstanding (sum of `remaining` where `expires_at > now()`)
+- Total credits expired/unused
+- Active recipients count
 
-RLS: admins full access, users can SELECT own rows. Service role full access for edge functions.
+**Section 2 — Grant Rewards (bulk-capable)**
+A "Grant Rewards" button opens a dialog with:
+- **Recipient selection mode** (radio):
+  - Specific users — searchable multi-select list (search by name/email/referral code)
+  - All users on a tier — checkboxes for Free, Entrepreneur, Creator, Agency
+  - All users — single confirmation checkbox
+- **Amount** (number input, min 1)
+- **Reason** (text input)
+- **Expires in** (dropdown: 7, 14, 30, 60, 90 days, or custom date picker)
+- Live count: "This will grant X credits to Y users"
+- Submit triggers the new `bulk_grant_reward` operation
 
-### Admin UI — `src/pages/Admin.tsx`
+**Section 3 — Rewards table**
+Columns: Recipient (name/email), Amount, Remaining, Reason, Granted by, Granted on, Expires (with countdown badge — green/amber/red/expired), Status, Actions
+- Filters: status (active / expired / depleted), search by user, sort by date/expiry
+- Pagination (50/page)
+- Row actions: Edit, Delete
 
-- Add a "Grant Credits" button on user detail sheets
-- Dialog with fields: amount (number), reason (text), expires in (dropdown: 7 days, 14 days, 30 days, 60 days, 90 days, custom date)
-- Uses the existing `admin-action` edge function with a new `grant_reward` operation
-- Show active rewards on user detail view with remaining balance and expiry countdown
+**Section 4 — Edit dialog**
+- Edit `amount` (adjusts `remaining` proportionally if not yet consumed), `reason`, `expires_at`
+- Cannot reduce `remaining` below 0
 
-### Edge Function — `supabase/functions/admin-action/index.ts`
+**Section 5 — Delete confirmation**
+- AlertDialog confirming deletion (irreversibly removes the reward; if `remaining < amount`, warns that consumed credits are not refunded)
 
-- Add `grant_reward` operation that inserts into `credit_rewards`
-- Add `credit_rewards` to `ALLOWED_TABLES` for admin list/view
+### Backend — `supabase/functions/admin-action/index.ts`
 
-### Credit Deduction — All 6 Edge Functions
+Add 3 new operations:
 
-Update the deduction logic in these files to:
-1. Query `credit_rewards` for the user where `remaining > 0` and `expires_at > now()`, ordered by `expires_at ASC` (use soonest-expiring first)
-2. After consuming bonus credits and before paid credits, consume from reward credits
-3. Decrement `remaining` on each reward row used
+1. **`bulk_grant_reward`** — accepts `{ recipients: 'specific'|'tier'|'all', user_ids?: string[], tiers?: string[], amount, reason, expires_in_days }`. Resolves the recipient list, then bulk-inserts into `credit_rewards`. Returns `{ granted: number, user_count: number }`.
 
-Files to update:
-- `supabase/functions/design-studio/index.ts`
-- `supabase/functions/brand-engine/index.ts`
-- `supabase/functions/video-render/index.ts`
-- `supabase/functions/video-studio/index.ts`
-- `supabase/functions/logo-designer/index.ts`
-- `supabase/functions/trend-scout/index.ts`
+2. **`update_reward`** — accepts `{ id, amount?, reason?, expires_at? }`. Updates the row, recalculating `remaining` if amount changes and credits haven't been consumed yet.
 
-### Credit Display — Frontend
+3. **`reward_stats`** — returns aggregate stats for the header section.
 
-Update credit calculation in these files to include reward credits in the total:
-- `src/components/AppHeader.tsx`
-- `src/components/LowCreditsBanner.tsx`
-- `src/pages/Index.tsx`
-- `src/pages/Plans.tsx` (if it shows balance)
+The existing `list` operation already supports `credit_rewards` (it's in `ALLOWED_TABLES`), so listing/filtering reuses that. Same for `delete`.
 
-Query: `SELECT COALESCE(SUM(remaining), 0) FROM credit_rewards WHERE user_id = ? AND remaining > 0 AND expires_at > now()`
+### Files to edit
+- `src/pages/Admin.tsx` — add Rewards tab + RewardsTab component (or split into `src/components/admin/RewardsTab.tsx` for cleanliness)
+- `supabase/functions/admin-action/index.ts` — add `bulk_grant_reward`, `update_reward`, `reward_stats` operations
 
-### Files
-- New migration — `credit_rewards` table + RLS
-- `supabase/functions/admin-action/index.ts` — new `grant_reward` operation + table allowlist
-- `supabase/functions/design-studio/index.ts` — reward deduction step
-- `supabase/functions/brand-engine/index.ts` — reward deduction step
-- `supabase/functions/video-render/index.ts` — reward deduction step
-- `supabase/functions/video-studio/index.ts` — reward deduction step
-- `supabase/functions/logo-designer/index.ts` — reward deduction step
-- `supabase/functions/trend-scout/index.ts` — reward deduction step
-- `src/components/AppHeader.tsx` — include reward credits in balance
-- `src/components/LowCreditsBanner.tsx` — include reward credits
-- `src/pages/Index.tsx` — include reward credits
-- `src/pages/Admin.tsx` — grant credits UI + reward display
+### Notes
+- No DB migration needed — the `credit_rewards` table already supports all required fields
+- Bulk grants insert one row per user (preserves per-user expiry tracking and remaining balance)
+- The existing user-detail "Grant Reward Credits" dialog stays as a quick shortcut
 
