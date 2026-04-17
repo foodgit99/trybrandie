@@ -69,6 +69,7 @@ import {
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
 import AdminTracesTab from "@/components/admin/AdminTracesTab";
+import RewardsTab from "@/components/admin/RewardsTab";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
@@ -79,6 +80,7 @@ const TABLES = [
   { key: "affiliates", label: "Affiliates", icon: UserCheck },
   { key: "affiliate_commissions", label: "Commissions", icon: DollarSign },
   { key: "affiliate_payouts", label: "Payouts", icon: DollarSign },
+  { key: "rewards", label: "Rewards", icon: Gift },
   { key: "user_roles", label: "Roles", icon: Users },
   { key: "ai_traces", label: "AI Traces", icon: BarChart3 },
 ];
