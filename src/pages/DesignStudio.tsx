@@ -130,6 +130,7 @@ const DesignStudio = () => {
   const [showScores, setShowScores] = useState(false);
   const [canvasSize, setCanvasSize] = useState("1080x1080");
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitContext, setLimitContext] = useState<{ cost: number; available: number } | null>(null);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("chat");
@@ -186,6 +187,23 @@ const DesignStudio = () => {
       return data;
     },
     enabled: !!user,
+  });
+
+  // Active reward credits (admin-granted, expiring) — must be included in totals
+  const { data: rewardCredits = 0, refetch: refetchRewardCredits } = useQuery({
+    queryKey: ["reward-credits-studio", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("credit_rewards")
+        .select("remaining")
+        .eq("user_id", user!.id)
+        .gt("remaining", 0)
+        .gt("expires_at", new Date().toISOString());
+      if (error) return 0;
+      return (data || []).reduce((sum, r) => sum + r.remaining, 0);
+    },
+    enabled: !!user,
+    staleTime: 60_000,
   });
 
   // Audience profiles for the current brand
@@ -313,7 +331,7 @@ const DesignStudio = () => {
     const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
     const bonus = (profile as any).bonus_credits ?? 0;
     const paid = (profile as any).paid_credits ?? 0;
-    return freeRemaining + bonus + paid;
+    return freeRemaining + bonus + (rewardCredits ?? 0) + paid;
   };
 
   useEffect(() => {
@@ -476,11 +494,19 @@ const DesignStudio = () => {
 
   const checkGenerationLimit = async (): Promise<boolean> => {
     if (!user) return false;
-    const { data } = await supabase
-      .from("profiles")
-      .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
-      .eq("user_id", user.id)
-      .single();
+    const [{ data }, { data: rewards }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("credit_rewards")
+        .select("remaining")
+        .eq("user_id", user.id)
+        .gt("remaining", 0)
+        .gt("expires_at", new Date().toISOString()),
+    ]);
     if (!data) return true;
     const resetAt = new Date(data.generations_reset_at);
     const now = new Date();
@@ -489,7 +515,8 @@ const DesignStudio = () => {
     const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
     const bonus = (data as any).bonus_credits ?? 0;
     const paid = (data as any).paid_credits ?? 0;
-    const totalAvailable = freeRemaining + bonus + paid;
+    const reward = (rewards || []).reduce((sum: number, r: any) => sum + (r.remaining ?? 0), 0);
+    const totalAvailable = freeRemaining + bonus + reward + paid;
 
     const lockedQuality = renderQuality;
     const baseCost = lockedQuality === "hd" ? 2 : 1;
@@ -498,6 +525,7 @@ const DesignStudio = () => {
     const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
 
     if (creditCost > totalAvailable) {
+      setLimitContext({ cost: creditCost, available: totalAvailable });
       setShowLimitModal(true);
       if (user?.email) {
         supabase.functions.invoke("send-email", {
@@ -1961,9 +1989,11 @@ const DesignStudio = () => {
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif">Generation limit reached</DialogTitle>
+            <DialogTitle className="font-serif">Not enough credits</DialogTitle>
             <DialogDescription>
-              You've used all 10 free generations this month. Upgrade your plan to keep creating.
+              {limitContext
+                ? `This generation needs ${limitContext.cost} credit${limitContext.cost === 1 ? "" : "s"}, but you only have ${limitContext.available} available. Top up to keep creating.`
+                : "You don't have enough credits for this generation. Top up to keep creating."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
