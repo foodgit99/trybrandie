@@ -188,6 +188,23 @@ const DesignStudio = () => {
     enabled: !!user,
   });
 
+  // Active reward credits (admin-granted, expiring) — must be included in totals
+  const { data: rewardCredits = 0, refetch: refetchRewardCredits } = useQuery({
+    queryKey: ["reward-credits-studio", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("credit_rewards")
+        .select("remaining")
+        .eq("user_id", user!.id)
+        .gt("remaining", 0)
+        .gt("expires_at", new Date().toISOString());
+      if (error) return 0;
+      return (data || []).reduce((sum, r) => sum + r.remaining, 0);
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
   // Audience profiles for the current brand
   const { data: audiences = [] } = useQuery({
     queryKey: ["target_audiences_studio", brand?.id],
