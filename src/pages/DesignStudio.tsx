@@ -1989,9 +1989,11 @@ const DesignStudio = () => {
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif">Generation limit reached</DialogTitle>
+            <DialogTitle className="font-serif">Not enough credits</DialogTitle>
             <DialogDescription>
-              You've used all 10 free generations this month. Upgrade your plan to keep creating.
+              {limitContext
+                ? `This generation needs ${limitContext.cost} credit${limitContext.cost === 1 ? "" : "s"}, but you only have ${limitContext.available} available. Top up to keep creating.`
+                : "You don't have enough credits for this generation. Top up to keep creating."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
