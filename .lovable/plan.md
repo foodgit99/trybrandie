@@ -1,63 +1,40 @@
 
 
-## Plan: Rewards Tab in Admin Panel
+I'll create three Mermaid flowchart artifacts mapping the complete data flow for each pipeline, plus a reference markdown file describing each agent's inputs/outputs.
 
-### Goal
-Add a dedicated "Rewards" tab to the Admin page where admins can manage all credit rewards in one place — view history, edit, delete, and grant rewards to multiple users (or all) at once.
+### Flows I'll document
 
-### UI — New `RewardsTab` component in `src/pages/Admin.tsx`
+**1. Studio-First Flow** (`DesignStudio.tsx` → `design-studio` edge function)
+   - Single-design `generate` / `edit` path
+   - Carousel `generate_carousel` path
 
-**Tab placement**: Add "Rewards" as a new tab alongside the existing Admin tabs (Users, Brands, Designs, Affiliates, Campaigns, Traces, etc.).
+**2. Content Hub Flow** (`ContentHub.tsx` → `brand-engine` edge function)
+   - `generate_pillars` → `generate_series` → `generate_campaigns` → `generate_weekly_ideas` chain
+   - Each downstream design generation handed off to `design-studio`
 
-**Section 1 — Stats header**
-- Total rewards granted (all time)
-- Total credits outstanding (sum of `remaining` where `expires_at > now()`)
-- Total credits expired/unused
-- Active recipients count
+**3. Content Autopilot Flow** (cron → `content-autopilot` → `design-studio` → `send-email`)
+   - Auto-generates daily content for opted-in brands
 
-**Section 2 — Grant Rewards (bulk-capable)**
-A "Grant Rewards" button opens a dialog with:
-- **Recipient selection mode** (radio):
-  - Specific users — searchable multi-select list (search by name/email/referral code)
-  - All users on a tier — checkboxes for Free, Entrepreneur, Creator, Agency
-  - All users — single confirmation checkbox
-- **Amount** (number input, min 1)
-- **Reason** (text input)
-- **Expires in** (dropdown: 7, 14, 30, 60, 90 days, or custom date picker)
-- Live count: "This will grant X credits to Y users"
-- Submit triggers the new `bulk_grant_reward` operation
+### Each diagram will show
+- **Entry point** (UI / cron) and request body
+- **Auth + credit check** (free → bonus → reward → paid hierarchy)
+- **Context assembly** (brand, audience JTBD, trend, RAG memory, products, holiday calendar)
+- **Agent stages** with their model + input/output:
+  - Content Category Classifier (rule-based → LLM fallback)
+  - Brief Agent (Gemini Flash)
+  - Genome Composer (preset → mutation → brand lock → stability gate)
+  - Copywriter Agent (Gemini Flash, structured tool call)
+  - Caption Agent (parallel with Copywriter)
+  - Renderer (Gemini 3 Pro Image)
+- **Reliability layer** (circuit breaker, retry, validation, tracer spans)
+- **Persistence** (designs / content_ideas / pillars tables)
+- **End output** (image URL + copy + caption returned to user)
 
-**Section 3 — Rewards table**
-Columns: Recipient (name/email), Amount, Remaining, Reason, Granted by, Granted on, Expires (with countdown badge — green/amber/red/expired), Status, Actions
-- Filters: status (active / expired / depleted), search by user, sort by date/expiry
-- Pagination (50/page)
-- Row actions: Edit, Delete
+### Files I'll produce
+- `/mnt/documents/studio_flow.mmd` — Studio-first end-to-end pipeline
+- `/mnt/documents/content_hub_flow.mmd` — Strategy → calendar → design pipeline
+- `/mnt/documents/autopilot_flow.mmd` — Background scheduled pipeline
+- `/mnt/documents/pipeline_reference.md` — Companion document with agent specs, models used, parallelism notes, and credit math
 
-**Section 4 — Edit dialog**
-- Edit `amount` (adjusts `remaining` proportionally if not yet consumed), `reason`, `expires_at`
-- Cannot reduce `remaining` below 0
-
-**Section 5 — Delete confirmation**
-- AlertDialog confirming deletion (irreversibly removes the reward; if `remaining < amount`, warns that consumed credits are not refunded)
-
-### Backend — `supabase/functions/admin-action/index.ts`
-
-Add 3 new operations:
-
-1. **`bulk_grant_reward`** — accepts `{ recipients: 'specific'|'tier'|'all', user_ids?: string[], tiers?: string[], amount, reason, expires_in_days }`. Resolves the recipient list, then bulk-inserts into `credit_rewards`. Returns `{ granted: number, user_count: number }`.
-
-2. **`update_reward`** — accepts `{ id, amount?, reason?, expires_at? }`. Updates the row, recalculating `remaining` if amount changes and credits haven't been consumed yet.
-
-3. **`reward_stats`** — returns aggregate stats for the header section.
-
-The existing `list` operation already supports `credit_rewards` (it's in `ALLOWED_TABLES`), so listing/filtering reuses that. Same for `delete`.
-
-### Files to edit
-- `src/pages/Admin.tsx` — add Rewards tab + RewardsTab component (or split into `src/components/admin/RewardsTab.tsx` for cleanliness)
-- `supabase/functions/admin-action/index.ts` — add `bulk_grant_reward`, `update_reward`, `reward_stats` operations
-
-### Notes
-- No DB migration needed — the `credit_rewards` table already supports all required fields
-- Bulk grants insert one row per user (preserves per-user expiry tracking and remaining balance)
-- The existing user-detail "Grant Reward Credits" dialog stays as a quick shortcut
+Each `.mmd` will be emitted as a `<lov-artifact>` with `mime_type="text/vnd.mermaid"` and the markdown as a separate artifact. Diagrams will use top-down `flowchart TD` with subgraphs for clear stage grouping and avoid emojis.
 
