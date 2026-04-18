@@ -130,6 +130,7 @@ const DesignStudio = () => {
   const [showScores, setShowScores] = useState(false);
   const [canvasSize, setCanvasSize] = useState("1080x1080");
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitContext, setLimitContext] = useState<{ cost: number; available: number } | null>(null);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("chat");
