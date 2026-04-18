@@ -1,40 +1,34 @@
 
 
-I'll create three Mermaid flowchart artifacts mapping the complete data flow for each pipeline, plus a reference markdown file describing each agent's inputs/outputs.
+## Root Cause
 
-### Flows I'll document
+The Design Studio's client-side pre-flight credit check (`checkGenerationLimit`) and the in-page credits badge (`getCreditsRemaining`) in `src/pages/DesignStudio.tsx` only sum **free + bonus + paid** credits. They never include **reward credits**.
 
-**1. Studio-First Flow** (`DesignStudio.tsx` → `design-studio` edge function)
-   - Single-design `generate` / `edit` path
-   - Carousel `generate_carousel` path
+So when a user's 20-credit balance comes entirely from admin-granted reward credits, the Studio blocks generation with the "Generation limit reached" modal — even though:
+- The header (correctly) shows 20 credits
+- The backend would (correctly) deduct from the reward bucket if it ever got the request
 
-**2. Content Hub Flow** (`ContentHub.tsx` → `brand-engine` edge function)
-   - `generate_pillars` → `generate_series` → `generate_campaigns` → `generate_weekly_ideas` chain
-   - Each downstream design generation handed off to `design-studio`
+I confirmed this against the database: at least 10 users right now have 0 free/bonus/paid but 20–40 active reward credits. Every one of them is currently locked out of Studio generation.
 
-**3. Content Autopilot Flow** (cron → `content-autopilot` → `design-studio` → `send-email`)
-   - Auto-generates daily content for opted-in brands
+The bug was introduced when reward credits were added — `AppHeader.tsx`, `Index.tsx`, and `LowCreditsBanner.tsx` were updated, but `DesignStudio.tsx` was missed.
 
-### Each diagram will show
-- **Entry point** (UI / cron) and request body
-- **Auth + credit check** (free → bonus → reward → paid hierarchy)
-- **Context assembly** (brand, audience JTBD, trend, RAG memory, products, holiday calendar)
-- **Agent stages** with their model + input/output:
-  - Content Category Classifier (rule-based → LLM fallback)
-  - Brief Agent (Gemini Flash)
-  - Genome Composer (preset → mutation → brand lock → stability gate)
-  - Copywriter Agent (Gemini Flash, structured tool call)
-  - Caption Agent (parallel with Copywriter)
-  - Renderer (Gemini 3 Pro Image)
-- **Reliability layer** (circuit breaker, retry, validation, tracer spans)
-- **Persistence** (designs / content_ideas / pillars tables)
-- **End output** (image URL + copy + caption returned to user)
+## Fix
 
-### Files I'll produce
-- `/mnt/documents/studio_flow.mmd` — Studio-first end-to-end pipeline
-- `/mnt/documents/content_hub_flow.mmd` — Strategy → calendar → design pipeline
-- `/mnt/documents/autopilot_flow.mmd` — Background scheduled pipeline
-- `/mnt/documents/pipeline_reference.md` — Companion document with agent specs, models used, parallelism notes, and credit math
+In `src/pages/DesignStudio.tsx`, mirror the same reward-credit query already used in `AppHeader.tsx`:
 
-Each `.mmd` will be emitted as a `<lov-artifact>` with `mime_type="text/vnd.mermaid"` and the markdown as a separate artifact. Diagrams will use top-down `flowchart TD` with subgraphs for clear stage grouping and avoid emojis.
+1. **Add a `rewardCredits` query** (alongside the existing `profile` query) — sums `remaining` from `credit_rewards` where `remaining > 0` and `expires_at > now()`.
+
+2. **Update `getCreditsRemaining()`** (line 307) to add `rewardCredits` to the total so the in-page badge matches the header.
+
+3. **Update `checkGenerationLimit()`** (line 477) to fetch active reward credits and include them in `totalAvailable` before comparing against `creditCost`. This is the actual gate that's blocking users.
+
+4. **Improve the modal copy** — the current text hardcodes "10 free generations." Change it to reflect actual cost vs. balance (e.g., "This generation costs X credits but you only have Y available.") so future mismatches are easier to spot.
+
+## Files to edit
+
+- `src/pages/DesignStudio.tsx` — add reward query, fix both credit calculations, update modal text
+
+## No backend changes needed
+
+The edge functions (`design-studio`, etc.) already deduct correctly using the shared `reward-credits.ts` helper. This is purely a frontend gating bug.
 
