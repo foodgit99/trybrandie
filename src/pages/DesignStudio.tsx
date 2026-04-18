@@ -330,7 +330,7 @@ const DesignStudio = () => {
     const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
     const bonus = (profile as any).bonus_credits ?? 0;
     const paid = (profile as any).paid_credits ?? 0;
-    return freeRemaining + bonus + paid;
+    return freeRemaining + bonus + (rewardCredits ?? 0) + paid;
   };
 
   useEffect(() => {
