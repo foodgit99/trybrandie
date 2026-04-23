@@ -288,8 +288,9 @@ IMPORTANT: Each pillar should map to 1-3 content categories from the list above.
 
     if (action === "generate_series") {
       let creditProfile: any = null;
+      let creditCheck: any = null;
       if (!skip_credit_check) {
-        const creditCheck = await enforceContentGenCredits();
+        creditCheck = await enforceContentGenCredits();
         if (creditCheck.blocked) return creditCheck.response;
         creditProfile = creditCheck.profile;
       }
@@ -360,8 +361,9 @@ Each series should align with a specific content category. Ensure variety — av
 
     if (action === "generate_campaigns") {
       let creditProfile: any = null;
+      let creditCheck: any = null;
       if (!skip_credit_check) {
-        const creditCheck = await enforceContentGenCredits();
+        creditCheck = await enforceContentGenCredits();
         if (creditCheck.blocked) return creditCheck.response;
         creditProfile = creditCheck.profile;
       }
@@ -421,8 +423,9 @@ Each campaign should target a specific content category. Vary categories across 
 
     if (action === "generate_weekly_ideas") {
       let creditProfile: any = null;
+      let creditCheck: any = null;
       if (!skip_credit_check) {
-        const creditCheck = await enforceContentGenCredits();
+        creditCheck = await enforceContentGenCredits();
         if (creditCheck.blocked) return creditCheck.response;
         creditProfile = creditCheck.profile;
       }
