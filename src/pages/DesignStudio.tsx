@@ -1154,31 +1154,6 @@ const DesignStudio = () => {
               ))}
             </SelectContent>
           </Select>
-          {/* Pricing info */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
-                <Info className="h-3.5 w-3.5" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent side="bottom" className="w-[240px] text-xs p-3">
-              {isCarouselMode ? (
-                <>
-                  <p className="font-semibold mb-1">Carousel pricing</p>
-                  <p className="text-muted-foreground">
-                    {Math.floor(slideCount * 1.5)} credits for {slideCount} slides
-                    <br />
-                    <span className="text-[10px]">(1.5 credits per slide, rounded down)</span>
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-semibold mb-1">Pricing</p>
-                  <p className="text-muted-foreground">Single design = 2 credits.<br />Carousel = 1.5 credits per slide (rounded down).</p>
-                </>
-              )}
-            </PopoverContent>
-          </Popover>
             </>
           )}
           {/* Audience selector removed from header — now in chat input area */}
