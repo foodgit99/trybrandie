@@ -277,7 +277,6 @@ async function processIdea(
     user_id: idea.user_id,
     action: "generate",
     canvas_size: "1080x1080",
-    render_quality: "fast",
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
       id: brand.id,

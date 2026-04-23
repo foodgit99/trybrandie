@@ -140,7 +140,7 @@ const DesignStudio = () => {
   const [trendIntensity, setTrendIntensity] = useState(40);
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
-  const [renderQuality, setRenderQuality] = useState<"fast" | "hd">("hd");
+  
 
   // Carousel mode state — can be activated via URL or local toggle
   const [isCarouselMode, setIsCarouselMode] = useState(searchParams.get("mode") === "carousel");
@@ -518,12 +518,11 @@ const DesignStudio = () => {
     const reward = (rewards || []).reduce((sum: number, r: any) => sum + (r.remaining ?? 0), 0);
     const totalAvailable = freeRemaining + bonus + reward + paid;
 
-    const lockedQuality = renderQuality;
     const isEdit = !!currentImage && !!currentPrompt;
-    // Pricing: Single = 1 (Fast) / 2 (HD). Carousel = floor(slides * 1.5), quality-independent.
+    // Pricing: Single = 2 credits flat. Carousel = floor(slides * 1.5).
     const creditCost = isCarouselMode
       ? Math.floor(slideCount * 1.5)
-      : (lockedQuality === "hd" ? 2 : 1);
+      : 2;
 
     if (creditCost > totalAvailable) {
       setLimitContext({ cost: creditCost, available: totalAvailable });
@@ -614,7 +613,6 @@ const DesignStudio = () => {
       ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
       ...(selectedTrend !== "none" && { trend: selectedTrend, trend_intensity: trendIntensity }),
       ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
-      render_quality: renderQuality,
       ...(isEdit && {
         previous_prompt: currentPrompt!,
         previous_image_url: currentImage!,
@@ -1156,58 +1154,31 @@ const DesignStudio = () => {
               ))}
             </SelectContent>
           </Select>
-          {/* Quality toggle */}
-          <div className="flex items-center gap-1">
-            <div className="flex items-center h-8 sm:h-9 rounded-xl border border-input bg-background overflow-hidden">
-              <button
-                onClick={() => setRenderQuality("fast")}
-                className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors ${
-                  renderQuality === "fast"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Fast
+          {/* Pricing info */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+                <Info className="h-3.5 w-3.5" />
               </button>
-              <button
-                onClick={() => setRenderQuality("hd")}
-                className={`px-2.5 sm:px-3 h-full text-xs font-medium transition-colors flex items-center gap-1 ${
-                  renderQuality === "hd"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Sparkles className="h-3 w-3" />
-                HD
-              </button>
-            </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
-                  <Info className="h-3.5 w-3.5" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent side="bottom" className="w-[240px] text-xs p-3">
-                {isCarouselMode ? (
-                  <>
-                    <p className="font-semibold mb-1">Carousel pricing</p>
-                    <p className="text-muted-foreground mb-2">
-                      {Math.floor(slideCount * 1.5)} credits for {slideCount} slides
-                      <br />
-                      <span className="text-[10px]">(1.5 credits per slide, rounded down — same price for Fast or HD)</span>
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-semibold mb-1">Fast</p>
-                    <p className="text-muted-foreground mb-2">Quick generation, uses 1 credit.</p>
-                    <p className="font-semibold mb-1">HD</p>
-                    <p className="text-muted-foreground">Higher quality output, uses 2 credits.</p>
-                  </>
-                )}
-              </PopoverContent>
-            </Popover>
-          </div>
+            </PopoverTrigger>
+            <PopoverContent side="bottom" className="w-[240px] text-xs p-3">
+              {isCarouselMode ? (
+                <>
+                  <p className="font-semibold mb-1">Carousel pricing</p>
+                  <p className="text-muted-foreground">
+                    {Math.floor(slideCount * 1.5)} credits for {slideCount} slides
+                    <br />
+                    <span className="text-[10px]">(1.5 credits per slide, rounded down)</span>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold mb-1">Pricing</p>
+                  <p className="text-muted-foreground">Single design = 2 credits.<br />Carousel = 1.5 credits per slide (rounded down).</p>
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
             </>
           )}
           {/* Audience selector removed from header — now in chat input area */}
