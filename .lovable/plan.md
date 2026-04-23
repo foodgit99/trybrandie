@@ -1,34 +1,58 @@
 
 
-## Root Cause
+## Plan: Carousel pricing → 1.5 credits per slide (rounded down)
 
-The Design Studio's client-side pre-flight credit check (`checkGenerationLimit`) and the in-page credits badge (`getCreditsRemaining`) in `src/pages/DesignStudio.tsx` only sum **free + bonus + paid** credits. They never include **reward credits**.
+### New pricing
+- **Single — unchanged**: Fast = 1, HD = 2
+- **Carousel — new**: `floor(slideCount × 1.5)` credits, regardless of Fast/HD quality
 
-So when a user's 20-credit balance comes entirely from admin-granted reward credits, the Studio blocks generation with the "Generation limit reached" modal — even though:
-- The header (correctly) shows 20 credits
-- The backend would (correctly) deduct from the reward bucket if it ever got the request
+| Slides | Old (Fast / HD) | New (any quality) |
+|--------|-----------------|-------------------|
+| 2      | 2 / 4           | **3**             |
+| 3      | 3 / 6           | **4**             |
+| 4      | 4 / 8           | **6**             |
+| 5      | 5 / 10          | **7**             |
+| 6      | 6 / 12          | **9**             |
+| 7      | 7 / 14          | **10**            |
+| 8      | 8 / 16          | **12**            |
+| 9      | 9 / 18          | **13**            |
+| 10     | 10 / 20         | **15**            |
 
-I confirmed this against the database: at least 10 users right now have 0 free/bonus/paid but 20–40 active reward credits. Every one of them is currently locked out of Studio generation.
+Quality toggle still controls render quality of carousel images, but no longer affects price (carousels become significantly cheaper on HD, slightly cheaper on Fast).
 
-The bug was introduced when reward credits were added — `AppHeader.tsx`, `Index.tsx`, and `LowCreditsBanner.tsx` were updated, but `DesignStudio.tsx` was missed.
+### Implementation
 
-## Fix
+A single shared formula introduced in both frontend and backend so they can't drift:
 
-In `src/pages/DesignStudio.tsx`, mirror the same reward-credit query already used in `AppHeader.tsx`:
+```ts
+carouselCost = Math.floor(slideCount * 1.5)
+singleCost   = renderQuality === "hd" ? 2 : 1
+```
 
-1. **Add a `rewardCredits` query** (alongside the existing `profile` query) — sums `remaining` from `credit_rewards` where `remaining > 0` and `expires_at > now()`.
+### Files to edit
 
-2. **Update `getCreditsRemaining()`** (line 307) to add `rewardCredits` to the total so the in-page badge matches the header.
+**1. `src/pages/DesignStudio.tsx`** (line ~525)
+- Replace `creditCost = isCarouselMode ? baseCost * slideCount : baseCost` with the new formula
+- Update any UI label that displays carousel cost (e.g. "X credits" preview near the Generate button) to use the same formula
 
-3. **Update `checkGenerationLimit()`** (line 477) to fetch active reward credits and include them in `totalAvailable` before comparing against `creditCost`. This is the actual gate that's blocking users.
+**2. `supabase/functions/design-studio/index.ts`** (line 2330)
+- Replace `const creditCost = (render_quality === "hd" ? 2 : 1) * numSlides` with `const creditCost = Math.floor(numSlides * 1.5)`
+- Error message text stays accurate (uses the variable)
 
-4. **Improve the modal copy** — the current text hardcodes "10 free generations." Change it to reflect actual cost vs. balance (e.g., "This generation costs X credits but you only have Y available.") so future mismatches are easier to spot.
+**3. Search & sync any other carousel cost displays**
+- Check `HeroChatInput.tsx`, `ContentHub.tsx`, and any pricing tooltip/help text that hardcodes carousel cost; update to the new formula or static table above
 
-## Files to edit
+### What does NOT change
+- Database schema (credits remain integers — `floor` keeps it that way)
+- Deduction order (Free → Bonus → Reward → Paid)
+- Single-design pricing
+- Carousel slide count range (2–10)
+- Render quality toggle behaviour for output quality
 
-- `src/pages/DesignStudio.tsx` — add reward query, fix both credit calculations, update modal text
-
-## No backend changes needed
-
-The edge functions (`design-studio`, etc.) already deduct correctly using the shared `reward-credits.ts` helper. This is purely a frontend gating bug.
+### Verification after build
+Confirm in Studio:
+- 5-slide carousel shows **7 credits** (Fast or HD)
+- 10-slide carousel shows **15 credits**
+- Single Fast still shows **1**, Single HD still shows **2**
+- Backend rejects with the same number it gated on
 
