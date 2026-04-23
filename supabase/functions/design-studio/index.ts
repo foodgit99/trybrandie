@@ -2327,7 +2327,8 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
       const numSlides = Math.min(10, Math.max(2, slide_count || 5));
-      const creditCost = (render_quality === "hd" ? 2 : 1) * numSlides;
+      // Carousel pricing: floor(slides * 1.5), quality-independent. Single still uses render_quality.
+      const creditCost = Math.floor(numSlides * 1.5);
 
       // Credit check
       const { data: profile } = await adminClient

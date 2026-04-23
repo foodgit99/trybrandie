@@ -519,10 +519,11 @@ const DesignStudio = () => {
     const totalAvailable = freeRemaining + bonus + reward + paid;
 
     const lockedQuality = renderQuality;
-    const baseCost = lockedQuality === "hd" ? 2 : 1;
     const isEdit = !!currentImage && !!currentPrompt;
-    // Single generation: 1 credit standard, 2 for HD
-    const creditCost = isCarouselMode ? baseCost * slideCount : baseCost;
+    // Pricing: Single = 1 (Fast) / 2 (HD). Carousel = floor(slides * 1.5), quality-independent.
+    const creditCost = isCarouselMode
+      ? Math.floor(slideCount * 1.5)
+      : (lockedQuality === "hd" ? 2 : 1);
 
     if (creditCost > totalAvailable) {
       setLimitContext({ cost: creditCost, available: totalAvailable });
@@ -1186,11 +1187,24 @@ const DesignStudio = () => {
                   <Info className="h-3.5 w-3.5" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent side="bottom" className="w-[220px] text-xs p-3">
-                <p className="font-semibold mb-1">Fast</p>
-                <p className="text-muted-foreground mb-2">Quick generation, uses 1 credit.</p>
-                <p className="font-semibold mb-1">HD</p>
-                <p className="text-muted-foreground">Higher quality output, uses 2 credits.</p>
+              <PopoverContent side="bottom" className="w-[240px] text-xs p-3">
+                {isCarouselMode ? (
+                  <>
+                    <p className="font-semibold mb-1">Carousel pricing</p>
+                    <p className="text-muted-foreground mb-2">
+                      {Math.floor(slideCount * 1.5)} credits for {slideCount} slides
+                      <br />
+                      <span className="text-[10px]">(1.5 credits per slide, rounded down — same price for Fast or HD)</span>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold mb-1">Fast</p>
+                    <p className="text-muted-foreground mb-2">Quick generation, uses 1 credit.</p>
+                    <p className="font-semibold mb-1">HD</p>
+                    <p className="text-muted-foreground">Higher quality output, uses 2 credits.</p>
+                  </>
+                )}
               </PopoverContent>
             </Popover>
           </div>
