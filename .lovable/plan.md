@@ -1,58 +1,46 @@
 
 
-## Plan: Carousel pricing → 1.5 credits per slide (rounded down)
+## Plan: Drop Fast/HD toggle, route everyone to Gemini's best image models
 
-### New pricing
-- **Single — unchanged**: Fast = 1, HD = 2
-- **Carousel — new**: `floor(slideCount × 1.5)` credits, regardless of Fast/HD quality
+### Model strategy (per your selection)
+- **Single design** → `google/gemini-3-pro-image-preview` (highest fidelity)
+- **Carousel slides** → `google/gemini-3.1-flash-image-preview` (Nano Banana 2 — pro-level quality at flash speed, keeps multi-slide generation snappy)
 
-| Slides | Old (Fast / HD) | New (any quality) |
-|--------|-----------------|-------------------|
-| 2      | 2 / 4           | **3**             |
-| 3      | 3 / 6           | **4**             |
-| 4      | 4 / 8           | **6**             |
-| 5      | 5 / 10          | **7**             |
-| 6      | 6 / 12          | **9**             |
-| 7      | 7 / 14          | **10**            |
-| 8      | 8 / 16          | **12**            |
-| 9      | 9 / 18          | **13**            |
-| 10     | 10 / 20         | **15**            |
+### Pricing (unchanged)
+- **Single** = 2 credits flat
+- **Carousel** = `floor(slides × 1.5)` credits
 
-Quality toggle still controls render quality of carousel images, but no longer affects price (carousels become significantly cheaper on HD, slightly cheaper on Fast).
+### Changes
 
-### Implementation
+**1. `src/pages/DesignStudio.tsx`** — remove toggle UI and state
+- Delete the `renderQuality` state (line 143) and all references
+- Remove the Fast/HD toggle JSX (lines 1159–1183)
+- Remove the Fast/HD popover content (lines 1190–1210ish); replace with a single info popover explaining: "Single = 2 credits. Carousel = 1.5 credits per slide (rounded down)."
+- Update credit-cost calc (lines 523–526) to: `const creditCost = isCarouselMode ? Math.floor(slideCount * 1.5) : 2;`
+- Stop sending `render_quality` in the edge function payload (line 617) — or send a constant `"hd"` for backward-compat. We'll just remove it.
 
-A single shared formula introduced in both frontend and backend so they can't drift:
+**2. `src/contexts/DesignGenerationContext.tsx`** — drop the field
+- Remove `render_quality: "fast" | "hd"` from `GenerationParams` interface (line 38)
 
-```ts
-carouselCost = Math.floor(slideCount * 1.5)
-singleCost   = renderQuality === "hd" ? 2 : 1
-```
+**3. `supabase/functions/design-studio/index.ts`** — pin models, simplify pricing
+- Stop destructuring `render_quality` from the body (line 371)
+- Single-design credit cost (line 1098): change to `const creditCost = 2;`
+- Single-design model selection (lines 2218, 2249): hardcode `"google/gemini-3-pro-image-preview"`
+- Carousel slide model selection (lines 2551, 2570): hardcode `"google/gemini-3.1-flash-image-preview"`
+- Carousel credit cost (line 2331): unchanged — already `Math.floor(numSlides * 1.5)`
 
-### Files to edit
-
-**1. `src/pages/DesignStudio.tsx`** (line ~525)
-- Replace `creditCost = isCarouselMode ? baseCost * slideCount : baseCost` with the new formula
-- Update any UI label that displays carousel cost (e.g. "X credits" preview near the Generate button) to use the same formula
-
-**2. `supabase/functions/design-studio/index.ts`** (line 2330)
-- Replace `const creditCost = (render_quality === "hd" ? 2 : 1) * numSlides` with `const creditCost = Math.floor(numSlides * 1.5)`
-- Error message text stays accurate (uses the variable)
-
-**3. Search & sync any other carousel cost displays**
-- Check `HeroChatInput.tsx`, `ContentHub.tsx`, and any pricing tooltip/help text that hardcodes carousel cost; update to the new formula or static table above
+**4. `supabase/functions/content-autopilot/index.ts`** — align background jobs
+- Line 280: remove `render_quality: "fast"` from the autopilot payload (or leave it; the edge function will ignore it after change #3). Cleanest: remove the line.
 
 ### What does NOT change
-- Database schema (credits remain integers — `floor` keeps it that way)
-- Deduction order (Free → Bonus → Reward → Paid)
-- Single-design pricing
+- Database schema, deduction order (Free → Bonus → Reward → Paid), credit-balance queries
 - Carousel slide count range (2–10)
-- Render quality toggle behaviour for output quality
+- Prompt construction, genome system, copy pipeline
+- Brand Strategist / Plan mode
 
 ### Verification after build
-Confirm in Studio:
-- 5-slide carousel shows **7 credits** (Fast or HD)
-- 10-slide carousel shows **15 credits**
-- Single Fast still shows **1**, Single HD still shows **2**
-- Backend rejects with the same number it gated on
+- Studio toolbar no longer shows the Fast/HD pill — only canvas size, slide count (carousel mode), and the info icon
+- Generating a single design deducts **2 credits** and uses Pro Image
+- Generating a 5-slide carousel deducts **7 credits** and uses Nano Banana 2 per slide
+- Autopilot-generated designs still succeed end-to-end
 
