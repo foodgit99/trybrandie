@@ -35,7 +35,7 @@ export interface GenerationParams {
   trend?: string;
   trend_intensity?: number;
   user_image_url?: string;
-  render_quality: "fast" | "hd";
+  
   previous_prompt?: string;
   previous_image_url?: string;
   user_id: string;

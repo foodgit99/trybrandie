@@ -368,7 +368,7 @@ serve(async (req) => {
     // Initialize tracer for this request
     const tracer = new Tracer(user.id);
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, render_quality, slide_count } = (req as any)._parsedBody || await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = (req as any)._parsedBody || await req.json();
 
     // Sanitise user-provided text inputs
     if (messages && Array.isArray(messages)) {
@@ -1094,8 +1094,8 @@ TREND RULES:
 
       // Check and increment generation count — skip for free edits
       if (!isFreeEdit) {
-        // Single generation: 1 credit for standard, 2 for HD
-        const creditCost = render_quality === "hd" ? 2 : 1;
+        // Single generation: 2 credits flat (always HD via Pro Image model)
+        const creditCost = 2;
         const { data: profile } = await adminClient
           .from("profiles")
           .select("generations_count, generations_reset_at, bonus_credits, referral_code, subscription_tier, paid_credits")
@@ -2215,7 +2215,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+            model: "google/gemini-3-pro-image-preview",
             messages: [{ role: "user", content: imageContent }],
             modalities: ["image", "text"],
           }),
@@ -2246,7 +2246,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
-                model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+                model: "google/gemini-3-pro-image-preview",
                 messages: [{ role: "user", content: imageContent }],
                 modalities: ["image", "text"],
               }),
@@ -2548,7 +2548,7 @@ Return structured JSON.`;
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
-                model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+                model: "google/gemini-3.1-flash-image-preview",
                 messages: [{ role: "user", content: imageContent }],
                 modalities: ["image", "text"],
               }),
@@ -2567,7 +2567,7 @@ Return structured JSON.`;
                 method: "POST",
                 headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  model: render_quality === "hd" ? "google/gemini-3-pro-image-preview" : "google/gemini-2.5-flash-image",
+                  model: "google/gemini-3.1-flash-image-preview",
                   messages: [{ role: "user", content: imageContent }],
                   modalities: ["image", "text"],
                 }),
