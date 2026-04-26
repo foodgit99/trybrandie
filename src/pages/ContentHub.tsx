@@ -703,6 +703,7 @@ const ContentHub = () => {
       preferred_day: s.preferred_day || "",
       visual_style_notes: s.visual_style_notes || "",
       pillar_id: s.pillar_id || "",
+      content_category: parseCategoryIds(s.content_category)[0] || "",
     });
     setEditingSeriesId(s.id);
     setSeriesDialogOpen(true);
