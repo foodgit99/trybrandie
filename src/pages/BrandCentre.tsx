@@ -81,6 +81,7 @@ const BrandCentre = () => {
 
   // Audience Intelligence — multiple profiles
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [audienceOpen, setAudienceOpen] = useState(false);
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | null>(null);
   const [audienceEditing, setAudienceEditing] = useState(false);
