@@ -1246,6 +1246,20 @@ const ContentHub = () => {
                     selectedSunday={selectedSunday}
                   />
                 </div>
+                <CategoryCoveragePanel
+                  weeklyIdeas={weeklyIdeas || []}
+                  pillars={pillars || []}
+                  series={series || []}
+                  campaigns={campaigns || []}
+                  onAddIdeaForCategory={(catId) => {
+                    const todayIdx = (new Date().getDay() + 6) % 7;
+                    const day = DAYS[todayIdx];
+                    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: catId });
+                    setEditingIdeaId(null);
+                    setIdeaDay(day);
+                    setIdeaDialogOpen(true);
+                  }}
+                />
                 <Card>
                   <CardContent className="p-0 divide-y divide-border">
                     {DAYS.map((day) => {
