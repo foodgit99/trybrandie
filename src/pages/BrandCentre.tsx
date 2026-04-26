@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
 import { useAuth } from "@/hooks/useAuth";
@@ -81,6 +81,7 @@ const BrandCentre = () => {
 
   // Audience Intelligence — multiple profiles
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [audienceOpen, setAudienceOpen] = useState(false);
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | null>(null);
   const [audienceEditing, setAudienceEditing] = useState(false);
@@ -157,6 +158,16 @@ const BrandCentre = () => {
       setSelectedAudienceId(audiences[0].id);
     }
   }, [audiences, selectedAudienceId]);
+
+  // Auto-open and scroll to Audience Intelligence when linked from Content Hub
+  useEffect(() => {
+    if (searchParams.get("section") === "audience") {
+      setAudienceOpen(true);
+      setTimeout(() => {
+        document.getElementById("audience-intelligence")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedAudience?.raw_inputs && typeof selectedAudience.raw_inputs === "object") {
@@ -1086,7 +1097,7 @@ const BrandCentre = () => {
           )}
 
           {/* Target Audience Intelligence */}
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
+          <div id="audience-intelligence" className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4 scroll-mt-20">
             <button onClick={() => setAudienceOpen(!audienceOpen)} className="w-full flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-primary" />
