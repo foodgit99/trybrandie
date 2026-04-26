@@ -644,10 +644,16 @@ const ContentHub = () => {
     if (!pillarForm.name.trim() || !brandId || !user) return;
     setPillarSaving(true);
     try {
+      const normalizedCategory = parseCategoryIds(pillarForm.content_category).join(",") || null;
       if (editingPillarId) {
         const { error } = await supabase
           .from("content_pillars")
-          .update({ name: pillarForm.name.trim(), description: pillarForm.description.trim(), icon_emoji: pillarForm.icon_emoji })
+          .update({
+            name: pillarForm.name.trim(),
+            description: pillarForm.description.trim(),
+            icon_emoji: pillarForm.icon_emoji,
+            content_category: normalizedCategory,
+          })
           .eq("id", editingPillarId);
         if (error) throw error;
         toast({ title: "Pillar updated" });
@@ -662,6 +668,7 @@ const ContentHub = () => {
             description: pillarForm.description.trim(),
             icon_emoji: pillarForm.icon_emoji,
             sort_order: maxOrder + 1,
+            content_category: normalizedCategory,
           });
         if (error) throw error;
         toast({ title: "Pillar created" });
