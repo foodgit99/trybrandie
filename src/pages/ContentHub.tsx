@@ -630,7 +630,12 @@ const ContentHub = () => {
   };
 
   const openEditPillar = (p: any) => {
-    setPillarForm({ name: p.name, description: p.description || "", icon_emoji: p.icon_emoji || "📌" });
+    setPillarForm({
+      name: p.name,
+      description: p.description || "",
+      icon_emoji: p.icon_emoji || "📌",
+      content_category: parseCategoryIds(p.content_category).join(",") || "",
+    });
     setEditingPillarId(p.id);
     setPillarDialogOpen(true);
   };
