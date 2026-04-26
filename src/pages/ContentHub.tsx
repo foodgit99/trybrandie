@@ -1753,6 +1753,30 @@ const ContentHub = () => {
                 onChange={(e) => setPillarForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Content Categories <span className="text-muted-foreground">(pick up to 3)</span></Label>
+              <div className="flex flex-wrap gap-1.5">
+                {CONTENT_CATEGORIES.map((c) => {
+                  const selected = parseCategoryIds(pillarForm.content_category);
+                  const isSel = selected.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        const next = isSel
+                          ? selected.filter((s) => s !== c.id)
+                          : selected.length >= 3 ? selected : [...selected, c.id];
+                        setPillarForm((f) => ({ ...f, content_category: next.join(",") }));
+                      }}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${isSel ? c.badgeClass + " border-transparent" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}
+                    >
+                      <span>{c.emoji}</span>{c.short}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setPillarDialogOpen(false)}>Cancel</Button>
