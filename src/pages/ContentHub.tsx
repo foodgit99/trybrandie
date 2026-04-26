@@ -912,9 +912,6 @@ const ContentHub = () => {
             </p>
           </div>
 
-          {/* Audience Intelligence context banner */}
-          <AudienceContextBanner brandId={brand?.id} />
-
           {/* Strategist prompt banner */}
           {strategistPrompt && (
             <Card className="border-primary/30 bg-primary/[0.04]">
@@ -1661,6 +1658,10 @@ const ContentHub = () => {
               Regenerate All
             </Button>
           </div>
+
+          {/* Audience Intelligence context banner */}
+          <AudienceContextBanner brandId={brand?.id} />
+
           <div className="h-[70px]" />
         </motion.div>
       </main>
