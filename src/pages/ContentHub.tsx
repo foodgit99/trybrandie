@@ -871,6 +871,7 @@ const ContentHub = () => {
         campaign_id: ideaForm.campaign_id || null,
         content_format: ideaForm.content_format || "graphic",
         autopilot: ideaForm.autopilot,
+        content_category: parseCategoryIds(ideaForm.content_category)[0] || null,
       };
 
       if (editingIdeaId) {
