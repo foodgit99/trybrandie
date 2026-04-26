@@ -1658,6 +1658,10 @@ const ContentHub = () => {
               Regenerate All
             </Button>
           </div>
+
+          {/* Audience Intelligence context banner */}
+          <AudienceContextBanner brandId={brand?.id} />
+
           <div className="h-[70px]" />
         </motion.div>
       </main>
