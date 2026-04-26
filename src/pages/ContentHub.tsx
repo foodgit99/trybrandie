@@ -1269,6 +1269,7 @@ const ContentHub = () => {
                                     ) : (
                                       <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
                                     )}
+                                    <CategoryDot raw={idea.content_category} />
                                     <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                                       {idea.title}
                                     </span>
