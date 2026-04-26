@@ -76,6 +76,7 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
+import AudienceContextBanner from "@/components/content/AudienceContextBanner";
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
