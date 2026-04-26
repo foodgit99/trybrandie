@@ -93,8 +93,9 @@ interface PillarForm {
   name: string;
   description: string;
   icon_emoji: string;
+  content_category: string; // comma-separated ids; pillars can cover multiple
 }
-const emptyPillar: PillarForm = { name: "", description: "", icon_emoji: "📌" };
+const emptyPillar: PillarForm = { name: "", description: "", icon_emoji: "📌", content_category: "" };
 
 // --- Series form state ---
 interface SeriesForm {
@@ -104,16 +105,18 @@ interface SeriesForm {
   preferred_day: string;
   visual_style_notes: string;
   pillar_id: string;
+  content_category: string; // single id
 }
-const emptySeries: SeriesForm = { name: "", description: "", recurrence: "weekly", preferred_day: "", visual_style_notes: "", pillar_id: "" };
+const emptySeries: SeriesForm = { name: "", description: "", recurrence: "weekly", preferred_day: "", visual_style_notes: "", pillar_id: "", content_category: "" };
 
 // --- Campaign form state ---
 interface CampaignForm {
   name: string;
   description: string;
   post_count: number;
+  content_category: string; // single id
 }
-const emptyCampaign: CampaignForm = { name: "", description: "", post_count: 5 };
+const emptyCampaign: CampaignForm = { name: "", description: "", post_count: 5, content_category: "" };
 
 // --- Idea form state ---
 interface IdeaForm {
@@ -124,8 +127,9 @@ interface IdeaForm {
   campaign_id: string;
   content_format: string;
   autopilot: boolean;
+  content_category: string; // single id
 }
-const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", autopilot: false };
+const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", autopilot: false, content_category: "" };
 
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
