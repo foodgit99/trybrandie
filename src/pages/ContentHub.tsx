@@ -727,6 +727,7 @@ const ContentHub = () => {
         preferred_day: seriesForm.preferred_day || null,
         visual_style_notes: seriesForm.visual_style_notes.trim() || null,
         pillar_id: seriesForm.pillar_id || null,
+        content_category: parseCategoryIds(seriesForm.content_category)[0] || null,
       };
 
       if (editingSeriesId) {
@@ -774,10 +775,11 @@ const ContentHub = () => {
     if (!campaignForm.name.trim() || !brandId || !user) return;
     setCampaignSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         name: campaignForm.name.trim(),
         description: campaignForm.description.trim(),
         post_count: campaignForm.post_count,
+        content_category: parseCategoryIds(campaignForm.content_category)[0] || null,
       };
       if (editingCampaignId) {
         const { error } = await supabase.from("campaigns").update(payload).eq("id", editingCampaignId);
