@@ -1601,13 +1601,14 @@ const ContentHub = () => {
                       <motion.div key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                         <Card className="hover:border-primary/30 transition-colors group relative">
                           <CardContent className="p-4 space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-semibold">{s.name}</h3>
-                              <Badge variant="secondary" className="text-[10px]">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-sm font-semibold truncate">{s.name}</h3>
+                              <Badge variant="secondary" className="text-[10px] shrink-0">
                                 {s.recurrence}{s.preferred_day ? ` · ${DAY_LABELS[s.preferred_day] || s.preferred_day}` : ""}
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
+                            <CategoryBadgeList raw={s.content_category} max={2} />
                           </CardContent>
                           <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
                             <button onClick={() => openEditSeries(s)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
@@ -1661,11 +1662,12 @@ const ContentHub = () => {
                       <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                         <Card className="hover:border-primary/30 transition-colors group relative">
                           <CardContent className="p-4 space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-semibold">{c.name}</h3>
-                              <Badge variant="outline" className="text-[10px]">{c.post_count} posts</Badge>
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-sm font-semibold truncate">{c.name}</h3>
+                              <Badge variant="outline" className="text-[10px] shrink-0">{c.post_count} posts</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
+                            <CategoryBadgeList raw={c.content_category} max={2} />
                           </CardContent>
                           <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
                             <button onClick={() => openEditCampaign(c)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
