@@ -1246,19 +1246,13 @@ const ContentHub = () => {
                                     <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                                       {idea.title}
                                     </span>
-                                    {idea.autopilot && (
+                                    {idea.autopilot && idea.status !== "created" && (idea as any).autopilot_status !== "completed" && (
                                       <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-primary/15 text-primary border-primary/20">
                                         <Zap className="h-2 w-2" />
                                         autopilot
                                       </Badge>
                                     )}
-                                    {/* Autopilot status badges */}
-                                    {(idea as any).autopilot_status === "completed" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
-                                        <Check className="h-2 w-2" />
-                                        auto-created
-                                      </Badge>
-                                    )}
+                                    {/* Actionable autopilot states only */}
                                     {(idea as any).autopilot_status === "failed_no_credits" && (
                                       <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot couldn't create — no credits remaining">
                                         <AlertTriangle className="h-2 w-2" />
@@ -1277,29 +1271,17 @@ const ContentHub = () => {
                                         creating…
                                       </Badge>
                                     )}
-                                    {(() => {
-                                      const fmt = idea.content_format || "graphic";
-                                      const colorMap: Record<string, string> = {
-                                        carousel: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20",
-                                        graphic: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-                                      };
-                                      return (
-                                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 ${colorMap[fmt] || colorMap.graphic}`}>
-                                          {fmt}
-                                        </span>
-                                      );
-                                    })()}
+                                    {/* Only show format chip when it's a carousel (graphic is the default — no need to label) */}
+                                    {idea.content_format === "carousel" && (
+                                      <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
+                                        carousel
+                                      </span>
+                                    )}
                                     {idea.idea_type === "holiday" && (
                                       <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
                                         <Gift className="h-2 w-2" />
                                         holiday
                                       </Badge>
-                                    )}
-                                    {idea.idea_type === "series_post" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">series</Badge>
-                                    )}
-                                    {idea.idea_type === "campaign_post" && (
-                                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">campaign</Badge>
                                     )}
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
