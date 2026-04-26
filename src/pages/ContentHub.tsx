@@ -1004,163 +1004,6 @@ const ContentHub = () => {
             </Card>
           )}
 
-          {/* Trend Intel Card */}
-          <Collapsible open={openSections.trends} onOpenChange={() => toggleSection("trends")}>
-            <section className="space-y-3">
-              <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    <h2 className="text-base font-semibold">Trend Intel</h2>
-                    {trendIntel?.generated_at && (
-                      <span className="text-[10px] text-muted-foreground">
-                        Updated {(() => {
-                          const age = Date.now() - new Date(trendIntel.generated_at).getTime();
-                          const days = Math.floor(age / (1000 * 60 * 60 * 24));
-                          return days === 0 ? "today" : `${days}d ago`;
-                        })()}
-                      </span>
-                    )}
-                  </div>
-                  {openSections.trends ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
-                <div className="flex items-center justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs"
-                    onClick={refreshTrendIntel}
-                    disabled={trendRefreshing}
-                  >
-                    {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                    {trendIntel ? "Refresh" : "Research Trends"}
-                  </Button>
-                </div>
-                {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
-                  <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {(trendIntel.trends_data as any[]).slice(0, showAllTrends ? undefined : 4).map((trend: any, i: number) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                      >
-                        <Card
-                          className="hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer group"
-                          onClick={() => setSelectedTrend(trend)}
-                        >
-                          <CardContent className="p-3 space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <TrendingUp className="h-3 w-3 text-primary shrink-0" />
-                              <p className="text-xs font-semibold leading-tight truncate flex-1">{trend.title}</p>
-                              <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/60 transition-all duration-200 shrink-0 -translate-x-1 group-hover:translate-x-0" />
-                            </div>
-                            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{trend.summary}</p>
-                            {trend.content_angles?.length > 0 && (
-                              <div className="flex flex-wrap gap-1 pt-0.5">
-                                {trend.content_angles.slice(0, 2).map((angle: string, j: number) => (
-                                  <span key={j} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary truncate max-w-[140px]">
-                                    {angle}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </div>
-                  {(trendIntel.trends_data as any[]).length > 4 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full h-7 text-xs gap-1"
-                      onClick={() => setShowAllTrends(!showAllTrends)}
-                    >
-                      {showAllTrends ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                      {showAllTrends ? "Show less" : `Show all ${(trendIntel.trends_data as any[]).length} trends`}
-                    </Button>
-                  )}
-                  </>
-                ) : !trendRefreshing && (
-                  <Card className="border-dashed">
-                    <CardContent className="py-6 text-center space-y-2">
-                      <TrendingUp className="h-6 w-6 mx-auto text-muted-foreground/40" />
-                      <p className="text-xs text-muted-foreground">No trend intel yet. Click "Research Trends" to discover what's happening in your industry.</p>
-                    </CardContent>
-                  </Card>
-                )}
-                {trendRefreshing && (
-                  <Card className="border-dashed">
-                    <CardContent className="py-8 text-center space-y-2">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                      <p className="text-xs text-muted-foreground">Researching industry trends…</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </CollapsibleContent>
-            </section>
-          </Collapsible>
-
-          {/* Pillars */}
-          <Collapsible open={openSections.pillars} onOpenChange={() => toggleSection("pillars")}>
-            <section className="space-y-3">
-              <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
-                  <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-muted-foreground" />
-                    <h2 className="text-base font-semibold">Content Pillars</h2>
-                    {hasPillars && <Badge variant="secondary" className="text-[10px]">{pillars!.length}</Badge>}
-                  </div>
-                  {openSections.pillars ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
-                <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreatePillar}>
-                    <Plus className="h-3 w-3" /> Add
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_pillars")} disabled={!!generating}>
-                    {generating === "generate_pillars" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                    AI Generate
-                  </Button>
-                </div>
-                {hasPillars ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-                    {pillars!.map((p: any, i: number) => (
-                      <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                        <Card className="h-full hover:border-primary/30 transition-colors group relative">
-                          <CardContent className="p-3 text-center space-y-1">
-                            <span className="text-2xl">{p.icon_emoji}</span>
-                            <p className="text-xs font-medium leading-tight">{p.name}</p>
-                            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
-                          </CardContent>
-                          <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
-                            <button onClick={() => openEditPillar(p)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
-                              <Pencil className="h-3 w-3 text-muted-foreground" />
-                            </button>
-                            <button onClick={() => deletePillar(p.id)} className="p-1 rounded-md hover:bg-destructive/10 transition-colors" title="Delete">
-                              <Trash2 className="h-3 w-3 text-destructive/70" />
-                            </button>
-                          </div>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : !generating && (
-                  <Card className="border-dashed">
-                    <CardContent className="py-8 text-center">
-                      <p className="text-sm text-muted-foreground">No pillars yet. Add one manually or let AI generate them.</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </CollapsibleContent>
-            </section>
-          </Collapsible>
-
           <Collapsible open={openSections.calendar} onOpenChange={() => toggleSection("calendar")}>
             <section className="space-y-3">
               <CollapsibleTrigger asChild>
@@ -1543,6 +1386,163 @@ const ContentHub = () => {
               </CollapsibleContent>
             </section>
           </Collapsible>
+          {/* Trend Intel Card */}
+          <Collapsible open={openSections.trends} onOpenChange={() => toggleSection("trends")}>
+            <section className="space-y-3">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">Trend Intel</h2>
+                    {trendIntel?.generated_at && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Updated {(() => {
+                          const age = Date.now() - new Date(trendIntel.generated_at).getTime();
+                          const days = Math.floor(age / (1000 * 60 * 60 * 24));
+                          return days === 0 ? "today" : `${days}d ago`;
+                        })()}
+                      </span>
+                    )}
+                  </div>
+                  {openSections.trends ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={refreshTrendIntel}
+                    disabled={trendRefreshing}
+                  >
+                    {trendRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    {trendIntel ? "Refresh" : "Research Trends"}
+                  </Button>
+                </div>
+                {trendIntel?.trends_data && Array.isArray(trendIntel.trends_data) && (trendIntel.trends_data as any[]).length > 0 ? (
+                  <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {(trendIntel.trends_data as any[]).slice(0, showAllTrends ? undefined : 4).map((trend: any, i: number) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                      >
+                        <Card
+                          className="hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer group"
+                          onClick={() => setSelectedTrend(trend)}
+                        >
+                          <CardContent className="p-3 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <TrendingUp className="h-3 w-3 text-primary shrink-0" />
+                              <p className="text-xs font-semibold leading-tight truncate flex-1">{trend.title}</p>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/60 transition-all duration-200 shrink-0 -translate-x-1 group-hover:translate-x-0" />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{trend.summary}</p>
+                            {trend.content_angles?.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {trend.content_angles.slice(0, 2).map((angle: string, j: number) => (
+                                  <span key={j} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary truncate max-w-[140px]">
+                                    {angle}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                  {(trendIntel.trends_data as any[]).length > 4 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full h-7 text-xs gap-1"
+                      onClick={() => setShowAllTrends(!showAllTrends)}
+                    >
+                      {showAllTrends ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                      {showAllTrends ? "Show less" : `Show all ${(trendIntel.trends_data as any[]).length} trends`}
+                    </Button>
+                  )}
+                  </>
+                ) : !trendRefreshing && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center space-y-2">
+                      <TrendingUp className="h-6 w-6 mx-auto text-muted-foreground/40" />
+                      <p className="text-xs text-muted-foreground">No trend intel yet. Click "Research Trends" to discover what's happening in your industry.</p>
+                    </CardContent>
+                  </Card>
+                )}
+                {trendRefreshing && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center space-y-2">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                      <p className="text-xs text-muted-foreground">Researching industry trends…</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
+
+          {/* Pillars */}
+          <Collapsible open={openSections.pillars} onOpenChange={() => toggleSection("pillars")}>
+            <section className="space-y-3">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold">Content Pillars</h2>
+                    {hasPillars && <Badge variant="secondary" className="text-[10px]">{pillars!.length}</Badge>}
+                  </div>
+                  {openSections.pillars ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreatePillar}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_pillars")} disabled={!!generating}>
+                    {generating === "generate_pillars" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    AI Generate
+                  </Button>
+                </div>
+                {hasPillars ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                    {pillars!.map((p: any, i: number) => (
+                      <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <Card className="h-full hover:border-primary/30 transition-colors group relative">
+                          <CardContent className="p-3 text-center space-y-1">
+                            <span className="text-2xl">{p.icon_emoji}</span>
+                            <p className="text-xs font-medium leading-tight">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
+                          </CardContent>
+                          <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
+                            <button onClick={() => openEditPillar(p)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => deletePillar(p.id)} className="p-1 rounded-md hover:bg-destructive/10 transition-colors" title="Delete">
+                              <Trash2 className="h-3 w-3 text-destructive/70" />
+                            </button>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : !generating && (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No pillars yet. Add one manually or let AI generate them.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
+
 
           {/* Series */}
           <Collapsible open={openSections.series} onOpenChange={() => toggleSection("series")}>
