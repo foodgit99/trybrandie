@@ -1546,6 +1546,7 @@ const ContentHub = () => {
                             <span className="text-2xl">{p.icon_emoji}</span>
                             <p className="text-xs font-medium leading-tight">{p.name}</p>
                             <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
+                            <CategoryBadgeList raw={p.content_category} max={2} className="justify-center pt-0.5" />
                           </CardContent>
                           <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
                             <button onClick={() => openEditPillar(p)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
