@@ -1097,7 +1097,7 @@ const BrandCentre = () => {
           )}
 
           {/* Target Audience Intelligence */}
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
+          <div id="audience-intelligence" className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4 scroll-mt-20">
             <button onClick={() => setAudienceOpen(!audienceOpen)} className="w-full flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-primary" />
