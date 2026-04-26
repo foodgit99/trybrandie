@@ -159,6 +159,16 @@ const BrandCentre = () => {
     }
   }, [audiences, selectedAudienceId]);
 
+  // Auto-open and scroll to Audience Intelligence when linked from Content Hub
+  useEffect(() => {
+    if (searchParams.get("section") === "audience") {
+      setAudienceOpen(true);
+      setTimeout(() => {
+        document.getElementById("audience-intelligence")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (selectedAudience?.raw_inputs && typeof selectedAudience.raw_inputs === "object") {
       const ri = selectedAudience.raw_inputs as any;
