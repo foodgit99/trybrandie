@@ -753,7 +753,12 @@ const ContentHub = () => {
   };
 
   const openEditCampaign = (c: any) => {
-    setCampaignForm({ name: c.name, description: c.description || "", post_count: c.post_count || 5 });
+    setCampaignForm({
+      name: c.name,
+      description: c.description || "",
+      post_count: c.post_count || 5,
+      content_category: parseCategoryIds(c.content_category)[0] || "",
+    });
     setEditingCampaignId(c.id);
     setCampaignDialogOpen(true);
   };
@@ -833,6 +838,7 @@ const ContentHub = () => {
       campaign_id: idea.campaign_id || "",
       content_format: idea.content_format || "graphic",
       autopilot: idea.autopilot || false,
+      content_category: parseCategoryIds(idea.content_category)[0] || "",
     });
     setEditingIdeaId(idea.id);
     // Determine day from scheduled_for
