@@ -77,6 +77,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
 import AudienceContextBanner from "@/components/content/AudienceContextBanner";
+import { CategoryBadge, CategoryBadgeList, CategoryDot } from "@/components/content/CategoryBadge";
+import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
+import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -90,8 +93,9 @@ interface PillarForm {
   name: string;
   description: string;
   icon_emoji: string;
+  content_category: string; // comma-separated ids; pillars can cover multiple
 }
-const emptyPillar: PillarForm = { name: "", description: "", icon_emoji: "📌" };
+const emptyPillar: PillarForm = { name: "", description: "", icon_emoji: "📌", content_category: "" };
 
 // --- Series form state ---
 interface SeriesForm {
@@ -101,16 +105,18 @@ interface SeriesForm {
   preferred_day: string;
   visual_style_notes: string;
   pillar_id: string;
+  content_category: string; // single id
 }
-const emptySeries: SeriesForm = { name: "", description: "", recurrence: "weekly", preferred_day: "", visual_style_notes: "", pillar_id: "" };
+const emptySeries: SeriesForm = { name: "", description: "", recurrence: "weekly", preferred_day: "", visual_style_notes: "", pillar_id: "", content_category: "" };
 
 // --- Campaign form state ---
 interface CampaignForm {
   name: string;
   description: string;
   post_count: number;
+  content_category: string; // single id
 }
-const emptyCampaign: CampaignForm = { name: "", description: "", post_count: 5 };
+const emptyCampaign: CampaignForm = { name: "", description: "", post_count: 5, content_category: "" };
 
 // --- Idea form state ---
 interface IdeaForm {
@@ -121,8 +127,9 @@ interface IdeaForm {
   campaign_id: string;
   content_format: string;
   autopilot: boolean;
+  content_category: string; // single id
 }
-const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", autopilot: false };
+const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", autopilot: false, content_category: "" };
 
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
@@ -623,7 +630,12 @@ const ContentHub = () => {
   };
 
   const openEditPillar = (p: any) => {
-    setPillarForm({ name: p.name, description: p.description || "", icon_emoji: p.icon_emoji || "📌" });
+    setPillarForm({
+      name: p.name,
+      description: p.description || "",
+      icon_emoji: p.icon_emoji || "📌",
+      content_category: parseCategoryIds(p.content_category).join(",") || "",
+    });
     setEditingPillarId(p.id);
     setPillarDialogOpen(true);
   };
@@ -632,10 +644,16 @@ const ContentHub = () => {
     if (!pillarForm.name.trim() || !brandId || !user) return;
     setPillarSaving(true);
     try {
+      const normalizedCategory = parseCategoryIds(pillarForm.content_category).join(",") || null;
       if (editingPillarId) {
         const { error } = await supabase
           .from("content_pillars")
-          .update({ name: pillarForm.name.trim(), description: pillarForm.description.trim(), icon_emoji: pillarForm.icon_emoji })
+          .update({
+            name: pillarForm.name.trim(),
+            description: pillarForm.description.trim(),
+            icon_emoji: pillarForm.icon_emoji,
+            content_category: normalizedCategory,
+          })
           .eq("id", editingPillarId);
         if (error) throw error;
         toast({ title: "Pillar updated" });
@@ -650,6 +668,7 @@ const ContentHub = () => {
             description: pillarForm.description.trim(),
             icon_emoji: pillarForm.icon_emoji,
             sort_order: maxOrder + 1,
+            content_category: normalizedCategory,
           });
         if (error) throw error;
         toast({ title: "Pillar created" });
@@ -691,6 +710,7 @@ const ContentHub = () => {
       preferred_day: s.preferred_day || "",
       visual_style_notes: s.visual_style_notes || "",
       pillar_id: s.pillar_id || "",
+      content_category: parseCategoryIds(s.content_category)[0] || "",
     });
     setEditingSeriesId(s.id);
     setSeriesDialogOpen(true);
@@ -707,6 +727,7 @@ const ContentHub = () => {
         preferred_day: seriesForm.preferred_day || null,
         visual_style_notes: seriesForm.visual_style_notes.trim() || null,
         pillar_id: seriesForm.pillar_id || null,
+        content_category: parseCategoryIds(seriesForm.content_category)[0] || null,
       };
 
       if (editingSeriesId) {
@@ -740,7 +761,12 @@ const ContentHub = () => {
   };
 
   const openEditCampaign = (c: any) => {
-    setCampaignForm({ name: c.name, description: c.description || "", post_count: c.post_count || 5 });
+    setCampaignForm({
+      name: c.name,
+      description: c.description || "",
+      post_count: c.post_count || 5,
+      content_category: parseCategoryIds(c.content_category)[0] || "",
+    });
     setEditingCampaignId(c.id);
     setCampaignDialogOpen(true);
   };
@@ -749,10 +775,11 @@ const ContentHub = () => {
     if (!campaignForm.name.trim() || !brandId || !user) return;
     setCampaignSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         name: campaignForm.name.trim(),
         description: campaignForm.description.trim(),
         post_count: campaignForm.post_count,
+        content_category: parseCategoryIds(campaignForm.content_category)[0] || null,
       };
       if (editingCampaignId) {
         const { error } = await supabase.from("campaigns").update(payload).eq("id", editingCampaignId);
@@ -820,6 +847,7 @@ const ContentHub = () => {
       campaign_id: idea.campaign_id || "",
       content_format: idea.content_format || "graphic",
       autopilot: idea.autopilot || false,
+      content_category: parseCategoryIds(idea.content_category)[0] || "",
     });
     setEditingIdeaId(idea.id);
     // Determine day from scheduled_for
@@ -843,6 +871,7 @@ const ContentHub = () => {
         campaign_id: ideaForm.campaign_id || null,
         content_format: ideaForm.content_format || "graphic",
         autopilot: ideaForm.autopilot,
+        content_category: parseCategoryIds(ideaForm.content_category)[0] || null,
       };
 
       if (editingIdeaId) {
@@ -1217,6 +1246,20 @@ const ContentHub = () => {
                     selectedSunday={selectedSunday}
                   />
                 </div>
+                <CategoryCoveragePanel
+                  weeklyIdeas={weeklyIdeas || []}
+                  pillars={pillars || []}
+                  series={series || []}
+                  campaigns={campaigns || []}
+                  onAddIdeaForCategory={(catId) => {
+                    const todayIdx = (new Date().getDay() + 6) % 7;
+                    const day = DAYS[todayIdx];
+                    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: catId });
+                    setEditingIdeaId(null);
+                    setIdeaDay(day);
+                    setIdeaDialogOpen(true);
+                  }}
+                />
                 <Card>
                   <CardContent className="p-0 divide-y divide-border">
                     {DAYS.map((day) => {
@@ -1240,6 +1283,7 @@ const ContentHub = () => {
                                     ) : (
                                       <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
                                     )}
+                                    <CategoryDot raw={idea.content_category} />
                                     <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                                       {idea.title}
                                     </span>
@@ -1502,6 +1546,7 @@ const ContentHub = () => {
                             <span className="text-2xl">{p.icon_emoji}</span>
                             <p className="text-xs font-medium leading-tight">{p.name}</p>
                             <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{p.description}</p>
+                            <CategoryBadgeList raw={p.content_category} max={2} className="justify-center pt-0.5" />
                           </CardContent>
                           <div className="absolute top-1 right-1 flex md:hidden md:group-hover:flex gap-0.5">
                             <button onClick={() => openEditPillar(p)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
@@ -1556,13 +1601,14 @@ const ContentHub = () => {
                       <motion.div key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                         <Card className="hover:border-primary/30 transition-colors group relative">
                           <CardContent className="p-4 space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-semibold">{s.name}</h3>
-                              <Badge variant="secondary" className="text-[10px]">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-sm font-semibold truncate">{s.name}</h3>
+                              <Badge variant="secondary" className="text-[10px] shrink-0">
                                 {s.recurrence}{s.preferred_day ? ` · ${DAY_LABELS[s.preferred_day] || s.preferred_day}` : ""}
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>
+                            <CategoryBadgeList raw={s.content_category} max={2} />
                           </CardContent>
                           <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
                             <button onClick={() => openEditSeries(s)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
@@ -1616,11 +1662,12 @@ const ContentHub = () => {
                       <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                         <Card className="hover:border-primary/30 transition-colors group relative">
                           <CardContent className="p-4 space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-semibold">{c.name}</h3>
-                              <Badge variant="outline" className="text-[10px]">{c.post_count} posts</Badge>
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-sm font-semibold truncate">{c.name}</h3>
+                              <Badge variant="outline" className="text-[10px] shrink-0">{c.post_count} posts</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
+                            <CategoryBadgeList raw={c.content_category} max={2} />
                           </CardContent>
                           <div className="absolute top-2 right-2 flex md:hidden md:group-hover:flex gap-0.5">
                             <button onClick={() => openEditCampaign(c)} className="p-1 rounded-md hover:bg-muted transition-colors" title="Edit">
@@ -1705,6 +1752,30 @@ const ContentHub = () => {
                 value={pillarForm.description}
                 onChange={(e) => setPillarForm((f) => ({ ...f, description: e.target.value }))}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Content Categories <span className="text-muted-foreground">(pick up to 3)</span></Label>
+              <div className="flex flex-wrap gap-1.5">
+                {CONTENT_CATEGORIES.map((c) => {
+                  const selected = parseCategoryIds(pillarForm.content_category);
+                  const isSel = selected.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        const next = isSel
+                          ? selected.filter((s) => s !== c.id)
+                          : selected.length >= 3 ? selected : [...selected, c.id];
+                        setPillarForm((f) => ({ ...f, content_category: next.join(",") }));
+                      }}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${isSel ? c.badgeClass + " border-transparent" : "border-border/70 text-muted-foreground hover:border-primary/40"}`}
+                    >
+                      <span>{c.emoji}</span>{c.short}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <DialogFooter>

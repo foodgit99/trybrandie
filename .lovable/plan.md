@@ -1,42 +1,71 @@
-## Plan: Audience Intelligence banner on Content Hub
+## Plan: Equal Category Distribution Across the Content Hub
 
-Add a slim, on-brand banner near the top of `/content` that surfaces which **Target Audience (JTBD profiles)** are currently shaping AI suggestions, plus a one-click jump to edit them in the Brand Centre.
+The 10 categories (Announcement, Educational, Informational, Entertainment, Promotional, Trending, Holidays, Social Proof/UGC, BTS, Interactive) already exist in the schema and the AI prompts *try* to enforce variety — but the work isn't visible in the UI, pillar categories aren't normalized to the enum, and the calendar has no per-week coverage check. This plan closes the loop end-to-end.
 
-### Why this matters
-The `brand-engine` edge function fetches up to **3 audience profiles** per brand (`limit(3)`, no explicit order — Postgres natural order) and injects each one's `jtbd_profile` into pillar / series / campaign / weekly-idea generation. Today this dependency is invisible — users can't see why suggestions feel a certain way or which audience is missing.
+---
 
-### What gets built
+### 1. Normalize pillar categories to the enum (backend)
 
-**New component**: `src/components/content/AudienceContextBanner.tsx`
+**File:** `supabase/functions/brand-engine/index.ts`
 
-Visual structure (matches the warm neutral palette + collapsible card style already used on `/content`):
-- **Left**: Small `Users` icon (lucide) in a soft gold-tinted circle.
-- **Middle**:
-  - **Headline**: "Suggestions tuned for {N} audience{s}" — or "No audience set yet" empty state.
-  - **Sub-line**: Up to 3 audience labels rendered as small badges (e.g. `Primary Audience`, `Returning Buyers`). If a profile has no `jtbd_profile` generated yet, badge gets a muted "draft" indicator.
-  - If >3 exist, append "+N more" badge.
-- **Right**: Ghost button **"Edit audience →"** linking to `/brand?tab=audience` (BrandCentre already supports tab params; if not, deep-link to `/brand` and rely on the Audience section being visible).
+* Change the `generate_pillars` tool schema so each pillar returns `content_categories: string[]` (array of enum values) instead of a free-form comma-separated string. This eliminates the current mess (`"Educational, Informational, Behind-the-Scenes (BTS)"` vs. the enum `bts`).
+* Tighten the system prompt: the 5 pillars MUST collectively cover **at least 8 of the 10 categories** (was 7), with no category appearing in more than 2 pillars.
+* On insert, store as a normalized comma-separated lowercase enum string (so existing `text` column works without a migration).
 
-**States**
-1. **Loading** — skeleton row matching banner height.
-2. **No brand / no audiences** — softer banner: "Add a target audience so suggestions speak to the right people." CTA: "Set up audience".
-3. **Audiences exist, none generated** — "Audience drafts saved — generate the JTBD profile to power smarter suggestions." CTA: "Finish setup".
-4. **Healthy state** — list active audiences as described above.
+### 2. Strengthen calendar distribution (backend)
 
-**Data fetch**
-- New `useQuery(['content-hub-audiences', brand.id])` hook inside the banner reading from `target_audiences` (`id, label, jtbd_profile`) for the current brand, `limit(4)` so we can show "+N more".
-- Reuses existing `useBrand()` for brand context; no new edge function.
+**File:** `supabase/functions/brand-engine/index.ts` → `generate_weekly_ideas`
 
-### Where it goes
-Insert the banner in `src/pages/ContentHub.tsx` directly under the page header (above "Upcoming Events"), so it's the first piece of context the user sees on the page.
+* Raise the minimum from "at least 4 different categories per week" to **at least 6 of 10**, and add a soft cap (no category > 3 ideas/week excluding holidays) to prevent clustering.
+* Pass the **last 2 weeks' category counts** into the prompt so the model deliberately fills underused categories ("Last 14 days: educational=8, promotional=2, bts=0 → prioritize bts, informational, trending").
+* Add a deterministic post-validation pass: if the returned set covers fewer than 6 categories, re-prompt once with an explicit gap list before inserting.
 
-### Out of scope
-- Switching the active audience from the banner (current engine uses all up to 3 — no "active" concept exists).
-- Editing JTBD answers inline. Banner is a pointer, edits stay in Brand Centre.
-- Schema changes — purely a read-only UI surface.
+### 3. Surface categories in the UI (frontend)
 
-### Verification after build
-- Banner renders on `/content` for users with 0, 1, 2, 3, and 4+ audiences.
-- "Edit audience" link lands on Brand Centre Audience section.
-- No layout shift on mobile (390px viewport tested).
-- Skeleton appears during initial load, no flash of empty state.
+**File:** `src/pages/ContentHub.tsx`
+
+* **Pillar cards, Series rows, Campaign cards** — render small category chips (max 3, "+N more") using a shared `CategoryBadge` component with consistent colors per category (e.g. educational = blue, promotional = gold, holidays = amber).
+* **Calendar rows** — append a single subtle category dot (color-coded) before the idea title. No text label, to keep the "clean & tidy" rule from the previous round.
+* **Idea/Pillar/Series/Campaign edit dialogs** — add a `Select` (single value, enum) so users can manually correct or assign categories.
+
+### 4. New "Category Coverage" panel (frontend)
+
+**File:** `src/components/content/CategoryCoveragePanel.tsx` (new)
+
+* A compact horizontal bar showing all 10 categories with a count badge for the **current week's ideas** (and a toggle for "All pillars/series/campaigns").
+* Empty categories shown muted with a "+ Add" affordance that pre-fills a new idea with that category.
+* Placed inside the Calendar `Collapsible`, directly above the day list — gives users an at-a-glance "is my content balanced this week?" signal.
+
+### 5. Shared category metadata (frontend)
+
+**File:** `src/lib/contentCategories.ts` (new)
+
+```ts
+export const CONTENT_CATEGORIES = [
+  { id: 'announcement', label: 'Announcement', emoji: '📢', color: '...' },
+  { id: 'educational',  label: 'Educational',  emoji: '🎓', color: '...' },
+  // …all 10
+];
+```
+
+Used by `CategoryBadge`, the coverage panel, calendar dots, and edit-dialog selects — single source of truth for label/emoji/color.
+
+### 6. Backfill safeguard (no migration needed)
+
+The existing `text` column tolerates legacy values. New rows (after this PR) will be normalized; old NULL rows will simply show as "Uncategorized" with a one-click "Auto-categorize" button on each pillar/series/campaign card that calls a new lightweight `brand-engine` action `categorize_existing` (uses Flash-Lite, no credits charged) to fill them in.
+
+---
+
+### Out of scope (intentionally)
+
+* No DB schema change — `content_category` stays as `text` to avoid breaking the 360+ existing rows.
+* No changes to the design generation pipeline — categories already flow into design prompts via `content-categorization`.
+* No re-generation of existing pillars/series — users can manually trigger "Regenerate" if they want enforced variety applied.
+
+### Files touched
+
+* `supabase/functions/brand-engine/index.ts` (modify: pillar schema, weekly prompt, new `categorize_existing` action)
+* `src/pages/ContentHub.tsx` (modify: render badges, calendar dots, mount coverage panel, add category select to dialogs)
+* `src/components/content/CategoryBadge.tsx` (new)
+* `src/components/content/CategoryCoveragePanel.tsx` (new)
+* `src/lib/contentCategories.ts` (new)
