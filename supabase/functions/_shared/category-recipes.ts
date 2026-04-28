@@ -636,65 +636,94 @@ export function buildCopyForbiddenContext(categoryId: string): string {
   return `\n\nFORBIDDEN PHRASES for this category — DO NOT use any of: ${phrases}.`;
 }
 
-// --- HELPER: Research enrichment via Perplexity (degrades gracefully) ---
+// --- HELPER: Research enrichment via Firecrawl Search (degrades gracefully) ---
+// Uses Firecrawl's /v2/search endpoint with time-bound `tbs` filter to pull current
+// web context for time-sensitive categories (trending, entertainment, holidays, etc.).
+// Returns 3-5 bullet-style snippets distilled from result titles + descriptions.
 export async function enrichWithResearch(
   categoryId: string,
   userPrompt: string,
   brandName: string | undefined,
-  perplexityApiKey: string | undefined,
+  firecrawlApiKey: string | undefined,
 ): Promise<string> {
   const recipe = CATEGORY_RECIPES[categoryId];
   if (!recipe?.needs_fresh_info || !recipe.research_focus) return "";
-  if (!perplexityApiKey) {
-    console.log(`[research] skipping (no PERPLEXITY_API_KEY) for category=${categoryId}`);
+  if (!firecrawlApiKey) {
+    console.log(`[research] skipping (no FIRECRAWL_API_KEY) for category=${categoryId}`);
     return "";
   }
 
+  // Map category → Firecrawl `tbs` recency filter
   const recencyMap: Record<string, string> = {
-    trending: "day",
-    entertainment: "week",
-    holidays: "week",
-    informational: "month",
-    interactive: "week",
+    trending: "qdr:d",       // past day
+    entertainment: "qdr:w",  // past week
+    holidays: "qdr:w",       // past week
+    informational: "qdr:m",  // past month
+    interactive: "qdr:w",    // past week
   };
-  const recency = recencyMap[categoryId] || "week";
+  const tbs = recencyMap[categoryId] || "qdr:w";
+
+  // Build a focused search query from the recipe's research_focus + user prompt
+  const queryBits = [
+    recipe.research_focus,
+    userPrompt ? `context: ${userPrompt}` : "",
+    brandName ? `brand: ${brandName}` : "",
+  ].filter(Boolean);
+  const query = queryBits.join(" — ").slice(0, 300);
 
   try {
-    const query = `For a ${categoryId.replace(/_/g, " ")} social media post about: "${userPrompt}"${brandName ? ` (brand: ${brandName})` : ""}. ${recipe.research_focus}. Return 3-5 concise bullet points of CURRENT facts/references that should inform the design and copy. Be specific and recent.`;
-
     const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 8000);
-    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+    const timeout = setTimeout(() => ctrl.abort(), 10000);
+    const response = await fetch("https://api.firecrawl.dev/v2/search", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${perplexityApiKey}`,
+        Authorization: `Bearer ${firecrawlApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "sonar",
-        messages: [
-          { role: "system", content: "You are a research assistant. Return only concise, factual, current bullet points." },
-          { role: "user", content: query },
-        ],
-        max_tokens: 350,
-        temperature: 0.2,
-        search_recency_filter: recency,
+        query,
+        limit: 5,
+        tbs,
       }),
       signal: ctrl.signal,
     });
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.log(`[research] perplexity returned ${response.status} for category=${categoryId}`);
+      console.log(`[research] firecrawl returned ${response.status} for category=${categoryId}`);
       return "";
     }
     const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content?.trim();
-    if (!content) return "";
-    console.log(`[research] enriched category=${categoryId} with ${content.length} chars`);
-    return `\n\nCURRENT RESEARCH CONTEXT (use to ground copy and visuals in what is true/relevant right now):\n${content}`;
+
+    // v2 search returns results either at data.data (array) or data.web (array) depending on shape
+    const results: Array<{ title?: string; description?: string; url?: string }> =
+      (Array.isArray(data?.data) ? data.data : null) ||
+      (Array.isArray(data?.web) ? data.web : null) ||
+      (Array.isArray(data?.data?.web) ? data.data.web : null) ||
+      [];
+
+    if (results.length === 0) {
+      console.log(`[research] firecrawl returned 0 results for category=${categoryId}`);
+      return "";
+    }
+
+    const bullets = results
+      .slice(0, 5)
+      .map((r) => {
+        const title = (r.title || "").trim();
+        const desc = (r.description || "").trim();
+        if (!title && !desc) return "";
+        return `- ${title}${title && desc ? " — " : ""}${desc}`.slice(0, 280);
+      })
+      .filter(Boolean)
+      .join("\n");
+
+    if (!bullets) return "";
+
+    console.log(`[research] enriched category=${categoryId} via firecrawl with ${results.length} results`);
+    return `\n\nCURRENT RESEARCH CONTEXT (live web search, ${tbs}, use to ground copy and visuals in what is true/relevant right now):\n${bullets}`;
   } catch (e) {
-    console.log(`[research] failed for category=${categoryId}:`, e instanceof Error ? e.message : e);
+    console.log(`[research] firecrawl failed for category=${categoryId}:`, e instanceof Error ? e.message : e);
     return "";
   }
 }
