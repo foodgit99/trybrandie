@@ -226,6 +226,45 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     setAiCheck(null);
   };
 
+  const planFromUpdates = async () => {
+    if (planning) return;
+    const activeCount = (updates || []).filter((u) => u.status === "active").length;
+    if (activeCount === 0) {
+      toast({
+        title: "No active updates",
+        description: "Add at least one update first — the AI uses these as factual seed material.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPlanning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("brand-engine", {
+        body: { action: "plan_from_updates", brand_id: brandId },
+      });
+      if (error) throw error;
+      const count = (data as any)?.count || 0;
+      const used = (data as any)?.updates_used || 0;
+      qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
+      toast({
+        title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
+        description:
+          count > 0
+            ? `Grounded in ${used} update${used === 1 ? "" : "s"}. Opening Content Hub…`
+            : "Opening Content Hub…",
+      });
+      navigate("/content");
+    } catch (e: any) {
+      toast({
+        title: "Couldn't draft from updates",
+        description: e?.message || "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setPlanning(false);
+    }
+  };
+
   const runAiCheck = async () => {
     if (!form.content.trim() && !form.title.trim()) {
       toast({
