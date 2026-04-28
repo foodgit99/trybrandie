@@ -2037,7 +2037,7 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
               {!editingCampaignId && campaignForm.content_category && campaignForm.content_category === getLastCategory(user?.id, brandId, "campaign", validCategoryIds) && (
-                <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
+                <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap animate-fade-in">
                   <span>Using your last category.</span>
                   <button
                     type="button"
