@@ -84,7 +84,7 @@ import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
-import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory } from "@/lib/lastCategoryPref";
+import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory, getLastSortOption, setLastSortOption, type ContentHubSortOption } from "@/lib/lastCategoryPref";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
@@ -197,6 +197,13 @@ const ContentHub = () => {
   const setCategoryFilter = (v: string) => {
     setCategoryFilterState(v);
     setLastFilterCategory(user?.id, brand?.id, v);
+  };
+
+  // Sort option (applies across Series, Campaigns, and Ideas) — persisted per user+brand
+  const [sortOption, setSortOptionState] = useState<ContentHubSortOption>("newest");
+  const setSortOption = (v: ContentHubSortOption) => {
+    setSortOptionState(v);
+    setLastSortOption(user?.id, brand?.id, v);
   };
 
   const brandId = brand?.id;
@@ -485,6 +492,7 @@ const ContentHub = () => {
     void hydrateLastCategoriesForBrand(user.id, brandId).then(() => {
       if (cancelled) return;
       setCategoryFilterState(getLastFilterCategory(user.id, brandId, validCategoryIds));
+      setSortOptionState(getLastSortOption(user.id, brandId));
     });
     return () => {
       cancelled = true;
@@ -944,9 +952,28 @@ const ContentHub = () => {
     if (categoryFilter === "all") return true;
     return parseCategoryIds(raw).includes(categoryFilter as ContentCategoryId);
   };
-  const filteredSeries = (series || []).filter((s: any) => matchesCategory(s.content_category));
-  const filteredCampaigns = (campaigns || []).filter((c: any) => matchesCategory(c.content_category));
-  const filteredWeeklyIdeas = (weeklyIdeas || []).filter((i: any) => matchesCategory(i.content_category));
+  const sortItems = <T extends Record<string, any>>(items: T[], nameKey: "name" | "title"): T[] => {
+    const arr = [...items];
+    const ts = (v: any) => {
+      const t = v ? new Date(v).getTime() : 0;
+      return Number.isFinite(t) ? t : 0;
+    };
+    const nm = (it: T) => String((it as any)[nameKey] || "").toLowerCase();
+    switch (sortOption) {
+      case "oldest":
+        return arr.sort((a, b) => ts(a.created_at) - ts(b.created_at));
+      case "az":
+        return arr.sort((a, b) => nm(a).localeCompare(nm(b)));
+      case "za":
+        return arr.sort((a, b) => nm(b).localeCompare(nm(a)));
+      case "newest":
+      default:
+        return arr.sort((a, b) => ts(b.created_at) - ts(a.created_at));
+    }
+  };
+  const filteredSeries = sortItems((series || []).filter((s: any) => matchesCategory(s.content_category)), "name");
+  const filteredCampaigns = sortItems((campaigns || []).filter((c: any) => matchesCategory(c.content_category)), "name");
+  const filteredWeeklyIdeas = sortItems((weeklyIdeas || []).filter((i: any) => matchesCategory(i.content_category)), "title");
 
   // Build weekly calendar
   const ideasByDay = DAYS.reduce((acc, day) => {
@@ -977,52 +1004,65 @@ const ContentHub = () => {
             </p>
           </div>
 
-          {/* Category filter — applies to Series, Campaigns, and weekly Ideas */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("all")}
-              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
-                categoryFilter === "all"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
-              }`}
-              title="Show every category"
-            >
-              <LayoutGrid className="h-3 w-3" />
-              <span>All categories</span>
-            </button>
-            {CONTENT_CATEGORIES.map((cat) => {
-              const active = categoryFilter === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategoryFilter(cat.id)}
-                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
-                  }`}
-                  title={cat.label}
-                >
-                  <span>{cat.emoji}</span>
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
-            {categoryFilter !== "all" && (
+          {/* Category filter + sort — applies to Series, Campaigns, and weekly Ideas */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none flex-1 min-w-0">
               <button
                 type="button"
                 onClick={() => setCategoryFilter("all")}
-                className="shrink-0 rounded-full border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/40 px-2.5 py-1 inline-flex items-center gap-1 transition-colors"
-                title="Reset filter to show all categories"
-                aria-label="Reset category filter"
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
+                  categoryFilter === "all"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+                }`}
+                title="Show every category"
               >
-                <X className="h-3 w-3" />
-                <span>Reset</span>
+                <LayoutGrid className="h-3 w-3" />
+                <span>All categories</span>
               </button>
-            )}
+              {CONTENT_CATEGORIES.map((cat) => {
+                const active = categoryFilter === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategoryFilter(cat.id)}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+                    }`}
+                    title={cat.label}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+              {categoryFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter("all")}
+                  className="shrink-0 rounded-full border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/40 px-2.5 py-1 inline-flex items-center gap-1 transition-colors"
+                  title="Reset filter to show all categories"
+                  aria-label="Reset category filter"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+            <Select value={sortOption} onValueChange={(v) => setSortOption(v as ContentHubSortOption)}>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[160px] shrink-0" aria-label="Sort order">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="az">Name A → Z</SelectItem>
+                <SelectItem value="za">Name Z → A</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Strategist prompt banner */}

@@ -1384,6 +1384,7 @@ export type Database = {
           last_category_idea: string | null
           last_category_series: string | null
           last_filter_category: string | null
+          last_sort_option: string | null
           updated_at: string
           user_id: string
         }
@@ -1395,6 +1396,7 @@ export type Database = {
           last_category_idea?: string | null
           last_category_series?: string | null
           last_filter_category?: string | null
+          last_sort_option?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1406,6 +1408,7 @@ export type Database = {
           last_category_idea?: string | null
           last_category_series?: string | null
           last_filter_category?: string | null
+          last_sort_option?: string | null
           updated_at?: string
           user_id?: string
         }

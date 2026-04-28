@@ -112,7 +112,7 @@ export const hydrateLastCategoriesForBrand = async (
   if (!userId || !brandId || typeof window === "undefined") return;
   const { data, error } = await supabase
     .from("user_brand_dialog_prefs")
-    .select("last_category_series, last_category_campaign, last_category_idea, last_filter_category")
+    .select("last_category_series, last_category_campaign, last_category_idea, last_filter_category, last_sort_option")
     .eq("user_id", userId)
     .eq("brand_id", brandId)
     .maybeSingle();
@@ -133,6 +133,12 @@ export const hydrateLastCategoriesForBrand = async (
   const filterVal = ((data as any).last_filter_category || "").trim();
   try {
     if (filterVal) window.localStorage.setItem(filterLsKey(userId, brandId), filterVal);
+  } catch {
+    // ignore
+  }
+  const sortVal = ((data as any).last_sort_option || "").trim();
+  try {
+    if (sortVal) window.localStorage.setItem(sortLsKey(userId, brandId), sortVal);
   } catch {
     // ignore
   }
@@ -196,5 +202,64 @@ export const setLastFilterCategory = (
     )
     .then(({ error }) => {
       if (error) console.warn("[lastCategoryPref] filter pref sync failed", error.message);
+    });
+};
+
+// ── Content Hub sort (per user + brand) ────────────────────────────────────────
+
+export type ContentHubSortOption = "newest" | "oldest" | "az" | "za";
+export const DEFAULT_SORT_OPTION: ContentHubSortOption = "newest";
+const VALID_SORT_OPTIONS: readonly ContentHubSortOption[] = ["newest", "oldest", "az", "za"];
+
+const sortLsKey = (userId: string, brandId: string) =>
+  `brandie:lastSortOption:${userId}:${brandId}`;
+
+/** Sync read of saved Content Hub sort option (defaults to "newest"). */
+export const getLastSortOption = (
+  userId: string | undefined,
+  brandId: string | undefined
+): ContentHubSortOption => {
+  if (!userId || !brandId || typeof window === "undefined") return DEFAULT_SORT_OPTION;
+  let saved = "";
+  try {
+    saved = window.localStorage.getItem(sortLsKey(userId, brandId)) || "";
+  } catch {
+    return DEFAULT_SORT_OPTION;
+  }
+  return (VALID_SORT_OPTIONS as readonly string[]).includes(saved)
+    ? (saved as ContentHubSortOption)
+    : DEFAULT_SORT_OPTION;
+};
+
+/** Persist the Content Hub sort selection. Pass the default to clear DB value. */
+export const setLastSortOption = (
+  userId: string | undefined,
+  brandId: string | undefined,
+  value: ContentHubSortOption | string | null | undefined
+) => {
+  if (!userId || !brandId) return;
+  const v = (value || "").toString().trim() as ContentHubSortOption;
+  const safe: ContentHubSortOption = (VALID_SORT_OPTIONS as readonly string[]).includes(v)
+    ? v
+    : DEFAULT_SORT_OPTION;
+  const isDefault = safe === DEFAULT_SORT_OPTION;
+
+  if (typeof window !== "undefined") {
+    try {
+      if (isDefault) window.localStorage.removeItem(sortLsKey(userId, brandId));
+      else window.localStorage.setItem(sortLsKey(userId, brandId), safe);
+    } catch {
+      // ignore
+    }
+  }
+
+  void supabase
+    .from("user_brand_dialog_prefs")
+    .upsert(
+      { user_id: userId, brand_id: brandId, last_sort_option: isDefault ? null : safe },
+      { onConflict: "user_id,brand_id" }
+    )
+    .then(({ error }) => {
+      if (error) console.warn("[lastCategoryPref] sort pref sync failed", error.message);
     });
 };
