@@ -680,6 +680,8 @@ const DesignStudio = () => {
         role: "assistant",
         content: r.explanation + freeLabel,
         imageUrl: r.image_url,
+        researchSources: Array.isArray(r.research_sources) ? r.research_sources : undefined,
+        contentCategory: r.content_category,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setCurrentImage(r.image_url);
