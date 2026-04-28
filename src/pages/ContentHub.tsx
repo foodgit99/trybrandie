@@ -81,7 +81,7 @@ import { CategoryBadge, CategoryBadgeList, CategoryDot } from "@/components/cont
 import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
-import { getLastCategory, setLastCategory } from "@/lib/lastCategoryPref";
+import { getLastCategory, setLastCategory, hydrateLastCategoriesFromProfile } from "@/lib/lastCategoryPref";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
@@ -470,6 +470,11 @@ const ContentHub = () => {
       handleFullGenerate();
     }
   }, [brandId, pillarsLoading, pillars, initialSetupDone, generating]);
+
+  // Hydrate last-selected categories from profile so they follow the user across devices
+  useEffect(() => {
+    if (user?.id) void hydrateLastCategoriesFromProfile(user.id);
+  }, [user?.id]);
 
   // --- Engine Actions ---
   const callEngine = async (action: string, extra: Record<string, any> = {}) => {

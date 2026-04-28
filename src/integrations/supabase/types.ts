@@ -1175,6 +1175,9 @@ export type Database = {
           generations_count: number
           generations_reset_at: string
           id: string
+          last_category_campaign: string | null
+          last_category_idea: string | null
+          last_category_series: string | null
           logo_generations_used: number
           paid_credits: number
           referral_code: string | null
@@ -1198,6 +1201,9 @@ export type Database = {
           generations_count?: number
           generations_reset_at?: string
           id?: string
+          last_category_campaign?: string | null
+          last_category_idea?: string | null
+          last_category_series?: string | null
           logo_generations_used?: number
           paid_credits?: number
           referral_code?: string | null
@@ -1221,6 +1227,9 @@ export type Database = {
           generations_count?: number
           generations_reset_at?: string
           id?: string
+          last_category_campaign?: string | null
+          last_category_idea?: string | null
+          last_category_series?: string | null
           logo_generations_used?: number
           paid_credits?: number
           referral_code?: string | null
