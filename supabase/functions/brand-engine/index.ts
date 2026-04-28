@@ -1056,3 +1056,27 @@ function errorResponse(result: { error?: string; status?: number }) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+// Deterministic fallback follow-up question — used when the LLM doesn't
+// supply one for a low-confidence update, or when there are no ideas-eligible
+// updates so we skip the LLM call entirely.
+function buildFollowUpQuestion(u: any): string {
+  const gaps: string[] = Array.isArray(u.missing_fields) ? u.missing_fields.slice(0, 2) : [];
+  const headline = (u.title || u.content || "this update").toString().trim().slice(0, 60);
+  const typeAsk: Record<string, string> = {
+    testimonial: "Who said it, and what specific result did they get?",
+    customer_story: "Which customer is this about, and what's the one number or outcome that proves the change?",
+    product: "What's the launch date, price, and the single biggest thing this changes for customers?",
+    event: "When and where is it, and what should people do (book / show up / RSVP)?",
+    milestone: "What's the exact number reached, and over what time period?",
+    csr: "Who did you partner with, where, and what was the tangible impact?",
+    press: "Which outlet ran it, the headline, and a link?",
+    partnership: "Who's the partner, what are you doing together, and when does it start?",
+    other: "What's the one specific fact (name, number, date, or outcome) you'd want a post to lead with?",
+  };
+  const base = typeAsk[u.update_type] || typeAsk.other;
+  if (gaps.length > 0) {
+    return `For "${headline}" — ${base} (Missing: ${gaps.join(", ")}.)`;
+  }
+  return `For "${headline}" — ${base}`;
+}
