@@ -73,6 +73,8 @@ import {
   RotateCcw,
   MoreHorizontal,
   Clock,
+  LayoutGrid,
+  X,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
