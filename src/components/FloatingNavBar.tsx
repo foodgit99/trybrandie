@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, Palette, History, Plus, type LucideIcon } from "lucide-react";
+import { Home, LayoutGrid, Palette, Megaphone, Plus, type LucideIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,7 @@ const navItems = [
   { to: "/content", label: "Content Hub", icon: LayoutGrid },
   { to: "/studio", label: "New Design", icon: Plus, primary: true },
   { to: "/brand", label: "Brand Centre", icon: Palette },
-  { to: "/history", label: "Design History", icon: History },
+  { to: "/brand?addUpdate=1#brand-updates", label: "Add Update", icon: Megaphone },
 ];
 
 const FloatingNavBar = () => {
