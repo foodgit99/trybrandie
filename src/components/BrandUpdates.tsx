@@ -721,17 +721,37 @@ export default function BrandUpdates({ brandId, userId }: Props) {
             </span>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1 text-muted-foreground"
-          onClick={() => {
-            if (adding || editingId) reset();
-            else setAdding(true);
-          }}
-        >
-          <Plus className="h-3 w-3" /> Add
-        </Button>
+        <div className="flex items-center gap-1">
+          {(updates || []).some((u) => u.status === "active") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-primary hover:text-primary"
+              onClick={planFromUpdates}
+              disabled={planning}
+              title="Turn your latest updates into draft post ideas in the Content Hub"
+            >
+              {planning ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <ListChecks className="h-3 w-3" />
+              )}
+              <span className="hidden sm:inline">Plan content</span>
+              <span className="sm:hidden">Plan</span>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-muted-foreground"
+            onClick={() => {
+              if (adding || editingId) reset();
+              else setAdding(true);
+            }}
+          >
+            <Plus className="h-3 w-3" /> Add
+          </Button>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">
         Drop quick real-time updates — testimonials, events, product news, milestones. The AI uses these as fresh,
