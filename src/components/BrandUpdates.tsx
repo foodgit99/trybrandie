@@ -526,9 +526,137 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </p>
       </div>
 
-      <div className="flex justify-end gap-2 pt-1">
+      {/* AI summarise + confidence check */}
+      {aiCheck && (() => {
+        const c = aiCheck.confidence;
+        const tone =
+          c >= 80
+            ? { label: "Strong", color: "text-emerald-700 dark:text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", ring: "stroke-emerald-500" }
+            : c >= 60
+            ? { label: "Usable", color: "text-amber-700 dark:text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30", ring: "stroke-amber-500" }
+            : { label: "Needs detail", color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30", ring: "stroke-destructive" };
+        const dash = (c / 100) * 100;
+        const typeLabel = UPDATE_TYPES.find((t) => t.id === aiCheck.detected_type)?.label;
+        return (
+          <div className={`rounded-xl border ${tone.border} ${tone.bg} p-3 space-y-2.5`}>
+            <div className="flex items-start gap-3">
+              {/* Confidence ring */}
+              <div className="relative w-12 h-12 shrink-0">
+                <svg viewBox="0 0 36 36" className="w-12 h-12 -rotate-90">
+                  <circle cx="18" cy="18" r="15.9" fill="none" className="stroke-muted" strokeWidth="3" />
+                  <circle
+                    cx="18" cy="18" r="15.9" fill="none"
+                    className={tone.ring}
+                    strokeWidth="3"
+                    strokeDasharray={`${dash} 100`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className={`absolute inset-0 flex items-center justify-center text-[11px] font-semibold ${tone.color}`}>
+                  {c}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">AI summary</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tone.bg} ${tone.color} border ${tone.border}`}>
+                    {tone.label}
+                  </span>
+                  {aiCheck.detected_type !== form.update_type && typeLabel && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, update_type: aiCheck.detected_type }))}
+                      className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                    >
+                      Switch type → {typeLabel}
+                    </button>
+                  )}
+                </div>
+                {aiCheck.summary && (
+                  <p className="text-sm text-foreground mt-1 leading-snug">{aiCheck.summary}</p>
+                )}
+                {aiCheck.confidence_reason && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{aiCheck.confidence_reason}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Suggested title */}
+            {aiCheck.suggested_title && aiCheck.suggested_title.trim() && aiCheck.suggested_title !== form.title && (
+              <div className="flex items-center gap-2 rounded-lg bg-background/60 border border-border p-2">
+                <span className="text-[11px] text-muted-foreground shrink-0">Suggested title:</span>
+                <span className="text-xs flex-1 truncate">{aiCheck.suggested_title}</span>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, title: aiCheck.suggested_title }))}
+                  className="text-[11px] text-primary hover:underline shrink-0"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
+
+            {/* Extracted attribution */}
+            {aiCheck.extracted_attribution && aiCheck.extracted_attribution.trim() && !form.attribution.trim() && (
+              <div className="flex items-center gap-2 rounded-lg bg-background/60 border border-border p-2">
+                <span className="text-[11px] text-muted-foreground shrink-0">Found attribution:</span>
+                <span className="text-xs flex-1 truncate">— {aiCheck.extracted_attribution}</span>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, attribution: aiCheck.extracted_attribution }))}
+                  className="text-[11px] text-primary hover:underline shrink-0"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
+
+            {/* Missing fields */}
+            {aiCheck.missing_fields.length > 0 && (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground mb-1">Missing details:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {aiCheck.missing_fields.map((m, i) => (
+                    <span
+                      key={i}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-background/60 border border-dashed border-muted-foreground/40 text-muted-foreground"
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Warnings */}
+            {aiCheck.warnings.length > 0 && (
+              <div className="space-y-1">
+                {aiCheck.warnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      <div className="flex flex-wrap justify-end gap-2 pt-1">
         <Button variant="ghost" size="sm" onClick={reset}>
           Cancel
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={runAiCheck}
+          disabled={aiChecking}
+          className="gap-1"
+        >
+          {aiChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+          {aiCheck ? "Re-check" : "AI check & summarise"}
         </Button>
         <Button size="sm" onClick={save} disabled={saving} className="gap-1">
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
