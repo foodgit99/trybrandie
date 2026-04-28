@@ -714,13 +714,6 @@ export async function enrichWithResearch(
   brandCtxOrName: BrandResearchContext | string | undefined,
   firecrawlApiKey: string | undefined,
   cacheClient?: ResearchCacheClient,
-): Promise<string> {
-export async function enrichWithResearch(
-  categoryId: string,
-  userPrompt: string,
-  brandCtxOrName: BrandResearchContext | string | undefined,
-  firecrawlApiKey: string | undefined,
-  cacheClient?: ResearchCacheClient,
 ): Promise<ResearchEnrichment> {
   const recipe = CATEGORY_RECIPES[categoryId];
   if (!recipe?.needs_fresh_info || !recipe.research_focus) return EMPTY_ENRICHMENT;
