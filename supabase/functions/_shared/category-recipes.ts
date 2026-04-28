@@ -749,6 +749,13 @@ export async function enrichWithResearch(
       ? { brandName: typeof brandCtxOrName === "string" ? brandCtxOrName : undefined }
       : brandCtxOrName;
 
+  const override = ctx.override || {};
+  if (override.enabled === false) {
+    console.log(`[research] disabled by brand override for category=${categoryId}`);
+    return EMPTY_ENRICHMENT;
+  }
+
+  // Resolve recency: brand override > category default
   const recencyMap: Record<string, string> = {
     trending: "qdr:d",
     entertainment: "qdr:w",
@@ -756,8 +763,12 @@ export async function enrichWithResearch(
     informational: "qdr:m",
     interactive: "qdr:w",
   };
-  const tbs = recencyMap[categoryId] || "qdr:w";
-  const ttlMs = CACHE_TTL_MS[categoryId] || DEFAULT_TTL_MS;
+  const tbs = override.recency ? RECENCY_TO_TBS[override.recency] : (recencyMap[categoryId] || "qdr:w");
+  const ttlMs = override.recency ? RECENCY_TO_TTL_MS[override.recency] : (CACHE_TTL_MS[categoryId] || DEFAULT_TTL_MS);
+
+  // Resolve aggressiveness: fast = fewer results / shorter snippets, accurate = more results
+  const mode: ResearchMode = override.mode || "fast";
+  const searchLimit = mode === "accurate" ? 8 : 3;
 
   const vibe = (ctx.vibeKeywords || []).slice(0, 3).filter(Boolean).join(", ");
   const postTypeLabel = ctx.postType || recipe.name;
