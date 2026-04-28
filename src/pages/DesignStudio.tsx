@@ -712,6 +712,23 @@ const DesignStudio = () => {
     }
     setVote(0);
 
+    // Resolve "Auto" canvas based on the prompt before sending. Edits inherit
+    // the current canvas to preserve layout continuity per session memory rules.
+    let resolvedCanvasSize = canvasSize;
+    if (canvasSize === AUTO_CANVAS_VALUE && !isEdit) {
+      const picked = resolveAutoCanvas(trimmed);
+      resolvedCanvasSize = picked.value;
+      setCanvasSize(picked.value); // sync the selector & preview aspect
+      toast({
+        title: "Auto-sized for you",
+        description: `Using ${picked.label}.`,
+      });
+    } else if (canvasSize === AUTO_CANVAS_VALUE && isEdit) {
+      // Safety net: edits should never ship "auto" to the backend.
+      resolvedCanvasSize = "1080x1080";
+      setCanvasSize(resolvedCanvasSize);
+    }
+
     const brandPayload = brand
       ? {
           id: brand.id,
