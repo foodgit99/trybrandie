@@ -115,10 +115,11 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         }).join("\n")
       : "No products or services catalogued yet.";
 
-    const updatesBlock = formatUpdatesForPrompt(recentUpdates, {
-      heading:
-        "RECENT BUSINESS UPDATES (real activity from this brand in the last ~60 days — when generating Social Proof, BTS, Announcement, Trending, or Promotional ideas, GROUND ideas in these specific updates rather than inventing generic ones; never fabricate testimonials when a testimonial update exists; reference real events, names, and outcomes):",
-    });
+    // Confidence-aware injection. The shared formatter tags each line with
+    // [HIGH]/[MED] so the agent knows what to quote vs. what to treat as
+    // soft inspiration. LOW-confidence updates are filtered upstream by
+    // fetchRecentUpdates (default minTier = "medium").
+    const updatesBlock = formatUpdatesForPrompt(recentUpdates);
 
     const fullContext = `${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}${updatesBlock}`;
 
