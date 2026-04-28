@@ -2029,6 +2029,21 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Content Category (optional)</Label>
+              <Select
+                value={ideaForm.content_category || "none"}
+                onValueChange={(v) => setIdeaForm((f) => ({ ...f, content_category: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {CONTENT_CATEGORIES.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.emoji} {c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
               <div className="flex items-center gap-2">
                 <Zap className={`h-4 w-4 ${ideaForm.autopilot ? "text-primary" : "text-muted-foreground"}`} />
