@@ -145,7 +145,7 @@ Return a JSON object with this exact schema:
   }
 }`;
 
-    const aiRes = await fetch("https://ai.lovable.dev/api/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${lovableKey}`,
