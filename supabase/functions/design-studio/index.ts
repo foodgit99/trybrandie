@@ -2749,7 +2749,9 @@ Return structured JSON.`;
             if (!imageBase64) throw new Error(`Slide ${i + 1}: no image generated after retry`);
 
             const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-            const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+            let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+            // Strict platform-aspect enforcement on each slide.
+            binaryData = await enforceCanvasDimensions(binaryData, w, h);
             const filePath = `${user.id}/${crypto.randomUUID()}.png`;
             const { error: uploadErr } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
             if (uploadErr) throw new Error(`Slide ${i + 1} upload failed`);
