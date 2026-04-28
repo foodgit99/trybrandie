@@ -601,6 +601,27 @@ export default function BrandUpdates({ brandId, userId }: Props) {
                         {u.times_used > 0 && (
                           <span className="text-[10px] text-muted-foreground">• used {u.times_used}×</span>
                         )}
+                        {(() => {
+                          const days = daysUntilExpiry(u.expires_at);
+                          if (days === null) return null;
+                          if (days < 0) {
+                            return (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">
+                                Expired
+                              </span>
+                            );
+                          }
+                          if (days <= 7) {
+                            return (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                {days === 0 ? "Expires today" : `Expires in ${days}d`}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-[10px] text-muted-foreground">• expires {u.expires_at}</span>
+                          );
+                        })()}
                       </div>
                       {u.title && <p className="text-sm font-medium mt-1 truncate">{u.title}</p>}
                       {u.content && (
