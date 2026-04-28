@@ -112,7 +112,7 @@ export const hydrateLastCategoriesForBrand = async (
   if (!userId || !brandId || typeof window === "undefined") return;
   const { data, error } = await supabase
     .from("user_brand_dialog_prefs")
-    .select("last_category_series, last_category_campaign, last_category_idea, last_filter_category")
+    .select("last_category_series, last_category_campaign, last_category_idea, last_filter_category, last_sort_option")
     .eq("user_id", userId)
     .eq("brand_id", brandId)
     .maybeSingle();
@@ -133,6 +133,12 @@ export const hydrateLastCategoriesForBrand = async (
   const filterVal = ((data as any).last_filter_category || "").trim();
   try {
     if (filterVal) window.localStorage.setItem(filterLsKey(userId, brandId), filterVal);
+  } catch {
+    // ignore
+  }
+  const sortVal = ((data as any).last_sort_option || "").trim();
+  try {
+    if (sortVal) window.localStorage.setItem(sortLsKey(userId, brandId), sortVal);
   } catch {
     // ignore
   }
