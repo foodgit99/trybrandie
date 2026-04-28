@@ -376,9 +376,19 @@ const Index = () => {
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Log a quick update
                 </p>
-                <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                  Tap to prefill
-                </span>
+                <button
+                  onClick={planFromUpdates}
+                  disabled={planningFromUpdates || !brand?.id}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Turn your latest updates into draft post ideas in the Content Hub"
+                >
+                  {planningFromUpdates ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <ListChecks className="h-3 w-3" />
+                  )}
+                  Plan content from updates
+                </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {[
