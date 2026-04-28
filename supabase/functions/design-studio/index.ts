@@ -1368,11 +1368,12 @@ ${brand.special_instructions}
       })();
 
       // --- PARALLEL: Research Enrichment (only for categories that need fresh info) ---
-      // Runs in parallel once category is known. Degrades gracefully if PERPLEXITY_API_KEY is missing.
-      const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+      // Runs in parallel once category is known. Uses Firecrawl /v2/search with time-bound `tbs`.
+      // Degrades gracefully if FIRECRAWL_API_KEY is missing.
+      const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
       const researchPromise = (async (): Promise<string> => {
         const cat = await contentCategoryPromise;
-        return await enrichWithResearch(cat, userPrompt, brand?.name, PERPLEXITY_API_KEY);
+        return await enrichWithResearch(cat, userPrompt, brand?.name, FIRECRAWL_API_KEY);
       })();
 
       // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis + Category ---
