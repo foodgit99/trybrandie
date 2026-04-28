@@ -486,6 +486,7 @@ export type Database = {
         Row: {
           attribution: string | null
           brand_id: string
+          confidence: number | null
           content: string
           created_at: string
           event_date: string
@@ -493,6 +494,7 @@ export type Database = {
           id: string
           image_url: string | null
           last_used_at: string | null
+          missing_fields: string[]
           source_url: string | null
           status: string
           times_used: number
@@ -504,6 +506,7 @@ export type Database = {
         Insert: {
           attribution?: string | null
           brand_id: string
+          confidence?: number | null
           content?: string
           created_at?: string
           event_date?: string
@@ -511,6 +514,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           last_used_at?: string | null
+          missing_fields?: string[]
           source_url?: string | null
           status?: string
           times_used?: number
@@ -522,6 +526,7 @@ export type Database = {
         Update: {
           attribution?: string | null
           brand_id?: string
+          confidence?: number | null
           content?: string
           created_at?: string
           event_date?: string
@@ -529,6 +534,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           last_used_at?: string | null
+          missing_fields?: string[]
           source_url?: string | null
           status?: string
           times_used?: number
