@@ -1931,7 +1931,7 @@ const ContentHub = () => {
                   ))}
                 </SelectContent>
               </Select>
-              {!editingSeriesId && seriesForm.content_category && seriesForm.content_category === getLastCategory(user?.id, brandId, "series") && (
+              {!editingSeriesId && seriesForm.content_category && seriesForm.content_category === getLastCategory(user?.id, brandId, "series", validCategoryIds) && (
                 <p className="text-[10px] text-muted-foreground/80 leading-snug">
                   Preselected from your last series. Change it anytime above.
                 </p>
