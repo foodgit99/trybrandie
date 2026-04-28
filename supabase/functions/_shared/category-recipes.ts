@@ -879,7 +879,7 @@ export async function enrichWithResearch(
     }
 
     const sources: ResearchSource[] = results
-      .slice(0, 5)
+      .slice(0, searchLimit)
       .map((r) => ({
         title: (r.title || "").trim().slice(0, 140),
         url: (r.url || "").trim(),
