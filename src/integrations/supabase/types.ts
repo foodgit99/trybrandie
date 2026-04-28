@@ -445,6 +445,7 @@ export type Database = {
           default_trend_intensity: number
           id: string
           preferred_trends: string[]
+          research_prefs: Json
           selected_trend: string
           trend_enabled: boolean
           updated_at: string
@@ -455,6 +456,7 @@ export type Database = {
           default_trend_intensity?: number
           id?: string
           preferred_trends?: string[]
+          research_prefs?: Json
           selected_trend?: string
           trend_enabled?: boolean
           updated_at?: string
@@ -465,6 +467,7 @@ export type Database = {
           default_trend_intensity?: number
           id?: string
           preferred_trends?: string[]
+          research_prefs?: Json
           selected_trend?: string
           trend_enabled?: boolean
           updated_at?: string
