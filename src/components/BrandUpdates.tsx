@@ -197,6 +197,12 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const [filterType, setFilterType] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
+  // Inline answers for low-confidence updates (keyed by update id).
+  const [inlineAnswers, setInlineAnswers] = useState<Record<string, string>>({});
+  const [inlineSavingId, setInlineSavingId] = useState<string | null>(null);
+  const [inlineDismissed, setInlineDismissed] = useState<Set<string>>(new Set());
+  const [showLowConfPanel, setShowLowConfPanel] = useState(true);
+
   // AI summarise + confidence check
   type AiCheck = {
     summary: string;
