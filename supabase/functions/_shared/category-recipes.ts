@@ -789,7 +789,7 @@ export async function enrichWithResearch(
   const query = queryBits.join(" — ").slice(0, 380);
 
   const dayBucket = Math.floor(Date.now() / ttlMs);
-  const cacheKey = `${categoryId}:${hashQuery(query)}:${dayBucket}`;
+  const cacheKey = `${categoryId}:${mode}:${tbs}:${hashQuery(query)}:${dayBucket}`;
 
   // --- LAYER 1: In-memory cache ---
   const memHit = memCache.get(cacheKey);
