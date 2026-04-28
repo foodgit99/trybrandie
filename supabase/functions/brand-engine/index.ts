@@ -595,7 +595,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         prompt: idea.prompt,
         idea_type: idea.idea_type,
         content_format: idea.content_format || "graphic",
-        content_category: idea.content_category || null,
+        content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
         status: "suggested",
         scheduled_for: dateMap.get(idea.day) || null,
       }));
