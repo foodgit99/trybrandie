@@ -15,6 +15,7 @@ import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Lo
 import { Checkbox } from "@/components/ui/checkbox";
 import AppHeader from "@/components/AppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
+import BrandUpdates from "@/components/BrandUpdates";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -1075,6 +1076,9 @@ const BrandCentre = () => {
               <p className="text-sm text-muted-foreground">No products or services yet. Add your first to give the AI richer context.</p>
             ) : null}
           </div>
+
+          {/* Updates — real-time business activity feed */}
+          {brand?.id && user?.id && <BrandUpdates brandId={brand.id} userId={user.id} />}
 
           {/* Inspiration */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
