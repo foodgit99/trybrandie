@@ -919,9 +919,18 @@ const ContentHub = () => {
   const isLoading = pillarsLoading || seriesLoading || campaignsLoading || ideasLoading;
   const hasPillars = pillars && pillars.length > 0;
 
+  // Apply category filter
+  const matchesCategory = (raw: string | null | undefined) => {
+    if (categoryFilter === "all") return true;
+    return parseCategoryIds(raw).includes(categoryFilter as ContentCategoryId);
+  };
+  const filteredSeries = (series || []).filter((s: any) => matchesCategory(s.content_category));
+  const filteredCampaigns = (campaigns || []).filter((c: any) => matchesCategory(c.content_category));
+  const filteredWeeklyIdeas = (weeklyIdeas || []).filter((i: any) => matchesCategory(i.content_category));
+
   // Build weekly calendar
   const ideasByDay = DAYS.reduce((acc, day) => {
-    acc[day] = (weeklyIdeas || []).filter((i: any) => {
+    acc[day] = filteredWeeklyIdeas.filter((i: any) => {
       if (!i.scheduled_for) return false;
       const d = new Date(i.scheduled_for);
       const dayIndex = (d.getDay() + 6) % 7;
