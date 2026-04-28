@@ -957,6 +957,49 @@ const ContentHub = () => {
             </p>
           </div>
 
+          {/* Category filter — applies to Series, Campaigns, and weekly Ideas */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                categoryFilter === "all"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+              }`}
+            >
+              All
+            </button>
+            {CONTENT_CATEGORIES.map((cat) => {
+              const active = categoryFilter === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+                  }`}
+                  title={cat.label}
+                >
+                  <span>{cat.emoji}</span>
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
+            {categoryFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setCategoryFilter("all")}
+                className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline px-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
           {/* Strategist prompt banner */}
           {strategistPrompt && (
             <Card className="border-primary/30 bg-primary/[0.04]">
