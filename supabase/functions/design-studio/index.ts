@@ -1367,6 +1367,14 @@ ${brand.special_instructions}
         return llmResult;
       })();
 
+      // --- PARALLEL: Research Enrichment (only for categories that need fresh info) ---
+      // Runs in parallel once category is known. Degrades gracefully if PERPLEXITY_API_KEY is missing.
+      const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+      const researchPromise = (async (): Promise<string> => {
+        const cat = await contentCategoryPromise;
+        return await enrichWithResearch(cat, userPrompt, brand?.name, PERPLEXITY_API_KEY);
+      })();
+
       // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis + Category ---
       // Brief Agent and Genome Composer are independent — run them in parallel for latency savings
 
@@ -1375,10 +1383,11 @@ ${brand.special_instructions}
         const contentCategory = await contentCategoryPromise;
         const categoryData = CONTENT_CATEGORIES[contentCategory];
         const categoryContext = categoryData ? `\n\nCONTENT CATEGORY: ${categoryData.name}\n${categoryData.brief_directive}` : "";
+        const researchCtx = await researchPromise;
 
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
-          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
           const briefMessages = [
             { role: "system", content: briefSystemContent },
             ...compressedMessages.slice(0, -1),
