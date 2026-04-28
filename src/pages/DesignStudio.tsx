@@ -113,33 +113,13 @@ const parseStrategistActions = (content: string): { cleanContent: string; action
 // Platform-locked canvas presets. Each value is the EXACT pixel output
 // (width × height) the renderer is forced to produce — see strict resize/crop
 // in supabase/functions/design-studio/index.ts.
-type CanvasPreset = {
-  label: string;
-  value: string;   // "WxH"
-  aspect: string;  // CSS aspectRatio
-  platform: string;
-};
-
-const CANVAS_PRESETS: CanvasPreset[] = [
-  // Instagram
-  { platform: "Instagram", label: "Instagram Post · Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
-  { platform: "Instagram", label: "Instagram Post · Portrait (1080×1350)", value: "1080x1350", aspect: "4 / 5" },
-  { platform: "Instagram", label: "Instagram Story / Reel (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
-  // Facebook
-  { platform: "Facebook", label: "Facebook Feed (1200×630)", value: "1200x630", aspect: "1200 / 630" },
-  { platform: "Facebook", label: "Facebook Story (1080×1920)", value: "fb-1080x1920", aspect: "9 / 16" },
-  { platform: "Facebook", label: "Facebook Cover (1640×924)", value: "1640x924", aspect: "1640 / 924" },
-  // TikTok
-  { platform: "TikTok", label: "TikTok Vertical (1080×1920)", value: "tt-1080x1920", aspect: "9 / 16" },
-  // LinkedIn
-  { platform: "LinkedIn", label: "LinkedIn Post (1200×627)", value: "1200x627", aspect: "1200 / 627" },
-  { platform: "LinkedIn", label: "LinkedIn Cover (1584×396)", value: "1584x396", aspect: "1584 / 396" },
-  // YouTube / Twitter
-  { platform: "YouTube", label: "YouTube / Landscape (1920×1080)", value: "1920x1080", aspect: "16 / 9" },
-  { platform: "Twitter / X", label: "Twitter / X Post (1600×900)", value: "1600x900", aspect: "16 / 9" },
-  // Pinterest
-  { platform: "Pinterest", label: "Pinterest Pin (1000×1500)", value: "1000x1500", aspect: "2 / 3" },
-];
+import {
+  CANVAS_PRESETS,
+  AUTO_CANVAS_VALUE,
+  AUTO_PREVIEW_ASPECT,
+  resolveAutoCanvas,
+  type CanvasPreset,
+} from "@/lib/autoCanvas";
 
 // Backwards-compat list used by the existing currentAspect lookup.
 const CANVAS_SIZES = CANVAS_PRESETS;
@@ -149,82 +129,6 @@ const CANVAS_GROUPS = CANVAS_PRESETS.reduce<Record<string, CanvasPreset[]>>((acc
   (acc[p.platform] ||= []).push(p);
   return acc;
 }, {});
-
-// "Auto" sentinel — resolved at submit-time based on prompt content.
-const AUTO_CANVAS_VALUE = "auto";
-const AUTO_PREVIEW_ASPECT = "1 / 1"; // shown until a real size is chosen
-
-/**
- * Pick the best CANVAS_PRESETS entry for a given user prompt.
- * Looks for explicit platform mentions (Instagram / Facebook / TikTok / LinkedIn /
- * YouTube / Twitter / Pinterest) and intent keywords (story, reel, cover, feed,
- * portrait, square, landscape, pin) and returns the closest matching preset.
- * Falls back to Instagram square (1080×1080), the most universally usable size.
- */
-const resolveAutoCanvas = (prompt: string): CanvasPreset => {
-  const text = (prompt || "").toLowerCase();
-  const has = (...words: string[]) => words.some((w) => text.includes(w));
-  const findPreset = (predicate: (p: CanvasPreset) => boolean) =>
-    CANVAS_PRESETS.find(predicate)!;
-
-  // Intent keywords
-  const wantsStory = has("story", "stories", "reel", "vertical", "9:16");
-  const wantsCover = has("cover", "banner", "header");
-  const wantsLandscape = has("landscape", "horizontal", "thumbnail", "16:9", "wide");
-  const wantsPin = has("pinterest", " pin ", "pin ", "tall");
-  const wantsPortrait = has("portrait", "4:5", "4x5");
-
-  // Platform mentions
-  const mentionsInstagram = has("instagram", "insta", " ig ", " ig,", " ig.");
-  const mentionsFacebook = has("facebook", " fb ", " fb,", " fb.", "meta ");
-  const mentionsTikTok = has("tiktok", "tik tok");
-  const mentionsLinkedIn = has("linkedin", "linked in");
-  const mentionsTwitter = has("twitter", "tweet", " x post", "x/twitter");
-  const mentionsYouTube = has("youtube", " yt ", " yt,", " yt.");
-  const mentionsPinterest = has("pinterest");
-
-  // 1) Vertical (story/reel) — platform-specific
-  if (wantsStory) {
-    if (mentionsFacebook) return findPreset((p) => p.value === "fb-1080x1920");
-    if (mentionsTikTok) return findPreset((p) => p.value === "tt-1080x1920");
-    return findPreset((p) => p.value === "1080x1920"); // IG story/reel default
-  }
-
-  // 2) Cover / banner
-  if (wantsCover) {
-    if (mentionsLinkedIn) return findPreset((p) => p.value === "1584x396");
-    return findPreset((p) => p.value === "1640x924"); // Facebook cover default
-  }
-
-  // 3) Pin
-  if (wantsPin || mentionsPinterest)
-    return findPreset((p) => p.value === "1000x1500");
-
-  // 4) Landscape
-  if (wantsLandscape) {
-    if (mentionsTwitter) return findPreset((p) => p.value === "1600x900");
-    return findPreset((p) => p.value === "1920x1080"); // YouTube default
-  }
-
-  // 5) Platform-specific feed defaults
-  if (mentionsLinkedIn) return findPreset((p) => p.value === "1200x627");
-  if (mentionsTwitter) return findPreset((p) => p.value === "1600x900");
-  if (mentionsYouTube) return findPreset((p) => p.value === "1920x1080");
-  if (mentionsFacebook) return findPreset((p) => p.value === "1200x630");
-  if (mentionsTikTok) return findPreset((p) => p.value === "tt-1080x1920");
-
-  // 6) Instagram defaults — portrait beats square for feed engagement
-  if (mentionsInstagram) {
-    if (wantsPortrait) return findPreset((p) => p.value === "1080x1350");
-    return findPreset((p) => p.value === "1080x1080");
-  }
-
-  // 7) Generic intent without platform
-  if (wantsPortrait) return findPreset((p) => p.value === "1080x1350");
-
-  // Final fallback — most universally usable
-  return findPreset((p) => p.value === "1080x1080");
-};
 
 const FREE_MONTHLY = 5;
 
