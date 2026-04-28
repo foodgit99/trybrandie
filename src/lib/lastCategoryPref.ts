@@ -1,6 +1,5 @@
-// Per-user, per-dialog last-selected content category memory.
-// Synced to the user's profile (cross-device) and mirrored in localStorage
-// for instant rehydration before the network round-trip completes.
+// Per-user, per-brand, per-dialog last-selected content category memory.
+// Synced to `user_brand_dialog_prefs` (cross-device) with localStorage cache for instant rehydration.
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,58 +11,64 @@ const COL: Record<CategoryDialogKind, "last_category_series" | "last_category_ca
   idea: "last_category_idea",
 };
 
-const lsKey = (userId: string, kind: CategoryDialogKind) =>
-  `brandie:lastCategory:${userId}:${kind}`;
+const lsKey = (userId: string, brandId: string, kind: CategoryDialogKind) =>
+  `brandie:lastCategory:${userId}:${brandId}:${kind}`;
 
-/** Read instantly from localStorage cache (sync). */
+/** Sync read from localStorage cache (per user + brand). */
 export const getLastCategory = (
   userId: string | undefined,
+  brandId: string | undefined,
   kind: CategoryDialogKind
 ): string => {
-  if (!userId || typeof window === "undefined") return "";
+  if (!userId || !brandId || typeof window === "undefined") return "";
   try {
-    return window.localStorage.getItem(lsKey(userId, kind)) || "";
+    return window.localStorage.getItem(lsKey(userId, brandId, kind)) || "";
   } catch {
     return "";
   }
 };
 
-/** Persist to localStorage + profile (fire-and-forget). */
+/** Persist to localStorage + `user_brand_dialog_prefs` (fire-and-forget upsert). */
 export const setLastCategory = (
   userId: string | undefined,
+  brandId: string | undefined,
   kind: CategoryDialogKind,
   category: string | null | undefined
 ) => {
-  if (!userId) return;
+  if (!userId || !brandId) return;
   const value = (category || "").trim();
   if (!value) return;
 
-  // 1) Write through to localStorage immediately
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(lsKey(userId, kind), value);
+      window.localStorage.setItem(lsKey(userId, brandId, kind), value);
     } catch {
       // ignore
     }
   }
 
-  // 2) Sync to profile (cross-device)
   void supabase
-    .from("profiles")
-    .update({ [COL[kind]]: value })
-    .eq("user_id", userId)
+    .from("user_brand_dialog_prefs")
+    .upsert(
+      { user_id: userId, brand_id: brandId, [COL[kind]]: value },
+      { onConflict: "user_id,brand_id" }
+    )
     .then(({ error }) => {
-      if (error) console.warn("[lastCategoryPref] profile sync failed", error.message);
+      if (error) console.warn("[lastCategoryPref] brand pref sync failed", error.message);
     });
 };
 
-/** Pull saved values from the profile and prime localStorage. Call once on app/page load. */
-export const hydrateLastCategoriesFromProfile = async (userId: string | undefined) => {
-  if (!userId || typeof window === "undefined") return;
+/** Pull saved values for the current brand and prime localStorage. */
+export const hydrateLastCategoriesForBrand = async (
+  userId: string | undefined,
+  brandId: string | undefined
+) => {
+  if (!userId || !brandId || typeof window === "undefined") return;
   const { data, error } = await supabase
-    .from("profiles")
+    .from("user_brand_dialog_prefs")
     .select("last_category_series, last_category_campaign, last_category_idea")
     .eq("user_id", userId)
+    .eq("brand_id", brandId)
     .maybeSingle();
   if (error || !data) return;
   const map: Record<CategoryDialogKind, string | null | undefined> = {
@@ -74,7 +79,7 @@ export const hydrateLastCategoriesFromProfile = async (userId: string | undefine
   (Object.keys(map) as CategoryDialogKind[]).forEach((kind) => {
     const v = (map[kind] || "").trim();
     try {
-      if (v) window.localStorage.setItem(lsKey(userId, kind), v);
+      if (v) window.localStorage.setItem(lsKey(userId, brandId, kind), v);
     } catch {
       // ignore
     }
