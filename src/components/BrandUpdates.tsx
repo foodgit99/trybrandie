@@ -268,6 +268,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       image_url: u.image_url || "",
       source_url: u.source_url || "",
       event_date: u.event_date || todayIso(),
+      expires_at: u.expires_at || "",
     });
   };
 
