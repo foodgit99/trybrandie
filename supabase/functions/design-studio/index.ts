@@ -7,6 +7,15 @@ import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
 import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
+import {
+  CATEGORY_RECIPES,
+  applyCategoryBias,
+  computeCategoryFit,
+  buildCategoryRenderInjection,
+  enforceCTAPolicy,
+  buildCopyForbiddenContext,
+  enrichWithResearch,
+} from "../_shared/category-recipes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,73 +54,25 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
 }
 
 // --- CONTENT CATEGORIES ---
+// CONTENT_CATEGORIES is now derived from the shared CATEGORY_RECIPES module.
+// This adapter preserves the existing { name, brief_directive, copy_directive, caption_directive }
+// shape used throughout this file while sourcing the enriched directives from the recipes.
 const CONTENT_CATEGORIES: Record<string, {
   name: string;
   brief_directive: string;
   copy_directive: string;
   caption_directive: string;
-}> = {
-  announcement: {
-    name: "Announcement",
-    brief_directive: "This is ANNOUNCEMENT content. Use bold, high-energy composition. The headline must be the hero element — large, confident, unmissable. Convey newness and excitement. Use dynamic visual direction and strong focal hierarchy.",
-    copy_directive: "This is ANNOUNCEMENT content. Lead with the news. Use exciting, confident language — 'Introducing', 'Now Available', 'Just Launched'. The headline must announce something specific. Create urgency and anticipation.",
-    caption_directive: "This is ANNOUNCEMENT content. The caption should build hype, share the news clearly, and invite the audience to engage or take action.",
-  },
-  educational: {
-    name: "Educational",
-    brief_directive: "This is EDUCATIONAL content (status-builder). Use a structured, clean composition that signals authority and clarity. Visual hierarchy should guide the reader through information logically. Use balanced layout with clear sections. The design should make the audience feel smarter.",
-    copy_directive: "This is EDUCATIONAL content. Structure copy as digestible insight — tips, steps, or a key takeaway. Use authority-building language. The headline should promise value ('How to...', 'X Tips for...', 'The Secret to...'). Be concise but informative.",
-    caption_directive: "This is EDUCATIONAL content. The caption should expand on the insight, position the brand as an authority, and encourage saves/shares.",
-  },
-  informational: {
-    name: "Informational",
-    brief_directive: "This is INFORMATIONAL content. Use clean, minimal composition focused on clarity and readability. Information must be instantly scannable. Remove visual noise — prioritise legibility and logical structure over decoration.",
-    copy_directive: "This is INFORMATIONAL content. Be purely factual and logistical — hours, locations, policies, processes. Use clear, direct language with no persuasion or fluff. Structure for quick scanning.",
-    caption_directive: "This is INFORMATIONAL content. The caption should be straightforward, provide any additional details, and direct people where to go for more info.",
-  },
-  entertainment: {
-    name: "Entertainment",
-    brief_directive: "This is ENTERTAINMENT content (engagement engine). Make it scroll-stopping, visually playful, and relatable. Use dynamic composition, bold colours, and unexpected visual elements. The design should make people smile, laugh, or feel seen.",
-    copy_directive: "This is ENTERTAINMENT content. Be playful, witty, relatable. Use conversational language, humour, or cultural references. Keep it snappy and shareable. The headline should hook immediately.",
-    caption_directive: "This is ENTERTAINMENT content. The caption should be conversational, funny or relatable, and encourage tagging/sharing.",
-  },
-  promotional: {
-    name: "Promotional",
-    brief_directive: "This is PROMOTIONAL content (direct ask). The CTA must be the most prominent element. Use high-contrast, action-oriented composition. Product/offer should be front-and-center. Create visual urgency through bold colours and strong focal hierarchy.",
-    copy_directive: "This is PROMOTIONAL content. Lead with the offer/value proposition. Use urgency language ('Limited Time', 'Today Only', 'Don't Miss'). The CTA must be clear and specific ('Shop Now', 'Book Today', 'Get 20% Off'). Every word should drive action.",
-    caption_directive: "This is PROMOTIONAL content. The caption should reinforce the offer, add urgency, and include a clear call-to-action with any relevant details (link, code, deadline).",
-  },
-  trending: {
-    name: "Trending",
-    brief_directive: "This is TRENDING content (algorithmic reach play). Capitalise on the current cultural moment or format. Design should feel timely, format-aware, and optimised for discovery. Use visual language that signals relevance to the trend while staying on-brand.",
-    copy_directive: "This is TRENDING content. Reference the cultural moment or trend naturally. Use language that feels current and relevant. The copy should make the brand feel plugged-in without being try-hard.",
-    caption_directive: "This is TRENDING content. The caption should ride the trend wave, use relevant trending hashtags, and be optimised for reach and discovery.",
-  },
-  holidays: {
-    name: "Holidays & Greetings",
-    brief_directive: "This is HOLIDAYS & GREETINGS content. Use warm, festive, celebratory composition. The design should acknowledge the cultural moment with appropriate visual elements (seasonal colours, festive motifs). Balance celebration with brand identity.",
-    copy_directive: "This is HOLIDAYS & GREETINGS content. Lead with the greeting or celebration. Be warm, inclusive, and genuine. Reference the specific holiday/occasion. Keep it heartfelt, not salesy — unless combining with a holiday promotion.",
-    caption_directive: "This is HOLIDAYS & GREETINGS content. The caption should be warm and celebratory, connect the brand to the cultural moment, and foster community feeling.",
-  },
-  social_proof: {
-    name: "Social Proof / UGC",
-    brief_directive: "This is SOCIAL PROOF content (affiliation play). Design around trust-building — testimonials, quotes, or real user stories. Use clean composition that highlights the quote/testimonial as the hero. Add visual cues of authenticity (quote marks, real photos, star ratings).",
-    copy_directive: "This is SOCIAL PROOF content. Let the customer/user voice shine. Use their actual words or craft a realistic testimonial. Add attribution. The headline should reinforce trust ('What Our Customers Say', 'Real Results').",
-    caption_directive: "This is SOCIAL PROOF content. The caption should reinforce trust, share the customer story, and encourage others to share their experiences.",
-  },
-  behind_the_scenes: {
-    name: "Behind-the-Scenes",
-    brief_directive: "This is BEHIND-THE-SCENES content. Use authentic, raw, candid visual composition. The design should feel human and unpolished-on-purpose — showing the real side of the business. Use warm, approachable styling. People connect with people, not logos.",
-    copy_directive: "This is BEHIND-THE-SCENES content. Be casual, authentic, and personal. Share the human side — the hustle, the process, the team. Use first-person or conversational language. Keep it genuine, not performative.",
-    caption_directive: "This is BEHIND-THE-SCENES content. The caption should be personal and authentic, share a behind-the-scenes story, and invite the audience into the brand's world.",
-  },
-  interactive: {
-    name: "Interactive / Engagement",
-    brief_directive: "This is INTERACTIVE content (conversation starter). Design for participation — the layout should clearly present a question, poll, or choice. Use visual elements that invite response (vs/this-or-that layouts, question marks, blank spaces for answers). Make participation feel easy and fun.",
-    copy_directive: "This is INTERACTIVE content. Frame everything as a question or choice. Use 'Which do you prefer?', 'Tell us...', 'Vote below', 'This or That?'. The copy should make the audience want to respond. Keep it simple and participation-friendly.",
-    caption_directive: "This is INTERACTIVE content. The caption should directly ask for engagement, pose the question clearly, and make it easy for followers to respond in comments.",
-  },
-};
+}> = Object.fromEntries(
+  Object.entries(CATEGORY_RECIPES).map(([id, r]) => [
+    id,
+    {
+      name: r.name,
+      brief_directive: r.brief_directive,
+      copy_directive: r.copy_directive,
+      caption_directive: r.caption_directive,
+    },
+  ]),
+);
 
 // --- CONTENT CATEGORY CLASSIFIER (deterministic-first, LLM fallback) ---
 function classifyCategoryByRules(prompt: string): string | null {
@@ -1406,6 +1367,14 @@ ${brand.special_instructions}
         return llmResult;
       })();
 
+      // --- PARALLEL: Research Enrichment (only for categories that need fresh info) ---
+      // Runs in parallel once category is known. Degrades gracefully if PERPLEXITY_API_KEY is missing.
+      const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+      const researchPromise = (async (): Promise<string> => {
+        const cat = await contentCategoryPromise;
+        return await enrichWithResearch(cat, userPrompt, brand?.name, PERPLEXITY_API_KEY);
+      })();
+
       // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis + Category ---
       // Brief Agent and Genome Composer are independent — run them in parallel for latency savings
 
@@ -1414,10 +1383,11 @@ ${brand.special_instructions}
         const contentCategory = await contentCategoryPromise;
         const categoryData = CONTENT_CATEGORIES[contentCategory];
         const categoryContext = categoryData ? `\n\nCONTENT CATEGORY: ${categoryData.name}\n${categoryData.brief_directive}` : "";
+        const researchCtx = await researchPromise;
 
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
-          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
           const briefMessages = [
             { role: "system", content: briefSystemContent },
             ...compressedMessages.slice(0, -1),
@@ -1908,8 +1878,16 @@ ${brand.special_instructions}
       // Resolve content category (already completed during brief — instant)
       const resolvedCategory = await contentCategoryPromise;
       const resolvedCategoryData = CONTENT_CATEGORIES[resolvedCategory];
-      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}` : "";
-      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}` : "";
+      const researchContext = await researchPromise;
+      const copyForbiddenContext = buildCopyForbiddenContext(resolvedCategory);
+      const ctaPolicyLine = (() => {
+        const policy = CATEGORY_RECIPES[resolvedCategory]?.cta_policy;
+        if (policy === "forbidden") return "\n\nCTA POLICY: This category does NOT use a CTA. Leave the cta field as an empty string. Do NOT include any action language ('shop', 'buy', 'learn more', 'sign up', etc.) anywhere in the copy.";
+        if (policy === "required") return "\n\nCTA POLICY: A clear, specific CTA is REQUIRED for this category. Never leave the cta field empty.";
+        return "";
+      })();
+      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}` : "";
+      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}` : "";
 
       const trendPresetForCopy = trend && trend !== "none" ? (({
         "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
@@ -2105,8 +2083,22 @@ User request: "${userPrompt}"`;
 
       // Await both in parallel
       const [copyResult, captionResult] = await Promise.all([copywriterPromise, captionPromise]);
-      copyStructure = copyResult;
+      // Enforce CTA policy on copy (strips CTA-style language for "forbidden" categories,
+      // injects sensible default for "required" if missing).
+      copyStructure = enforceCTAPolicy(copyResult, resolvedCategory);
+      if (copyStructure && copyResult && copyStructure.cta !== copyResult.cta) {
+        console.log(`[CTA enforcement] category=${resolvedCategory} policy=${CATEGORY_RECIPES[resolvedCategory]?.cta_policy} cta_before="${copyResult.cta}" cta_after="${copyStructure.cta}"`);
+      }
       captionText = captionResult;
+
+      // --- CATEGORY BIAS: nudge free/semi-flexible genes toward category preferences ---
+      if (genomeData) {
+        applyCategoryBias(genomeData, resolvedCategory, 0.7);
+        const fitScore = computeCategoryFit(genomeData, resolvedCategory);
+        genomeData._category_fit = fitScore;
+        console.log(`[category-bias] category=${resolvedCategory} fit_score=${fitScore} biases_applied=${genomeData._category_bias_applied || 0}`);
+      }
+
 
       // --- HELPER: Apply stability gate to a genome ---
       function applyStabilityGate(genome: any, brandData: any, trendId: string | undefined, trendInt: number | undefined, copy: any): { genome: any; scores: Record<string, number> } {
@@ -2182,7 +2174,8 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be TALL PORTRAIT format — 9:16 aspect ratio (1080x1920 pixels). It must be significantly taller than it is wide. Do NOT create a landscape or square image."
           : "CRITICAL DIMENSION REQUIREMENT: This image MUST be WIDE LANDSCAPE format — 16:9 aspect ratio (1920x1080 pixels). It must be significantly wider than it is tall. Do NOT create a square or portrait image.";
 
-        const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${varCopyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${varGenomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
+        const categoryRenderInjection = buildCategoryRenderInjection(resolvedCategory);
+        const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${varCopyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${categoryRenderInjection}${varGenomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
 
         // Collect all image references
         const imageRefs: { type: string; image_url: { url: string } }[] = [];
