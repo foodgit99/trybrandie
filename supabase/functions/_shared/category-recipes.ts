@@ -674,9 +674,25 @@ const CACHE_TTL_MS: Record<string, number> = {
 };
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
+// Structured representation of a single research result surfaced to the UI.
+export interface ResearchSource {
+  title: string;
+  url: string;
+  description: string;
+}
+
+export interface ResearchEnrichment {
+  promptText: string;            // text injected into agent system prompts
+  sources: ResearchSource[];     // structured list for UI display
+  query?: string;                // the query Firecrawl was asked
+  categoryId?: string;
+}
+
 // In-memory cache (per warm function instance).
-const memCache = new Map<string, { result: string; expiresAt: number }>();
+const memCache = new Map<string, { payload: ResearchEnrichment; expiresAt: number }>();
 const MEM_CACHE_MAX = 200;
+
+const EMPTY_ENRICHMENT: ResearchEnrichment = { promptText: "", sources: [] };
 
 // Tiny stable hash (FNV-1a 32-bit, hex). Sufficient for cache keys (collision-resistant
 // enough for our scale; not cryptographic).
