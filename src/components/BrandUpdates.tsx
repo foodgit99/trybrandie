@@ -29,6 +29,7 @@ import {
   Wand2,
   AlertTriangle,
   ListChecks,
+  HelpCircle,
 } from "lucide-react";
 
 const UPDATE_TYPES: Array<{
