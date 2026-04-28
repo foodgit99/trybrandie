@@ -556,6 +556,26 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </div>
       )}
 
+      {/* Expiry warnings banner */}
+      {(expiringSoon.length > 0 || expired.length > 0) && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 space-y-1">
+          <div className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <Calendar className="h-3.5 w-3.5" />
+            Heads up — some updates need attention
+          </div>
+          {expiringSoon.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {expiringSoon.length} update{expiringSoon.length === 1 ? "" : "s"} expiring within 7 days. Refresh, extend, or archive before the AI stops using {expiringSoon.length === 1 ? "it" : "them"}.
+            </p>
+          )}
+          {expired.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {expired.length} expired update{expired.length === 1 ? "" : "s"} are no longer being used. Archive or extend the expiry date.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* List */}
       {filtered.length > 0 ? (
         <div className="space-y-2">
