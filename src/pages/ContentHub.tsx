@@ -189,6 +189,9 @@ const ContentHub = () => {
   const [ideaDay, setIdeaDay] = useState<string>("");
   const [ideaSaving, setIdeaSaving] = useState(false);
 
+  // Category filter (applies across Series, Campaigns, and Ideas)
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
   const brandId = brand?.id;
 
   // Autopilot settings from database
