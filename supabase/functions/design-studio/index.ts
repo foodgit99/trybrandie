@@ -1374,7 +1374,7 @@ ${brand.special_instructions}
       // Builds a brand-aware query (name, industry, vibe, tone, post type, audience).
       // Degrades gracefully if FIRECRAWL_API_KEY is missing.
       const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-      const researchPromise = (async (): Promise<string> => {
+      const researchPromise = (async () => {
         const cat = await contentCategoryPromise;
         const recipe = CATEGORY_RECIPES[cat];
         const vibeKeywords = [
@@ -1402,7 +1402,7 @@ ${brand.special_instructions}
         const contentCategory = await contentCategoryPromise;
         const categoryData = CONTENT_CATEGORIES[contentCategory];
         const categoryContext = categoryData ? `\n\nCONTENT CATEGORY: ${categoryData.name}\n${categoryData.brief_directive}` : "";
-        const researchCtx = await researchPromise;
+        const researchCtx = (await researchPromise).promptText;
 
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
@@ -1897,7 +1897,8 @@ ${brand.special_instructions}
       // Resolve content category (already completed during brief — instant)
       const resolvedCategory = await contentCategoryPromise;
       const resolvedCategoryData = CONTENT_CATEGORIES[resolvedCategory];
-      const researchContext = await researchPromise;
+      const researchEnrichment = await researchPromise;
+      const researchContext = researchEnrichment.promptText;
       const copyForbiddenContext = buildCopyForbiddenContext(resolvedCategory);
       const ctaPolicyLine = (() => {
         const policy = CATEGORY_RECIPES[resolvedCategory]?.cta_policy;
@@ -2328,6 +2329,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(captionText ? { caption: captionText } : {}),
           run_id: tracer.runId,
           content_category: resolvedCategory,
+          ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

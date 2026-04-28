@@ -59,6 +59,8 @@ import {
   Plus,
   Trash2,
   Layers,
+  Search,
+  ExternalLink,
 } from "lucide-react";
 import {
   Popover,
@@ -69,11 +71,19 @@ import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
 import { useDesignGeneration, type DesignVariation } from "@/contexts/DesignGenerationContext";
+type ResearchSource = {
+  title: string;
+  url: string;
+  description: string;
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
   imageUrl?: string;
   attachedImageUrl?: string;
+  researchSources?: ResearchSource[];
+  contentCategory?: string;
 };
 
 type StrategistAction = {
@@ -672,6 +682,8 @@ const DesignStudio = () => {
         role: "assistant",
         content: r.explanation + freeLabel,
         imageUrl: r.image_url,
+        researchSources: Array.isArray(r.research_sources) ? r.research_sources : undefined,
+        contentCategory: r.content_category,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setCurrentImage(r.image_url);
@@ -1463,6 +1475,54 @@ const DesignStudio = () => {
                     </button>
                   )}
                 </div>
+
+                {/* Research sources panel — shown when Firecrawl returned grounding for this category */}
+                {msg.role === "assistant" && msg.researchSources && msg.researchSources.length > 0 && (
+                  <details className="mt-2 rounded-xl border border-border/60 bg-muted/30 text-xs overflow-hidden group/research">
+                    <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors list-none [&::-webkit-details-marker]:hidden">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium text-foreground/80">
+                        Research sources
+                        {msg.contentCategory ? ` · ${msg.contentCategory}` : ""}
+                      </span>
+                      <span className="text-muted-foreground">({msg.researchSources.length})</span>
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto transition-transform group-open/research:rotate-180" />
+                    </summary>
+                    <ul className="divide-y divide-border/50">
+                      {msg.researchSources.map((src, idx) => {
+                        let host = "";
+                        try { host = new URL(src.url).hostname.replace(/^www\./, ""); } catch { /* noop */ }
+                        return (
+                          <li key={idx} className="px-3 py-2">
+                            <a
+                              href={src.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group/src flex items-start gap-2 hover:text-primary transition-colors"
+                            >
+                              <ExternalLink className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground group-hover/src:text-primary" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block font-medium leading-snug truncate">
+                                  {src.title || host || src.url}
+                                </span>
+                                {src.description && (
+                                  <span className="block text-muted-foreground leading-snug line-clamp-1 mt-0.5">
+                                    {src.description}
+                                  </span>
+                                )}
+                                {host && (
+                                  <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/70 mt-0.5">
+                                    {host}
+                                  </span>
+                                )}
+                              </span>
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
+                )}
 
                 {/* Inline image with action icons beneath */}
                 {msg.imageUrl && (
