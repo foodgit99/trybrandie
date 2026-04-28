@@ -608,6 +608,105 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       return jsonResponse({ ideas: inserted });
     }
 
+    if (action === "categorize_existing") {
+      // Backfill content_category for legacy rows where it's NULL.
+      // Free action — no credit deduction. Caps per call to keep prompt size sane.
+      const PER_TABLE_LIMIT = 40;
+
+      const [pillarsNull, seriesNull, campaignsNull, ideasNull] = await Promise.all([
+        supabase.from("content_pillars").select("id, name, description")
+          .eq("brand_id", brand_id).is("content_category", null).limit(PER_TABLE_LIMIT),
+        supabase.from("post_series").select("id, name, description")
+          .eq("brand_id", brand_id).is("content_category", null).limit(PER_TABLE_LIMIT),
+        supabase.from("campaigns").select("id, name, description")
+          .eq("brand_id", brand_id).is("content_category", null).limit(PER_TABLE_LIMIT),
+        supabase.from("content_ideas").select("id, title, prompt, idea_type")
+          .eq("brand_id", brand_id).is("content_category", null).limit(PER_TABLE_LIMIT),
+      ]);
+
+      const items: Array<{ kind: string; id: string; text: string }> = [];
+      for (const p of pillarsNull.data || []) items.push({ kind: "pillar", id: p.id, text: `${p.name}: ${p.description || ""}` });
+      for (const s of seriesNull.data || []) items.push({ kind: "series", id: s.id, text: `${s.name}: ${s.description || ""}` });
+      for (const c of campaignsNull.data || []) items.push({ kind: "campaign", id: c.id, text: `${c.name}: ${c.description || ""}` });
+      for (const i of ideasNull.data || []) items.push({ kind: "idea", id: i.id, text: `${i.title}${i.idea_type === "holiday" ? " [holiday]" : ""}: ${i.prompt || ""}` });
+
+      if (items.length === 0) {
+        return jsonResponse({ updated: 0, processed: 0, remaining_in_batch: 0, more_available: false, message: "Nothing to categorize." });
+      }
+
+      const result = await callAI(lovableKey, {
+        system: `You are a content classifier. For each item, assign exactly ONE content_category from the enum.
+
+${CONTENT_CATEGORIES_REF}
+
+Rules:
+- The category id MUST be one of: ${CONTENT_CATEGORY_ENUM.join(", ")}.
+- For pillars, pick the dominant category if it spans several.
+- Items tagged [holiday] should be categorized as "holidays".
+- Match the item's intent, not just keywords.
+- Return one classification per input item, preserving order.`,
+        user: `Classify each item below and return its content_category.\n\nBrand: ${brand.name}\n\nITEMS:\n${items.map((it, i) => `${i + 1}. [${it.kind}] ${it.text}`).join("\n")}`,
+        tool: {
+          name: "classify_items",
+          description: "Assign a content_category to each item",
+          parameters: {
+            type: "object",
+            properties: {
+              classifications: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    index: { type: "number", description: "1-based index of the item" },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
+                  },
+                  required: ["index", "content_category"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["classifications"],
+            additionalProperties: false,
+          },
+        },
+      });
+
+      if (result.error) return errorResponse(result);
+
+      const tableMap: Record<string, string> = {
+        pillar: "content_pillars",
+        series: "post_series",
+        campaign: "campaigns",
+        idea: "content_ideas",
+      };
+
+      let updated = 0;
+      for (const cls of result.data.classifications || []) {
+        const item = items[cls.index - 1];
+        if (!item) continue;
+        if (!CONTENT_CATEGORY_ENUM.includes(cls.content_category)) continue;
+        const table = tableMap[item.kind];
+        if (!table) continue;
+        const { error: updErr } = await serviceClient
+          .from(table)
+          .update({ content_category: cls.content_category })
+          .eq("id", item.id)
+          .is("content_category", null); // safety: don't overwrite
+        if (!updErr) updated += 1;
+      }
+
+      return jsonResponse({
+        updated,
+        processed: items.length,
+        remaining_in_batch: items.length - updated,
+        more_available:
+          (pillarsNull.data?.length || 0) === PER_TABLE_LIMIT ||
+          (seriesNull.data?.length || 0) === PER_TABLE_LIMIT ||
+          (campaignsNull.data?.length || 0) === PER_TABLE_LIMIT ||
+          (ideasNull.data?.length || 0) === PER_TABLE_LIMIT,
+      });
+    }
+
     return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
