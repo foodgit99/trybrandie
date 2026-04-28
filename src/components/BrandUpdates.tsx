@@ -30,6 +30,8 @@ import {
   AlertTriangle,
   ListChecks,
   HelpCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const UPDATE_TYPES: Array<{
@@ -202,6 +204,8 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const [inlineSavingId, setInlineSavingId] = useState<string | null>(null);
   const [inlineDismissed, setInlineDismissed] = useState<Set<string>>(new Set());
   const [showLowConfPanel, setShowLowConfPanel] = useState(true);
+  // Stepper position within lowConfidenceUpdates (one question at a time).
+  const [lowConfIndex, setLowConfIndex] = useState(0);
 
   // AI summarise + confidence check
   type AiCheck = {
@@ -393,7 +397,35 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       delete next[id];
       return next;
     });
+    // After dismiss, the list shrinks by one — keep the cursor on the same
+    // visual slot (which now shows the next item) without going out of bounds.
+    setLowConfIndex((i) => Math.max(0, Math.min(i, lowConfidenceUpdates.length - 2)));
   };
+
+  // Advance the stepper to the next low-confidence update, wrapping to the
+  // start if we're already on the last one.
+  const goNextLowConf = () => {
+    if (lowConfidenceUpdates.length <= 1) return;
+    setLowConfIndex((i) => (i + 1) % lowConfidenceUpdates.length);
+  };
+  const goPrevLowConf = () => {
+    if (lowConfidenceUpdates.length <= 1) return;
+    setLowConfIndex((i) =>
+      (i - 1 + lowConfidenceUpdates.length) % lowConfidenceUpdates.length,
+    );
+  };
+
+  // Clamp the cursor whenever the underlying list size changes (e.g. an answer
+  // saves and the item drops out, or new low-conf items arrive after refetch).
+  useEffect(() => {
+    if (lowConfidenceUpdates.length === 0) {
+      if (lowConfIndex !== 0) setLowConfIndex(0);
+      return;
+    }
+    if (lowConfIndex >= lowConfidenceUpdates.length) {
+      setLowConfIndex(lowConfidenceUpdates.length - 1);
+    }
+  }, [lowConfidenceUpdates.length, lowConfIndex]);
 
   const reset = () => {
     setForm(emptyForm());
@@ -1065,81 +1097,130 @@ export default function BrandUpdates({ brandId, userId }: Props) {
             </button>
           </div>
 
-          <ul className="space-y-2">
-            {lowConfidenceUpdates.map((u) => {
-              const meta = TYPE_META[u.update_type] || TYPE_META.other;
-              const question = buildFollowUpQuestion(u);
-              const value = inlineAnswers[u.id] || "";
-              const saving = inlineSavingId === u.id;
-              const confLabel = typeof u.confidence === "number" ? `${u.confidence}/100` : "no AI check yet";
-              return (
-                <li
-                  key={u.id}
-                  className="rounded-lg bg-background/70 border border-border p-2.5 space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm leading-none shrink-0" aria-hidden="true">{meta.emoji}</span>
-                      <span className="text-[11px] font-medium text-foreground truncate">
-                        {u.title || u.content.slice(0, 60) || "Untitled update"}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
-                      {confLabel}
+          {(() => {
+            const total = lowConfidenceUpdates.length;
+            const safeIndex = Math.min(lowConfIndex, total - 1);
+            const u = lowConfidenceUpdates[safeIndex];
+            if (!u) return null;
+            const meta = TYPE_META[u.update_type] || TYPE_META.other;
+            const question = buildFollowUpQuestion(u);
+            const value = inlineAnswers[u.id] || "";
+            const saving = inlineSavingId === u.id;
+            const confLabel =
+              typeof u.confidence === "number" ? `${u.confidence}/100` : "no AI check yet";
+            const hasMore = total > 1;
+
+            return (
+              <div className="rounded-lg bg-background/70 border border-border p-2.5 space-y-2">
+                {/* Header: which item, position in queue, confidence */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-sm leading-none shrink-0" aria-hidden="true">
+                      {meta.emoji}
+                    </span>
+                    <span className="text-[11px] font-medium text-foreground truncate">
+                      {u.title || u.content.slice(0, 60) || "Untitled update"}
                     </span>
                   </div>
-                  <p className="text-xs text-foreground leading-snug">{question}</p>
-                  <Textarea
-                    value={value}
-                    onChange={(e) =>
-                      setInlineAnswers((prev) => ({ ...prev, [u.id]: e.target.value.slice(0, 400) }))
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      {safeIndex + 1} / {total}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{confLabel}</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-foreground leading-snug">{question}</p>
+
+                <Textarea
+                  value={value}
+                  onChange={(e) =>
+                    setInlineAnswers((prev) => ({
+                      ...prev,
+                      [u.id]: e.target.value.slice(0, 400),
+                    }))
+                  }
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                      e.preventDefault();
+                      saveInlineAnswer(u).then(() => {
+                        if (hasMore) goNextLowConf();
+                      });
                     }
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                        e.preventDefault();
-                        saveInlineAnswer(u);
+                  }}
+                  placeholder="Type a name, number, date, or one-line specific…"
+                  rows={2}
+                  className="text-xs resize-none"
+                  disabled={saving}
+                  autoFocus
+                />
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-muted-foreground">
+                    {value.length}/400 · ⌘/Ctrl + Enter to save
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {/* Stepper controls — only meaningful when there's >1 item. */}
+                    {hasMore && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={goPrevLowConf}
+                          disabled={saving}
+                          aria-label="Previous question"
+                          title="Previous question"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-[11px] gap-1"
+                          onClick={goNextLowConf}
+                          disabled={saving}
+                          aria-label="Next question"
+                          title="Skip to next question without saving"
+                        >
+                          Next
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-[11px]"
+                      onClick={() => dismissInline(u.id)}
+                      disabled={saving}
+                    >
+                      Skip
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 px-3 text-[11px]"
+                      onClick={() =>
+                        saveInlineAnswer(u).then(() => {
+                          if (hasMore) goNextLowConf();
+                        })
                       }
-                    }}
-                    placeholder="Type a name, number, date, or one-line specific…"
-                    rows={2}
-                    className="text-xs resize-none"
-                    disabled={saving}
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-muted-foreground">
-                      {value.length}/400 · ⌘/Ctrl + Enter to save
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-[11px]"
-                        onClick={() => dismissInline(u.id)}
-                        disabled={saving}
-                      >
-                        Skip
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-7 px-3 text-[11px]"
-                        onClick={() => saveInlineAnswer(u)}
-                        disabled={saving || !value.trim()}
-                      >
-                        {saving ? (
-                          <>
-                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            Saving
-                          </>
-                        ) : (
-                          "Save answer"
-                        )}
-                      </Button>
-                    </div>
+                      disabled={saving || !value.trim()}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Saving
+                        </>
+                      ) : (
+                        "Save answer"
+                      )}
+                    </Button>
                   </div>
-                </li>
-              );
-            })}
-          </ul>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
