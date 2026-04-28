@@ -766,7 +766,7 @@ const ContentHub = () => {
 
   // --- Campaign CRUD ---
   const openCreateCampaign = () => {
-    setCampaignForm({ ...emptyCampaign, content_category: getLastCategory(user?.id, brandId, "campaign") });
+    setCampaignForm({ ...emptyCampaign, content_category: getLastCategory(user?.id, brandId, "campaign", validCategoryIds) });
     setEditingCampaignId(null);
     setCampaignDialogOpen(true);
   };
