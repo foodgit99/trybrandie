@@ -2118,7 +2118,7 @@ const ContentHub = () => {
                   ))}
                 </SelectContent>
               </Select>
-              {!editingIdeaId && ideaForm.content_category && ideaForm.content_category === getLastCategory(user?.id, brandId, "idea") && (
+              {!editingIdeaId && ideaForm.content_category && ideaForm.content_category === getLastCategory(user?.id, brandId, "idea", validCategoryIds) && (
                 <p className="text-[10px] text-muted-foreground/80 leading-snug">
                   Preselected from your last idea. Change it anytime above.
                 </p>
