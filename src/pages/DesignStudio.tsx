@@ -110,11 +110,45 @@ const parseStrategistActions = (content: string): { cleanContent: string; action
   }
 };
 
-const CANVAS_SIZES = [
-  { label: "Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
-  { label: "Landscape (1920×1080)", value: "1920x1080", aspect: "16 / 9" },
-  { label: "Story (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
+// Platform-locked canvas presets. Each value is the EXACT pixel output
+// (width × height) the renderer is forced to produce — see strict resize/crop
+// in supabase/functions/design-studio/index.ts.
+type CanvasPreset = {
+  label: string;
+  value: string;   // "WxH"
+  aspect: string;  // CSS aspectRatio
+  platform: string;
+};
+
+const CANVAS_PRESETS: CanvasPreset[] = [
+  // Instagram
+  { platform: "Instagram", label: "Instagram Post · Square (1080×1080)", value: "1080x1080", aspect: "1 / 1" },
+  { platform: "Instagram", label: "Instagram Post · Portrait (1080×1350)", value: "1080x1350", aspect: "4 / 5" },
+  { platform: "Instagram", label: "Instagram Story / Reel (1080×1920)", value: "1080x1920", aspect: "9 / 16" },
+  // Facebook
+  { platform: "Facebook", label: "Facebook Feed (1200×630)", value: "1200x630", aspect: "1200 / 630" },
+  { platform: "Facebook", label: "Facebook Story (1080×1920)", value: "fb-1080x1920", aspect: "9 / 16" },
+  { platform: "Facebook", label: "Facebook Cover (1640×924)", value: "1640x924", aspect: "1640 / 924" },
+  // TikTok
+  { platform: "TikTok", label: "TikTok Vertical (1080×1920)", value: "tt-1080x1920", aspect: "9 / 16" },
+  // LinkedIn
+  { platform: "LinkedIn", label: "LinkedIn Post (1200×627)", value: "1200x627", aspect: "1200 / 627" },
+  { platform: "LinkedIn", label: "LinkedIn Cover (1584×396)", value: "1584x396", aspect: "1584 / 396" },
+  // YouTube / Twitter
+  { platform: "YouTube", label: "YouTube / Landscape (1920×1080)", value: "1920x1080", aspect: "16 / 9" },
+  { platform: "Twitter / X", label: "Twitter / X Post (1600×900)", value: "1600x900", aspect: "16 / 9" },
+  // Pinterest
+  { platform: "Pinterest", label: "Pinterest Pin (1000×1500)", value: "1000x1500", aspect: "2 / 3" },
 ];
+
+// Backwards-compat list used by the existing currentAspect lookup.
+const CANVAS_SIZES = CANVAS_PRESETS;
+
+// Group presets by platform for the Select dropdown.
+const CANVAS_GROUPS = CANVAS_PRESETS.reduce<Record<string, CanvasPreset[]>>((acc, p) => {
+  (acc[p.platform] ||= []).push(p);
+  return acc;
+}, {});
 
 const FREE_MONTHLY = 5;
 
