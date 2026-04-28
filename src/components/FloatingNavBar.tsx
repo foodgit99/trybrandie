@@ -1,5 +1,6 @@
 import { Home, LayoutGrid, Palette, Megaphone, Plus, type LucideIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,16 @@ const FloatingNavBar = () => {
   const { user } = useAuth();
 
   const hiddenRoutes = ["/studio", "/auth", "/onboarding", "/reset-password"];
-  if (!user || hiddenRoutes.some((r) => location.pathname.startsWith(r))) return null;
+  const visible = !!user && !hiddenRoutes.some((r) => location.pathname.startsWith(r));
+
+  useEffect(() => {
+    if (visible) {
+      document.body.classList.add("has-floating-nav");
+      return () => document.body.classList.remove("has-floating-nav");
+    }
+  }, [visible]);
+
+  if (!visible) return null;
 
   return (
     <>
