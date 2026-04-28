@@ -1374,7 +1374,7 @@ ${brand.special_instructions}
       // Builds a brand-aware query (name, industry, vibe, tone, post type, audience).
       // Degrades gracefully if FIRECRAWL_API_KEY is missing.
       const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-      const researchPromise = (async (): Promise<string> => {
+      const researchPromise = (async () => {
         const cat = await contentCategoryPromise;
         const recipe = CATEGORY_RECIPES[cat];
         const vibeKeywords = [
