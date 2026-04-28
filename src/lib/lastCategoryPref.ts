@@ -112,7 +112,7 @@ export const hydrateLastCategoriesForBrand = async (
   if (!userId || !brandId || typeof window === "undefined") return;
   const { data, error } = await supabase
     .from("user_brand_dialog_prefs")
-    .select("last_category_series, last_category_campaign, last_category_idea")
+    .select("last_category_series, last_category_campaign, last_category_idea, last_filter_category")
     .eq("user_id", userId)
     .eq("brand_id", brandId)
     .maybeSingle();
@@ -130,4 +130,71 @@ export const hydrateLastCategoriesForBrand = async (
       // ignore
     }
   });
+  const filterVal = ((data as any).last_filter_category || "").trim();
+  try {
+    if (filterVal) window.localStorage.setItem(filterLsKey(userId, brandId), filterVal);
+  } catch {
+    // ignore
+  }
+};
+
+// ── Content Hub filter (per user + brand) ──────────────────────────────────────
+
+const filterLsKey = (userId: string, brandId: string) =>
+  `brandie:lastFilterCategory:${userId}:${brandId}`;
+
+/** Sync read of the saved Content Hub filter (defaults to "all"). */
+export const getLastFilterCategory = (
+  userId: string | undefined,
+  brandId: string | undefined,
+  availableCategories?: ReadonlyArray<string>
+): string => {
+  if (!userId || !brandId || typeof window === "undefined") return "all";
+  let saved = "";
+  try {
+    saved = window.localStorage.getItem(filterLsKey(userId, brandId)) || "";
+  } catch {
+    return "all";
+  }
+  if (!saved || saved === "all") return "all";
+  if (!availableCategories || availableCategories.length === 0) return saved;
+  const norm = (s: string) => s.trim().toLowerCase();
+  const match = availableCategories.find((c) => norm(c) === norm(saved));
+  if (match) return match;
+  try {
+    window.localStorage.removeItem(filterLsKey(userId, brandId));
+  } catch {
+    // ignore
+  }
+  return "all";
+};
+
+/** Persist the Content Hub filter selection. Pass "all" to clear. */
+export const setLastFilterCategory = (
+  userId: string | undefined,
+  brandId: string | undefined,
+  value: string | null | undefined
+) => {
+  if (!userId || !brandId) return;
+  const v = (value || "").trim();
+  const isAll = !v || v === "all";
+
+  if (typeof window !== "undefined") {
+    try {
+      if (isAll) window.localStorage.removeItem(filterLsKey(userId, brandId));
+      else window.localStorage.setItem(filterLsKey(userId, brandId), v);
+    } catch {
+      // ignore
+    }
+  }
+
+  void supabase
+    .from("user_brand_dialog_prefs")
+    .upsert(
+      { user_id: userId, brand_id: brandId, last_filter_category: isAll ? null : v },
+      { onConflict: "user_id,brand_id" }
+    )
+    .then(({ error }) => {
+      if (error) console.warn("[lastCategoryPref] filter pref sync failed", error.message);
+    });
 };
