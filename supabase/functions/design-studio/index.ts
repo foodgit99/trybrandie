@@ -1371,11 +1371,27 @@ ${brand.special_instructions}
 
       // --- PARALLEL: Research Enrichment (only for categories that need fresh info) ---
       // Runs in parallel once category is known. Uses Firecrawl /v2/search with time-bound `tbs`.
+      // Builds a brand-aware query (name, industry, vibe, tone, post type, audience).
       // Degrades gracefully if FIRECRAWL_API_KEY is missing.
       const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
       const researchPromise = (async (): Promise<string> => {
         const cat = await contentCategoryPromise;
-        return await enrichWithResearch(cat, userPrompt, brand?.name, FIRECRAWL_API_KEY);
+        const recipe = CATEGORY_RECIPES[cat];
+        const vibeKeywords = [
+          ...(brand?.vibe ? [brand.vibe] : []),
+          ...((brand?.personality_traits || []) as string[]),
+        ]
+          .map((v) => String(v).trim())
+          .filter(Boolean);
+        return await enrichWithResearch(cat, userPrompt, {
+          brandName: brand?.name,
+          industry: brand?.industry,
+          vibeKeywords,
+          toneOfVoice: brand?.tone_of_voice,
+          audienceDescriptor: audienceProfile?.persona_summary,
+          postType: recipe?.name || cat,
+          platform: "Instagram",
+        }, FIRECRAWL_API_KEY);
       })();
 
       // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis + Category ---
