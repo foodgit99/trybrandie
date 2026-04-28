@@ -7,6 +7,15 @@ import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
 import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
+import {
+  CATEGORY_RECIPES,
+  applyCategoryBias,
+  computeCategoryFit,
+  buildCategoryRenderInjection,
+  enforceCTAPolicy,
+  buildCopyForbiddenContext,
+  enrichWithResearch,
+} from "../_shared/category-recipes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
