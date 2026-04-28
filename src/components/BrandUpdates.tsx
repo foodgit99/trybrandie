@@ -1036,6 +1036,114 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </div>
       )}
 
+      {/* Inline follow-up panel — every active LOW-confidence update gets a
+          deterministic, type-aware question + textarea so the user can
+          strengthen items one by one without leaving the page. */}
+      {lowConfidenceUpdates.length > 0 && showLowConfPanel && (
+        <div
+          id="brand-updates-low-confidence"
+          className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 space-y-3 scroll-mt-20"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
+              <HelpCircle className="h-4 w-4 mt-0.5 text-rose-600 dark:text-rose-400 shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-rose-700 dark:text-rose-400">
+                  {lowConfidenceUpdates.length} update{lowConfidenceUpdates.length === 1 ? "" : "s"} need{lowConfidenceUpdates.length === 1 ? "s" : ""} more detail
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Answer one quick question per item — the AI will then start using them as factual seed material.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLowConfPanel(false)}
+              className="text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+              title="Hide for now"
+            >
+              Hide
+            </button>
+          </div>
+
+          <ul className="space-y-2">
+            {lowConfidenceUpdates.map((u) => {
+              const meta = TYPE_META[u.update_type] || TYPE_META.other;
+              const Icon = meta.icon;
+              const question = buildFollowUpQuestion(u);
+              const value = inlineAnswers[u.id] || "";
+              const saving = inlineSavingId === u.id;
+              const confLabel = typeof u.confidence === "number" ? `${u.confidence}/100` : "no AI check yet";
+              return (
+                <li
+                  key={u.id}
+                  className="rounded-lg bg-background/70 border border-border p-2.5 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] font-medium text-foreground truncate">
+                        {u.title || u.content.slice(0, 60) || "Untitled update"}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {confLabel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-foreground leading-snug">{question}</p>
+                  <Textarea
+                    value={value}
+                    onChange={(e) =>
+                      setInlineAnswers((prev) => ({ ...prev, [u.id]: e.target.value.slice(0, 400) }))
+                    }
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        saveInlineAnswer(u);
+                      }
+                    }}
+                    placeholder="Type a name, number, date, or one-line specific…"
+                    rows={2}
+                    className="text-xs resize-none"
+                    disabled={saving}
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-muted-foreground">
+                      {value.length}/400 · ⌘/Ctrl + Enter to save
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={() => dismissInline(u.id)}
+                        disabled={saving}
+                      >
+                        Skip
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 px-3 text-[11px]"
+                        onClick={() => saveInlineAnswer(u)}
+                        disabled={saving || !value.trim()}
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Saving
+                          </>
+                        ) : (
+                          "Save answer"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {/* AI follow-up questions for low-confidence updates */}
       {followUps.length > 0 && (
         <div
