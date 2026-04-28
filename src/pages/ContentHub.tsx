@@ -1923,6 +1923,21 @@ const ContentHub = () => {
                 onChange={(e) => setCampaignForm((f) => ({ ...f, post_count: parseInt(e.target.value) || 1 }))}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Content Category (optional)</Label>
+              <Select
+                value={campaignForm.content_category || "none"}
+                onValueChange={(v) => setCampaignForm((f) => ({ ...f, content_category: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {CONTENT_CATEGORIES.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.emoji} {c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setCampaignDialogOpen(false)}>Cancel</Button>
