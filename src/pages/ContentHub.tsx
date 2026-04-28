@@ -80,6 +80,7 @@ import AudienceContextBanner from "@/components/content/AudienceContextBanner";
 import { CategoryBadge, CategoryBadgeList, CategoryDot } from "@/components/content/CategoryBadge";
 import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
+const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 import { getLastCategory, setLastCategory, hydrateLastCategoriesForBrand } from "@/lib/lastCategoryPref";
 
