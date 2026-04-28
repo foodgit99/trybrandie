@@ -68,7 +68,34 @@ interface BrandUpdate {
   times_used: number;
   last_used_at: string | null;
   created_at: string;
+  confidence: number | null;
+  missing_fields: string[] | null;
 }
+
+type ConfTier = "high" | "medium" | "low";
+const tierFor = (confidence: number | null | undefined): ConfTier => {
+  if (confidence === null || confidence === undefined) return "low";
+  if (confidence >= 75) return "high";
+  if (confidence >= 45) return "medium";
+  return "low";
+};
+const tierMeta: Record<ConfTier, { label: string; cls: string; help: string }> = {
+  high: {
+    label: "Strong signal",
+    cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    help: "AI will use this as factual seed material — quoting specifics.",
+  },
+  medium: {
+    label: "Soft signal",
+    cls: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    help: "AI will use this as inspiration only — no invented specifics.",
+  },
+  low: {
+    label: "Needs detail",
+    cls: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
+    help: "AI will skip this and ask you a follow-up question instead.",
+  },
+};
 
 interface FormState {
   update_type: string;
@@ -126,6 +153,16 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [planning, setPlanning] = useState(false);
+
+  type FollowUp = {
+    update_id: string;
+    update_title: string;
+    update_type: string;
+    confidence: number;
+    missing_fields: string[];
+    question: string;
+  };
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
 
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -245,15 +282,29 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       if (error) throw error;
       const count = (data as any)?.count || 0;
       const used = (data as any)?.updates_used || 0;
+      const fups: FollowUp[] = Array.isArray((data as any)?.follow_ups) ? (data as any).follow_ups : [];
+      setFollowUps(fups);
       qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
-      toast({
-        title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
-        description:
-          count > 0
-            ? `Grounded in ${used} update${used === 1 ? "" : "s"}. Opening Content Hub…`
-            : "Opening Content Hub…",
-      });
-      navigate("/content");
+
+      if (count === 0 && fups.length > 0) {
+        toast({
+          title: "Need a bit more detail first",
+          description: `${fups.length} quick question${fups.length === 1 ? "" : "s"} below will unlock stronger drafts.`,
+        });
+        // Stay on this page so the user can answer the follow-ups inline.
+        document
+          .getElementById("brand-updates-followups")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        toast({
+          title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
+          description:
+            count > 0
+              ? `Grounded in ${used} update${used === 1 ? "" : "s"}.${fups.length > 0 ? ` ${fups.length} follow-up${fups.length === 1 ? "" : "s"} for weaker updates.` : ""} Opening Content Hub…`
+              : "Opening Content Hub…",
+        });
+        navigate("/content");
+      }
     } catch (e: any) {
       toast({
         title: "Couldn't draft from updates",
@@ -263,6 +314,19 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     } finally {
       setPlanning(false);
     }
+  };
+
+  // Open an update from a follow-up question for editing.
+  const answerFollowUp = (updateId: string) => {
+    const u = (updates || []).find((x) => x.id === updateId);
+    if (!u) return;
+    startEdit(u);
+    setFollowUps((prev) => prev.filter((f) => f.update_id !== updateId));
+    setTimeout(() => {
+      document
+        .getElementById("brand-updates")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const runAiCheck = async () => {
@@ -342,7 +406,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     }
     setSaving(true);
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         brand_id: brandId,
         user_id: userId,
         update_type: form.update_type,
@@ -355,6 +419,15 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         expires_at: form.expires_at || null,
         status: "active",
       };
+      // Persist the AI confidence + missing-fields if the user ran the
+      // editorial check before saving. This is what the generation
+      // pipeline reads to decide how strongly to rely on the update.
+      if (aiCheck) {
+        payload.confidence = Math.max(0, Math.min(100, Math.round(aiCheck.confidence)));
+        payload.missing_fields = Array.isArray(aiCheck.missing_fields)
+          ? aiCheck.missing_fields.slice(0, 8)
+          : [];
+      }
       if (editingId) {
         const { error } = await supabase.from("brand_updates" as any).update(payload).eq("id", editingId);
         if (error) throw error;
@@ -824,6 +897,49 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </div>
       )}
 
+      {/* AI follow-up questions for low-confidence updates */}
+      {followUps.length > 0 && (
+        <div
+          id="brand-updates-followups"
+          className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 space-y-2 scroll-mt-20"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-rose-700 dark:text-rose-400">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {followUps.length} update{followUps.length === 1 ? "" : "s"} need a quick detail before the AI can plan strong posts
+            </div>
+            <button
+              onClick={() => setFollowUps([])}
+              className="text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Dismiss
+            </button>
+          </div>
+          <ul className="space-y-1.5">
+            {followUps.map((f) => (
+              <li key={f.update_id} className="rounded-lg bg-background/60 border border-border p-2.5">
+                <p className="text-xs text-foreground">{f.question}</p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-muted-foreground truncate">
+                    On: {f.update_title}
+                    {typeof f.confidence === "number" ? ` · confidence ${f.confidence}/100` : ""}
+                  </span>
+                  <button
+                    onClick={() => answerFollowUp(f.update_id)}
+                    className="text-[11px] font-medium text-primary hover:underline shrink-0"
+                  >
+                    Answer →
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-muted-foreground">
+            Tip: after answering, run <span className="font-medium">AI check &amp; summarise</span> in the form to refresh the confidence score, then save.
+          </p>
+        </div>
+      )}
+
       {/* List */}
       {filtered.length > 0 ? (
         <div className="space-y-2">
@@ -857,6 +973,19 @@ export default function BrandUpdates({ brandId, userId }: Props) {
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">
                           {meta.emoji} {meta.label}
                         </span>
+                        {(() => {
+                          const t = tierFor(u.confidence);
+                          const tm = tierMeta[t];
+                          return (
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-full border ${tm.cls}`}
+                              title={`${tm.help}${typeof u.confidence === "number" ? ` (confidence ${u.confidence}/100)` : " (no AI check yet)"}`}
+                            >
+                              {tm.label}
+                              {typeof u.confidence === "number" ? ` · ${u.confidence}` : ""}
+                            </span>
+                          );
+                        })()}
                         <span className="text-[10px] text-muted-foreground">{u.event_date}</span>
                         {u.times_used > 0 && (
                           <span className="text-[10px] text-muted-foreground">• used {u.times_used}×</span>

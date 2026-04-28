@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWeekHolidays } from "../_shared/holiday-calendar.ts";
-import { fetchRecentUpdates, formatUpdatesForPrompt, markUpdatesUsed } from "../_shared/brand-updates.ts";
+import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -115,10 +115,11 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         }).join("\n")
       : "No products or services catalogued yet.";
 
-    const updatesBlock = formatUpdatesForPrompt(recentUpdates, {
-      heading:
-        "RECENT BUSINESS UPDATES (real activity from this brand in the last ~60 days — when generating Social Proof, BTS, Announcement, Trending, or Promotional ideas, GROUND ideas in these specific updates rather than inventing generic ones; never fabricate testimonials when a testimonial update exists; reference real events, names, and outcomes):",
-    });
+    // Confidence-aware injection. The shared formatter tags each line with
+    // [HIGH]/[MED] so the agent knows what to quote vs. what to treat as
+    // soft inspiration. LOW-confidence updates are filtered upstream by
+    // fetchRecentUpdates (default minTier = "medium").
+    const updatesBlock = formatUpdatesForPrompt(recentUpdates);
 
     const fullContext = `${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}${updatesBlock}`;
 
@@ -718,19 +719,60 @@ Rules:
     if (action === "plan_from_updates") {
       // One-tap: turn the user's recent Updates into a draft of suggested content ideas.
       // Free action — no credit deduction (small, targeted, ≤5 ideas, status=suggested only).
-      if (!recentUpdates || recentUpdates.length === 0) {
+      //
+      // Confidence-aware:
+      //   • HIGH/MED updates → become drafted ideas the AI can build on.
+      //   • LOW updates      → become follow-up questions returned to the
+      //                        user instead of forcing weak content.
+
+      // Pull ALL active updates (not just the medium-tier prompt set) so we
+      // can also raise follow-ups for the LOW ones.
+      const allUpdates = await fetchAllUpdatesForPlanning(supabase, brand_id, 60, 25);
+      if (!allUpdates || allUpdates.length === 0) {
         return new Response(
           JSON.stringify({ error: "No recent updates to plan from. Add an update first." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
-      const updatesForPlan = recentUpdates.slice(0, 8);
-      const updatesList = updatesForPlan
+      const planEligible = allUpdates
+        .filter((u) => tierFor(u.confidence) !== "low")
+        .slice(0, 8);
+      const lowConfidence = allUpdates
+        .filter((u) => tierFor(u.confidence) === "low")
+        .slice(0, 5);
+
+      // No ideas-eligible updates? Return follow-ups only so the user knows
+      // what to flesh out before planning will work.
+      if (planEligible.length === 0) {
+        const followUpsOnly = lowConfidence.map((u) => ({
+          update_id: u.id,
+          update_title: u.title || u.content.slice(0, 60),
+          update_type: u.update_type,
+          confidence: u.confidence ?? 0,
+          missing_fields: Array.isArray(u.missing_fields) ? u.missing_fields.slice(0, 4) : [],
+          question: buildFollowUpQuestion(u),
+        }));
+        return jsonResponse({
+          ideas: [],
+          count: 0,
+          updates_used: 0,
+          follow_ups: followUpsOnly,
+          message: "Your updates need more detail before the AI can draft solid posts. Answer a couple of follow-ups and try again.",
+        });
+      }
+
+      const updatesList = planEligible
         .map((u: any, i: number) => {
+          const tier = tierFor(u.confidence).toUpperCase();
+          const conf = typeof u.confidence === "number" ? u.confidence : "?";
           const attr = u.attribution ? ` — ${u.attribution}` : "";
           const body = u.content?.trim() ? ` :: ${u.content.trim().slice(0, 280)}` : "";
-          return `${i + 1}. id=${u.id} | type=${u.update_type} | date=${u.event_date} | ${u.title || u.content.slice(0, 60)}${attr}${body}`;
+          const gaps =
+            Array.isArray(u.missing_fields) && u.missing_fields.length > 0
+              ? ` :: missing → ${u.missing_fields.slice(0, 3).join(", ")}`
+              : "";
+          return `${i + 1}. id=${u.id} | tier=${tier} (conf=${conf}) | type=${u.update_type} | date=${u.event_date} | ${u.title || u.content.slice(0, 60)}${attr}${body}${gaps}`;
         })
         .join("\n");
 
@@ -751,11 +793,35 @@ CRITICAL RULES:
 - content_format: "carousel" only for clearly multi-point updates (lists, step-by-step, multi-quote). Otherwise "graphic".
 - title: punchy, ≤ 60 chars.
 - prompt: a ready-to-use design prompt mentioning the brand and what the graphic should show, grounded in the update's actual facts.
-- Reference the source update by its id in source_update_id.`,
-        user: `Brand context:\n${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nUPDATES TO PLAN FROM:\n${updatesList}`,
+- Reference the source update by its id in source_update_id.
+
+CONFIDENCE-AWARE WRITING:
+Each update is tagged with a tier — read it before drafting:
+  • [HIGH] (conf ≥ 75): the update is specific and verified. Quote the names, numbers, dates, and quotes that exist on it. The post can be concrete and committal.
+  • [MED]  (conf 45–74): the update is thin or partial. Write at the THEMATIC level only. NEVER invent specific names, numbers, dates, outcomes, or quotes that aren't in the update. The "missing → ..." hint tells you what facts are absent — keep the prompt abstract around those gaps. If a great post would require a fact you don't have, say so in needs_user_input and lower draft_confidence.
+- For each idea, also output:
+  • draft_confidence (0–100): how confident YOU are this draft is publish-ready as-is.
+  • needs_user_input (string[]): up to 3 short phrases the user should confirm or fill in BEFORE generating (e.g. "exact discount %", "customer first name", "event location"). Empty array if nothing is needed.
+
+FOLLOW-UPS:
+For any LOW-confidence updates supplied separately, propose ONE short, plain-language question per update that, if answered, would let the AI plan a strong post next time. Reference what's already known so the user doesn't repeat themselves.`,
+        user: `Brand context:\n${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nUPDATES TO PLAN FROM (HIGH/MED only):\n${updatesList}${
+          lowConfidence.length > 0
+            ? `\n\nLOW-CONFIDENCE UPDATES (do NOT plan ideas for these — produce a single short follow-up question per item under follow_ups instead):\n${lowConfidence
+                .map(
+                  (u: any, i: number) =>
+                    `${i + 1}. id=${u.id} | type=${u.update_type} | conf=${u.confidence ?? 0} | ${u.title || u.content.slice(0, 60)}${u.content?.trim() ? ` :: ${u.content.trim().slice(0, 200)}` : ""}${
+                      Array.isArray(u.missing_fields) && u.missing_fields.length > 0
+                        ? ` :: missing → ${u.missing_fields.slice(0, 3).join(", ")}`
+                        : ""
+                    }`,
+                )
+                .join("\n")}`
+            : ""
+        }`,
         tool: {
           name: "plan_ideas_from_updates",
-          description: "Create draft post ideas grounded in the provided updates",
+          description: "Create draft post ideas for HIGH/MED updates and follow-up questions for LOW updates.",
           parameters: {
             type: "object",
             properties: {
@@ -769,13 +835,40 @@ CRITICAL RULES:
                     prompt: { type: "string" },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
                     content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
+                    draft_confidence: { type: "integer", minimum: 0, maximum: 100 },
+                    needs_user_input: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Short specifics the user should confirm before generating. Empty if none.",
+                    },
                   },
-                  required: ["source_update_id", "title", "prompt", "content_format", "content_category"],
+                  required: [
+                    "source_update_id",
+                    "title",
+                    "prompt",
+                    "content_format",
+                    "content_category",
+                    "draft_confidence",
+                    "needs_user_input",
+                  ],
+                  additionalProperties: false,
+                },
+              },
+              follow_ups: {
+                type: "array",
+                description: "One short question per LOW-confidence update.",
+                items: {
+                  type: "object",
+                  properties: {
+                    update_id: { type: "string" },
+                    question: { type: "string" },
+                  },
+                  required: ["update_id", "question"],
                   additionalProperties: false,
                 },
               },
             },
-            required: ["ideas"],
+            required: ["ideas", "follow_ups"],
             additionalProperties: false,
           },
         },
@@ -783,45 +876,111 @@ CRITICAL RULES:
 
       if (result.error) return errorResponse(result);
 
-      const validIds = new Set(updatesForPlan.map((u: any) => u.id));
+      const validIds = new Set(planEligible.map((u: any) => u.id));
+      const updateById = new Map(planEligible.map((u: any) => [u.id, u]));
       const ideasToInsert = (result.data.ideas || [])
         .filter((idea: any) => validIds.has(idea.source_update_id))
         .slice(0, 5)
-        .map((idea: any) => ({
-          brand_id,
-          user_id: userId,
-          title: idea.title,
-          prompt: idea.prompt,
-          idea_type: "single",
-          content_format: idea.content_format || "graphic",
-          content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
-          status: "suggested",
-          scheduled_for: null,
-        }));
+        .map((idea: any) => {
+          const src: any = updateById.get(idea.source_update_id);
+          const srcConf = typeof src?.confidence === "number" ? src.confidence : 60;
+          const draftConf = typeof idea.draft_confidence === "number" ? idea.draft_confidence : srcConf;
+          // Cap draft confidence at the source's confidence — the post can't
+          // be more reliable than its seed.
+          const finalConf = Math.max(0, Math.min(100, Math.min(draftConf, srcConf)));
+          const needs = Array.isArray(idea.needs_user_input)
+            ? idea.needs_user_input.filter((s: any) => typeof s === "string" && s.trim()).slice(0, 3)
+            : [];
+          // Soft-prefix the prompt with the user-input checklist when MED.
+          const promptWithGuard =
+            tierFor(srcConf) === "medium" && needs.length > 0
+              ? `${idea.prompt}\n\nBefore rendering, confirm with the user: ${needs.join("; ")}.`
+              : idea.prompt;
+          return {
+            brand_id,
+            user_id: userId,
+            title: idea.title,
+            prompt: promptWithGuard,
+            idea_type: "single",
+            content_format: idea.content_format || "graphic",
+            content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category)
+              ? idea.content_category
+              : null,
+            status: "suggested",
+            scheduled_for: null,
+            // surfaced back to caller (not persisted unless schema supports)
+            _draft_confidence: finalConf,
+            _needs_user_input: needs,
+          };
+        });
 
-      if (ideasToInsert.length === 0) {
+      // Strip transport-only fields before insert
+      const dbRows = ideasToInsert.map(({ _draft_confidence: _dc, _needs_user_input: _nui, ...row }: any) => row);
+
+      if (dbRows.length === 0 && lowConfidence.length === 0) {
         return new Response(
           JSON.stringify({ error: "Couldn't draft ideas from those updates. Try adding more detail and retry." }),
           { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
-      const { data: inserted, error: insertErr } = await serviceClient
-        .from("content_ideas")
-        .insert(ideasToInsert)
-        .select();
-      if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
+      let inserted: any[] = [];
+      if (dbRows.length > 0) {
+        const { data, error: insertErr } = await serviceClient
+          .from("content_ideas")
+          .insert(dbRows)
+          .select();
+        if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
+        inserted = data || [];
+      }
+
+      // Combine model-supplied follow-ups with deterministic fallbacks for any
+      // LOW-confidence updates the model skipped.
+      const modelFollowUps = Array.isArray(result.data.follow_ups) ? result.data.follow_ups : [];
+      const followUpById = new Map<string, string>(
+        modelFollowUps
+          .filter((f: any) => f && typeof f.update_id === "string" && typeof f.question === "string")
+          .map((f: any) => [f.update_id, f.question.trim().slice(0, 200)] as [string, string]),
+      );
+      const followUps = lowConfidence.map((u) => ({
+        update_id: u.id,
+        update_title: u.title || u.content.slice(0, 60),
+        update_type: u.update_type,
+        confidence: u.confidence ?? 0,
+        missing_fields: Array.isArray(u.missing_fields) ? u.missing_fields.slice(0, 4) : [],
+        question: followUpById.get(u.id) || buildFollowUpQuestion(u),
+      }));
 
       // Mark the source updates as used (fire-and-forget).
       const usedIds = Array.from(
-        new Set((result.data.ideas || []).map((i: any) => i.source_update_id).filter((id: any) => validIds.has(id))),
+        new Set(
+          (result.data.ideas || [])
+            .map((i: any) => i.source_update_id)
+            .filter((id: any) => validIds.has(id)),
+        ),
       ) as string[];
       markUpdatesUsed(serviceClient, usedIds).catch(() => {});
 
-      return jsonResponse({ ideas: inserted, count: inserted?.length || 0, updates_used: usedIds.length });
+      // Attach per-idea draft metadata onto the response so the client can
+      // show "needs your input" badges.
+      const enrichedIdeas = inserted.map((row) => {
+        const meta = ideasToInsert.find((i: any) => i.title === row.title && i.prompt.startsWith(row.prompt.split("\n\nBefore")[0]));
+        return {
+          ...row,
+          draft_confidence: meta?._draft_confidence ?? null,
+          needs_user_input: meta?._needs_user_input ?? [],
+        };
+      });
+
+      return jsonResponse({
+        ideas: enrichedIdeas,
+        count: inserted.length,
+        updates_used: usedIds.length,
+        follow_ups: followUps,
+      });
     }
 
-
+    return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -894,4 +1053,28 @@ function errorResponse(result: { error?: string; status?: number }) {
     status: result.status || 500,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// Deterministic fallback follow-up question — used when the LLM doesn't
+// supply one for a low-confidence update, or when there are no ideas-eligible
+// updates so we skip the LLM call entirely.
+function buildFollowUpQuestion(u: any): string {
+  const gaps: string[] = Array.isArray(u.missing_fields) ? u.missing_fields.slice(0, 2) : [];
+  const headline = (u.title || u.content || "this update").toString().trim().slice(0, 60);
+  const typeAsk: Record<string, string> = {
+    testimonial: "Who said it, and what specific result did they get?",
+    customer_story: "Which customer is this about, and what's the one number or outcome that proves the change?",
+    product: "What's the launch date, price, and the single biggest thing this changes for customers?",
+    event: "When and where is it, and what should people do (book / show up / RSVP)?",
+    milestone: "What's the exact number reached, and over what time period?",
+    csr: "Who did you partner with, where, and what was the tangible impact?",
+    press: "Which outlet ran it, the headline, and a link?",
+    partnership: "Who's the partner, what are you doing together, and when does it start?",
+    other: "What's the one specific fact (name, number, date, or outcome) you'd want a post to lead with?",
+  };
+  const base = typeAsk[u.update_type] || typeAsk.other;
+  if (gaps.length > 0) {
+    return `For "${headline}" — ${base} (Missing: ${gaps.join(", ")}.)`;
+  }
+  return `For "${headline}" — ${base}`;
 }
