@@ -29,6 +29,7 @@ import {
   Wand2,
   AlertTriangle,
   ListChecks,
+  HelpCircle,
 } from "lucide-react";
 
 const UPDATE_TYPES: Array<{
@@ -95,6 +96,30 @@ const tierMeta: Record<ConfTier, { label: string; cls: string; help: string }> =
     cls: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
     help: "AI will skip this and ask you a follow-up question instead.",
   },
+};
+
+// Deterministic, type-aware follow-up question for low-confidence updates.
+// Mirrors `buildFollowUpQuestion` in supabase/functions/brand-engine/index.ts so
+// the user can answer offline without invoking the planner first.
+const FOLLOWUP_TYPE_ASK: Record<string, string> = {
+  testimonial: "Who said it, and what specific result did they get?",
+  customer_story: "Which customer is this about, and what's the one number or outcome that proves the change?",
+  product: "What's the launch date, price, and the single biggest thing this changes for customers?",
+  event: "When and where is it, and what should people do (book / show up / RSVP)?",
+  milestone: "What's the exact number reached, and over what time period?",
+  csr: "Who did you partner with, where, and what was the tangible impact?",
+  press: "Which outlet ran it, the headline, and a link?",
+  partnership: "Who's the partner, what are you doing together, and when does it start?",
+  other: "What's the one specific fact (name, number, date, or outcome) you'd want a post to lead with?",
+};
+
+const buildFollowUpQuestion = (u: { update_type: string; title: string | null; content: string; missing_fields: string[] | null }): string => {
+  const gaps = Array.isArray(u.missing_fields) ? u.missing_fields.slice(0, 2) : [];
+  const headline = (u.title || u.content || "this update").toString().trim().slice(0, 60);
+  const base = FOLLOWUP_TYPE_ASK[u.update_type] || FOLLOWUP_TYPE_ASK.other;
+  return gaps.length > 0
+    ? `For "${headline}" — ${base} (Missing: ${gaps.join(", ")}.)`
+    : `For "${headline}" — ${base}`;
 };
 
 interface FormState {
@@ -171,6 +196,12 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const [uploading, setUploading] = useState(false);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+
+  // Inline answers for low-confidence updates (keyed by update id).
+  const [inlineAnswers, setInlineAnswers] = useState<Record<string, string>>({});
+  const [inlineSavingId, setInlineSavingId] = useState<string | null>(null);
+  const [inlineDismissed, setInlineDismissed] = useState<Set<string>>(new Set());
+  const [showLowConfPanel, setShowLowConfPanel] = useState(true);
 
   // AI summarise + confidence check
   type AiCheck = {
@@ -255,6 +286,114 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       return d !== null && d < 0;
     });
   }, [updates, showArchived]);
+
+  // Active LOW-confidence updates (excluding ones the user dismissed this session).
+  // These are the items the AI generation pipeline will SKIP unless they get more detail.
+  const lowConfidenceUpdates = useMemo(() => {
+    if (showArchived) return [];
+    return (updates || []).filter(
+      (u) =>
+        u.status === "active" &&
+        tierFor(u.confidence) === "low" &&
+        !inlineDismissed.has(u.id),
+    );
+  }, [updates, showArchived, inlineDismissed]);
+
+  // Append the user's inline answer to the update's content, re-run the AI
+  // editorial check to refresh the confidence score, and persist both.
+  const saveInlineAnswer = async (u: BrandUpdate) => {
+    const answer = (inlineAnswers[u.id] || "").trim();
+    if (!answer) {
+      toast({
+        title: "Add a quick answer first",
+        description: "Even one sentence lifts confidence enough for the AI to use it.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (inlineSavingId) return;
+    setInlineSavingId(u.id);
+    try {
+      const question = buildFollowUpQuestion(u);
+      // Append the Q+A as a new line so the original wording is preserved.
+      const mergedContent = `${(u.content || "").trim()}\n\nFollow-up — ${question}\nAnswer: ${answer}`.slice(0, 600);
+
+      // Re-score the merged content so future generations know it's stronger now.
+      let newConfidence: number | null = null;
+      let newMissing: string[] | null = null;
+      try {
+        const { data: aiData, error: aiErr } = await supabase.functions.invoke("summarise-update", {
+          body: {
+            update_type: u.update_type,
+            title: u.title || "",
+            content: mergedContent,
+            attribution: u.attribution || "",
+          },
+        });
+        if (!aiErr && aiData) {
+          const c = (aiData as any).confidence;
+          if (typeof c === "number") newConfidence = Math.max(0, Math.min(100, Math.round(c)));
+          const mf = (aiData as any).missing_fields;
+          if (Array.isArray(mf)) newMissing = mf.slice(0, 8);
+        }
+      } catch {
+        // Non-blocking: still save the answer even if the rescore fails.
+      }
+
+      const payload: Record<string, any> = { content: mergedContent };
+      if (newConfidence !== null) payload.confidence = newConfidence;
+      if (newMissing !== null) payload.missing_fields = newMissing;
+
+      const { error } = await supabase
+        .from("brand_updates" as any)
+        .update(payload)
+        .eq("id", u.id);
+      if (error) throw error;
+
+      // Clear the textarea + remove the in-flight follow-up entry (if any).
+      setInlineAnswers((prev) => {
+        const next = { ...prev };
+        delete next[u.id];
+        return next;
+      });
+      setFollowUps((prev) => prev.filter((f) => f.update_id !== u.id));
+
+      const tier = tierFor(newConfidence);
+      toast({
+        title: "Answer saved",
+        description:
+          tier === "low"
+            ? "Saved — but confidence is still low. Try adding a name, number or date."
+            : tier === "medium"
+              ? `Confidence lifted to ${newConfidence}/100 — AI can now use it as soft inspiration.`
+              : `Strong signal (${newConfidence}/100) — AI will quote this directly.`,
+      });
+
+      qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
+      refetch();
+    } catch (e: any) {
+      toast({
+        title: "Couldn't save the answer",
+        description: e?.message || "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setInlineSavingId(null);
+    }
+  };
+
+  const dismissInline = (id: string) => {
+    setInlineDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setInlineAnswers((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
 
   const reset = () => {
     setForm(emptyForm());
@@ -894,6 +1033,113 @@ export default function BrandUpdates({ brandId, userId }: Props) {
               {expired.length} expired update{expired.length === 1 ? "" : "s"} are no longer being used. Archive or extend the expiry date.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Inline follow-up panel — every active LOW-confidence update gets a
+          deterministic, type-aware question + textarea so the user can
+          strengthen items one by one without leaving the page. */}
+      {lowConfidenceUpdates.length > 0 && showLowConfPanel && (
+        <div
+          id="brand-updates-low-confidence"
+          className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 space-y-3 scroll-mt-20"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
+              <HelpCircle className="h-4 w-4 mt-0.5 text-rose-600 dark:text-rose-400 shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-rose-700 dark:text-rose-400">
+                  {lowConfidenceUpdates.length} update{lowConfidenceUpdates.length === 1 ? "" : "s"} need{lowConfidenceUpdates.length === 1 ? "s" : ""} more detail
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Answer one quick question per item — the AI will then start using them as factual seed material.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLowConfPanel(false)}
+              className="text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+              title="Hide for now"
+            >
+              Hide
+            </button>
+          </div>
+
+          <ul className="space-y-2">
+            {lowConfidenceUpdates.map((u) => {
+              const meta = TYPE_META[u.update_type] || TYPE_META.other;
+              const question = buildFollowUpQuestion(u);
+              const value = inlineAnswers[u.id] || "";
+              const saving = inlineSavingId === u.id;
+              const confLabel = typeof u.confidence === "number" ? `${u.confidence}/100` : "no AI check yet";
+              return (
+                <li
+                  key={u.id}
+                  className="rounded-lg bg-background/70 border border-border p-2.5 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm leading-none shrink-0" aria-hidden="true">{meta.emoji}</span>
+                      <span className="text-[11px] font-medium text-foreground truncate">
+                        {u.title || u.content.slice(0, 60) || "Untitled update"}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {confLabel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-foreground leading-snug">{question}</p>
+                  <Textarea
+                    value={value}
+                    onChange={(e) =>
+                      setInlineAnswers((prev) => ({ ...prev, [u.id]: e.target.value.slice(0, 400) }))
+                    }
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        saveInlineAnswer(u);
+                      }
+                    }}
+                    placeholder="Type a name, number, date, or one-line specific…"
+                    rows={2}
+                    className="text-xs resize-none"
+                    disabled={saving}
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-muted-foreground">
+                      {value.length}/400 · ⌘/Ctrl + Enter to save
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={() => dismissInline(u.id)}
+                        disabled={saving}
+                      >
+                        Skip
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 px-3 text-[11px]"
+                        onClick={() => saveInlineAnswer(u)}
+                        disabled={saving || !value.trim()}
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Saving
+                          </>
+                        ) : (
+                          "Save answer"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
