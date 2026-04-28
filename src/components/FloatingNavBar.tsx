@@ -22,7 +22,8 @@ const FloatingNavBar = () => {
     <>
       {/* Mobile / Tablet — bottom floating bar */}
       <nav
-        className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
+        className="lg:hidden fixed left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
         aria-label="Primary"
       >
         <div
