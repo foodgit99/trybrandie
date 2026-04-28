@@ -2139,8 +2139,18 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
               {!editingIdeaId && ideaForm.content_category && ideaForm.content_category === getLastCategory(user?.id, brandId, "idea", validCategoryIds) && (
-                <p className="text-[10px] text-muted-foreground/80 leading-snug">
-                  Preselected from your last idea. Change it anytime above.
+                <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
+                  <span>Preselected from your last idea. Change it anytime above.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearLastCategory(user?.id, brandId, "idea");
+                      setIdeaForm((f) => ({ ...f, content_category: "" }));
+                    }}
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    Reset to default
+                  </button>
                 </p>
               )}
             </div>
