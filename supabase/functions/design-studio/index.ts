@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
 import { sanitise } from "../_shared/sanitise.ts";
 import { Tracer } from "../_shared/tracer.ts";
@@ -17,6 +18,118 @@ import {
   buildCopyForbiddenContext,
   enrichWithResearch,
 } from "../_shared/category-recipes.ts";
+
+// --- PLATFORM CANVAS PRESETS ---
+// Strict pixel dimensions per social platform. The renderer is forced to
+// output EXACTLY these dimensions via center-crop + resize (see enforceCanvasDimensions).
+const CANVAS_PRESETS: Record<string, { w: number; h: number; label: string; platform: string }> = {
+  // Instagram
+  "1080x1080":     { w: 1080, h: 1080, label: "Instagram square post",        platform: "Instagram" },
+  "1080x1350":     { w: 1080, h: 1350, label: "Instagram portrait post",      platform: "Instagram" },
+  "1080x1920":     { w: 1080, h: 1920, label: "Instagram story / reel",       platform: "Instagram" },
+  // Facebook
+  "1200x630":      { w: 1200, h: 630,  label: "Facebook feed post",           platform: "Facebook" },
+  "fb-1080x1920":  { w: 1080, h: 1920, label: "Facebook story",               platform: "Facebook" },
+  "1640x924":      { w: 1640, h: 924,  label: "Facebook cover",               platform: "Facebook" },
+  // TikTok
+  "tt-1080x1920":  { w: 1080, h: 1920, label: "TikTok vertical",              platform: "TikTok" },
+  // LinkedIn
+  "1200x627":      { w: 1200, h: 627,  label: "LinkedIn post",                platform: "LinkedIn" },
+  "1584x396":      { w: 1584, h: 396,  label: "LinkedIn cover banner",        platform: "LinkedIn" },
+  // YouTube / Twitter
+  "1920x1080":     { w: 1920, h: 1080, label: "YouTube / landscape",          platform: "YouTube" },
+  "1600x900":      { w: 1600, h: 900,  label: "Twitter / X post",             platform: "Twitter / X" },
+  // Pinterest
+  "1000x1500":     { w: 1000, h: 1500, label: "Pinterest pin",                platform: "Pinterest" },
+};
+
+function resolveCanvas(size: string | undefined | null) {
+  const key = size || "1080x1080";
+  const preset = CANVAS_PRESETS[key];
+  if (preset) return { key, ...preset };
+  // Fallback: parse "WxH" if anything unexpected is sent.
+  const m = /^(\d+)x(\d+)$/.exec(key);
+  if (m) {
+    const w = parseInt(m[1], 10);
+    const h = parseInt(m[2], 10);
+    return { key, w, h, label: `${w}x${h}`, platform: "Custom" };
+  }
+  return { key: "1080x1080", w: 1080, h: 1080, label: "Instagram square post", platform: "Instagram" };
+}
+
+function describeAspect(w: number, h: number): string {
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.02) return "perfectly SQUARE (1:1)";
+  if (ratio > 1.05) return `WIDE LANDSCAPE (${w}:${h}, aspect ratio ${(ratio).toFixed(2)}:1)`;
+  return `TALL PORTRAIT (${w}:${h}, aspect ratio 1:${(1 / ratio).toFixed(2)})`;
+}
+
+function buildCanvasFormatBrief(w: number, h: number, label: string): string {
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.02) {
+    return `\n\nCANVAS FORMAT: SQUARE (${w}×${h} — ${label}). Plan a centered, compact, symmetrical composition. All elements balanced around the center. Avoid wide horizontal layouts — keep content compact and vertically centered.`;
+  }
+  if (ratio > 1.05) {
+    return `\n\nCANVAS FORMAT: WIDE LANDSCAPE (${w}×${h} — ${label}, aspect ratio ${ratio.toFixed(2)}:1). Plan a horizontally spread composition. Content can span the full width. Use horizontal balance and side-by-side element placement. Do NOT design for a square or portrait canvas.`;
+  }
+  return `\n\nCANVAS FORMAT: TALL PORTRAIT (${w}×${h} — ${label}, aspect ratio 1:${(1 / ratio).toFixed(2)}). Plan a vertically stacked composition with elements flowing top-to-bottom. Use strong vertical hierarchy. Avoid wide horizontal spreads — stack elements vertically.`;
+}
+
+function buildCanvasFormatCopy(w: number, h: number): string {
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.02) {
+    return "\n\nCANVAS FORMAT: SQUARE (1:1). Keep copy SHORT and COMPACT — fewer text elements, tight word count. Prefer a strong headline with minimal supporting text.";
+  }
+  if (ratio > 1.05) {
+    return "\n\nCANVAS FORMAT: LANDSCAPE. You have HORIZONTAL space. Copy can be slightly more expansive. Side-by-side text elements work well. Keep good horizontal balance.";
+  }
+  return "\n\nCANVAS FORMAT: PORTRAIT. Copy should follow a VERTICAL HIERARCHY — headline at top, supporting text in middle, CTA at bottom. Stacked text blocks work well, but keep each block concise.";
+}
+
+function buildDimensionEnforcement(w: number, h: number, label: string): string {
+  return `CRITICAL DIMENSION REQUIREMENT: This image MUST be EXACTLY ${w}×${h} pixels — ${describeAspect(w, h)} — designed for a ${label}. Do NOT crop, letterbox, or pad. Compose every element so nothing important sits within 4% of the edges (the output is force-cropped to these exact dimensions).`;
+}
+
+// --- STRICT CANVAS ENFORCEMENT (post-render) ---
+// Center-crop the rendered image to the target aspect ratio, then resize to the exact pixel dimensions.
+// This guarantees the final asset matches the platform spec regardless of what the model returned.
+async function enforceCanvasDimensions(
+  inputBytes: Uint8Array,
+  targetW: number,
+  targetH: number,
+): Promise<Uint8Array> {
+  try {
+    const img = await Image.decode(inputBytes);
+    const srcW = img.width;
+    const srcH = img.height;
+
+    // Skip work if already an exact match.
+    if (srcW === targetW && srcH === targetH) return inputBytes;
+
+    const targetRatio = targetW / targetH;
+    const srcRatio = srcW / srcH;
+
+    let cropW = srcW;
+    let cropH = srcH;
+    if (srcRatio > targetRatio) {
+      // Source is wider than target → crop sides.
+      cropW = Math.round(srcH * targetRatio);
+    } else if (srcRatio < targetRatio) {
+      // Source is taller than target → crop top/bottom.
+      cropH = Math.round(srcW / targetRatio);
+    }
+    const cropX = Math.floor((srcW - cropW) / 2);
+    const cropY = Math.floor((srcH - cropH) / 2);
+
+    const cropped = img.crop(cropX, cropY, cropW, cropH);
+    const resized = cropped.resize(targetW, targetH);
+    return await resized.encode();
+  } catch (err) {
+    console.error("enforceCanvasDimensions failed, returning original bytes:", err);
+    return inputBytes;
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
