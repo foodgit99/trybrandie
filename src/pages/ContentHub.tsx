@@ -730,6 +730,7 @@ const ContentHub = () => {
         pillar_id: seriesForm.pillar_id || null,
         content_category: parseCategoryIds(seriesForm.content_category)[0] || null,
       };
+      setLastCategory(user.id, "series", payload.content_category);
 
       if (editingSeriesId) {
         const { error } = await supabase.from("post_series").update(payload).eq("id", editingSeriesId);
@@ -782,6 +783,7 @@ const ContentHub = () => {
         post_count: campaignForm.post_count,
         content_category: parseCategoryIds(campaignForm.content_category)[0] || null,
       };
+      setLastCategory(user.id, "campaign", payload.content_category);
       if (editingCampaignId) {
         const { error } = await supabase.from("campaigns").update(payload).eq("id", editingCampaignId);
         if (error) throw error;
@@ -874,6 +876,7 @@ const ContentHub = () => {
         autopilot: ideaForm.autopilot,
         content_category: parseCategoryIds(ideaForm.content_category)[0] || null,
       };
+      setLastCategory(user.id, "idea", payload.content_category);
 
       if (editingIdeaId) {
         const { error } = await supabase.from("content_ideas").update(payload).eq("id", editingIdeaId);
