@@ -28,6 +28,7 @@ import {
   ArchiveRestore,
   Wand2,
   AlertTriangle,
+  ListChecks,
 } from "lucide-react";
 
 const UPDATE_TYPES: Array<{
