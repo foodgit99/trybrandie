@@ -87,12 +87,57 @@ function buildCanvasFormatCopy(w: number, h: number): string {
 }
 
 function buildDimensionEnforcement(w: number, h: number, label: string): string {
-  return `CRITICAL DIMENSION REQUIREMENT: This image MUST be EXACTLY ${w}×${h} pixels — ${describeAspect(w, h)} — designed for a ${label}. Do NOT crop, letterbox, or pad. Compose every element so nothing important sits within 4% of the edges (the output is force-cropped to these exact dimensions).`;
+  const ratio = w / h;
+  const aspectLabel = describeAspect(w, h);
+  let safeZoneRule: string;
+  if (Math.abs(ratio - 1) < 0.05) {
+    // Square / near-square
+    safeZoneRule = `Compose every element so nothing important sits within 4% of any edge.`;
+  } else if (ratio >= 3 || ratio <= 1 / 3) {
+    // Ultra-wide banner or ultra-tall — most extreme case (e.g. LinkedIn cover 4:1)
+    safeZoneRule = `EXTREME ASPECT RATIO. ALL critical text, the logo, and the focal subject MUST sit within the central 70% along the long axis and the central 80% along the short axis. Headlines must be sized to fully fit on a single line within those bounds — do NOT let any glyph extend past 12% from the left or right edges. Compose for the FULL ${w}×${h} canvas, not for a square.`;
+  } else if (ratio >= 2 || ratio <= 0.5) {
+    // Strong wide/tall (e.g. 16:9, 2:3, 9:16 stories handled here too)
+    safeZoneRule = `Keep all critical text and the logo at least 8% inset from the long-axis edges and 12% inset from the short-axis edges. Compose for the FULL ${w}×${h} canvas, not for a square that would be cropped.`;
+  } else {
+    safeZoneRule = `Keep critical text and the logo at least 6% inset from every edge. Compose for the FULL ${w}×${h} canvas.`;
+  }
+  return `CRITICAL DIMENSION REQUIREMENT: This image MUST be EXACTLY ${w}×${h} pixels — ${aspectLabel} — designed for a ${label}. ${safeZoneRule} Do NOT design for a square and assume it will be re-cropped — the model output IS the final canvas.`;
+}
+
+// Map a target (w, h) to the closest aspect ratio supported by Gemini's
+// image preview model. Defaults to "1:1" when unsure.
+function mapToGeminiAspectRatio(w: number, h: number): string {
+  const supported: { label: string; ratio: number }[] = [
+    { label: "1:1",  ratio: 1 / 1 },
+    { label: "4:5",  ratio: 4 / 5 },
+    { label: "3:4",  ratio: 3 / 4 },
+    { label: "2:3",  ratio: 2 / 3 },
+    { label: "9:16", ratio: 9 / 16 },
+    { label: "4:3",  ratio: 4 / 3 },
+    { label: "3:2",  ratio: 3 / 2 },
+    { label: "16:9", ratio: 16 / 9 },
+    { label: "21:9", ratio: 21 / 9 },
+  ];
+  const target = w / h;
+  let best = supported[0];
+  let bestDelta = Math.abs(Math.log(target / best.ratio));
+  for (const s of supported) {
+    const delta = Math.abs(Math.log(target / s.ratio));
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = s;
+    }
+  }
+  return best.label;
 }
 
 // --- STRICT CANVAS ENFORCEMENT (post-render) ---
-// Center-crop the rendered image to the target aspect ratio, then resize to the exact pixel dimensions.
-// This guarantees the final asset matches the platform spec regardless of what the model returned.
+// 1) If the source already matches the target aspect (~2%), just resize.
+// 2) If the source is close to the target (within ~30% ratio mismatch),
+//    scale-to-FIT inside the target canvas and pad with a sampled background
+//    color so NO design elements get cropped away.
+// 3) Only as a last-resort fallback for wildly-off ratios do we center-crop.
 async function enforceCanvasDimensions(
   inputBytes: Uint8Array,
   targetW: number,
@@ -103,27 +148,69 @@ async function enforceCanvasDimensions(
     const srcW = img.width;
     const srcH = img.height;
 
-    // Skip work if already an exact match.
     if (srcW === targetW && srcH === targetH) return inputBytes;
 
     const targetRatio = targetW / targetH;
     const srcRatio = srcW / srcH;
+    const ratioDelta = Math.abs(Math.log(srcRatio / targetRatio));
 
-    let cropW = srcW;
-    let cropH = srcH;
-    if (srcRatio > targetRatio) {
-      // Source is wider than target → crop sides.
-      cropW = Math.round(srcH * targetRatio);
-    } else if (srcRatio < targetRatio) {
-      // Source is taller than target → crop top/bottom.
-      cropH = Math.round(srcW / targetRatio);
+    // Case 1: aspect ratios already match (<= ~2% off). Pure resize.
+    if (ratioDelta < 0.02) {
+      const resized = img.resize(targetW, targetH);
+      return await resized.encode();
     }
-    const cropX = Math.floor((srcW - cropW) / 2);
-    const cropY = Math.floor((srcH - cropH) / 2);
 
-    const cropped = img.crop(cropX, cropY, cropW, cropH);
-    const resized = cropped.resize(targetW, targetH);
-    return await resized.encode();
+    // Case 3: wildly off (>~35%) — fall back to center-crop to avoid huge bars.
+    // log(1.42) ≈ 0.35 → roughly 42% ratio mismatch.
+    if (ratioDelta > 0.35) {
+      let cropW = srcW;
+      let cropH = srcH;
+      if (srcRatio > targetRatio) cropW = Math.round(srcH * targetRatio);
+      else cropH = Math.round(srcW / targetRatio);
+      const cropX = Math.floor((srcW - cropW) / 2);
+      const cropY = Math.floor((srcH - cropH) / 2);
+      const cropped = img.crop(cropX, cropY, cropW, cropH);
+      const resized = cropped.resize(targetW, targetH);
+      return await resized.encode();
+    }
+
+    // Case 2: scale-to-fit + pad. Sample average of edge pixels to pick a
+    // background color that blends with the image (fall back to neutral grey).
+    let scaledW: number;
+    let scaledH: number;
+    if (srcRatio > targetRatio) {
+      // Source wider → fit to width.
+      scaledW = targetW;
+      scaledH = Math.max(1, Math.round(targetW / srcRatio));
+    } else {
+      scaledH = targetH;
+      scaledW = Math.max(1, Math.round(targetH * srcRatio));
+    }
+    const scaled = img.resize(scaledW, scaledH);
+
+    // Sample 4 corners + 4 mid-edge pixels for the pad color.
+    const samplePoints: Array<[number, number]> = [
+      [0, 0], [srcW - 1, 0], [0, srcH - 1], [srcW - 1, srcH - 1],
+      [Math.floor(srcW / 2), 0], [Math.floor(srcW / 2), srcH - 1],
+      [0, Math.floor(srcH / 2)], [srcW - 1, Math.floor(srcH / 2)],
+    ];
+    let r = 0, g = 0, b = 0;
+    for (const [x, y] of samplePoints) {
+      const px = img.getRGBAAt(x + 1, y + 1); // imagescript uses 1-indexed coords
+      r += px[0]; g += px[1]; b += px[2];
+    }
+    const n = samplePoints.length;
+    const avgR = Math.round(r / n);
+    const avgG = Math.round(g / n);
+    const avgB = Math.round(b / n);
+    const padColor = ((avgR & 0xff) << 24) | ((avgG & 0xff) << 16) | ((avgB & 0xff) << 8) | 0xff;
+
+    const canvas = new Image(targetW, targetH);
+    canvas.fill(padColor);
+    const dx = Math.floor((targetW - scaledW) / 2);
+    const dy = Math.floor((targetH - scaledH) / 2);
+    canvas.composite(scaled, dx, dy);
+    return await canvas.encode();
   } catch (err) {
     console.error("enforceCanvasDimensions failed, returning original bytes:", err);
     return inputBytes;
