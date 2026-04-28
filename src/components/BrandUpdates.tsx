@@ -930,6 +930,19 @@ export default function BrandUpdates({ brandId, userId }: Props) {
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">
                           {meta.emoji} {meta.label}
                         </span>
+                        {(() => {
+                          const t = tierFor(u.confidence);
+                          const tm = tierMeta[t];
+                          return (
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-full border ${tm.cls}`}
+                              title={`${tm.help}${typeof u.confidence === "number" ? ` (confidence ${u.confidence}/100)` : " (no AI check yet)"}`}
+                            >
+                              {tm.label}
+                              {typeof u.confidence === "number" ? ` · ${u.confidence}` : ""}
+                            </span>
+                          );
+                        })()}
                         <span className="text-[10px] text-muted-foreground">{u.event_date}</span>
                         {u.times_used > 0 && (
                           <span className="text-[10px] text-muted-foreground">• used {u.times_used}×</span>
