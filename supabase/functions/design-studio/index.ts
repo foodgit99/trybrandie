@@ -54,73 +54,25 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
 }
 
 // --- CONTENT CATEGORIES ---
+// CONTENT_CATEGORIES is now derived from the shared CATEGORY_RECIPES module.
+// This adapter preserves the existing { name, brief_directive, copy_directive, caption_directive }
+// shape used throughout this file while sourcing the enriched directives from the recipes.
 const CONTENT_CATEGORIES: Record<string, {
   name: string;
   brief_directive: string;
   copy_directive: string;
   caption_directive: string;
-}> = {
-  announcement: {
-    name: "Announcement",
-    brief_directive: "This is ANNOUNCEMENT content. Use bold, high-energy composition. The headline must be the hero element — large, confident, unmissable. Convey newness and excitement. Use dynamic visual direction and strong focal hierarchy.",
-    copy_directive: "This is ANNOUNCEMENT content. Lead with the news. Use exciting, confident language — 'Introducing', 'Now Available', 'Just Launched'. The headline must announce something specific. Create urgency and anticipation.",
-    caption_directive: "This is ANNOUNCEMENT content. The caption should build hype, share the news clearly, and invite the audience to engage or take action.",
-  },
-  educational: {
-    name: "Educational",
-    brief_directive: "This is EDUCATIONAL content (status-builder). Use a structured, clean composition that signals authority and clarity. Visual hierarchy should guide the reader through information logically. Use balanced layout with clear sections. The design should make the audience feel smarter.",
-    copy_directive: "This is EDUCATIONAL content. Structure copy as digestible insight — tips, steps, or a key takeaway. Use authority-building language. The headline should promise value ('How to...', 'X Tips for...', 'The Secret to...'). Be concise but informative.",
-    caption_directive: "This is EDUCATIONAL content. The caption should expand on the insight, position the brand as an authority, and encourage saves/shares.",
-  },
-  informational: {
-    name: "Informational",
-    brief_directive: "This is INFORMATIONAL content. Use clean, minimal composition focused on clarity and readability. Information must be instantly scannable. Remove visual noise — prioritise legibility and logical structure over decoration.",
-    copy_directive: "This is INFORMATIONAL content. Be purely factual and logistical — hours, locations, policies, processes. Use clear, direct language with no persuasion or fluff. Structure for quick scanning.",
-    caption_directive: "This is INFORMATIONAL content. The caption should be straightforward, provide any additional details, and direct people where to go for more info.",
-  },
-  entertainment: {
-    name: "Entertainment",
-    brief_directive: "This is ENTERTAINMENT content (engagement engine). Make it scroll-stopping, visually playful, and relatable. Use dynamic composition, bold colours, and unexpected visual elements. The design should make people smile, laugh, or feel seen.",
-    copy_directive: "This is ENTERTAINMENT content. Be playful, witty, relatable. Use conversational language, humour, or cultural references. Keep it snappy and shareable. The headline should hook immediately.",
-    caption_directive: "This is ENTERTAINMENT content. The caption should be conversational, funny or relatable, and encourage tagging/sharing.",
-  },
-  promotional: {
-    name: "Promotional",
-    brief_directive: "This is PROMOTIONAL content (direct ask). The CTA must be the most prominent element. Use high-contrast, action-oriented composition. Product/offer should be front-and-center. Create visual urgency through bold colours and strong focal hierarchy.",
-    copy_directive: "This is PROMOTIONAL content. Lead with the offer/value proposition. Use urgency language ('Limited Time', 'Today Only', 'Don't Miss'). The CTA must be clear and specific ('Shop Now', 'Book Today', 'Get 20% Off'). Every word should drive action.",
-    caption_directive: "This is PROMOTIONAL content. The caption should reinforce the offer, add urgency, and include a clear call-to-action with any relevant details (link, code, deadline).",
-  },
-  trending: {
-    name: "Trending",
-    brief_directive: "This is TRENDING content (algorithmic reach play). Capitalise on the current cultural moment or format. Design should feel timely, format-aware, and optimised for discovery. Use visual language that signals relevance to the trend while staying on-brand.",
-    copy_directive: "This is TRENDING content. Reference the cultural moment or trend naturally. Use language that feels current and relevant. The copy should make the brand feel plugged-in without being try-hard.",
-    caption_directive: "This is TRENDING content. The caption should ride the trend wave, use relevant trending hashtags, and be optimised for reach and discovery.",
-  },
-  holidays: {
-    name: "Holidays & Greetings",
-    brief_directive: "This is HOLIDAYS & GREETINGS content. Use warm, festive, celebratory composition. The design should acknowledge the cultural moment with appropriate visual elements (seasonal colours, festive motifs). Balance celebration with brand identity.",
-    copy_directive: "This is HOLIDAYS & GREETINGS content. Lead with the greeting or celebration. Be warm, inclusive, and genuine. Reference the specific holiday/occasion. Keep it heartfelt, not salesy — unless combining with a holiday promotion.",
-    caption_directive: "This is HOLIDAYS & GREETINGS content. The caption should be warm and celebratory, connect the brand to the cultural moment, and foster community feeling.",
-  },
-  social_proof: {
-    name: "Social Proof / UGC",
-    brief_directive: "This is SOCIAL PROOF content (affiliation play). Design around trust-building — testimonials, quotes, or real user stories. Use clean composition that highlights the quote/testimonial as the hero. Add visual cues of authenticity (quote marks, real photos, star ratings).",
-    copy_directive: "This is SOCIAL PROOF content. Let the customer/user voice shine. Use their actual words or craft a realistic testimonial. Add attribution. The headline should reinforce trust ('What Our Customers Say', 'Real Results').",
-    caption_directive: "This is SOCIAL PROOF content. The caption should reinforce trust, share the customer story, and encourage others to share their experiences.",
-  },
-  behind_the_scenes: {
-    name: "Behind-the-Scenes",
-    brief_directive: "This is BEHIND-THE-SCENES content. Use authentic, raw, candid visual composition. The design should feel human and unpolished-on-purpose — showing the real side of the business. Use warm, approachable styling. People connect with people, not logos.",
-    copy_directive: "This is BEHIND-THE-SCENES content. Be casual, authentic, and personal. Share the human side — the hustle, the process, the team. Use first-person or conversational language. Keep it genuine, not performative.",
-    caption_directive: "This is BEHIND-THE-SCENES content. The caption should be personal and authentic, share a behind-the-scenes story, and invite the audience into the brand's world.",
-  },
-  interactive: {
-    name: "Interactive / Engagement",
-    brief_directive: "This is INTERACTIVE content (conversation starter). Design for participation — the layout should clearly present a question, poll, or choice. Use visual elements that invite response (vs/this-or-that layouts, question marks, blank spaces for answers). Make participation feel easy and fun.",
-    copy_directive: "This is INTERACTIVE content. Frame everything as a question or choice. Use 'Which do you prefer?', 'Tell us...', 'Vote below', 'This or That?'. The copy should make the audience want to respond. Keep it simple and participation-friendly.",
-    caption_directive: "This is INTERACTIVE content. The caption should directly ask for engagement, pose the question clearly, and make it easy for followers to respond in comments.",
-  },
-};
+}> = Object.fromEntries(
+  Object.entries(CATEGORY_RECIPES).map(([id, r]) => [
+    id,
+    {
+      name: r.name,
+      brief_directive: r.brief_directive,
+      copy_directive: r.copy_directive,
+      caption_directive: r.caption_directive,
+    },
+  ]),
+);
 
 // --- CONTENT CATEGORY CLASSIFIER (deterministic-first, LLM fallback) ---
 function classifyCategoryByRules(prompt: string): string | null {
