@@ -1295,6 +1295,14 @@ const DesignStudio = () => {
               <SelectValue placeholder="Choose platform" />
             </SelectTrigger>
             <SelectContent className="max-h-[60vh]">
+              <SelectGroup>
+                <SelectLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+                  Smart
+                </SelectLabel>
+                <SelectItem value={AUTO_CANVAS_VALUE} className="text-xs sm:text-sm">
+                  ✨ Auto — pick from prompt
+                </SelectItem>
+              </SelectGroup>
               {Object.entries(CANVAS_GROUPS).map(([platform, presets]) => (
                 <SelectGroup key={platform}>
                   <SelectLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
