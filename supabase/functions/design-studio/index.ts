@@ -2456,18 +2456,22 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
             ]
           : imagePromptText;
 
-        // Image Renderer (with retry)
+        // Image Renderer (with retry). Pass aspect_ratio so the model
+        // composes for the correct canvas instead of defaulting to 1:1.
+        const geminiAspect = mapToGeminiAspectRatio(w, h);
+        const imageRequestBody = {
+          model: "google/gemini-3-pro-image-preview",
+          messages: [{ role: "user", content: imageContent }],
+          modalities: ["image", "text"],
+          image_config: { aspect_ratio: geminiAspect },
+        };
         const imageResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            model: "google/gemini-3-pro-image-preview",
-            messages: [{ role: "user", content: imageContent }],
-            modalities: ["image", "text"],
-          }),
+          body: JSON.stringify(imageRequestBody),
         });
 
         if (!imageResponse.ok) {
