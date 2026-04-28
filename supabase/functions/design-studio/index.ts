@@ -1897,7 +1897,8 @@ ${brand.special_instructions}
       // Resolve content category (already completed during brief — instant)
       const resolvedCategory = await contentCategoryPromise;
       const resolvedCategoryData = CONTENT_CATEGORIES[resolvedCategory];
-      const researchContext = await researchPromise;
+      const researchEnrichment = await researchPromise;
+      const researchContext = researchEnrichment.promptText;
       const copyForbiddenContext = buildCopyForbiddenContext(resolvedCategory);
       const ctaPolicyLine = (() => {
         const policy = CATEGORY_RECIPES[resolvedCategory]?.cta_policy;
