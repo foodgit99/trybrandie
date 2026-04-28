@@ -2018,8 +2018,18 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
               {!editingCampaignId && campaignForm.content_category && campaignForm.content_category === getLastCategory(user?.id, brandId, "campaign", validCategoryIds) && (
-                <p className="text-[10px] text-muted-foreground/80 leading-snug">
-                  Preselected from your last campaign. Change it anytime above.
+                <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
+                  <span>Preselected from your last campaign. Change it anytime above.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearLastCategory(user?.id, brandId, "campaign");
+                      setCampaignForm((f) => ({ ...f, content_category: "" }));
+                    }}
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    Reset to default
+                  </button>
                 </p>
               )}
             </div>
