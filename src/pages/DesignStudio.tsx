@@ -1195,14 +1195,21 @@ const DesignStudio = () => {
           {chatMode === "create" && (
             <>
           <Select value={canvasSize} onValueChange={setCanvasSize}>
-            <SelectTrigger className="w-[120px] sm:w-[180px] h-8 sm:h-9 rounded-xl text-xs sm:text-sm">
-              <SelectValue />
+            <SelectTrigger className="w-[150px] sm:w-[230px] h-8 sm:h-9 rounded-xl text-xs sm:text-sm">
+              <SelectValue placeholder="Choose platform" />
             </SelectTrigger>
-            <SelectContent>
-              {CANVAS_SIZES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
+            <SelectContent className="max-h-[60vh]">
+              {Object.entries(CANVAS_GROUPS).map(([platform, presets]) => (
+                <SelectGroup key={platform}>
+                  <SelectLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+                    {platform}
+                  </SelectLabel>
+                  {presets.map((s) => (
+                    <SelectItem key={s.value} value={s.value} className="text-xs sm:text-sm">
+                      {s.label.replace(`${platform} · `, "").replace(`${platform} `, "")}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
