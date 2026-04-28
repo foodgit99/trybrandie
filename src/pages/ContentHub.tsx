@@ -2159,7 +2159,7 @@ const ContentHub = () => {
               </Select>
               {!editingIdeaId && ideaForm.content_category && ideaForm.content_category === getLastCategory(user?.id, brandId, "idea", validCategoryIds) && (
                 <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
-                  <span>Preselected from your last idea. Change it anytime above.</span>
+                  <span>Using your last category.</span>
                   <button
                     type="button"
                     onClick={() => {
