@@ -1004,52 +1004,65 @@ const ContentHub = () => {
             </p>
           </div>
 
-          {/* Category filter — applies to Series, Campaigns, and weekly Ideas */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("all")}
-              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
-                categoryFilter === "all"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
-              }`}
-              title="Show every category"
-            >
-              <LayoutGrid className="h-3 w-3" />
-              <span>All categories</span>
-            </button>
-            {CONTENT_CATEGORIES.map((cat) => {
-              const active = categoryFilter === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategoryFilter(cat.id)}
-                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
-                  }`}
-                  title={cat.label}
-                >
-                  <span>{cat.emoji}</span>
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
-            {categoryFilter !== "all" && (
+          {/* Category filter + sort — applies to Series, Campaigns, and weekly Ideas */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none flex-1 min-w-0">
               <button
                 type="button"
                 onClick={() => setCategoryFilter("all")}
-                className="shrink-0 rounded-full border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/40 px-2.5 py-1 inline-flex items-center gap-1 transition-colors"
-                title="Reset filter to show all categories"
-                aria-label="Reset category filter"
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
+                  categoryFilter === "all"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+                }`}
+                title="Show every category"
               >
-                <X className="h-3 w-3" />
-                <span>Reset</span>
+                <LayoutGrid className="h-3 w-3" />
+                <span>All categories</span>
               </button>
-            )}
+              {CONTENT_CATEGORIES.map((cat) => {
+                const active = categoryFilter === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategoryFilter(cat.id)}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+                    }`}
+                    title={cat.label}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+              {categoryFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter("all")}
+                  className="shrink-0 rounded-full border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/40 px-2.5 py-1 inline-flex items-center gap-1 transition-colors"
+                  title="Reset filter to show all categories"
+                  aria-label="Reset category filter"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+            <Select value={sortOption} onValueChange={(v) => setSortOption(v as ContentHubSortOption)}>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[160px] shrink-0" aria-label="Sort order">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="az">Name A → Z</SelectItem>
+                <SelectItem value="za">Name Z → A</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Strategist prompt banner */}
