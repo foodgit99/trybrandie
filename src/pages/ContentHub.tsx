@@ -706,7 +706,7 @@ const ContentHub = () => {
 
   // --- Series CRUD ---
   const openCreateSeries = () => {
-    setSeriesForm({ ...emptySeries, content_category: getLastCategory(user?.id, brandId, "series") });
+    setSeriesForm({ ...emptySeries, content_category: getLastCategory(user?.id, brandId, "series", validCategoryIds) });
     setEditingSeriesId(null);
     setSeriesDialogOpen(true);
   };
