@@ -81,6 +81,7 @@ import { CategoryBadge, CategoryBadgeList, CategoryDot } from "@/components/cont
 import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
+import { getLastCategory, setLastCategory } from "@/lib/lastCategoryPref";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
@@ -697,7 +698,7 @@ const ContentHub = () => {
 
   // --- Series CRUD ---
   const openCreateSeries = () => {
-    setSeriesForm(emptySeries);
+    setSeriesForm({ ...emptySeries, content_category: getLastCategory(user?.id, "series") });
     setEditingSeriesId(null);
     setSeriesDialogOpen(true);
   };
@@ -729,6 +730,7 @@ const ContentHub = () => {
         pillar_id: seriesForm.pillar_id || null,
         content_category: parseCategoryIds(seriesForm.content_category)[0] || null,
       };
+      setLastCategory(user.id, "series", payload.content_category);
 
       if (editingSeriesId) {
         const { error } = await supabase.from("post_series").update(payload).eq("id", editingSeriesId);
@@ -755,7 +757,7 @@ const ContentHub = () => {
 
   // --- Campaign CRUD ---
   const openCreateCampaign = () => {
-    setCampaignForm(emptyCampaign);
+    setCampaignForm({ ...emptyCampaign, content_category: getLastCategory(user?.id, "campaign") });
     setEditingCampaignId(null);
     setCampaignDialogOpen(true);
   };
@@ -781,6 +783,7 @@ const ContentHub = () => {
         post_count: campaignForm.post_count,
         content_category: parseCategoryIds(campaignForm.content_category)[0] || null,
       };
+      setLastCategory(user.id, "campaign", payload.content_category);
       if (editingCampaignId) {
         const { error } = await supabase.from("campaigns").update(payload).eq("id", editingCampaignId);
         if (error) throw error;
@@ -832,7 +835,7 @@ const ContentHub = () => {
   };
 
   const openCreateIdea = (day: string) => {
-    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll });
+    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: getLastCategory(user?.id, "idea") });
     setEditingIdeaId(null);
     setIdeaDay(day);
     setIdeaDialogOpen(true);
@@ -873,6 +876,7 @@ const ContentHub = () => {
         autopilot: ideaForm.autopilot,
         content_category: parseCategoryIds(ideaForm.content_category)[0] || null,
       };
+      setLastCategory(user.id, "idea", payload.content_category);
 
       if (editingIdeaId) {
         const { error } = await supabase.from("content_ideas").update(payload).eq("id", editingIdeaId);
