@@ -202,6 +202,8 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const [inlineSavingId, setInlineSavingId] = useState<string | null>(null);
   const [inlineDismissed, setInlineDismissed] = useState<Set<string>>(new Set());
   const [showLowConfPanel, setShowLowConfPanel] = useState(true);
+  // Stepper position within lowConfidenceUpdates (one question at a time).
+  const [lowConfIndex, setLowConfIndex] = useState(0);
 
   // AI summarise + confidence check
   type AiCheck = {
