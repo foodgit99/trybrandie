@@ -79,6 +79,31 @@ export const setLastCategory = (
     });
 };
 
+/** Clear the saved last category for a user/brand/dialog (localStorage + DB). */
+export const clearLastCategory = (
+  userId: string | undefined,
+  brandId: string | undefined,
+  kind: CategoryDialogKind
+) => {
+  if (!userId || !brandId) return;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(lsKey(userId, brandId, kind));
+    } catch {
+      // ignore
+    }
+  }
+  void supabase
+    .from("user_brand_dialog_prefs")
+    .upsert(
+      { user_id: userId, brand_id: brandId, [COL[kind]]: null },
+      { onConflict: "user_id,brand_id" }
+    )
+    .then(({ error }) => {
+      if (error) console.warn("[lastCategoryPref] brand pref clear failed", error.message);
+    });
+};
+
 /** Pull saved values for the current brand and prime localStorage. */
 export const hydrateLastCategoriesForBrand = async (
   userId: string | undefined,

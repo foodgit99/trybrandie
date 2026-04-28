@@ -82,7 +82,7 @@ import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
-import { getLastCategory, setLastCategory, hydrateLastCategoriesForBrand } from "@/lib/lastCategoryPref";
+import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand } from "@/lib/lastCategoryPref";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
@@ -1932,8 +1932,18 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
               {!editingSeriesId && seriesForm.content_category && seriesForm.content_category === getLastCategory(user?.id, brandId, "series", validCategoryIds) && (
-                <p className="text-[10px] text-muted-foreground/80 leading-snug">
-                  Preselected from your last series. Change it anytime above.
+                <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
+                  <span>Preselected from your last series. Change it anytime above.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearLastCategory(user?.id, brandId, "series");
+                      setSeriesForm((f) => ({ ...f, content_category: "" }));
+                    }}
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    Reset to default
+                  </button>
                 </p>
               )}
             </div>
@@ -2008,8 +2018,18 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
               {!editingCampaignId && campaignForm.content_category && campaignForm.content_category === getLastCategory(user?.id, brandId, "campaign", validCategoryIds) && (
-                <p className="text-[10px] text-muted-foreground/80 leading-snug">
-                  Preselected from your last campaign. Change it anytime above.
+                <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
+                  <span>Preselected from your last campaign. Change it anytime above.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearLastCategory(user?.id, brandId, "campaign");
+                      setCampaignForm((f) => ({ ...f, content_category: "" }));
+                    }}
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    Reset to default
+                  </button>
                 </p>
               )}
             </div>
@@ -2119,8 +2139,18 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
               {!editingIdeaId && ideaForm.content_category && ideaForm.content_category === getLastCategory(user?.id, brandId, "idea", validCategoryIds) && (
-                <p className="text-[10px] text-muted-foreground/80 leading-snug">
-                  Preselected from your last idea. Change it anytime above.
+                <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
+                  <span>Preselected from your last idea. Change it anytime above.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearLastCategory(user?.id, brandId, "idea");
+                      setIdeaForm((f) => ({ ...f, content_category: "" }));
+                    }}
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    Reset to default
+                  </button>
                 </p>
               )}
             </div>
