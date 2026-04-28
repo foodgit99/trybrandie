@@ -150,6 +150,82 @@ const CANVAS_GROUPS = CANVAS_PRESETS.reduce<Record<string, CanvasPreset[]>>((acc
   return acc;
 }, {});
 
+// "Auto" sentinel — resolved at submit-time based on prompt content.
+const AUTO_CANVAS_VALUE = "auto";
+const AUTO_PREVIEW_ASPECT = "1 / 1"; // shown until a real size is chosen
+
+/**
+ * Pick the best CANVAS_PRESETS entry for a given user prompt.
+ * Looks for explicit platform mentions (Instagram / Facebook / TikTok / LinkedIn /
+ * YouTube / Twitter / Pinterest) and intent keywords (story, reel, cover, feed,
+ * portrait, square, landscape, pin) and returns the closest matching preset.
+ * Falls back to Instagram square (1080×1080), the most universally usable size.
+ */
+const resolveAutoCanvas = (prompt: string): CanvasPreset => {
+  const text = (prompt || "").toLowerCase();
+  const has = (...words: string[]) => words.some((w) => text.includes(w));
+  const findPreset = (predicate: (p: CanvasPreset) => boolean) =>
+    CANVAS_PRESETS.find(predicate)!;
+
+  // Intent keywords
+  const wantsStory = has("story", "stories", "reel", "vertical", "9:16");
+  const wantsCover = has("cover", "banner", "header");
+  const wantsLandscape = has("landscape", "horizontal", "thumbnail", "16:9", "wide");
+  const wantsPin = has("pinterest", " pin ", "pin ", "tall");
+  const wantsPortrait = has("portrait", "4:5", "4x5");
+
+  // Platform mentions
+  const mentionsInstagram = has("instagram", "insta", " ig ", " ig,", " ig.");
+  const mentionsFacebook = has("facebook", " fb ", " fb,", " fb.", "meta ");
+  const mentionsTikTok = has("tiktok", "tik tok");
+  const mentionsLinkedIn = has("linkedin", "linked in");
+  const mentionsTwitter = has("twitter", "tweet", " x post", "x/twitter");
+  const mentionsYouTube = has("youtube", " yt ", " yt,", " yt.");
+  const mentionsPinterest = has("pinterest");
+
+  // 1) Vertical (story/reel) — platform-specific
+  if (wantsStory) {
+    if (mentionsFacebook) return findPreset((p) => p.value === "fb-1080x1920");
+    if (mentionsTikTok) return findPreset((p) => p.value === "tt-1080x1920");
+    return findPreset((p) => p.value === "1080x1920"); // IG story/reel default
+  }
+
+  // 2) Cover / banner
+  if (wantsCover) {
+    if (mentionsLinkedIn) return findPreset((p) => p.value === "1584x396");
+    return findPreset((p) => p.value === "1640x924"); // Facebook cover default
+  }
+
+  // 3) Pin
+  if (wantsPin || mentionsPinterest)
+    return findPreset((p) => p.value === "1000x1500");
+
+  // 4) Landscape
+  if (wantsLandscape) {
+    if (mentionsTwitter) return findPreset((p) => p.value === "1600x900");
+    return findPreset((p) => p.value === "1920x1080"); // YouTube default
+  }
+
+  // 5) Platform-specific feed defaults
+  if (mentionsLinkedIn) return findPreset((p) => p.value === "1200x627");
+  if (mentionsTwitter) return findPreset((p) => p.value === "1600x900");
+  if (mentionsYouTube) return findPreset((p) => p.value === "1920x1080");
+  if (mentionsFacebook) return findPreset((p) => p.value === "1200x630");
+  if (mentionsTikTok) return findPreset((p) => p.value === "tt-1080x1920");
+
+  // 6) Instagram defaults — portrait beats square for feed engagement
+  if (mentionsInstagram) {
+    if (wantsPortrait) return findPreset((p) => p.value === "1080x1350");
+    return findPreset((p) => p.value === "1080x1080");
+  }
+
+  // 7) Generic intent without platform
+  if (wantsPortrait) return findPreset((p) => p.value === "1080x1350");
+
+  // Final fallback — most universally usable
+  return findPreset((p) => p.value === "1080x1080");
+};
+
 const FREE_MONTHLY = 5;
 
 const DesignStudio = () => {
@@ -177,7 +253,7 @@ const DesignStudio = () => {
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
   const [wasRefined, setWasRefined] = useState(false);
   const [showScores, setShowScores] = useState(false);
-  const [canvasSize, setCanvasSize] = useState("1080x1080");
+  const [canvasSize, setCanvasSize] = useState<string>(AUTO_CANVAS_VALUE);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitContext, setLimitContext] = useState<{ cost: number; available: number } | null>(null);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -212,7 +288,10 @@ const DesignStudio = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const generationInitiated = useRef(false);
 
-  const currentAspect = CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
+  const currentAspect =
+    canvasSize === AUTO_CANVAS_VALUE
+      ? AUTO_PREVIEW_ASPECT
+      : CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -633,6 +712,23 @@ const DesignStudio = () => {
     }
     setVote(0);
 
+    // Resolve "Auto" canvas based on the prompt before sending. Edits inherit
+    // the current canvas to preserve layout continuity per session memory rules.
+    let resolvedCanvasSize = canvasSize;
+    if (canvasSize === AUTO_CANVAS_VALUE && !isEdit) {
+      const picked = resolveAutoCanvas(trimmed);
+      resolvedCanvasSize = picked.value;
+      setCanvasSize(picked.value); // sync the selector & preview aspect
+      toast({
+        title: "Auto-sized for you",
+        description: `Using ${picked.label}.`,
+      });
+    } else if (canvasSize === AUTO_CANVAS_VALUE && isEdit) {
+      // Safety net: edits should never ship "auto" to the backend.
+      resolvedCanvasSize = "1080x1080";
+      setCanvasSize(resolvedCanvasSize);
+    }
+
     const brandPayload = brand
       ? {
           id: brand.id,
@@ -656,7 +752,7 @@ const DesignStudio = () => {
     generation.startGeneration({
       action: isCarouselMode ? "generate_carousel" : isEdit ? "edit" : "generate",
       ...(isCarouselMode && { slide_count: slideCount }),
-      canvas_size: canvasSize,
+      canvas_size: resolvedCanvasSize,
       messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       brand: brandPayload,
       ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
@@ -1199,6 +1295,14 @@ const DesignStudio = () => {
               <SelectValue placeholder="Choose platform" />
             </SelectTrigger>
             <SelectContent className="max-h-[60vh]">
+              <SelectGroup>
+                <SelectLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+                  Smart
+                </SelectLabel>
+                <SelectItem value={AUTO_CANVAS_VALUE} className="text-xs sm:text-sm">
+                  ✨ Auto — pick from prompt
+                </SelectItem>
+              </SelectGroup>
               {Object.entries(CANVAS_GROUPS).map(([platform, presets]) => (
                 <SelectGroup key={platform}>
                   <SelectLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
