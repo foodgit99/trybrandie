@@ -68,7 +68,34 @@ interface BrandUpdate {
   times_used: number;
   last_used_at: string | null;
   created_at: string;
+  confidence: number | null;
+  missing_fields: string[] | null;
 }
+
+type ConfTier = "high" | "medium" | "low";
+const tierFor = (confidence: number | null | undefined): ConfTier => {
+  if (confidence === null || confidence === undefined) return "low";
+  if (confidence >= 75) return "high";
+  if (confidence >= 45) return "medium";
+  return "low";
+};
+const tierMeta: Record<ConfTier, { label: string; cls: string; help: string }> = {
+  high: {
+    label: "Strong signal",
+    cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    help: "AI will use this as factual seed material — quoting specifics.",
+  },
+  medium: {
+    label: "Soft signal",
+    cls: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    help: "AI will use this as inspiration only — no invented specifics.",
+  },
+  low: {
+    label: "Needs detail",
+    cls: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
+    help: "AI will skip this and ask you a follow-up question instead.",
+  },
+};
 
 interface FormState {
   update_type: string;
