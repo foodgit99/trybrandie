@@ -752,7 +752,7 @@ const DesignStudio = () => {
     generation.startGeneration({
       action: isCarouselMode ? "generate_carousel" : isEdit ? "edit" : "generate",
       ...(isCarouselMode && { slide_count: slideCount }),
-      canvas_size: canvasSize,
+      canvas_size: resolvedCanvasSize,
       messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       brand: brandPayload,
       ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
