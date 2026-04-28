@@ -75,7 +75,17 @@ Deno.serve(async (req) => {
       }),
     }), TIMEOUTS.EXTERNAL_API, "Firecrawl scrape");
 
-    const scrapeData = await scrapeRes.json();
+    const scrapeRaw = await scrapeRes.text();
+    let scrapeData: any = {};
+    try {
+      scrapeData = scrapeRaw ? JSON.parse(scrapeRaw) : {};
+    } catch {
+      console.error("Firecrawl returned non-JSON:", scrapeRaw.substring(0, 200));
+      return new Response(
+        JSON.stringify({ error: "The website couldn't be reached right now. Please try again or set up manually." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     if (!scrapeRes.ok) {
       console.error("Firecrawl error:", scrapeData);
       return new Response(
