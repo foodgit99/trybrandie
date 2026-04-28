@@ -471,6 +471,11 @@ const ContentHub = () => {
     }
   }, [brandId, pillarsLoading, pillars, initialSetupDone, generating]);
 
+  // Hydrate last-selected categories from profile so they follow the user across devices
+  useEffect(() => {
+    if (user?.id) void hydrateLastCategoriesFromProfile(user.id);
+  }, [user?.id]);
+
   // --- Engine Actions ---
   const callEngine = async (action: string, extra: Record<string, any> = {}) => {
     const { data: sessionData } = await supabase.auth.getSession();
