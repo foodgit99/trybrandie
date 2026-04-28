@@ -715,7 +715,113 @@ Rules:
       });
     }
 
-    return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
+    if (action === "plan_from_updates") {
+      // One-tap: turn the user's recent Updates into a draft of suggested content ideas.
+      // Free action — no credit deduction (small, targeted, ≤5 ideas, status=suggested only).
+      if (!recentUpdates || recentUpdates.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "No recent updates to plan from. Add an update first." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const updatesForPlan = recentUpdates.slice(0, 8);
+      const updatesList = updatesForPlan
+        .map((u: any, i: number) => {
+          const attr = u.attribution ? ` — ${u.attribution}` : "";
+          const body = u.content?.trim() ? ` :: ${u.content.trim().slice(0, 280)}` : "";
+          return `${i + 1}. id=${u.id} | type=${u.update_type} | date=${u.event_date} | ${u.title || u.content.slice(0, 60)}${attr}${body}`;
+        })
+        .join("\n");
+
+      const result = await callAI(lovableKey, {
+        system: `You are a social media content planner. Convert each provided business UPDATE into ONE on-brand post idea.
+
+${CONTENT_CATEGORIES_REF}
+
+CRITICAL RULES:
+- Generate exactly ONE idea per update (max 5 ideas total — pick the strongest if more provided).
+- Each idea MUST reference the real update (no invented testimonials, events, or figures).
+- Assign a content_category from this enum ONLY: ${CONTENT_CATEGORY_ENUM.join(", ")}.
+- Strong defaults by update type:
+  • testimonial / customer_story / press / milestone → "social_proof"
+  • event / csr → "bts" (or "holidays" if explicitly tied to a holiday)
+  • product / partnership → "announcement" (use "promotional" if it's a clear sales offer)
+  • other → pick the most natural fit.
+- content_format: "carousel" only for clearly multi-point updates (lists, step-by-step, multi-quote). Otherwise "graphic".
+- title: punchy, ≤ 60 chars.
+- prompt: a ready-to-use design prompt mentioning the brand and what the graphic should show, grounded in the update's actual facts.
+- Reference the source update by its id in source_update_id.`,
+        user: `Brand context:\n${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nUPDATES TO PLAN FROM:\n${updatesList}`,
+        tool: {
+          name: "plan_ideas_from_updates",
+          description: "Create draft post ideas grounded in the provided updates",
+          parameters: {
+            type: "object",
+            properties: {
+              ideas: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    source_update_id: { type: "string" },
+                    title: { type: "string" },
+                    prompt: { type: "string" },
+                    content_format: { type: "string", enum: ["graphic", "carousel"] },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
+                  },
+                  required: ["source_update_id", "title", "prompt", "content_format", "content_category"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["ideas"],
+            additionalProperties: false,
+          },
+        },
+      });
+
+      if (result.error) return errorResponse(result);
+
+      const validIds = new Set(updatesForPlan.map((u: any) => u.id));
+      const ideasToInsert = (result.data.ideas || [])
+        .filter((idea: any) => validIds.has(idea.source_update_id))
+        .slice(0, 5)
+        .map((idea: any) => ({
+          brand_id,
+          user_id: userId,
+          title: idea.title,
+          prompt: idea.prompt,
+          idea_type: "single",
+          content_format: idea.content_format || "graphic",
+          content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+          status: "suggested",
+          scheduled_for: null,
+        }));
+
+      if (ideasToInsert.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "Couldn't draft ideas from those updates. Try adding more detail and retry." }),
+          { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const { data: inserted, error: insertErr } = await serviceClient
+        .from("content_ideas")
+        .insert(ideasToInsert)
+        .select();
+      if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
+
+      // Mark the source updates as used (fire-and-forget).
+      const usedIds = Array.from(
+        new Set((result.data.ideas || []).map((i: any) => i.source_update_id).filter((id: any) => validIds.has(id))),
+      ) as string[];
+      markUpdatesUsed(serviceClient, usedIds).catch(() => {});
+
+      return jsonResponse({ ideas: inserted, count: inserted?.length || 0, updates_used: usedIds.length });
+    }
+
+
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
