@@ -146,11 +146,12 @@ export const resolveAutoCanvas = (prompt: string): CanvasPreset => {
     return find("1640x924"); // Facebook cover default
   }
 
-  // 3) Pinterest pin
-  if (wantsPin && (mentionsPinterest || !wantsFeed)) {
-    if (mentionsPinterest || has("tall", "2:3")) return find("1000x1500");
-  }
+  // 3) Pinterest pin — only when Pinterest is explicitly mentioned, OR
+  // when "tall"/"2:3" appears WITHOUT a "portrait" modifier (which is IG portrait).
   if (mentionsPinterest) return find("1000x1500");
+  if (wantsPin && !wantsPortrait && !wantsFeed) {
+    if (has("tall", "2:3")) return find("1000x1500");
+  }
 
   // 4) Landscape / thumbnail
   if (wantsLandscape) {
