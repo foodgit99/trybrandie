@@ -647,6 +647,15 @@ export function buildCopyForbiddenContext(categoryId: string): string {
 // TTL matches the category's recency window so cache freshness can never exceed
 // what the underlying search filter would have returned anyway.
 
+export type ResearchMode = "fast" | "accurate";
+export type ResearchRecency = "24h" | "7d" | "30d";
+
+export interface ResearchOverride {
+  mode?: ResearchMode;        // fast = fewer results, lower latency; accurate = more results
+  recency?: ResearchRecency;  // overrides category default `tbs` window
+  enabled?: boolean;          // false disables research even for fresh-info categories
+}
+
 export interface BrandResearchContext {
   brandName?: string;
   industry?: string;
@@ -656,7 +665,20 @@ export interface BrandResearchContext {
   postType?: string;                // resolved category name (human label)
   platform?: string;                // e.g. "Instagram", "TikTok"
   region?: string;                  // for location-relevant searches
+  override?: ResearchOverride;      // per-brand, per-category research tuning
 }
+
+const RECENCY_TO_TBS: Record<ResearchRecency, string> = {
+  "24h": "qdr:d",
+  "7d":  "qdr:w",
+  "30d": "qdr:m",
+};
+
+const RECENCY_TO_TTL_MS: Record<ResearchRecency, number> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "7d":  7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+};
 
 // Optional persistent cache adapter — pass an admin Supabase client to enable.
 // Kept as a loose type so this shared file doesn't pull a Supabase import.
