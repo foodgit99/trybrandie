@@ -2426,6 +2426,9 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
         let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
+        // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
+        binaryData = await enforceCanvasDimensions(binaryData, w, h);
+
         const filePath = `${user.id}/${crypto.randomUUID()}.png`;
         const { error: uploadError } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
         if (uploadError) throw new Error(`Failed to save image (variation ${label})`);
