@@ -715,11 +715,18 @@ export async function enrichWithResearch(
   firecrawlApiKey: string | undefined,
   cacheClient?: ResearchCacheClient,
 ): Promise<string> {
+export async function enrichWithResearch(
+  categoryId: string,
+  userPrompt: string,
+  brandCtxOrName: BrandResearchContext | string | undefined,
+  firecrawlApiKey: string | undefined,
+  cacheClient?: ResearchCacheClient,
+): Promise<ResearchEnrichment> {
   const recipe = CATEGORY_RECIPES[categoryId];
-  if (!recipe?.needs_fresh_info || !recipe.research_focus) return "";
+  if (!recipe?.needs_fresh_info || !recipe.research_focus) return EMPTY_ENRICHMENT;
   if (!firecrawlApiKey) {
     console.log(`[research] skipping (no FIRECRAWL_API_KEY) for category=${categoryId}`);
-    return "";
+    return EMPTY_ENRICHMENT;
   }
 
   const ctx: BrandResearchContext =
@@ -727,7 +734,6 @@ export async function enrichWithResearch(
       ? { brandName: typeof brandCtxOrName === "string" ? brandCtxOrName : undefined }
       : brandCtxOrName;
 
-  // Map category → Firecrawl `tbs` recency filter
   const recencyMap: Record<string, string> = {
     trending: "qdr:d",
     entertainment: "qdr:w",
@@ -738,7 +744,6 @@ export async function enrichWithResearch(
   const tbs = recencyMap[categoryId] || "qdr:w";
   const ttlMs = CACHE_TTL_MS[categoryId] || DEFAULT_TTL_MS;
 
-  // Build a focused, brand-aware search query.
   const vibe = (ctx.vibeKeywords || []).slice(0, 3).filter(Boolean).join(", ");
   const postTypeLabel = ctx.postType || recipe.name;
   const platformLabel = ctx.platform || "social media";
@@ -757,8 +762,6 @@ export async function enrichWithResearch(
 
   const query = queryBits.join(" — ").slice(0, 380);
 
-  // Cache key: category + hash of the full query (already includes brand/topic/etc).
-  // Day-bucket added so day-recency searches (trending) can't serve yesterday's results.
   const dayBucket = Math.floor(Date.now() / ttlMs);
   const cacheKey = `${categoryId}:${hashQuery(query)}:${dayBucket}`;
 
@@ -766,9 +769,9 @@ export async function enrichWithResearch(
   const memHit = memCache.get(cacheKey);
   if (memHit && memHit.expiresAt > Date.now()) {
     console.log(`[research] CACHE HIT (mem) category=${categoryId}`);
-    return memHit.result;
+    return memHit.payload;
   }
-  if (memHit) memCache.delete(cacheKey); // expired
+  if (memHit) memCache.delete(cacheKey);
 
   // --- LAYER 2: Postgres cache ---
   if (cacheClient) {
@@ -782,9 +785,21 @@ export async function enrichWithResearch(
         .maybeSingle();
       if (row?.result) {
         console.log(`[research] CACHE HIT (db) category=${categoryId}`);
-        // Hydrate memory cache and increment hit counter (fire-and-forget)
+        // result column may be a stringified ResearchEnrichment (new) or a plain
+        // prompt string (legacy entries). Normalize either shape.
+        let payload: ResearchEnrichment;
+        try {
+          const parsed = typeof row.result === "string" ? JSON.parse(row.result) : row.result;
+          if (parsed && typeof parsed === "object" && "promptText" in parsed) {
+            payload = parsed as ResearchEnrichment;
+          } else {
+            payload = { promptText: String(row.result), sources: [], query, categoryId };
+          }
+        } catch {
+          payload = { promptText: String(row.result), sources: [], query, categoryId };
+        }
         memCache.set(cacheKey, {
-          result: row.result,
+          payload,
           expiresAt: new Date(row.expires_at).getTime(),
         });
         cacheClient
@@ -793,7 +808,7 @@ export async function enrichWithResearch(
           .eq("category_id", categoryId)
           .eq("query_hash", cacheKey)
           .then(() => {}, () => {});
-        return row.result;
+        return payload;
       }
     } catch (e) {
       console.log(`[research] db cache lookup failed:`, e instanceof Error ? e.message : e);
@@ -822,7 +837,7 @@ export async function enrichWithResearch(
 
     if (!response.ok) {
       console.log(`[research] firecrawl returned ${response.status} for category=${categoryId}`);
-      return "";
+      return EMPTY_ENRICHMENT;
     }
     const data = await response.json();
 
@@ -834,35 +849,36 @@ export async function enrichWithResearch(
 
     if (results.length === 0) {
       console.log(`[research] firecrawl returned 0 results for category=${categoryId} query="${query.slice(0, 120)}"`);
-      return "";
+      return EMPTY_ENRICHMENT;
     }
 
-    const bullets = results
+    const sources: ResearchSource[] = results
       .slice(0, 5)
-      .map((r) => {
-        const title = (r.title || "").trim();
-        const desc = (r.description || "").trim();
-        if (!title && !desc) return "";
-        return `- ${title}${title && desc ? " — " : ""}${desc}`.slice(0, 280);
-      })
-      .filter(Boolean)
+      .map((r) => ({
+        title: (r.title || "").trim().slice(0, 140),
+        url: (r.url || "").trim(),
+        description: (r.description || "").trim().slice(0, 220),
+      }))
+      .filter((s) => (s.title || s.description) && s.url);
+
+    if (sources.length === 0) return EMPTY_ENRICHMENT;
+
+    const bullets = sources
+      .map((s) => `- ${s.title}${s.title && s.description ? " — " : ""}${s.description}`.slice(0, 280))
       .join("\n");
 
-    if (!bullets) return "";
+    const promptText = `\n\nCURRENT RESEARCH CONTEXT (live web search, ${tbs}, tuned to brand "${ctx.brandName || "n/a"}" / ${postTypeLabel} — use to ground copy and visuals in what is true/relevant right now):\n${bullets}`;
 
-    const finalResult = `\n\nCURRENT RESEARCH CONTEXT (live web search, ${tbs}, tuned to brand "${ctx.brandName || "n/a"}" / ${postTypeLabel} — use to ground copy and visuals in what is true/relevant right now):\n${bullets}`;
+    const payload: ResearchEnrichment = { promptText, sources, query, categoryId };
 
-    // --- Write to both cache layers ---
     const expiresAt = Date.now() + ttlMs;
 
-    // Memory (with simple LRU-ish eviction)
     if (memCache.size >= MEM_CACHE_MAX) {
       const firstKey = memCache.keys().next().value;
       if (firstKey) memCache.delete(firstKey);
     }
-    memCache.set(cacheKey, { result: finalResult, expiresAt });
+    memCache.set(cacheKey, { payload, expiresAt });
 
-    // Postgres (fire-and-forget upsert)
     if (cacheClient) {
       cacheClient
         .from("research_cache")
@@ -871,7 +887,7 @@ export async function enrichWithResearch(
             category_id: categoryId,
             query_hash: cacheKey,
             query_preview: query.slice(0, 200),
-            result: finalResult,
+            result: JSON.stringify(payload),
             expires_at: new Date(expiresAt).toISOString(),
             hit_count: 0,
           },
@@ -882,10 +898,10 @@ export async function enrichWithResearch(
         });
     }
 
-    console.log(`[research] CACHE MISS — fetched category=${categoryId} via firecrawl with ${results.length} results (brand=${ctx.brandName || "n/a"})`);
-    return finalResult;
+    console.log(`[research] CACHE MISS — fetched category=${categoryId} via firecrawl with ${sources.length} results (brand=${ctx.brandName || "n/a"})`);
+    return payload;
   } catch (e) {
     console.log(`[research] firecrawl failed for category=${categoryId}:`, e instanceof Error ? e.message : e);
-    return "";
+    return EMPTY_ENRICHMENT;
   }
 }
