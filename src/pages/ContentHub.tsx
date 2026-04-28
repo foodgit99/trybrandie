@@ -1952,7 +1952,7 @@ const ContentHub = () => {
               </Select>
               {!editingSeriesId && seriesForm.content_category && seriesForm.content_category === getLastCategory(user?.id, brandId, "series", validCategoryIds) && (
                 <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
-                  <span>Preselected from your last series. Change it anytime above.</span>
+                  <span>Using your last category.</span>
                   <button
                     type="button"
                     onClick={() => {
