@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWeekHolidays } from "../_shared/holiday-calendar.ts";
-import { fetchRecentUpdates, formatUpdatesForPrompt } from "../_shared/brand-updates.ts";
+import { fetchRecentUpdates, formatUpdatesForPrompt, markUpdatesUsed } from "../_shared/brand-updates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
