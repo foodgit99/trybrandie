@@ -2498,11 +2498,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
             resp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                model: "google/gemini-3-pro-image-preview",
-                messages: [{ role: "user", content: imageContent }],
-                modalities: ["image", "text"],
-              }),
+              body: JSON.stringify(imageRequestBody),
             });
             if (!resp.ok) { imageAttempt++; continue; }
           }
