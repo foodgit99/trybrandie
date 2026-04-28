@@ -2682,17 +2682,14 @@ Return structured JSON.`;
 
       // Step 3: Render slides in parallel batches of 2
       const size = canvas_size || "1080x1080";
-      const [w, h] = size.split("x");
-      const sizeLabels: Record<string, string> = { "1080x1080": "square (1080x1080)", "1920x1080": "landscape (1920x1080)", "1080x1920": "portrait story (1080x1920)" };
-      const sizeLabel = sizeLabels[size] || `${w}x${h}`;
+      const canvas = resolveCanvas(size);
+      const w = canvas.w;
+      const h = canvas.h;
+      const sizeLabel = `${canvas.platform} ${canvas.label} (${w}x${h})`;
 
       const genomeContext = `VISUAL STYLE GENOME: ${genomeData.color.palette_type} palette, ${genomeData.color.temperature} temp, ${genomeData.color.contrast} contrast, ${genomeData.typography.font_personality} typography, ${genomeData.layout.grid_type} grid, ${genomeData.emotion} emotion.`;
 
-      const dimensionEnforcement = size === "1080x1080"
-        ? "CRITICAL: Image MUST be PERFECTLY SQUARE (1:1 aspect ratio)."
-        : size === "1080x1920"
-        ? "CRITICAL: Image MUST be TALL PORTRAIT (9:16 aspect ratio)."
-        : "CRITICAL: Image MUST be WIDE LANDSCAPE (16:9 aspect ratio).";
+      const dimensionEnforcement = buildDimensionEnforcement(w, h, canvas.label);
 
       const slides: { image_url: string; slide_index: number; copy_structure: any; design_id: string }[] = [];
 
