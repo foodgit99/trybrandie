@@ -2038,7 +2038,7 @@ const ContentHub = () => {
               </Select>
               {!editingCampaignId && campaignForm.content_category && campaignForm.content_category === getLastCategory(user?.id, brandId, "campaign", validCategoryIds) && (
                 <p className="text-[10px] text-muted-foreground/80 leading-snug flex items-center gap-1.5 flex-wrap">
-                  <span>Preselected from your last campaign. Change it anytime above.</span>
+                  <span>Using your last category.</span>
                   <button
                     type="button"
                     onClick={() => {
