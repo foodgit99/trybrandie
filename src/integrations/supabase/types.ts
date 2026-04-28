@@ -482,6 +482,63 @@ export type Database = {
           },
         ]
       }
+      brand_updates: {
+        Row: {
+          attribution: string | null
+          brand_id: string
+          content: string
+          created_at: string
+          event_date: string
+          expires_at: string | null
+          id: string
+          image_url: string | null
+          last_used_at: string | null
+          source_url: string | null
+          status: string
+          times_used: number
+          title: string
+          update_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attribution?: string | null
+          brand_id: string
+          content?: string
+          created_at?: string
+          event_date?: string
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          last_used_at?: string | null
+          source_url?: string | null
+          status?: string
+          times_used?: number
+          title?: string
+          update_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attribution?: string | null
+          brand_id?: string
+          content?: string
+          created_at?: string
+          event_date?: string
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          last_used_at?: string | null
+          source_url?: string | null
+          status?: string
+          times_used?: number
+          title?: string
+          update_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       brands: {
         Row: {
           accent_colors: string[] | null
