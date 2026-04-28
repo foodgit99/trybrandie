@@ -98,6 +98,30 @@ const tierMeta: Record<ConfTier, { label: string; cls: string; help: string }> =
   },
 };
 
+// Deterministic, type-aware follow-up question for low-confidence updates.
+// Mirrors `buildFollowUpQuestion` in supabase/functions/brand-engine/index.ts so
+// the user can answer offline without invoking the planner first.
+const FOLLOWUP_TYPE_ASK: Record<string, string> = {
+  testimonial: "Who said it, and what specific result did they get?",
+  customer_story: "Which customer is this about, and what's the one number or outcome that proves the change?",
+  product: "What's the launch date, price, and the single biggest thing this changes for customers?",
+  event: "When and where is it, and what should people do (book / show up / RSVP)?",
+  milestone: "What's the exact number reached, and over what time period?",
+  csr: "Who did you partner with, where, and what was the tangible impact?",
+  press: "Which outlet ran it, the headline, and a link?",
+  partnership: "Who's the partner, what are you doing together, and when does it start?",
+  other: "What's the one specific fact (name, number, date, or outcome) you'd want a post to lead with?",
+};
+
+const buildFollowUpQuestion = (u: { update_type: string; title: string | null; content: string; missing_fields: string[] | null }): string => {
+  const gaps = Array.isArray(u.missing_fields) ? u.missing_fields.slice(0, 2) : [];
+  const headline = (u.title || u.content || "this update").toString().trim().slice(0, 60);
+  const base = FOLLOWUP_TYPE_ASK[u.update_type] || FOLLOWUP_TYPE_ASK.other;
+  return gaps.length > 0
+    ? `For "${headline}" — ${base} (Missing: ${gaps.join(", ")}.)`
+    : `For "${headline}" — ${base}`;
+};
+
 interface FormState {
   update_type: string;
   title: string;
