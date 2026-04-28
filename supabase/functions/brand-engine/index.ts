@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWeekHolidays } from "../_shared/holiday-calendar.ts";
+import { fetchRecentUpdates, formatUpdatesForPrompt } from "../_shared/brand-updates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,17 +67,19 @@ serve(async (req) => {
     }
 
     // Gather context
-    const [audienceRes, designsRes, trendRes, productsRes] = await Promise.all([
+    const [audienceRes, designsRes, trendRes, productsRes, updatesRows] = await Promise.all([
       supabase.from("target_audiences").select("jtbd_profile, label").eq("brand_id", brand_id).limit(3),
       supabase.from("designs").select("title, prompt, trend_used").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
       supabase.from("brand_trend_preferences").select("*").eq("brand_id", brand_id).maybeSingle(),
       supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
+      fetchRecentUpdates(supabase, brand_id, { limit: 12, recencyDays: 60 }),
     ]);
 
     const audiences = audienceRes.data || [];
     const pastDesigns = designsRes.data || [];
     const trendPrefs = trendRes.data;
     const products = productsRes.data || [];
+    const recentUpdates = (updatesRows as any) || [];
 
     const brandContext = `
 Brand: ${brand.name}
@@ -112,7 +115,12 @@ Special Instructions: ${brand.special_instructions || "N/A"}
         }).join("\n")
       : "No products or services catalogued yet.";
 
-    const fullContext = `${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}`;
+    const updatesBlock = formatUpdatesForPrompt(recentUpdates, {
+      heading:
+        "RECENT BUSINESS UPDATES (real activity from this brand in the last ~60 days — when generating Social Proof, BTS, Announcement, Trending, or Promotional ideas, GROUND ideas in these specific updates rather than inventing generic ones; never fabricate testimonials when a testimonial update exists; reference real events, names, and outcomes):",
+    });
+
+    const fullContext = `${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}${updatesBlock}`;
 
     // --- WEEKLY GENERATION TRACKING HELPERS ---
     const getISOWeekStart = () => {

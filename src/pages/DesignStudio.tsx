@@ -77,12 +77,15 @@ type ResearchSource = {
   description: string;
 };
 
+type UpdateUsed = { id: string; title: string; type: string; event_date?: string };
+
 type Message = {
   role: "user" | "assistant";
   content: string;
   imageUrl?: string;
   attachedImageUrl?: string;
   researchSources?: ResearchSource[];
+  updatesUsed?: UpdateUsed[];
   contentCategory?: string;
 };
 
@@ -683,6 +686,7 @@ const DesignStudio = () => {
         content: r.explanation + freeLabel,
         imageUrl: r.image_url,
         researchSources: Array.isArray(r.research_sources) ? r.research_sources : undefined,
+        updatesUsed: Array.isArray(r.updates_used) ? r.updates_used : undefined,
         contentCategory: r.content_category,
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -1520,6 +1524,33 @@ const DesignStudio = () => {
                           </li>
                         );
                       })}
+                    </ul>
+                  </details>
+                )}
+
+                {/* Updates used panel — first-party brand updates that fed this design */}
+                {msg.role === "assistant" && msg.updatesUsed && msg.updatesUsed.length > 0 && (
+                  <details className="mt-2 rounded-xl border border-border/60 bg-muted/30 text-xs overflow-hidden group/updates">
+                    <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors list-none [&::-webkit-details-marker]:hidden">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium text-foreground/80">Pulled from your Updates</span>
+                      <span className="text-muted-foreground">({msg.updatesUsed.length})</span>
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto transition-transform group-open/updates:rotate-180" />
+                    </summary>
+                    <ul className="divide-y divide-border/50">
+                      {msg.updatesUsed.map((u) => (
+                        <li key={u.id} className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
+                              {u.type.replace(/_/g, " ")}
+                            </span>
+                            <span className="font-medium leading-snug truncate">{u.title}</span>
+                            {u.event_date && (
+                              <span className="text-[10px] text-muted-foreground ml-auto shrink-0">{u.event_date}</span>
+                            )}
+                          </div>
+                        </li>
+                      ))}
                     </ul>
                   </details>
                 )}

@@ -24,6 +24,7 @@ export interface GenerationResult {
   slides?: Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>;
   variations?: DesignVariation[];
   research_sources?: Array<{ title: string; url: string; description: string }>;
+  updates_used?: Array<{ id: string; title: string; type: string; event_date?: string }>;
   content_category?: string;
 }
 

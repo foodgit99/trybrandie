@@ -7,6 +7,7 @@ import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
 import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
+import { fetchRecentUpdates, formatUpdatesForPrompt, summariseForClient, markUpdatesUsed } from "../_shared/brand-updates.ts";
 import {
   CATEGORY_RECIPES,
   applyCategoryBias,
@@ -1921,6 +1922,35 @@ ${brand.special_instructions}
       const resolvedCategoryData = CONTENT_CATEGORIES[resolvedCategory];
       const researchEnrichment = await researchPromise;
       const researchContext = researchEnrichment.promptText;
+
+      // --- BRAND UPDATES: pull category-relevant real-world updates as factual seed ---
+      let updatesUsed: any[] = [];
+      let updatesContext = "";
+      if (brand?.id) {
+        try {
+          const cats = ["social_proof", "bts", "announcement", "trending", "promotional", "informational"];
+          const wantUpdates = cats.includes(resolvedCategory);
+          const updates = await fetchRecentUpdates(adminClient, brand.id, {
+            categoryId: resolvedCategory,
+            limit: wantUpdates ? 5 : 3,
+            recencyDays: wantUpdates ? 60 : 30,
+          });
+          if (updates.length > 0) {
+            updatesUsed = updates;
+            const heading = resolvedCategory === "social_proof"
+              ? "BUSINESS UPDATES (real testimonials/customer stories from this brand — when a testimonial exists in this list you MUST use the verbatim quote and attribution; NEVER fabricate testimonials):"
+              : resolvedCategory === "bts"
+              ? "BUSINESS UPDATES (real recent activity behind the scenes — ground BTS copy in these specific events, names, and outcomes):"
+              : resolvedCategory === "announcement"
+              ? "BUSINESS UPDATES (real recent launches, milestones, partnerships, press — anchor the announcement in these factual items):"
+              : "BUSINESS UPDATES (real recent activity from this brand — prefer these as factual seed material; do not invent events when this list is non-empty):";
+            updatesContext = formatUpdatesForPrompt(updates, { heading });
+          }
+        } catch (e) {
+          console.log("[design-studio] updates fetch failed:", e instanceof Error ? e.message : e);
+        }
+      }
+
       const copyForbiddenContext = buildCopyForbiddenContext(resolvedCategory);
       const ctaPolicyLine = (() => {
         const policy = CATEGORY_RECIPES[resolvedCategory]?.cta_policy;
@@ -1928,8 +1958,8 @@ ${brand.special_instructions}
         if (policy === "required") return "\n\nCTA POLICY: A clear, specific CTA is REQUIRED for this category. Never leave the cta field empty.";
         return "";
       })();
-      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}` : "";
-      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}` : "";
+      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "";
+      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "";
 
       const trendPresetForCopy = trend && trend !== "none" ? (({
         "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
@@ -2338,6 +2368,10 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         console.error("Failed to persist trace:", traceErr);
       }
 
+      if (updatesUsed.length > 0) {
+        markUpdatesUsed(adminClient, updatesUsed.map((u: any) => u.id)).catch(() => {});
+      }
+
       return new Response(
         JSON.stringify({
           image_url: singleResult.image_url,
@@ -2352,6 +2386,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           run_id: tracer.runId,
           content_category: resolvedCategory,
           ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
+          ...(updatesUsed.length ? { updates_used: summariseForClient(updatesUsed) } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
