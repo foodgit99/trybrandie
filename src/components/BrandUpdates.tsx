@@ -123,7 +123,9 @@ interface Props {
 export default function BrandUpdates({ brandId, userId }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [planning, setPlanning] = useState(false);
 
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
