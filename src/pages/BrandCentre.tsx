@@ -494,8 +494,8 @@ const BrandCentre = () => {
         body: { url: websiteUrl.trim() },
       });
       clearInterval(interval);
-      if (error) throw error;
       if (result?.error) throw new Error(result.error);
+      if (error) throw new Error((error as any)?.context?.responseJson?.error || error.message || "Couldn't scan website");
 
       if (result.brand) {
         const b = result.brand;

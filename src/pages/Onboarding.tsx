@@ -146,8 +146,8 @@ const Onboarding = () => {
 
       clearInterval(interval);
 
-      if (error) throw error;
       if (result?.error) throw new Error(result.error);
+      if (error) throw new Error((error as any)?.context?.responseJson?.error || error.message || "Couldn't scan website");
 
       const brand = result.brand;
       if (brand) {
