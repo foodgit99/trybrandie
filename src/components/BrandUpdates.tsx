@@ -113,15 +113,25 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const [showArchived, setShowArchived] = useState(false);
 
   // Auto-open the add form when navigated with ?addUpdate=1 (from home / floating nav)
+  // Optional prefill via ?type=, ?title=, ?content=, ?attribution=
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("addUpdate") === "1") {
+      const validTypes = new Set(UPDATE_TYPES.map((t) => t.id));
+      const typeParam = params.get("type") || "";
+      setForm({
+        ...emptyForm(),
+        update_type: validTypes.has(typeParam) ? typeParam : "testimonial",
+        title: params.get("title") || "",
+        content: params.get("content") || "",
+        attribution: params.get("attribution") || "",
+      });
       setAdding(true);
       setTimeout(() => {
         document.getElementById("brand-updates")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
-      params.delete("addUpdate");
+      ["addUpdate", "type", "title", "content", "attribution"].forEach((k) => params.delete(k));
       const newSearch = params.toString();
       const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "") + window.location.hash;
       window.history.replaceState({}, "", newUrl);
