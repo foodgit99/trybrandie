@@ -958,8 +958,8 @@ export async function enrichWithResearch(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.log(`[research] firecrawl returned ${response.status} for category=${categoryId}`);
-      return EMPTY_ENRICHMENT;
+      console.log(`[research] firecrawl returned ${response.status} for category=${categoryId} — falling back to offline heuristic`);
+      return buildOfflineHeuristic(categoryId, recipe, ctx, `firecrawl HTTP ${response.status}`);
     }
     const data = await response.json();
 
@@ -970,8 +970,8 @@ export async function enrichWithResearch(
       [];
 
     if (results.length === 0) {
-      console.log(`[research] firecrawl returned 0 results for category=${categoryId} query="${query.slice(0, 120)}"`);
-      return EMPTY_ENRICHMENT;
+      console.log(`[research] firecrawl returned 0 results for category=${categoryId} query="${query.slice(0, 120)}" — falling back to offline heuristic`);
+      return buildOfflineHeuristic(categoryId, recipe, ctx, "no live results");
     }
 
     const sources: ResearchSource[] = results
@@ -983,7 +983,10 @@ export async function enrichWithResearch(
       }))
       .filter((s) => (s.title || s.description) && s.url);
 
-    if (sources.length === 0) return EMPTY_ENRICHMENT;
+    if (sources.length === 0) {
+      console.log(`[research] firecrawl results all unusable for category=${categoryId} — falling back to offline heuristic`);
+      return buildOfflineHeuristic(categoryId, recipe, ctx, "live results lacked usable URLs");
+    }
 
     const bullets = sources
       .map((s) => `- ${s.title}${s.title && s.description ? " — " : ""}${s.description}`.slice(0, 280))
