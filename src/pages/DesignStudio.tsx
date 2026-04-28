@@ -69,11 +69,19 @@ import { Slider } from "@/components/ui/slider";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import ChatSuggestions from "@/components/ChatSuggestions";
 import { useDesignGeneration, type DesignVariation } from "@/contexts/DesignGenerationContext";
+type ResearchSource = {
+  title: string;
+  url: string;
+  description: string;
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
   imageUrl?: string;
   attachedImageUrl?: string;
+  researchSources?: ResearchSource[];
+  contentCategory?: string;
 };
 
 type StrategistAction = {
