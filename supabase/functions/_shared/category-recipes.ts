@@ -640,10 +640,24 @@ export function buildCopyForbiddenContext(categoryId: string): string {
 // Uses Firecrawl's /v2/search endpoint with time-bound `tbs` filter to pull current
 // web context for time-sensitive categories (trending, entertainment, holidays, etc.).
 // Returns 3-5 bullet-style snippets distilled from result titles + descriptions.
+
+export interface BrandResearchContext {
+  brandName?: string;
+  industry?: string;
+  vibeKeywords?: string[];          // e.g. ["bold", "playful", "minimal"]
+  toneOfVoice?: string;             // e.g. "warm and witty"
+  audienceDescriptor?: string;      // short JTBD persona summary
+  postType?: string;                // resolved category name (human label)
+  platform?: string;                // e.g. "Instagram", "TikTok"
+  region?: string;                  // for location-relevant searches
+}
+
+// Backward-compatible signature: 4th arg may be either the api key string (legacy)
+// or a BrandResearchContext object containing the api key + brand signals.
 export async function enrichWithResearch(
   categoryId: string,
   userPrompt: string,
-  brandName: string | undefined,
+  brandCtxOrName: BrandResearchContext | string | undefined,
   firecrawlApiKey: string | undefined,
 ): Promise<string> {
   const recipe = CATEGORY_RECIPES[categoryId];
@@ -652,6 +666,11 @@ export async function enrichWithResearch(
     console.log(`[research] skipping (no FIRECRAWL_API_KEY) for category=${categoryId}`);
     return "";
   }
+
+  const ctx: BrandResearchContext =
+    typeof brandCtxOrName === "string" || brandCtxOrName === undefined
+      ? { brandName: typeof brandCtxOrName === "string" ? brandCtxOrName : undefined }
+      : brandCtxOrName;
 
   // Map category → Firecrawl `tbs` recency filter
   const recencyMap: Record<string, string> = {
@@ -663,13 +682,31 @@ export async function enrichWithResearch(
   };
   const tbs = recencyMap[categoryId] || "qdr:w";
 
-  // Build a focused search query from the recipe's research_focus + user prompt
+  // Build a focused, brand-aware search query.
+  // Order matters — most discriminating signals first so search engines weight them higher.
+  const vibe = (ctx.vibeKeywords || []).slice(0, 3).filter(Boolean).join(", ");
+  const postTypeLabel = ctx.postType || recipe.name;
+  const platformLabel = ctx.platform || "social media";
+
   const queryBits = [
+    // 1. What we're researching (category-specific focus)
     recipe.research_focus,
-    userPrompt ? `context: ${userPrompt}` : "",
-    brandName ? `brand: ${brandName}` : "",
+    // 2. Use case framing — post type + platform
+    `for a ${postTypeLabel.toLowerCase()} ${platformLabel.toLowerCase()} post`,
+    // 3. Brand identity signals
+    ctx.brandName ? `brand: "${ctx.brandName}"` : "",
+    ctx.industry ? `industry: ${ctx.industry}` : "",
+    vibe ? `brand vibe: ${vibe}` : "",
+    ctx.toneOfVoice ? `tone: ${ctx.toneOfVoice}` : "",
+    // 4. Audience anchor
+    ctx.audienceDescriptor ? `audience: ${ctx.audienceDescriptor}` : "",
+    // 5. Region (helps holidays, informational, trending)
+    ctx.region ? `region: ${ctx.region}` : "",
+    // 6. Specific user prompt last as concrete subject matter
+    userPrompt ? `topic: ${userPrompt}` : "",
   ].filter(Boolean);
-  const query = queryBits.join(" — ").slice(0, 300);
+
+  const query = queryBits.join(" — ").slice(0, 380);
 
   try {
     const ctrl = new AbortController();
@@ -684,6 +721,7 @@ export async function enrichWithResearch(
         query,
         limit: 5,
         tbs,
+        ...(ctx.region ? { country: ctx.region.slice(0, 2).toLowerCase() } : {}),
       }),
       signal: ctrl.signal,
     });
@@ -703,7 +741,7 @@ export async function enrichWithResearch(
       [];
 
     if (results.length === 0) {
-      console.log(`[research] firecrawl returned 0 results for category=${categoryId}`);
+      console.log(`[research] firecrawl returned 0 results for category=${categoryId} query="${query.slice(0, 120)}"`);
       return "";
     }
 
@@ -720,8 +758,8 @@ export async function enrichWithResearch(
 
     if (!bullets) return "";
 
-    console.log(`[research] enriched category=${categoryId} via firecrawl with ${results.length} results`);
-    return `\n\nCURRENT RESEARCH CONTEXT (live web search, ${tbs}, use to ground copy and visuals in what is true/relevant right now):\n${bullets}`;
+    console.log(`[research] enriched category=${categoryId} via firecrawl with ${results.length} results (brand=${ctx.brandName || "n/a"})`);
+    return `\n\nCURRENT RESEARCH CONTEXT (live web search, ${tbs}, tuned to brand "${ctx.brandName || "n/a"}" / ${postTypeLabel} — use to ground copy and visuals in what is true/relevant right now):\n${bullets}`;
   } catch (e) {
     console.log(`[research] firecrawl failed for category=${categoryId}:`, e instanceof Error ? e.message : e);
     return "";
