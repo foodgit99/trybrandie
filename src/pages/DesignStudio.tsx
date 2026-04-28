@@ -253,7 +253,7 @@ const DesignStudio = () => {
   const [genomeScores, setGenomeScores] = useState<Record<string, number> | null>(null);
   const [wasRefined, setWasRefined] = useState(false);
   const [showScores, setShowScores] = useState(false);
-  const [canvasSize, setCanvasSize] = useState("1080x1080");
+  const [canvasSize, setCanvasSize] = useState<string>(AUTO_CANVAS_VALUE);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitContext, setLimitContext] = useState<{ cost: number; available: number } | null>(null);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -288,7 +288,10 @@ const DesignStudio = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const generationInitiated = useRef(false);
 
-  const currentAspect = CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
+  const currentAspect =
+    canvasSize === AUTO_CANVAS_VALUE
+      ? AUTO_PREVIEW_ASPECT
+      : CANVAS_SIZES.find((s) => s.value === canvasSize)?.aspect || "1 / 1";
 
   useEffect(() => {
     const textarea = textareaRef.current;
