@@ -235,6 +235,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         image_url: form.image_url || null,
         source_url: form.source_url.trim() || null,
         event_date: form.event_date || todayIso(),
+        expires_at: form.expires_at || null,
         status: "active",
       };
       if (editingId) {
