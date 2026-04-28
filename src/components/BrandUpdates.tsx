@@ -1,0 +1,524 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Plus,
+  X,
+  Pencil,
+  Trash2,
+  Check,
+  Upload,
+  Loader2,
+  Newspaper,
+  MessageSquareQuote,
+  Calendar,
+  Megaphone,
+  HeartHandshake,
+  Trophy,
+  Users,
+  Package,
+  Sparkles,
+  ExternalLink,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
+
+const UPDATE_TYPES: Array<{
+  id: string;
+  label: string;
+  emoji: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  hint: string;
+}> = [
+  { id: "testimonial", label: "Testimonial", emoji: "💬", Icon: MessageSquareQuote, hint: "A quote or review from a real customer" },
+  { id: "product", label: "Product update", emoji: "📦", Icon: Package, hint: "New launch, feature, drop, or restock" },
+  { id: "event", label: "Event", emoji: "🎤", Icon: Calendar, hint: "Something happening / that happened in the business" },
+  { id: "milestone", label: "Milestone", emoji: "🏆", Icon: Trophy, hint: "Reached a number, anniversary, or achievement" },
+  { id: "csr", label: "CSR / Community", emoji: "🤝", Icon: HeartHandshake, hint: "Outreach, sponsorship, donation, volunteering" },
+  { id: "press", label: "Press mention", emoji: "📰", Icon: Newspaper, hint: "Featured in media, blog, podcast, etc." },
+  { id: "partnership", label: "Partnership", emoji: "🔗", Icon: Users, hint: "New collaboration or alliance" },
+  { id: "customer_story", label: "Customer story", emoji: "✨", Icon: Sparkles, hint: "A success story or transformation" },
+  { id: "other", label: "Other", emoji: "📌", Icon: Megaphone, hint: "Anything else worth telling the AI" },
+];
+
+const TYPE_META: Record<string, { label: string; emoji: string; tone: string }> = Object.fromEntries(
+  UPDATE_TYPES.map((t) => [t.id, { label: t.label, emoji: t.emoji, tone: "bg-secondary text-secondary-foreground" }]),
+);
+
+interface BrandUpdate {
+  id: string;
+  brand_id: string;
+  update_type: string;
+  title: string;
+  content: string;
+  attribution: string | null;
+  image_url: string | null;
+  source_url: string | null;
+  event_date: string;
+  expires_at: string | null;
+  status: string;
+  times_used: number;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+interface FormState {
+  update_type: string;
+  title: string;
+  content: string;
+  attribution: string;
+  image_url: string;
+  source_url: string;
+  event_date: string;
+}
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const emptyForm = (): FormState => ({
+  update_type: "testimonial",
+  title: "",
+  content: "",
+  attribution: "",
+  image_url: "",
+  source_url: "",
+  event_date: todayIso(),
+});
+
+const EXAMPLE_PROMPTS = [
+  '"Tola from Lagos Tech Hub said our app saved her team 6 hours a week."',
+  '"Hit 10,000 happy customers this morning."',
+  '"Sponsored a coding bootcamp for 30 students this weekend."',
+];
+
+interface Props {
+  brandId: string;
+  userId: string;
+}
+
+export default function BrandUpdates({ brandId, userId }: Props) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm());
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const { data: updates, refetch } = useQuery({
+    queryKey: ["brand_updates", brandId, showArchived],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brand_updates" as any)
+        .select("*")
+        .eq("brand_id", brandId)
+        .eq("status", showArchived ? "archived" : "active")
+        .order("event_date", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data || []) as unknown as BrandUpdate[];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    if (!updates) return [];
+    return filterType ? updates.filter((u) => u.update_type === filterType) : updates;
+  }, [updates, filterType]);
+
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    (updates || []).forEach((u) => map.set(u.update_type, (map.get(u.update_type) || 0) + 1));
+    return map;
+  }, [updates]);
+
+  const reset = () => {
+    setForm(emptyForm());
+    setAdding(false);
+    setEditingId(null);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${userId}/${brandId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("brand-inspiration").upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+      });
+      if (error) throw error;
+      const { data } = supabase.storage.from("brand-inspiration").getPublicUrl(path);
+      setForm((f) => ({ ...f, image_url: data.publicUrl }));
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const validate = (): string | null => {
+    if (!form.content.trim() && !form.title.trim()) return "Add a short note about the update.";
+    if (form.content.length > 600) return "Keep the update under 600 characters.";
+    if (form.title.length > 120) return "Keep the title under 120 characters.";
+    return null;
+  };
+
+  const save = async () => {
+    const err = validate();
+    if (err) {
+      toast({ title: "Heads up", description: err, variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        brand_id: brandId,
+        user_id: userId,
+        update_type: form.update_type,
+        title: form.title.trim().slice(0, 120),
+        content: form.content.trim().slice(0, 600),
+        attribution: form.attribution.trim() || null,
+        image_url: form.image_url || null,
+        source_url: form.source_url.trim() || null,
+        event_date: form.event_date || todayIso(),
+        status: "active",
+      };
+      if (editingId) {
+        const { error } = await supabase.from("brand_updates" as any).update(payload).eq("id", editingId);
+        if (error) throw error;
+        toast({ title: "Update saved" });
+      } else {
+        const { error } = await supabase.from("brand_updates" as any).insert(payload);
+        if (error) throw error;
+        toast({ title: "Update added", description: "The AI will use this in your next generation." });
+      }
+      reset();
+      qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Couldn't save", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (u: BrandUpdate) => {
+    setEditingId(u.id);
+    setAdding(false);
+    setForm({
+      update_type: u.update_type,
+      title: u.title || "",
+      content: u.content || "",
+      attribution: u.attribution || "",
+      image_url: u.image_url || "",
+      source_url: u.source_url || "",
+      event_date: u.event_date || todayIso(),
+    });
+  };
+
+  const archiveToggle = async (u: BrandUpdate) => {
+    const next = u.status === "active" ? "archived" : "active";
+    const { error } = await supabase.from("brand_updates" as any).update({ status: next }).eq("id", u.id);
+    if (error) {
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: next === "archived" ? "Archived" : "Restored" });
+    refetch();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this update? This cannot be undone.")) return;
+    const { error } = await supabase.from("brand_updates" as any).delete().eq("id", id);
+    if (error) {
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Deleted" });
+    refetch();
+  };
+
+  const renderForm = () => (
+    <div className="space-y-3">
+      {/* Type chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {UPDATE_TYPES.map((t) => {
+          const selected = form.update_type === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, update_type: t.id }))}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                selected
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:border-muted-foreground/40"
+              }`}
+            >
+              <span className="mr-1">{t.emoji}</span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        {UPDATE_TYPES.find((t) => t.id === form.update_type)?.hint}
+      </p>
+
+      <Input
+        placeholder="Short headline (optional, e.g. 'Tola's review')"
+        value={form.title}
+        maxLength={120}
+        onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+      />
+      <Textarea
+        placeholder={
+          form.update_type === "testimonial"
+            ? '"Brandie cut our content production time in half. We finally look professional online." — Quote it verbatim if you have it.'
+            : "What happened? Be concrete — names, numbers, places, outcomes."
+        }
+        value={form.content}
+        maxLength={600}
+        onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+        className="min-h-[90px]"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <Input
+          placeholder={form.update_type === "testimonial" ? "Attribution (e.g. Tola, Lagos Tech Hub)" : "Attribution (optional)"}
+          value={form.attribution}
+          maxLength={140}
+          onChange={(e) => setForm((f) => ({ ...f, attribution: e.target.value }))}
+        />
+        <Input
+          type="date"
+          value={form.event_date}
+          max={todayIso()}
+          onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))}
+        />
+      </div>
+      <Input
+        placeholder="Source link (optional)"
+        value={form.source_url}
+        onChange={(e) => setForm((f) => ({ ...f, source_url: e.target.value }))}
+      />
+
+      {/* Image */}
+      <div className="flex items-center gap-3">
+        {form.image_url ? (
+          <div className="relative group">
+            <img src={form.image_url} alt="" className="w-16 h-16 object-cover rounded-lg border border-border" />
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, image_url: "" }))}
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-16 h-16 rounded-lg border-2 border-dashed border-border hover:border-muted-foreground/40 flex flex-col items-center justify-center gap-0.5 text-muted-foreground"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            <span className="text-[10px]">Image</span>
+          </button>
+        )}
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+        <p className="text-[11px] text-muted-foreground flex-1">
+          Optional. A real photo makes Social Proof and BTS designs feel authentic.
+        </p>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-1">
+        <Button variant="ghost" size="sm" onClick={reset}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={save} disabled={saving} className="gap-1">
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+          {editingId ? "Save changes" : "Add update"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div id="brand-updates" className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4 scroll-mt-20">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Newspaper className="h-4 w-4 text-primary shrink-0" />
+          <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground truncate">Updates</h3>
+          {(updates?.length || 0) > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              {updates!.length}
+            </span>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1 text-muted-foreground"
+          onClick={() => {
+            if (adding || editingId) reset();
+            else setAdding(true);
+          }}
+        >
+          <Plus className="h-3 w-3" /> Add
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Drop quick real-time updates — testimonials, events, product news, milestones. The AI uses these as fresh,
+        factual material when planning ideas and creating posts (especially Social Proof, BTS, Announcements, and
+        Trending).
+      </p>
+
+      {(adding || editingId) && (
+        <div className="rounded-xl border border-primary/30 bg-muted/30 p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">{editingId ? "Edit update" : "New update"}</p>
+            <button onClick={reset} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {renderForm()}
+        </div>
+      )}
+
+      {/* Filters */}
+      {(updates?.length || 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setFilterType(null)}
+            className={`text-[11px] px-2 py-0.5 rounded-full border ${
+              filterType === null ? "bg-foreground text-background border-foreground" : "bg-background text-muted-foreground border-border"
+            }`}
+          >
+            All
+          </button>
+          {UPDATE_TYPES.filter((t) => counts.get(t.id)).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setFilterType(filterType === t.id ? null : t.id)}
+              className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                filterType === t.id
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-background text-muted-foreground border-border"
+              }`}
+            >
+              {t.emoji} {t.label} <span className="opacity-60">{counts.get(t.id)}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className="ml-auto text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+          >
+            {showArchived ? "Show active" : "Show archived"}
+          </button>
+        </div>
+      )}
+
+      {/* List */}
+      {filtered.length > 0 ? (
+        <div className="space-y-2">
+          {filtered.map((u) => {
+            const meta = TYPE_META[u.update_type] || TYPE_META.other;
+            return (
+              <div key={u.id} className="rounded-xl border border-border bg-background/40 p-3 flex gap-3">
+                {u.image_url ? (
+                  <img src={u.image_url} alt="" className="w-12 h-12 object-cover rounded-lg border border-border shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-muted/50 border border-border flex items-center justify-center text-base shrink-0">
+                    {meta.emoji}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                          {meta.emoji} {meta.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">{u.event_date}</span>
+                        {u.times_used > 0 && (
+                          <span className="text-[10px] text-muted-foreground">• used {u.times_used}×</span>
+                        )}
+                      </div>
+                      {u.title && <p className="text-sm font-medium mt-1 truncate">{u.title}</p>}
+                      {u.content && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-3 whitespace-pre-wrap">{u.content}</p>
+                      )}
+                      {u.attribution && (
+                        <p className="text-[11px] text-muted-foreground/80 mt-0.5">— {u.attribution}</p>
+                      )}
+                      {u.source_url && (
+                        <a
+                          href={u.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-primary inline-flex items-center gap-1 mt-1 hover:underline"
+                        >
+                          Source <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => startEdit(u)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => archiveToggle(u)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground"
+                        aria-label={u.status === "active" ? "Archive" : "Restore"}
+                      >
+                        {u.status === "active" ? <Archive className="h-3 w-3" /> : <ArchiveRestore className="h-3 w-3" />}
+                      </button>
+                      <button
+                        onClick={() => remove(u.id)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : !adding && !editingId ? (
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {showArchived ? "No archived updates." : "No updates yet. Try one of these to get started:"}
+          </p>
+          {!showArchived && (
+            <ul className="space-y-1">
+              {EXAMPLE_PROMPTS.map((p, i) => (
+                <li key={i} className="text-xs text-muted-foreground/90 italic">
+                  • {p}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
