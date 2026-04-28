@@ -1375,6 +1375,39 @@ export type Database = {
           },
         ]
       }
+      user_brand_dialog_prefs: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          last_category_campaign: string | null
+          last_category_idea: string | null
+          last_category_series: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          last_category_campaign?: string | null
+          last_category_idea?: string | null
+          last_category_series?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          last_category_campaign?: string | null
+          last_category_idea?: string | null
+          last_category_series?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
