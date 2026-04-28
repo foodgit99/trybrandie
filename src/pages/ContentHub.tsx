@@ -199,6 +199,13 @@ const ContentHub = () => {
     setLastFilterCategory(user?.id, brand?.id, v);
   };
 
+  // Sort option (applies across Series, Campaigns, and Ideas) — persisted per user+brand
+  const [sortOption, setSortOptionState] = useState<ContentHubSortOption>("newest");
+  const setSortOption = (v: ContentHubSortOption) => {
+    setSortOptionState(v);
+    setLastSortOption(user?.id, brand?.id, v);
+  };
+
   const brandId = brand?.id;
 
   // Autopilot settings from database
