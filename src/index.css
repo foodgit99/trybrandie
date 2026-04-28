@@ -109,10 +109,14 @@
   }
 
   /* Reserve space below page content so nothing sits under the floating nav.
-     Applied only on mobile/tablet (where the nav is bottom-floating) and only
-     when the nav is actually rendered (toggled by FloatingNavBar). */
+     Mobile/tablet: nav bar is 64px tall (py-2 + 48px primary button), sits
+     16px above the safe-area inset. Add a 20px breathing gap so the last
+     element is always clear of the bar.
+       = 64px (bar) + 16px (offset) + 20px (gap) + safe-area-inset-bottom
+       = 100px + env(safe-area-inset-bottom)
+     Desktop (lg+): nav is a left-side vertical sidebar, no bottom reservation. */
   body.has-floating-nav {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
   }
   @media (min-width: 1024px) {
     body.has-floating-nav {
