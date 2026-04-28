@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
 import { sanitise } from "../_shared/sanitise.ts";
 import { Tracer } from "../_shared/tracer.ts";
@@ -17,6 +18,118 @@ import {
   buildCopyForbiddenContext,
   enrichWithResearch,
 } from "../_shared/category-recipes.ts";
+
+// --- PLATFORM CANVAS PRESETS ---
+// Strict pixel dimensions per social platform. The renderer is forced to
+// output EXACTLY these dimensions via center-crop + resize (see enforceCanvasDimensions).
+const CANVAS_PRESETS: Record<string, { w: number; h: number; label: string; platform: string }> = {
+  // Instagram
+  "1080x1080":     { w: 1080, h: 1080, label: "Instagram square post",        platform: "Instagram" },
+  "1080x1350":     { w: 1080, h: 1350, label: "Instagram portrait post",      platform: "Instagram" },
+  "1080x1920":     { w: 1080, h: 1920, label: "Instagram story / reel",       platform: "Instagram" },
+  // Facebook
+  "1200x630":      { w: 1200, h: 630,  label: "Facebook feed post",           platform: "Facebook" },
+  "fb-1080x1920":  { w: 1080, h: 1920, label: "Facebook story",               platform: "Facebook" },
+  "1640x924":      { w: 1640, h: 924,  label: "Facebook cover",               platform: "Facebook" },
+  // TikTok
+  "tt-1080x1920":  { w: 1080, h: 1920, label: "TikTok vertical",              platform: "TikTok" },
+  // LinkedIn
+  "1200x627":      { w: 1200, h: 627,  label: "LinkedIn post",                platform: "LinkedIn" },
+  "1584x396":      { w: 1584, h: 396,  label: "LinkedIn cover banner",        platform: "LinkedIn" },
+  // YouTube / Twitter
+  "1920x1080":     { w: 1920, h: 1080, label: "YouTube / landscape",          platform: "YouTube" },
+  "1600x900":      { w: 1600, h: 900,  label: "Twitter / X post",             platform: "Twitter / X" },
+  // Pinterest
+  "1000x1500":     { w: 1000, h: 1500, label: "Pinterest pin",                platform: "Pinterest" },
+};
+
+function resolveCanvas(size: string | undefined | null) {
+  const key = size || "1080x1080";
+  const preset = CANVAS_PRESETS[key];
+  if (preset) return { key, ...preset };
+  // Fallback: parse "WxH" if anything unexpected is sent.
+  const m = /^(\d+)x(\d+)$/.exec(key);
+  if (m) {
+    const w = parseInt(m[1], 10);
+    const h = parseInt(m[2], 10);
+    return { key, w, h, label: `${w}x${h}`, platform: "Custom" };
+  }
+  return { key: "1080x1080", w: 1080, h: 1080, label: "Instagram square post", platform: "Instagram" };
+}
+
+function describeAspect(w: number, h: number): string {
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.02) return "perfectly SQUARE (1:1)";
+  if (ratio > 1.05) return `WIDE LANDSCAPE (${w}:${h}, aspect ratio ${(ratio).toFixed(2)}:1)`;
+  return `TALL PORTRAIT (${w}:${h}, aspect ratio 1:${(1 / ratio).toFixed(2)})`;
+}
+
+function buildCanvasFormatBrief(w: number, h: number, label: string): string {
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.02) {
+    return `\n\nCANVAS FORMAT: SQUARE (${w}×${h} — ${label}). Plan a centered, compact, symmetrical composition. All elements balanced around the center. Avoid wide horizontal layouts — keep content compact and vertically centered.`;
+  }
+  if (ratio > 1.05) {
+    return `\n\nCANVAS FORMAT: WIDE LANDSCAPE (${w}×${h} — ${label}, aspect ratio ${ratio.toFixed(2)}:1). Plan a horizontally spread composition. Content can span the full width. Use horizontal balance and side-by-side element placement. Do NOT design for a square or portrait canvas.`;
+  }
+  return `\n\nCANVAS FORMAT: TALL PORTRAIT (${w}×${h} — ${label}, aspect ratio 1:${(1 / ratio).toFixed(2)}). Plan a vertically stacked composition with elements flowing top-to-bottom. Use strong vertical hierarchy. Avoid wide horizontal spreads — stack elements vertically.`;
+}
+
+function buildCanvasFormatCopy(w: number, h: number): string {
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.02) {
+    return "\n\nCANVAS FORMAT: SQUARE (1:1). Keep copy SHORT and COMPACT — fewer text elements, tight word count. Prefer a strong headline with minimal supporting text.";
+  }
+  if (ratio > 1.05) {
+    return "\n\nCANVAS FORMAT: LANDSCAPE. You have HORIZONTAL space. Copy can be slightly more expansive. Side-by-side text elements work well. Keep good horizontal balance.";
+  }
+  return "\n\nCANVAS FORMAT: PORTRAIT. Copy should follow a VERTICAL HIERARCHY — headline at top, supporting text in middle, CTA at bottom. Stacked text blocks work well, but keep each block concise.";
+}
+
+function buildDimensionEnforcement(w: number, h: number, label: string): string {
+  return `CRITICAL DIMENSION REQUIREMENT: This image MUST be EXACTLY ${w}×${h} pixels — ${describeAspect(w, h)} — designed for a ${label}. Do NOT crop, letterbox, or pad. Compose every element so nothing important sits within 4% of the edges (the output is force-cropped to these exact dimensions).`;
+}
+
+// --- STRICT CANVAS ENFORCEMENT (post-render) ---
+// Center-crop the rendered image to the target aspect ratio, then resize to the exact pixel dimensions.
+// This guarantees the final asset matches the platform spec regardless of what the model returned.
+async function enforceCanvasDimensions(
+  inputBytes: Uint8Array,
+  targetW: number,
+  targetH: number,
+): Promise<Uint8Array> {
+  try {
+    const img = await Image.decode(inputBytes);
+    const srcW = img.width;
+    const srcH = img.height;
+
+    // Skip work if already an exact match.
+    if (srcW === targetW && srcH === targetH) return inputBytes;
+
+    const targetRatio = targetW / targetH;
+    const srcRatio = srcW / srcH;
+
+    let cropW = srcW;
+    let cropH = srcH;
+    if (srcRatio > targetRatio) {
+      // Source is wider than target → crop sides.
+      cropW = Math.round(srcH * targetRatio);
+    } else if (srcRatio < targetRatio) {
+      // Source is taller than target → crop top/bottom.
+      cropH = Math.round(srcW / targetRatio);
+    }
+    const cropX = Math.floor((srcW - cropW) / 2);
+    const cropY = Math.floor((srcH - cropH) / 2);
+
+    const cropped = img.crop(cropX, cropY, cropW, cropH);
+    const resized = cropped.resize(targetW, targetH);
+    return await resized.encode();
+  } catch (err) {
+    console.error("enforceCanvasDimensions failed, returning original bytes:", err);
+    return inputBytes;
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1174,28 +1287,16 @@ TREND RULES:
         }
       }
 
-      // Determine canvas dimensions
+      // Determine canvas dimensions (platform-locked).
       const size = canvas_size || "1080x1080";
-      const [w, h] = size.split("x");
-      const sizeLabels: Record<string, string> = {
-        "1080x1080": "square (1080x1080, aspect ratio 1:1)",
-        "1920x1080": "landscape rectangle (1920x1080, aspect ratio 16:9)",
-        "1080x1920": "portrait story (1080x1920, aspect ratio 9:16)",
-      };
-      const sizeLabel = sizeLabels[size] || `${w}x${h}`;
+      const canvas = resolveCanvas(size);
+      const w = canvas.w;
+      const h = canvas.h;
+      const sizeLabel = `${canvas.platform} ${canvas.label} (${w}x${h})`;
 
-      // Canvas format context for upstream agents
-      const canvasFormatBrief = size === "1080x1080"
-        ? "\n\nCANVAS FORMAT: SQUARE (1:1). Design for a PERFECTLY SQUARE canvas. Plan a centered, compact, symmetrical composition. All elements should be balanced around the center. Avoid wide horizontal layouts — keep content compact and vertically centered."
-        : size === "1080x1920"
-        ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Design for a TALL, NARROW canvas. Plan a vertically stacked composition with elements flowing top-to-bottom. Use strong vertical hierarchy. Avoid wide horizontal spreads — stack elements vertically."
-        : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). Design for a WIDE, HORIZONTAL canvas. Plan a horizontally spread composition. Content can span the full width. Use horizontal balance and side-by-side element placement.";
-
-      const canvasFormatCopy = size === "1080x1080"
-        ? "\n\nCANVAS FORMAT: SQUARE (1:1). Keep copy SHORT and COMPACT — fewer text elements, tight word count. A square canvas has limited space. Prefer a strong headline with minimal supporting text."
-        : size === "1080x1920"
-        ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Copy should follow a VERTICAL HIERARCHY — headline at top, supporting text in middle, CTA at bottom. You have vertical space so stacked text blocks work well, but keep each block concise."
-        : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). You have more HORIZONTAL space. Copy can be slightly more expansive. Side-by-side text elements work well. Keep good horizontal balance.";
+      // Canvas format context for upstream agents (works for any aspect ratio).
+      const canvasFormatBrief = buildCanvasFormatBrief(w, h, canvas.label);
+      const canvasFormatCopy = buildCanvasFormatCopy(w, h);
 
       // Collect inspiration examples — load from brand_inspiration table
       let inspirationUrls: string[] = brand?.inspiration_examples || [];
@@ -2240,11 +2341,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         const userImageInstruction = user_image_url
           ? ` CRITICAL: The user has provided a reference image (attached). Incorporate it into the design EXACTLY as the user describes. This image is the PRIMARY visual reference and must be used prominently.`
           : "";
-        const dimensionEnforcement = size === "1080x1080"
-          ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be PERFECTLY SQUARE — equal width and height (1:1 aspect ratio). The canvas is 1080x1080 pixels. Do NOT create a landscape or portrait image. It MUST be a SQUARE."
-          : size === "1080x1920"
-          ? "CRITICAL DIMENSION REQUIREMENT: This image MUST be TALL PORTRAIT format — 9:16 aspect ratio (1080x1920 pixels). It must be significantly taller than it is wide. Do NOT create a landscape or square image."
-          : "CRITICAL DIMENSION REQUIREMENT: This image MUST be WIDE LANDSCAPE format — 16:9 aspect ratio (1920x1080 pixels). It must be significantly wider than it is tall. Do NOT create a square or portrait image.";
+        const dimensionEnforcement = buildDimensionEnforcement(w, h, canvas.label);
 
         const categoryRenderInjection = buildCategoryRenderInjection(resolvedCategory);
         const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${varCopyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${categoryRenderInjection}${varGenomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
@@ -2328,6 +2425,9 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
         let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
         let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+        // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
+        binaryData = await enforceCanvasDimensions(binaryData, w, h);
 
         const filePath = `${user.id}/${crypto.randomUUID()}.png`;
         const { error: uploadError } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
@@ -2582,17 +2682,14 @@ Return structured JSON.`;
 
       // Step 3: Render slides in parallel batches of 2
       const size = canvas_size || "1080x1080";
-      const [w, h] = size.split("x");
-      const sizeLabels: Record<string, string> = { "1080x1080": "square (1080x1080)", "1920x1080": "landscape (1920x1080)", "1080x1920": "portrait story (1080x1920)" };
-      const sizeLabel = sizeLabels[size] || `${w}x${h}`;
+      const canvas = resolveCanvas(size);
+      const w = canvas.w;
+      const h = canvas.h;
+      const sizeLabel = `${canvas.platform} ${canvas.label} (${w}x${h})`;
 
       const genomeContext = `VISUAL STYLE GENOME: ${genomeData.color.palette_type} palette, ${genomeData.color.temperature} temp, ${genomeData.color.contrast} contrast, ${genomeData.typography.font_personality} typography, ${genomeData.layout.grid_type} grid, ${genomeData.emotion} emotion.`;
 
-      const dimensionEnforcement = size === "1080x1080"
-        ? "CRITICAL: Image MUST be PERFECTLY SQUARE (1:1 aspect ratio)."
-        : size === "1080x1920"
-        ? "CRITICAL: Image MUST be TALL PORTRAIT (9:16 aspect ratio)."
-        : "CRITICAL: Image MUST be WIDE LANDSCAPE (16:9 aspect ratio).";
+      const dimensionEnforcement = buildDimensionEnforcement(w, h, canvas.label);
 
       const slides: { image_url: string; slide_index: number; copy_structure: any; design_id: string }[] = [];
 
@@ -2652,7 +2749,9 @@ Return structured JSON.`;
             if (!imageBase64) throw new Error(`Slide ${i + 1}: no image generated after retry`);
 
             const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-            const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+            let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+            // Strict platform-aspect enforcement on each slide.
+            binaryData = await enforceCanvasDimensions(binaryData, w, h);
             const filePath = `${user.id}/${crypto.randomUUID()}.png`;
             const { error: uploadErr } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
             if (uploadErr) throw new Error(`Slide ${i + 1} upload failed`);
