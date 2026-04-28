@@ -492,6 +492,7 @@ const ContentHub = () => {
     void hydrateLastCategoriesForBrand(user.id, brandId).then(() => {
       if (cancelled) return;
       setCategoryFilterState(getLastFilterCategory(user.id, brandId, validCategoryIds));
+      setSortOptionState(getLastSortOption(user.id, brandId));
     });
     return () => {
       cancelled = true;
