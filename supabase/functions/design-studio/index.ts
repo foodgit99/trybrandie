@@ -2382,6 +2382,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           run_id: tracer.runId,
           content_category: resolvedCategory,
           ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
+          ...(updatesUsed.length ? { updates_used: summariseForClient(updatesUsed) } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
