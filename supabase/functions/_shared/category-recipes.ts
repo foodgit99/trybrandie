@@ -1,5 +1,7 @@
 // CATEGORY RECIPES — single source of truth for per-category enrichment.
 // Used by design-studio (rendering pipeline) and brand-engine (idea generation).
+import { getUpcomingHolidays, getCurrentSeason } from "./holiday-calendar.ts";
+
 //
 // Each recipe enriches a content category across 5 dimensions:
 //   1. brief_directive   — concrete art-direction spec
@@ -727,6 +729,98 @@ function hashQuery(input: string): string {
   return h.toString(16).padStart(8, "0");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// OFFLINE HEURISTIC FALLBACK
+// Used whenever live web research is unavailable (no API key, network/HTTP
+// error, 0 results, or exception). Synthesizes plausible grounding context
+// from the category recipe + calendar + brand signals so generation NEVER
+// stalls waiting on Firecrawl.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function buildOfflineHeuristic(
+  categoryId: string,
+  recipe: CategoryRecipe,
+  ctx: BrandResearchContext,
+  reason: string,
+): ResearchEnrichment {
+  const now = new Date();
+  const monthName = MONTHS[now.getMonth()];
+  const season = getCurrentSeason();
+  const brand = ctx.brandName || "the brand";
+  const industry = ctx.industry ? ` in ${ctx.industry}` : "";
+  const audience = ctx.audienceDescriptor ? ` for ${ctx.audienceDescriptor}` : "";
+  const vibe = (ctx.vibeKeywords || []).filter(Boolean).slice(0, 3).join(", ");
+
+  const lines: string[] = [];
+
+  switch (categoryId) {
+    case "holidays": {
+      const upcoming = getUpcomingHolidays(21).slice(0, 5);
+      if (upcoming.length > 0) {
+        for (const h of upcoming) {
+          const when = h.daysUntil === 0
+            ? "today"
+            : h.daysUntil === 1
+            ? "tomorrow"
+            : `in ${h.daysUntil} days`;
+          lines.push(`- ${h.name} — ${when} (${h.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })})${h.description ? ` — ${h.description}` : ""}`);
+        }
+      } else {
+        lines.push(`- No major holidays in the next 3 weeks — lean into ${season} seasonal themes for ${brand}${industry}.`);
+      }
+      break;
+    }
+    case "trending": {
+      lines.push(`- It is currently ${monthName} (${season}) — anchor visuals to what feels current right now${industry}.`);
+      lines.push(`- Use bold, attention-grabbing composition typical of viral ${ctx.platform || "social"} content${audience}.`);
+      if (vibe) lines.push(`- Stay in the brand vibe: ${vibe} — avoid generic stock-trend looks.`);
+      lines.push(`- Lead with motion, big type, or a single arresting subject — trending posts reward instant comprehension.`);
+      break;
+    }
+    case "entertainment": {
+      lines.push(`- ${monthName} entertainment cadence: pop-culture references work best when relatable and timely${audience}.`);
+      lines.push(`- Use playful, conversational tone — memes and humour outperform polished corporate copy in this category.`);
+      if (vibe) lines.push(`- Keep the brand vibe (${vibe}) recognisable even in a meme-format post.`);
+      lines.push(`- Avoid copyrighted character likenesses; build on universal cultural moments instead.`);
+      break;
+    }
+    case "informational": {
+      lines.push(`- Evergreen ${recipe.name.toLowerCase()} content${industry} performs best with clear data points or 3–5 numbered takeaways.`);
+      lines.push(`- Lean on widely-accepted best practices for ${brand}'s space rather than time-sensitive claims.`);
+      if (audience) lines.push(`- Frame insights specifically${audience} — concrete > abstract.`);
+      lines.push(`- Use infographic structure: one big number + supporting label, or a short list with icons.`);
+      break;
+    }
+    case "interactive": {
+      lines.push(`- Interactive prompts (polls, this-or-that, fill-in-the-blank) work year-round — pick one format and make it visually obvious.`);
+      lines.push(`- Frame the question around ${brand}${industry} so engagement also reinforces brand association.`);
+      if (audience) lines.push(`- Tailor the question to a real decision${audience} actually faces.`);
+      break;
+    }
+    default: {
+      lines.push(`- Anchor the design in ${brand}'s established visual identity${industry}.`);
+      lines.push(`- It is currently ${monthName} (${season}) — let seasonal context inform palette and mood subtly.`);
+      if (vibe) lines.push(`- Brand vibe to honour: ${vibe}.`);
+    }
+  }
+
+  const promptText =
+    `\n\nFALLBACK RESEARCH CONTEXT (live web search unavailable: ${reason} — using offline heuristics tuned to brand "${brand}" / ${recipe.name}, ${monthName} ${now.getFullYear()}, ${season}). Treat these as grounded defaults, NOT verbatim claims:\n` +
+    lines.join("\n");
+
+  return {
+    promptText,
+    sources: [], // explicitly empty — UI panel hides, signaling "no live sources"
+    query: undefined,
+    categoryId,
+  };
+}
+
 // Backward-compatible signature: 3rd arg may be either the api key string (legacy)
 // or a BrandResearchContext object containing the api key + brand signals.
 // 5th arg (optional) enables the persistent cache.
@@ -739,10 +833,6 @@ export async function enrichWithResearch(
 ): Promise<ResearchEnrichment> {
   const recipe = CATEGORY_RECIPES[categoryId];
   if (!recipe?.needs_fresh_info || !recipe.research_focus) return EMPTY_ENRICHMENT;
-  if (!firecrawlApiKey) {
-    console.log(`[research] skipping (no FIRECRAWL_API_KEY) for category=${categoryId}`);
-    return EMPTY_ENRICHMENT;
-  }
 
   const ctx: BrandResearchContext =
     typeof brandCtxOrName === "string" || brandCtxOrName === undefined
@@ -751,8 +841,14 @@ export async function enrichWithResearch(
 
   const override = ctx.override || {};
   if (override.enabled === false) {
+    // User explicitly disabled research for this category — respect that, no fallback.
     console.log(`[research] disabled by brand override for category=${categoryId}`);
     return EMPTY_ENRICHMENT;
+  }
+
+  if (!firecrawlApiKey) {
+    console.log(`[research] no FIRECRAWL_API_KEY — using offline heuristic for category=${categoryId}`);
+    return buildOfflineHeuristic(categoryId, recipe, ctx, "no API key configured");
   }
 
   // Resolve recency: brand override > category default
@@ -862,8 +958,8 @@ export async function enrichWithResearch(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.log(`[research] firecrawl returned ${response.status} for category=${categoryId}`);
-      return EMPTY_ENRICHMENT;
+      console.log(`[research] firecrawl returned ${response.status} for category=${categoryId} — falling back to offline heuristic`);
+      return buildOfflineHeuristic(categoryId, recipe, ctx, `firecrawl HTTP ${response.status}`);
     }
     const data = await response.json();
 
@@ -874,8 +970,8 @@ export async function enrichWithResearch(
       [];
 
     if (results.length === 0) {
-      console.log(`[research] firecrawl returned 0 results for category=${categoryId} query="${query.slice(0, 120)}"`);
-      return EMPTY_ENRICHMENT;
+      console.log(`[research] firecrawl returned 0 results for category=${categoryId} query="${query.slice(0, 120)}" — falling back to offline heuristic`);
+      return buildOfflineHeuristic(categoryId, recipe, ctx, "no live results");
     }
 
     const sources: ResearchSource[] = results
@@ -887,7 +983,10 @@ export async function enrichWithResearch(
       }))
       .filter((s) => (s.title || s.description) && s.url);
 
-    if (sources.length === 0) return EMPTY_ENRICHMENT;
+    if (sources.length === 0) {
+      console.log(`[research] firecrawl results all unusable for category=${categoryId} — falling back to offline heuristic`);
+      return buildOfflineHeuristic(categoryId, recipe, ctx, "live results lacked usable URLs");
+    }
 
     const bullets = sources
       .map((s) => `- ${s.title}${s.title && s.description ? " — " : ""}${s.description}`.slice(0, 280))
@@ -927,7 +1026,9 @@ export async function enrichWithResearch(
     console.log(`[research] CACHE MISS — fetched category=${categoryId} via firecrawl with ${sources.length} results (brand=${ctx.brandName || "n/a"})`);
     return payload;
   } catch (e) {
-    console.log(`[research] firecrawl failed for category=${categoryId}:`, e instanceof Error ? e.message : e);
-    return EMPTY_ENRICHMENT;
+    const msg = e instanceof Error ? e.message : String(e);
+    const reason = msg.includes("aborted") ? "request timed out" : `network error (${msg.slice(0, 60)})`;
+    console.log(`[research] firecrawl failed for category=${categoryId}: ${msg} — falling back to offline heuristic`);
+    return buildOfflineHeuristic(categoryId, recipe, ctx, reason);
   }
 }
