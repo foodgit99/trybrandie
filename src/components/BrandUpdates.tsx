@@ -897,6 +897,49 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </div>
       )}
 
+      {/* AI follow-up questions for low-confidence updates */}
+      {followUps.length > 0 && (
+        <div
+          id="brand-updates-followups"
+          className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 space-y-2 scroll-mt-20"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-rose-700 dark:text-rose-400">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {followUps.length} update{followUps.length === 1 ? "" : "s"} need a quick detail before the AI can plan strong posts
+            </div>
+            <button
+              onClick={() => setFollowUps([])}
+              className="text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Dismiss
+            </button>
+          </div>
+          <ul className="space-y-1.5">
+            {followUps.map((f) => (
+              <li key={f.update_id} className="rounded-lg bg-background/60 border border-border p-2.5">
+                <p className="text-xs text-foreground">{f.question}</p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-muted-foreground truncate">
+                    On: {f.update_title}
+                    {typeof f.confidence === "number" ? ` · confidence ${f.confidence}/100` : ""}
+                  </span>
+                  <button
+                    onClick={() => answerFollowUp(f.update_id)}
+                    className="text-[11px] font-medium text-primary hover:underline shrink-0"
+                  >
+                    Answer →
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-muted-foreground">
+            Tip: after answering, run <span className="font-medium">AI check &amp; summarise</span> in the form to refresh the confidence score, then save.
+          </p>
+        </div>
+      )}
+
       {/* List */}
       {filtered.length > 0 ? (
         <div className="space-y-2">
