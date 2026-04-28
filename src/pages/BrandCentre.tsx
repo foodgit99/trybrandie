@@ -1275,6 +1275,106 @@ const BrandCentre = () => {
               </div>
             )}
           </div>
+
+          {/* Research Lab — per-category Firecrawl tuning */}
+          {(() => {
+            const RESEARCH_CATEGORIES: Array<{ id: string; name: string; defaultRecency: "24h" | "7d" | "30d"; description: string }> = [
+              { id: "trending",      name: "Trending",      defaultRecency: "24h", description: "Viral moments, fast-moving culture" },
+              { id: "entertainment", name: "Entertainment", defaultRecency: "7d",  description: "Pop culture, memes, what's hot" },
+              { id: "holidays",      name: "Holidays & Greetings", defaultRecency: "7d", description: "Upcoming dates and cultural moments" },
+              { id: "informational", name: "Informational", defaultRecency: "30d", description: "Stats, facts, evergreen tips" },
+            ];
+            const RECENCY_OPTIONS: Array<"24h" | "7d" | "30d"> = ["24h", "7d", "30d"];
+            const activeCount = RESEARCH_CATEGORIES.filter(c => researchPrefs[c.id]?.enabled !== false).length;
+            return (
+              <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
+                <button onClick={() => setResearchLabOpen(!researchLabOpen)} className="w-full flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Research Lab</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {activeCount}/{RESEARCH_CATEGORIES.length} on
+                    </span>
+                    {researchLabOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                </button>
+
+                {researchLabOpen && (
+                  <div className="space-y-4 pt-2">
+                    <p className="text-sm text-muted-foreground">
+                      Tune how aggressively Brandie searches the live web (via Firecrawl) when generating each content type. <span className="font-medium text-foreground/80">Fast</span> uses fewer sources for speed; <span className="font-medium text-foreground/80">Accurate</span> pulls more.
+                    </p>
+
+                    <div className="space-y-3">
+                      {RESEARCH_CATEGORIES.map((cat) => {
+                        const pref = researchPrefs[cat.id] || {};
+                        const enabled = pref.enabled !== false;
+                        const mode = pref.mode || "fast";
+                        const recency = pref.recency || cat.defaultRecency;
+                        return (
+                          <div key={cat.id} className={`rounded-xl border p-3 sm:p-4 transition-colors ${enabled ? "border-border bg-background" : "border-border/60 bg-muted/30"}`}>
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium">{cat.name}</p>
+                                <p className="text-xs text-muted-foreground leading-snug">{cat.description}</p>
+                              </div>
+                              <Switch
+                                checked={enabled}
+                                onCheckedChange={(val) => updateResearchPref(cat.id, { enabled: val })}
+                              />
+                            </div>
+
+                            {enabled && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {/* Mode */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Search depth</label>
+                                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-muted">
+                                    {(["fast", "accurate"] as const).map((m) => (
+                                      <button
+                                        key={m}
+                                        onClick={() => updateResearchPref(cat.id, { mode: m })}
+                                        className={`text-xs py-1.5 rounded-md font-medium transition-all flex items-center justify-center gap-1 ${
+                                          mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                      >
+                                        {m === "fast" ? <Zap className="h-3 w-3" /> : <Search className="h-3 w-3" />}
+                                        {m === "fast" ? "Fast" : "Accurate"}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Recency */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Recency window</label>
+                                  <div className="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-muted">
+                                    {RECENCY_OPTIONS.map((r) => (
+                                      <button
+                                        key={r}
+                                        onClick={() => updateResearchPref(cat.id, { recency: r })}
+                                        className={`text-xs py-1.5 rounded-md font-medium transition-all ${
+                                          recency === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                      >
+                                        {r}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </motion.div>
       </main>
 
