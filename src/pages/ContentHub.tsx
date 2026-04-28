@@ -698,7 +698,7 @@ const ContentHub = () => {
 
   // --- Series CRUD ---
   const openCreateSeries = () => {
-    setSeriesForm(emptySeries);
+    setSeriesForm({ ...emptySeries, content_category: getLastCategory(user?.id, "series") });
     setEditingSeriesId(null);
     setSeriesDialogOpen(true);
   };
@@ -756,7 +756,7 @@ const ContentHub = () => {
 
   // --- Campaign CRUD ---
   const openCreateCampaign = () => {
-    setCampaignForm(emptyCampaign);
+    setCampaignForm({ ...emptyCampaign, content_category: getLastCategory(user?.id, "campaign") });
     setEditingCampaignId(null);
     setCampaignDialogOpen(true);
   };
@@ -833,7 +833,7 @@ const ContentHub = () => {
   };
 
   const openCreateIdea = (day: string) => {
-    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll });
+    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: getLastCategory(user?.id, "idea") });
     setEditingIdeaId(null);
     setIdeaDay(day);
     setIdeaDialogOpen(true);
