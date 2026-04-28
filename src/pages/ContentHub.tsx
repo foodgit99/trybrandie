@@ -1925,6 +1925,11 @@ const ContentHub = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {!editingSeriesId && seriesForm.content_category && seriesForm.content_category === getLastCategory(user?.id, "series") && (
+                <p className="text-[10px] text-muted-foreground/80 leading-snug">
+                  Preselected from your last series. Change it anytime above.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Visual Style Notes (optional)</Label>
