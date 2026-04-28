@@ -1,33 +1,61 @@
-I found the website onboarding failure is coming from the `brand-scraper` backend function, not the onboarding UI itself.
+# Fix: Designs Are Not Aspect-Ratio Aware
 
-Recent logs show two failure paths:
+## Problem
 
-1. The scraper sometimes receives a non-JSON `Bad Gateway` response from the website scraping service, then crashes while calling `.json()`.
-2. The AI analysis step has recently failed on an invalid/old AI endpoint in the deployed function, causing the backend function to return a generic non-2xx error to the app.
+For non-square canvases (LinkedIn cover 1584×396, Facebook cover, stories, landscapes), the rendered design gets significant text and visual elements clipped — clearly visible in the screenshot where "Pixels. Start Building Your Empire." has its left edge chopped off.
 
-Plan to fix it:
+Root cause is in `supabase/functions/design-studio/index.ts`:
 
-1. Harden the website scraping response handling
-   - Update `supabase/functions/brand-scraper/index.ts` so it reads the scraping response as text first.
-   - Safely parse JSON only when possible.
-   - If the scraping service returns plain text like `Bad Gateway`, return a clean user-facing message instead of crashing.
-   - Preserve the existing CORS and authentication behavior.
+1. The image renderer call (Gemini `gemini-3-pro-image-preview`) is invoked **without** an `image_config.aspect_ratio` parameter. Gemini therefore returns its default ~1:1 image regardless of what we ask for in the prompt.
+2. `enforceCanvasDimensions()` then **center-crops** that square down to the target aspect (e.g. 1584×396). For an extreme banner ratio that means we keep only a thin horizontal slice of the original render — the headline composed for a square layout gets sliced through.
+3. The text prompt mentions the dimensions but the model has no structural way to honor them; "safe zone" guidance is also too weak (only 4%) for banner ratios.
 
-2. Harden the AI analysis call
-   - Keep the AI gateway endpoint consistent with the working functions in the project.
-   - Wrap the AI fetch in the existing timeout utility.
-   - Read AI responses safely instead of assuming every response body is valid JSON.
-   - Add clearer status handling for rate limits, service errors, and malformed AI responses.
+## Fix
 
-3. Add a fallback brand extraction path
-   - If the AI analysis step fails after scraping succeeded, generate a basic brand object from available website metadata/branding instead of failing the entire onboarding step.
-   - Use defaults for missing fields so the onboarding form can still be pre-filled and the user can continue.
-   - This keeps “Scan my website” useful even when the AI service is temporarily flaky.
+### 1. Pass aspect ratio to the image model (primary fix)
 
-4. Improve the onboarding error shown to users
-   - Update `src/pages/Onboarding.tsx` so backend function errors display the actual returned message where possible, instead of only `Edge Function returned a non-2xx status code`.
-   - Apply the same pattern to the Brand Centre website import flow in `src/pages/BrandCentre.tsx` for consistency.
+In `renderVariation()` add `image_config.aspect_ratio` derived from the resolved canvas. Gemini image preview supports: `"1:1"`, `"4:5"`, `"9:16"`, `"16:9"`, `"3:4"`, `"4:3"`, `"2:3"`, `"3:2"`, `"21:9"`. Add a small helper that maps `(w, h)` to the closest supported ratio:
 
-5. Verify the fix
-   - Test the `brand-scraper` function path with `https://merch-jungle.com/`.
-   - Confirm failure cases return clean messages and successful/partial cases pre-fill onboarding without blocking the user.
+- 1080×1080 → `1:1`
+- 1080×1350 → `4:5`
+- 1080×1920, fb/tt stories → `9:16`
+- 1920×1080, 1600×900, 1200×630, 1200×627 → `16:9`
+- 1640×924 (FB cover) → `16:9`
+- 1584×396 (LinkedIn cover, ~4:1) → `21:9` (closest supported wide format)
+- 1000×1500 → `2:3`
+
+Apply to both the initial fetch and the retry fetch inside `renderVariation`.
+
+### 2. Replace center-crop with safer fit logic
+
+Update `enforceCanvasDimensions()`:
+- If source aspect already matches target within ~2% → just resize (current behavior).
+- Otherwise, **scale-to-fit and pad** with a sampled edge color (or solid black/white based on average luminance) instead of cropping. This guarantees no design element is lost even if the model returns a slightly off ratio.
+- Keep current center-crop only as a last-resort fallback when the model is wildly off (>30% ratio mismatch) — but with `image_config.aspect_ratio` this branch should rarely trigger.
+
+### 3. Strengthen the prompt's safe-zone guidance per format
+
+Update `buildDimensionEnforcement()` so the safe-zone percentage scales with how extreme the aspect is:
+- Square / near-square → 4% (current)
+- Wide landscape (>2:1) and tall portrait (>1:2) → 8% on the long axis, 12% on the short axis
+- Ultra-wide banners (LinkedIn cover, >3:1) → "all critical text and the logo must sit within the central 70% of the width, vertically centered, with no element closer than 8% to any edge"
+
+Also add an explicit instruction reminding the model that text must be composed for the FULL canvas aspect (not for a square that will be cropped).
+
+## Technical Details
+
+Files to edit:
+- `supabase/functions/design-studio/index.ts`
+  - Add `mapToGeminiAspectRatio(w, h): string` helper.
+  - In `renderVariation()`, include `image_config: { aspect_ratio: <ratio> }` in the JSON body of both `retryFetch` calls to `ai.gateway.lovable.dev`.
+  - Update `enforceCanvasDimensions()` to fit-and-pad instead of always cropping (use `imagescript` `Image.new(w, h, color)` and `composite` of the resized source).
+  - Update `buildDimensionEnforcement()` to emit aspect-aware safe-zone copy.
+
+No frontend changes required. No new dependencies. Behavior is fully backwards compatible for square canvases.
+
+## Verification
+
+After deploy, regenerate the LinkedIn cover that produced the screenshot and confirm:
+- The full headline ("Pixels. Start Building Your Empire.") renders within the canvas.
+- No element bleeds off any edge.
+- Square Instagram posts still look identical to before.
