@@ -1,5 +1,7 @@
 // CATEGORY RECIPES — single source of truth for per-category enrichment.
 // Used by design-studio (rendering pipeline) and brand-engine (idea generation).
+import { getUpcomingHolidays, getCurrentSeason } from "./holiday-calendar.ts";
+
 //
 // Each recipe enriches a content category across 5 dimensions:
 //   1. brief_directive   — concrete art-direction spec
