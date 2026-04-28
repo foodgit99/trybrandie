@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap, Flame, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap, Flame, ChevronDown, ChevronUp, Megaphone } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -217,7 +217,7 @@ const Index = () => {
   const quickActions = [
     { label: "New Design", icon: Plus, path: "/studio", description: "Start creating" },
     { label: "Content Hub", icon: Layers, path: "/content", description: "Plan your posts" },
-    { label: "Design History", icon: Clock, path: "/history", description: "View past designs" },
+    { label: "Add Update", icon: Megaphone, path: "/brand?addUpdate=1#brand-updates", description: "Log a fresh business moment" },
     { label: "Brand Centre", icon: Palette, path: "/brand", description: "Manage identity" },
   ];
 
