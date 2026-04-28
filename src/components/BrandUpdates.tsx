@@ -219,7 +219,48 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     setForm(emptyForm());
     setAdding(false);
     setEditingId(null);
+    setAiCheck(null);
   };
+
+  const runAiCheck = async () => {
+    if (!form.content.trim() && !form.title.trim()) {
+      toast({
+        title: "Add some content first",
+        description: "Type a short note about the update before running the AI check.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setAiChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("summarise-update", {
+        body: {
+          update_type: form.update_type,
+          title: form.title,
+          content: form.content,
+          attribution: form.attribution,
+          event_date: form.event_date,
+        },
+      });
+      if (error) throw error;
+      if (!data || data.error) throw new Error(data?.error || "AI check failed");
+      setAiCheck(data as AiCheck);
+    } catch (e: any) {
+      toast({
+        title: "AI check failed",
+        description: e?.message || "Try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setAiChecking(false);
+    }
+  };
+
+  // Re-run check should be triggered manually; clear stale check when key fields change
+  useEffect(() => {
+    if (aiCheck) setAiCheck(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.title, form.content, form.update_type, form.attribution]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
