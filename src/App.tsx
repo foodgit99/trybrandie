@@ -7,7 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
 import ScrollToTop from "@/components/ScrollToTop";
-import FloatingCreateButton from "@/components/FloatingCreateButton";
+import FloatingNavBar from "@/components/FloatingNavBar";
 import LowCreditsBanner from "@/components/LowCreditsBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
@@ -133,7 +133,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         <FloatingDesignStatus />
-        <FloatingCreateButton />
+        <FloatingNavBar />
         <LowCreditsBanner />
       </BrowserRouter>
       </DesignGenerationProvider>
