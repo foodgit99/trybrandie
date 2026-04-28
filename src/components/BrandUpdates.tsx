@@ -112,6 +112,22 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const [filterType, setFilterType] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
+  // Auto-open the add form when navigated with ?addUpdate=1 (from home / floating nav)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("addUpdate") === "1") {
+      setAdding(true);
+      setTimeout(() => {
+        document.getElementById("brand-updates")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+      params.delete("addUpdate");
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "") + window.location.hash;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, []);
+
   const { data: updates, refetch } = useQuery({
     queryKey: ["brand_updates", brandId, showArchived],
     enabled: !!brandId,
