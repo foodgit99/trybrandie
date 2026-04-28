@@ -567,6 +567,7 @@ When you have brand context, reference it naturally in your advice — suggest u
 
       // Fetch audience intelligence for the brand
       let audienceContext = "";
+      let audienceProfile: any = null;
       if (brand?.id || audience_id) {
         try {
           let query = adminClient.from("target_audiences").select("jtbd_profile");
@@ -580,6 +581,7 @@ When you have brand context, reference it naturally in your advice — suggest u
           const profile = audienceData?.jtbd_profile;
           if (profile && typeof profile === "object" && Object.keys(profile).length > 0) {
             const p = profile as any;
+            audienceProfile = p;
             audienceContext = `
 
 AUDIENCE INTELLIGENCE (use to sharpen copy and visual strategy):
