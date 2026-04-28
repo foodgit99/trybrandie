@@ -24,6 +24,35 @@ const Index = () => {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [viewerDesigns, setViewerDesigns] = useState<any[]>([]);
+  const [planningFromUpdates, setPlanningFromUpdates] = useState(false);
+
+  const planFromUpdates = async () => {
+    if (planningFromUpdates || !brand?.id) return;
+    setPlanningFromUpdates(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("brand-engine", {
+        body: { action: "plan_from_updates", brand_id: brand.id },
+      });
+      if (error) throw error;
+      const count = (data as any)?.count || 0;
+      toast({
+        title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
+        description: "Opening Content Hub…",
+      });
+      navigate("/content");
+    } catch (e: any) {
+      const msg = e?.message || "";
+      toast({
+        title: "Couldn't plan from updates",
+        description: msg.includes("No recent updates")
+          ? "Add at least one update first, then try again."
+          : msg || "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setPlanningFromUpdates(false);
+    }
+  };
 
   const { data: designs } = useQuery({
     queryKey: ["recent-designs", user?.id, showAllDesigns],
