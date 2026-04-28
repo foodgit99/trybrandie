@@ -2329,6 +2329,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(captionText ? { caption: captionText } : {}),
           run_id: tracer.runId,
           content_category: resolvedCategory,
+          ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
