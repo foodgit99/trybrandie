@@ -84,7 +84,7 @@ import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
-import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand } from "@/lib/lastCategoryPref";
+import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory } from "@/lib/lastCategoryPref";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
@@ -192,8 +192,12 @@ const ContentHub = () => {
   const [ideaDay, setIdeaDay] = useState<string>("");
   const [ideaSaving, setIdeaSaving] = useState(false);
 
-  // Category filter (applies across Series, Campaigns, and Ideas)
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  // Category filter (applies across Series, Campaigns, and Ideas) — persisted per user+brand
+  const [categoryFilter, setCategoryFilterState] = useState<string>("all");
+  const setCategoryFilter = (v: string) => {
+    setCategoryFilterState(v);
+    setLastFilterCategory(user?.id, brand?.id, v);
+  };
 
   const brandId = brand?.id;
 
@@ -476,7 +480,15 @@ const ContentHub = () => {
 
   // Hydrate last-selected categories for the active brand so they follow the user across devices
   useEffect(() => {
-    if (user?.id && brandId) void hydrateLastCategoriesForBrand(user.id, brandId);
+    if (!user?.id || !brandId) return;
+    let cancelled = false;
+    void hydrateLastCategoriesForBrand(user.id, brandId).then(() => {
+      if (cancelled) return;
+      setCategoryFilterState(getLastFilterCategory(user.id, brandId, validCategoryIds));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, brandId]);
 
   // --- Engine Actions ---
