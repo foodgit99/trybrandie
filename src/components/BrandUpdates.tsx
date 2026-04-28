@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +28,7 @@ import {
   ArchiveRestore,
   Wand2,
   AlertTriangle,
+  ListChecks,
 } from "lucide-react";
 
 const UPDATE_TYPES: Array<{
@@ -121,7 +123,9 @@ interface Props {
 export default function BrandUpdates({ brandId, userId }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [planning, setPlanning] = useState(false);
 
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -220,6 +224,45 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     setAdding(false);
     setEditingId(null);
     setAiCheck(null);
+  };
+
+  const planFromUpdates = async () => {
+    if (planning) return;
+    const activeCount = (updates || []).filter((u) => u.status === "active").length;
+    if (activeCount === 0) {
+      toast({
+        title: "No active updates",
+        description: "Add at least one update first — the AI uses these as factual seed material.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPlanning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("brand-engine", {
+        body: { action: "plan_from_updates", brand_id: brandId },
+      });
+      if (error) throw error;
+      const count = (data as any)?.count || 0;
+      const used = (data as any)?.updates_used || 0;
+      qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
+      toast({
+        title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
+        description:
+          count > 0
+            ? `Grounded in ${used} update${used === 1 ? "" : "s"}. Opening Content Hub…`
+            : "Opening Content Hub…",
+      });
+      navigate("/content");
+    } catch (e: any) {
+      toast({
+        title: "Couldn't draft from updates",
+        description: e?.message || "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setPlanning(false);
+    }
   };
 
   const runAiCheck = async () => {
@@ -678,17 +721,37 @@ export default function BrandUpdates({ brandId, userId }: Props) {
             </span>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1 text-muted-foreground"
-          onClick={() => {
-            if (adding || editingId) reset();
-            else setAdding(true);
-          }}
-        >
-          <Plus className="h-3 w-3" /> Add
-        </Button>
+        <div className="flex items-center gap-1">
+          {(updates || []).some((u) => u.status === "active") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-primary hover:text-primary"
+              onClick={planFromUpdates}
+              disabled={planning}
+              title="Turn your latest updates into draft post ideas in the Content Hub"
+            >
+              {planning ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <ListChecks className="h-3 w-3" />
+              )}
+              <span className="hidden sm:inline">Plan content</span>
+              <span className="sm:hidden">Plan</span>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-muted-foreground"
+            onClick={() => {
+              if (adding || editingId) reset();
+              else setAdding(true);
+            }}
+          >
+            <Plus className="h-3 w-3" /> Add
+          </Button>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">
         Drop quick real-time updates — testimonials, events, product news, milestones. The AI uses these as fresh,

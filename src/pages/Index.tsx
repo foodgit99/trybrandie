@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap, Flame, ChevronDown, ChevronUp, Megaphone } from "lucide-react";
+import { Plus, Palette, Gift, Copy, Check, X, Twitter, MessageCircle, Layers, ArrowRight, CalendarDays, Clock, Sparkles, Zap, Flame, ChevronDown, ChevronUp, Megaphone, ListChecks, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -24,6 +24,35 @@ const Index = () => {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [viewerDesigns, setViewerDesigns] = useState<any[]>([]);
+  const [planningFromUpdates, setPlanningFromUpdates] = useState(false);
+
+  const planFromUpdates = async () => {
+    if (planningFromUpdates || !brand?.id) return;
+    setPlanningFromUpdates(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("brand-engine", {
+        body: { action: "plan_from_updates", brand_id: brand.id },
+      });
+      if (error) throw error;
+      const count = (data as any)?.count || 0;
+      toast({
+        title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
+        description: "Opening Content Hub…",
+      });
+      navigate("/content");
+    } catch (e: any) {
+      const msg = e?.message || "";
+      toast({
+        title: "Couldn't plan from updates",
+        description: msg.includes("No recent updates")
+          ? "Add at least one update first, then try again."
+          : msg || "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setPlanningFromUpdates(false);
+    }
+  };
 
   const { data: designs } = useQuery({
     queryKey: ["recent-designs", user?.id, showAllDesigns],
@@ -347,9 +376,19 @@ const Index = () => {
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Log a quick update
                 </p>
-                <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                  Tap to prefill
-                </span>
+                <button
+                  onClick={planFromUpdates}
+                  disabled={planningFromUpdates || !brand?.id}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Turn your latest updates into draft post ideas in the Content Hub"
+                >
+                  {planningFromUpdates ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <ListChecks className="h-3 w-3" />
+                  )}
+                  Plan content from updates
+                </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {[
