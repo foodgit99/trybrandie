@@ -2001,6 +2001,11 @@ const ContentHub = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {!editingCampaignId && campaignForm.content_category && campaignForm.content_category === getLastCategory(user?.id, "campaign") && (
+                <p className="text-[10px] text-muted-foreground/80 leading-snug">
+                  Preselected from your last campaign. Change it anytime above.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
