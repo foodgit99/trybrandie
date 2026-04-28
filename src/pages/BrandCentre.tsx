@@ -126,16 +126,26 @@ const BrandCentre = () => {
   const [selectedTrend, setSelectedTrend] = useState("none");
   const [trendIntensity, setTrendIntensity] = useState(40);
 
+  // Research Lab state — per-category Firecrawl tuning
+  const [researchLabOpen, setResearchLabOpen] = useState(false);
+  type ResearchPref = { mode?: "fast" | "accurate"; recency?: "24h" | "7d" | "30d"; enabled?: boolean };
+  const [researchPrefs, setResearchPrefs] = useState<Record<string, ResearchPref>>({});
+
   useEffect(() => {
     if (trendPrefs) {
       setTrendEnabled(trendPrefs.trend_enabled ?? false);
       setSelectedTrend(trendPrefs.selected_trend ?? "none");
       setTrendIntensity(trendPrefs.default_trend_intensity ?? 40);
+      setResearchPrefs(
+        trendPrefs.research_prefs && typeof trendPrefs.research_prefs === "object"
+          ? trendPrefs.research_prefs as Record<string, ResearchPref>
+          : {},
+      );
     }
   }, [trendPrefs]);
 
   const saveTrendPrefs = useMutation({
-    mutationFn: async (updates: { trend_enabled?: boolean; selected_trend?: string; default_trend_intensity?: number }) => {
+    mutationFn: async (updates: { trend_enabled?: boolean; selected_trend?: string; default_trend_intensity?: number; research_prefs?: Record<string, ResearchPref> }) => {
       const payload = { brand_id: brand!.id, ...updates };
       if (trendPrefs?.id) {
         const { error } = await supabase.from("brand_trend_preferences" as any).update(payload as any).eq("id", trendPrefs.id);
@@ -148,8 +158,14 @@ const BrandCentre = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["brand_trend_preferences", brand?.id] });
     },
-    onError: (err: any) => toast({ title: "Error saving trend preferences", description: err.message, variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Error saving preferences", description: err.message, variant: "destructive" }),
   });
+
+  const updateResearchPref = (categoryId: string, patch: Partial<ResearchPref>) => {
+    const next = { ...researchPrefs, [categoryId]: { ...(researchPrefs[categoryId] || {}), ...patch } };
+    setResearchPrefs(next);
+    saveTrendPrefs.mutate({ research_prefs: next });
+  };
 
   const selectedAudience = audiences.find((a: any) => a.id === selectedAudienceId) || audiences[0] || null;
 
