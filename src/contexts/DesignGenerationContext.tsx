@@ -23,6 +23,8 @@ export interface GenerationResult {
   carousel_id?: string;
   slides?: Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>;
   variations?: DesignVariation[];
+  research_sources?: Array<{ title: string; url: string; description: string }>;
+  content_category?: string;
 }
 
 export interface GenerationParams {
