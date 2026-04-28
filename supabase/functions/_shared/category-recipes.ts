@@ -853,7 +853,7 @@ export async function enrichWithResearch(
       },
       body: JSON.stringify({
         query,
-        limit: 5,
+        limit: searchLimit,
         tbs,
         ...(ctx.region ? { country: ctx.region.slice(0, 2).toLowerCase() } : {}),
       }),
