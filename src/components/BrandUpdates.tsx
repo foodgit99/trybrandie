@@ -30,6 +30,8 @@ import {
   AlertTriangle,
   ListChecks,
   HelpCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const UPDATE_TYPES: Array<{
