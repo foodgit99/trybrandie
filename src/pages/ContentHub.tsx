@@ -73,6 +73,8 @@ import {
   RotateCcw,
   MoreHorizontal,
   Clock,
+  LayoutGrid,
+  X,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import CalendarExport from "@/components/CalendarExport";
@@ -968,13 +970,15 @@ const ContentHub = () => {
             <button
               type="button"
               onClick={() => setCategoryFilter("all")}
-              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
                 categoryFilter === "all"
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
               }`}
+              title="Show every category"
             >
-              All
+              <LayoutGrid className="h-3 w-3" />
+              <span>All categories</span>
             </button>
             {CONTENT_CATEGORIES.map((cat) => {
               const active = categoryFilter === cat.id;
@@ -999,9 +1003,12 @@ const ContentHub = () => {
               <button
                 type="button"
                 onClick={() => setCategoryFilter("all")}
-                className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline px-1"
+                className="shrink-0 rounded-full border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/40 px-2.5 py-1 inline-flex items-center gap-1 transition-colors"
+                title="Reset filter to show all categories"
+                aria-label="Reset category filter"
               >
-                Clear
+                <X className="h-3 w-3" />
+                <span>Reset</span>
               </button>
             )}
           </div>
