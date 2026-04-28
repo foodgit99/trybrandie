@@ -182,6 +182,23 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     return map;
   }, [updates]);
 
+  // Updates expiring within 7 days (active, not yet expired)
+  const expiringSoon = useMemo(() => {
+    if (showArchived) return [];
+    return (updates || []).filter((u) => {
+      const d = daysUntilExpiry(u.expires_at);
+      return d !== null && d >= 0 && d <= 7;
+    });
+  }, [updates, showArchived]);
+
+  const expired = useMemo(() => {
+    if (showArchived) return [];
+    return (updates || []).filter((u) => {
+      const d = daysUntilExpiry(u.expires_at);
+      return d !== null && d < 0;
+    });
+  }, [updates, showArchived]);
+
   const reset = () => {
     setForm(emptyForm());
     setAdding(false);
