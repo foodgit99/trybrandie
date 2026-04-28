@@ -1672,9 +1672,9 @@ const ContentHub = () => {
                     AI Generate
                   </Button>
                 </div>
-                {campaigns && campaigns.length > 0 ? (
+                {filteredCampaigns.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {campaigns.map((c: any, i: number) => (
+                    {filteredCampaigns.map((c: any, i: number) => (
                       <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                         <Card className="hover:border-primary/30 transition-colors group relative">
                           <CardContent className="p-4 space-y-1.5">
