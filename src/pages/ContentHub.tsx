@@ -952,9 +952,28 @@ const ContentHub = () => {
     if (categoryFilter === "all") return true;
     return parseCategoryIds(raw).includes(categoryFilter as ContentCategoryId);
   };
-  const filteredSeries = (series || []).filter((s: any) => matchesCategory(s.content_category));
-  const filteredCampaigns = (campaigns || []).filter((c: any) => matchesCategory(c.content_category));
-  const filteredWeeklyIdeas = (weeklyIdeas || []).filter((i: any) => matchesCategory(i.content_category));
+  const sortItems = <T extends Record<string, any>>(items: T[], nameKey: "name" | "title"): T[] => {
+    const arr = [...items];
+    const ts = (v: any) => {
+      const t = v ? new Date(v).getTime() : 0;
+      return Number.isFinite(t) ? t : 0;
+    };
+    const nm = (it: T) => String((it as any)[nameKey] || "").toLowerCase();
+    switch (sortOption) {
+      case "oldest":
+        return arr.sort((a, b) => ts(a.created_at) - ts(b.created_at));
+      case "az":
+        return arr.sort((a, b) => nm(a).localeCompare(nm(b)));
+      case "za":
+        return arr.sort((a, b) => nm(b).localeCompare(nm(a)));
+      case "newest":
+      default:
+        return arr.sort((a, b) => ts(b.created_at) - ts(a.created_at));
+    }
+  };
+  const filteredSeries = sortItems((series || []).filter((s: any) => matchesCategory(s.content_category)), "name");
+  const filteredCampaigns = sortItems((campaigns || []).filter((c: any) => matchesCategory(c.content_category)), "name");
+  const filteredWeeklyIdeas = sortItems((weeklyIdeas || []).filter((i: any) => matchesCategory(i.content_category)), "title");
 
   // Build weekly calendar
   const ideasByDay = DAYS.reduce((acc, day) => {
