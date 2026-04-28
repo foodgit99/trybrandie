@@ -25,6 +25,8 @@ import {
   ExternalLink,
   Archive,
   ArchiveRestore,
+  Wand2,
+  AlertTriangle,
 } from "lucide-react";
 
 const UPDATE_TYPES: Array<{
