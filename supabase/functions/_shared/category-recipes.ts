@@ -640,6 +640,12 @@ export function buildCopyForbiddenContext(categoryId: string): string {
 // Uses Firecrawl's /v2/search endpoint with time-bound `tbs` filter to pull current
 // web context for time-sensitive categories (trending, entertainment, holidays, etc.).
 // Returns 3-5 bullet-style snippets distilled from result titles + descriptions.
+//
+// CACHING: two-layer cache keyed by (categoryId, query_hash):
+//   1. In-memory Map (warm function instance) — instant, free.
+//   2. Postgres `research_cache` table (cross-instance) — survives cold starts.
+// TTL matches the category's recency window so cache freshness can never exceed
+// what the underlying search filter would have returned anyway.
 
 export interface BrandResearchContext {
   brandName?: string;
@@ -652,13 +658,46 @@ export interface BrandResearchContext {
   region?: string;                  // for location-relevant searches
 }
 
-// Backward-compatible signature: 4th arg may be either the api key string (legacy)
+// Optional persistent cache adapter — pass an admin Supabase client to enable.
+// Kept as a loose type so this shared file doesn't pull a Supabase import.
+export interface ResearchCacheClient {
+  from: (table: string) => any;
+}
+
+// Cache TTLs per category (ms). Aligned with Firecrawl `tbs` recency filters.
+const CACHE_TTL_MS: Record<string, number> = {
+  trending: 6 * 60 * 60 * 1000,         // 6h — viral cycles move fast
+  entertainment: 24 * 60 * 60 * 1000,   // 24h
+  holidays: 24 * 60 * 60 * 1000,        // 24h
+  informational: 7 * 24 * 60 * 60 * 1000, // 7d
+  interactive: 24 * 60 * 60 * 1000,     // 24h
+};
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
+
+// In-memory cache (per warm function instance).
+const memCache = new Map<string, { result: string; expiresAt: number }>();
+const MEM_CACHE_MAX = 200;
+
+// Tiny stable hash (FNV-1a 32-bit, hex). Sufficient for cache keys (collision-resistant
+// enough for our scale; not cryptographic).
+function hashQuery(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+// Backward-compatible signature: 3rd arg may be either the api key string (legacy)
 // or a BrandResearchContext object containing the api key + brand signals.
+// 5th arg (optional) enables the persistent cache.
 export async function enrichWithResearch(
   categoryId: string,
   userPrompt: string,
   brandCtxOrName: BrandResearchContext | string | undefined,
   firecrawlApiKey: string | undefined,
+  cacheClient?: ResearchCacheClient,
 ): Promise<string> {
   const recipe = CATEGORY_RECIPES[categoryId];
   if (!recipe?.needs_fresh_info || !recipe.research_focus) return "";
@@ -674,40 +713,78 @@ export async function enrichWithResearch(
 
   // Map category → Firecrawl `tbs` recency filter
   const recencyMap: Record<string, string> = {
-    trending: "qdr:d",       // past day
-    entertainment: "qdr:w",  // past week
-    holidays: "qdr:w",       // past week
-    informational: "qdr:m",  // past month
-    interactive: "qdr:w",    // past week
+    trending: "qdr:d",
+    entertainment: "qdr:w",
+    holidays: "qdr:w",
+    informational: "qdr:m",
+    interactive: "qdr:w",
   };
   const tbs = recencyMap[categoryId] || "qdr:w";
+  const ttlMs = CACHE_TTL_MS[categoryId] || DEFAULT_TTL_MS;
 
   // Build a focused, brand-aware search query.
-  // Order matters — most discriminating signals first so search engines weight them higher.
   const vibe = (ctx.vibeKeywords || []).slice(0, 3).filter(Boolean).join(", ");
   const postTypeLabel = ctx.postType || recipe.name;
   const platformLabel = ctx.platform || "social media";
 
   const queryBits = [
-    // 1. What we're researching (category-specific focus)
     recipe.research_focus,
-    // 2. Use case framing — post type + platform
     `for a ${postTypeLabel.toLowerCase()} ${platformLabel.toLowerCase()} post`,
-    // 3. Brand identity signals
     ctx.brandName ? `brand: "${ctx.brandName}"` : "",
     ctx.industry ? `industry: ${ctx.industry}` : "",
     vibe ? `brand vibe: ${vibe}` : "",
     ctx.toneOfVoice ? `tone: ${ctx.toneOfVoice}` : "",
-    // 4. Audience anchor
     ctx.audienceDescriptor ? `audience: ${ctx.audienceDescriptor}` : "",
-    // 5. Region (helps holidays, informational, trending)
     ctx.region ? `region: ${ctx.region}` : "",
-    // 6. Specific user prompt last as concrete subject matter
     userPrompt ? `topic: ${userPrompt}` : "",
   ].filter(Boolean);
 
   const query = queryBits.join(" — ").slice(0, 380);
 
+  // Cache key: category + hash of the full query (already includes brand/topic/etc).
+  // Day-bucket added so day-recency searches (trending) can't serve yesterday's results.
+  const dayBucket = Math.floor(Date.now() / ttlMs);
+  const cacheKey = `${categoryId}:${hashQuery(query)}:${dayBucket}`;
+
+  // --- LAYER 1: In-memory cache ---
+  const memHit = memCache.get(cacheKey);
+  if (memHit && memHit.expiresAt > Date.now()) {
+    console.log(`[research] CACHE HIT (mem) category=${categoryId}`);
+    return memHit.result;
+  }
+  if (memHit) memCache.delete(cacheKey); // expired
+
+  // --- LAYER 2: Postgres cache ---
+  if (cacheClient) {
+    try {
+      const { data: row } = await cacheClient
+        .from("research_cache")
+        .select("result, expires_at")
+        .eq("category_id", categoryId)
+        .eq("query_hash", cacheKey)
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+      if (row?.result) {
+        console.log(`[research] CACHE HIT (db) category=${categoryId}`);
+        // Hydrate memory cache and increment hit counter (fire-and-forget)
+        memCache.set(cacheKey, {
+          result: row.result,
+          expiresAt: new Date(row.expires_at).getTime(),
+        });
+        cacheClient
+          .from("research_cache")
+          .update({ hit_count: (row as any).hit_count ? (row as any).hit_count + 1 : 1 })
+          .eq("category_id", categoryId)
+          .eq("query_hash", cacheKey)
+          .then(() => {}, () => {});
+        return row.result;
+      }
+    } catch (e) {
+      console.log(`[research] db cache lookup failed:`, e instanceof Error ? e.message : e);
+    }
+  }
+
+  // --- MISS: Call Firecrawl ---
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 10000);
@@ -733,7 +810,6 @@ export async function enrichWithResearch(
     }
     const data = await response.json();
 
-    // v2 search returns results either at data.data (array) or data.web (array) depending on shape
     const results: Array<{ title?: string; description?: string; url?: string }> =
       (Array.isArray(data?.data) ? data.data : null) ||
       (Array.isArray(data?.web) ? data.web : null) ||
@@ -758,8 +834,40 @@ export async function enrichWithResearch(
 
     if (!bullets) return "";
 
-    console.log(`[research] enriched category=${categoryId} via firecrawl with ${results.length} results (brand=${ctx.brandName || "n/a"})`);
-    return `\n\nCURRENT RESEARCH CONTEXT (live web search, ${tbs}, tuned to brand "${ctx.brandName || "n/a"}" / ${postTypeLabel} — use to ground copy and visuals in what is true/relevant right now):\n${bullets}`;
+    const finalResult = `\n\nCURRENT RESEARCH CONTEXT (live web search, ${tbs}, tuned to brand "${ctx.brandName || "n/a"}" / ${postTypeLabel} — use to ground copy and visuals in what is true/relevant right now):\n${bullets}`;
+
+    // --- Write to both cache layers ---
+    const expiresAt = Date.now() + ttlMs;
+
+    // Memory (with simple LRU-ish eviction)
+    if (memCache.size >= MEM_CACHE_MAX) {
+      const firstKey = memCache.keys().next().value;
+      if (firstKey) memCache.delete(firstKey);
+    }
+    memCache.set(cacheKey, { result: finalResult, expiresAt });
+
+    // Postgres (fire-and-forget upsert)
+    if (cacheClient) {
+      cacheClient
+        .from("research_cache")
+        .upsert(
+          {
+            category_id: categoryId,
+            query_hash: cacheKey,
+            query_preview: query.slice(0, 200),
+            result: finalResult,
+            expires_at: new Date(expiresAt).toISOString(),
+            hit_count: 0,
+          },
+          { onConflict: "category_id,query_hash" },
+        )
+        .then(() => {}, (e: unknown) => {
+          console.log(`[research] db cache write failed:`, e instanceof Error ? e.message : e);
+        });
+    }
+
+    console.log(`[research] CACHE MISS — fetched category=${categoryId} via firecrawl with ${results.length} results (brand=${ctx.brandName || "n/a"})`);
+    return finalResult;
   } catch (e) {
     console.log(`[research] firecrawl failed for category=${categoryId}:`, e instanceof Error ? e.message : e);
     return "";

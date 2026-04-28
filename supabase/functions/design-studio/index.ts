@@ -1391,7 +1391,7 @@ ${brand.special_instructions}
           audienceDescriptor: audienceProfile?.persona_summary,
           postType: recipe?.name || cat,
           platform: "Instagram",
-        }, FIRECRAWL_API_KEY);
+        }, FIRECRAWL_API_KEY, adminClient);
       })();
 
       // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis + Category ---

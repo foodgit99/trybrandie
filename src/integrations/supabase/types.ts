@@ -1267,6 +1267,39 @@ export type Database = {
         }
         Relationships: []
       }
+      research_cache: {
+        Row: {
+          category_id: string
+          created_at: string
+          expires_at: string
+          hit_count: number
+          id: string
+          query_hash: string
+          query_preview: string | null
+          result: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          expires_at: string
+          hit_count?: number
+          id?: string
+          query_hash: string
+          query_preview?: string | null
+          result: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          expires_at?: string
+          hit_count?: number
+          id?: string
+          query_hash?: string
+          query_preview?: string | null
+          result?: string
+        }
+        Relationships: []
+      }
       strategy_conversations: {
         Row: {
           brand_id: string
