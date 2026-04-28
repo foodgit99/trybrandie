@@ -1026,7 +1026,9 @@ export async function enrichWithResearch(
     console.log(`[research] CACHE MISS — fetched category=${categoryId} via firecrawl with ${sources.length} results (brand=${ctx.brandName || "n/a"})`);
     return payload;
   } catch (e) {
-    console.log(`[research] firecrawl failed for category=${categoryId}:`, e instanceof Error ? e.message : e);
-    return EMPTY_ENRICHMENT;
+    const msg = e instanceof Error ? e.message : String(e);
+    const reason = msg.includes("aborted") ? "request timed out" : `network error (${msg.slice(0, 60)})`;
+    console.log(`[research] firecrawl failed for category=${categoryId}: ${msg} — falling back to offline heuristic`);
+    return buildOfflineHeuristic(categoryId, recipe, ctx, reason);
   }
 }
