@@ -358,6 +358,70 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         onChange={(e) => setForm((f) => ({ ...f, source_url: e.target.value }))}
       />
 
+      {/* Expiry / reminder */}
+      <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Expires / stop using on
+          </label>
+          {form.expires_at && (
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, expires_at: "" }))}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Set a date for time-sensitive updates (events, sales, launches). The AI will stop using it after this date and you'll see a reminder when it's about to expire.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { label: "+3 days", days: 3 },
+            { label: "+7 days", days: 7 },
+            { label: "+14 days", days: 14 },
+            { label: "+30 days", days: 30 },
+            { label: "+90 days", days: 90 },
+          ].map((opt) => {
+            const target = addDaysIso(opt.days);
+            const selected = form.expires_at === target;
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, expires_at: target }))}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                  selected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-muted-foreground/40"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <Input
+          type="date"
+          value={form.expires_at}
+          min={todayIso()}
+          onChange={(e) => setForm((f) => ({ ...f, expires_at: e.target.value }))}
+        />
+        {form.expires_at && (() => {
+          const days = daysUntilExpiry(form.expires_at);
+          if (days === null) return null;
+          if (days < 0) {
+            return <p className="text-[11px] text-destructive">⚠ This date is in the past — the update won't be used.</p>;
+          }
+          if (days === 0) {
+            return <p className="text-[11px] text-amber-600 dark:text-amber-400">Expires today.</p>;
+          }
+          return <p className="text-[11px] text-muted-foreground">Expires in {days} day{days === 1 ? "" : "s"}.</p>;
+        })()}
+      </div>
+
       {/* Image */}
       <div className="flex items-center gap-3">
         {form.image_url ? (
