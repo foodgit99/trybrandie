@@ -581,8 +581,20 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         <div className="space-y-2">
           {filtered.map((u) => {
             const meta = TYPE_META[u.update_type] || TYPE_META.other;
+            const expDays = daysUntilExpiry(u.expires_at);
+            const isExpired = expDays !== null && expDays < 0;
+            const isExpiringSoon = expDays !== null && expDays >= 0 && expDays <= 7;
             return (
-              <div key={u.id} className="rounded-xl border border-border bg-background/40 p-3 flex gap-3">
+              <div
+                key={u.id}
+                className={`rounded-xl border p-3 flex gap-3 ${
+                  isExpired
+                    ? "border-destructive/30 bg-destructive/5 opacity-70"
+                    : isExpiringSoon
+                    ? "border-amber-500/40 bg-amber-500/5"
+                    : "border-border bg-background/40"
+                }`}
+              >
                 {u.image_url ? (
                   <img src={u.image_url} alt="" className="w-12 h-12 object-cover rounded-lg border border-border shrink-0" />
                 ) : (
