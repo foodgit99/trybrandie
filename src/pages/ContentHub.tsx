@@ -2112,6 +2112,11 @@ const ContentHub = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {!editingIdeaId && ideaForm.content_category && ideaForm.content_category === getLastCategory(user?.id, "idea") && (
+                <p className="text-[10px] text-muted-foreground/80 leading-snug">
+                  Preselected from your last idea. Change it anytime above.
+                </p>
+              )}
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
               <div className="flex items-center gap-2">
