@@ -688,8 +688,11 @@ const BrandCentre = () => {
     </div>
   );
 
-  // Audience questionnaire form (reusable)
-  const AudienceForm = () => (
+  // Audience questionnaire form (rendered as a JSX element, NOT a nested
+  // component — defining a component inside another component creates a new
+  // function reference on every render, which forces React to unmount/remount
+  // the inputs and steals focus on every keystroke.
+  const audienceFormEl = (
     <div className="space-y-6">
       <div className="space-y-2">
         <label className="text-sm font-medium">Audience Label</label>
@@ -1181,7 +1184,7 @@ const BrandCentre = () => {
                 {selectedAudience && (
                   <>
                     {(audienceEditing || !hasJtbdProfile) ? (
-                      <AudienceForm />
+                      {audienceFormEl}
                     ) : (
                       <AudienceProfileDisplay profile={selectedAudience.jtbd_profile} />
                     )}
