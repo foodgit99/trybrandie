@@ -189,21 +189,26 @@ async function enforceCanvasDimensions(
     const scaled = img.resize(scaledW, scaledH);
 
     // Sample 4 corners + 4 mid-edge pixels for the pad color.
+    // imagescript uses 1-indexed pixel coordinates and packed 0xRRGGBBAA ints.
     const samplePoints: Array<[number, number]> = [
-      [0, 0], [srcW - 1, 0], [0, srcH - 1], [srcW - 1, srcH - 1],
-      [Math.floor(srcW / 2), 0], [Math.floor(srcW / 2), srcH - 1],
-      [0, Math.floor(srcH / 2)], [srcW - 1, Math.floor(srcH / 2)],
+      [1, 1], [srcW, 1], [1, srcH], [srcW, srcH],
+      [Math.max(1, Math.floor(srcW / 2)), 1],
+      [Math.max(1, Math.floor(srcW / 2)), srcH],
+      [1, Math.max(1, Math.floor(srcH / 2))],
+      [srcW, Math.max(1, Math.floor(srcH / 2))],
     ];
     let r = 0, g = 0, b = 0;
     for (const [x, y] of samplePoints) {
-      const px = img.getRGBAAt(x + 1, y + 1); // imagescript uses 1-indexed coords
-      r += px[0]; g += px[1]; b += px[2];
+      const packed = img.getPixelAt(x, y); // 0xRRGGBBAA
+      r += (packed >>> 24) & 0xff;
+      g += (packed >>> 16) & 0xff;
+      b += (packed >>> 8) & 0xff;
     }
     const n = samplePoints.length;
     const avgR = Math.round(r / n);
     const avgG = Math.round(g / n);
     const avgB = Math.round(b / n);
-    const padColor = ((avgR & 0xff) << 24) | ((avgG & 0xff) << 16) | ((avgB & 0xff) << 8) | 0xff;
+    const padColor = (((avgR & 0xff) << 24) | ((avgG & 0xff) << 16) | ((avgB & 0xff) << 8) | 0xff) >>> 0;
 
     const canvas = new Image(targetW, targetH);
     canvas.fill(padColor);
