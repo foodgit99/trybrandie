@@ -74,9 +74,25 @@ interface FormState {
   image_url: string;
   source_url: string;
   event_date: string;
+  expires_at: string;
 }
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const addDaysIso = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+// Returns days until expiry (negative = already expired). Null if no expiry set.
+const daysUntilExpiry = (expires_at: string | null): number | null => {
+  if (!expires_at) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(expires_at + "T00:00:00");
+  return Math.ceil((exp.getTime() - today.getTime()) / 86400000);
+};
 
 const emptyForm = (): FormState => ({
   update_type: "testimonial",
@@ -86,6 +102,7 @@ const emptyForm = (): FormState => ({
   image_url: "",
   source_url: "",
   event_date: todayIso(),
+  expires_at: "",
 });
 
 const EXAMPLE_PROMPTS = [
@@ -165,6 +182,23 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     return map;
   }, [updates]);
 
+  // Updates expiring within 7 days (active, not yet expired)
+  const expiringSoon = useMemo(() => {
+    if (showArchived) return [];
+    return (updates || []).filter((u) => {
+      const d = daysUntilExpiry(u.expires_at);
+      return d !== null && d >= 0 && d <= 7;
+    });
+  }, [updates, showArchived]);
+
+  const expired = useMemo(() => {
+    if (showArchived) return [];
+    return (updates || []).filter((u) => {
+      const d = daysUntilExpiry(u.expires_at);
+      return d !== null && d < 0;
+    });
+  }, [updates, showArchived]);
+
   const reset = () => {
     setForm(emptyForm());
     setAdding(false);
@@ -218,6 +252,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         image_url: form.image_url || null,
         source_url: form.source_url.trim() || null,
         event_date: form.event_date || todayIso(),
+        expires_at: form.expires_at || null,
         status: "active",
       };
       if (editingId) {
@@ -250,6 +285,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       image_url: u.image_url || "",
       source_url: u.source_url || "",
       event_date: u.event_date || todayIso(),
+      expires_at: u.expires_at || "",
     });
   };
 
@@ -338,6 +374,70 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         value={form.source_url}
         onChange={(e) => setForm((f) => ({ ...f, source_url: e.target.value }))}
       />
+
+      {/* Expiry / reminder */}
+      <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Expires / stop using on
+          </label>
+          {form.expires_at && (
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, expires_at: "" }))}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Set a date for time-sensitive updates (events, sales, launches). The AI will stop using it after this date and you'll see a reminder when it's about to expire.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { label: "+3 days", days: 3 },
+            { label: "+7 days", days: 7 },
+            { label: "+14 days", days: 14 },
+            { label: "+30 days", days: 30 },
+            { label: "+90 days", days: 90 },
+          ].map((opt) => {
+            const target = addDaysIso(opt.days);
+            const selected = form.expires_at === target;
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, expires_at: target }))}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                  selected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-muted-foreground/40"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <Input
+          type="date"
+          value={form.expires_at}
+          min={todayIso()}
+          onChange={(e) => setForm((f) => ({ ...f, expires_at: e.target.value }))}
+        />
+        {form.expires_at && (() => {
+          const days = daysUntilExpiry(form.expires_at);
+          if (days === null) return null;
+          if (days < 0) {
+            return <p className="text-[11px] text-destructive">⚠ This date is in the past — the update won't be used.</p>;
+          }
+          if (days === 0) {
+            return <p className="text-[11px] text-amber-600 dark:text-amber-400">Expires today.</p>;
+          }
+          return <p className="text-[11px] text-muted-foreground">Expires in {days} day{days === 1 ? "" : "s"}.</p>;
+        })()}
+      </div>
 
       {/* Image */}
       <div className="flex items-center gap-3">
@@ -456,13 +556,45 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </div>
       )}
 
+      {/* Expiry warnings banner */}
+      {(expiringSoon.length > 0 || expired.length > 0) && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 space-y-1">
+          <div className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <Calendar className="h-3.5 w-3.5" />
+            Heads up — some updates need attention
+          </div>
+          {expiringSoon.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {expiringSoon.length} update{expiringSoon.length === 1 ? "" : "s"} expiring within 7 days. Refresh, extend, or archive before the AI stops using {expiringSoon.length === 1 ? "it" : "them"}.
+            </p>
+          )}
+          {expired.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {expired.length} expired update{expired.length === 1 ? "" : "s"} are no longer being used. Archive or extend the expiry date.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* List */}
       {filtered.length > 0 ? (
         <div className="space-y-2">
           {filtered.map((u) => {
             const meta = TYPE_META[u.update_type] || TYPE_META.other;
+            const expDays = daysUntilExpiry(u.expires_at);
+            const isExpired = expDays !== null && expDays < 0;
+            const isExpiringSoon = expDays !== null && expDays >= 0 && expDays <= 7;
             return (
-              <div key={u.id} className="rounded-xl border border-border bg-background/40 p-3 flex gap-3">
+              <div
+                key={u.id}
+                className={`rounded-xl border p-3 flex gap-3 ${
+                  isExpired
+                    ? "border-destructive/30 bg-destructive/5 opacity-70"
+                    : isExpiringSoon
+                    ? "border-amber-500/40 bg-amber-500/5"
+                    : "border-border bg-background/40"
+                }`}
+              >
                 {u.image_url ? (
                   <img src={u.image_url} alt="" className="w-12 h-12 object-cover rounded-lg border border-border shrink-0" />
                 ) : (
@@ -481,6 +613,27 @@ export default function BrandUpdates({ brandId, userId }: Props) {
                         {u.times_used > 0 && (
                           <span className="text-[10px] text-muted-foreground">• used {u.times_used}×</span>
                         )}
+                        {(() => {
+                          const days = daysUntilExpiry(u.expires_at);
+                          if (days === null) return null;
+                          if (days < 0) {
+                            return (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">
+                                Expired
+                              </span>
+                            );
+                          }
+                          if (days <= 7) {
+                            return (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                {days === 0 ? "Expires today" : `Expires in ${days}d`}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-[10px] text-muted-foreground">• expires {u.expires_at}</span>
+                          );
+                        })()}
                       </div>
                       {u.title && <p className="text-sm font-medium mt-1 truncate">{u.title}</p>}
                       {u.content && (
