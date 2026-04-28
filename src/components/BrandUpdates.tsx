@@ -131,6 +131,20 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const [filterType, setFilterType] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
+  // AI summarise + confidence check
+  type AiCheck = {
+    summary: string;
+    confidence: number;
+    confidence_reason: string;
+    missing_fields: string[];
+    warnings: string[];
+    suggested_title: string;
+    extracted_attribution: string;
+    detected_type: string;
+  };
+  const [aiCheck, setAiCheck] = useState<AiCheck | null>(null);
+  const [aiChecking, setAiChecking] = useState(false);
+
   // Auto-open the add form when navigated with ?addUpdate=1 (from home / floating nav)
   // Optional prefill via ?type=, ?title=, ?content=, ?attribution=
   useEffect(() => {
