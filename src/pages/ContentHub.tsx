@@ -192,8 +192,12 @@ const ContentHub = () => {
   const [ideaDay, setIdeaDay] = useState<string>("");
   const [ideaSaving, setIdeaSaving] = useState(false);
 
-  // Category filter (applies across Series, Campaigns, and Ideas)
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  // Category filter (applies across Series, Campaigns, and Ideas) — persisted per user+brand
+  const [categoryFilter, setCategoryFilterState] = useState<string>("all");
+  const setCategoryFilter = (v: string) => {
+    setCategoryFilterState(v);
+    setLastFilterCategory(user?.id, brand?.id, v);
+  };
 
   const brandId = brand?.id;
 
