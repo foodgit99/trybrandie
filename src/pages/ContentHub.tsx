@@ -1853,6 +1853,21 @@ const ContentHub = () => {
               </div>
             )}
             <div className="space-y-1.5">
+              <Label className="text-xs">Content Category (optional)</Label>
+              <Select
+                value={seriesForm.content_category || "none"}
+                onValueChange={(v) => setSeriesForm((f) => ({ ...f, content_category: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {CONTENT_CATEGORIES.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.emoji} {c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs">Visual Style Notes (optional)</Label>
               <Textarea
                 placeholder="e.g. Use a consistent blue gradient background with bold headline"
