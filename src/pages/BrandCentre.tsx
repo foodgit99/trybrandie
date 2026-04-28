@@ -1184,7 +1184,7 @@ const BrandCentre = () => {
                 {selectedAudience && (
                   <>
                     {(audienceEditing || !hasJtbdProfile) ? (
-                      {audienceFormEl}
+                      audienceFormEl
                     ) : (
                       <AudienceProfileDisplay profile={selectedAudience.jtbd_profile} />
                     )}
