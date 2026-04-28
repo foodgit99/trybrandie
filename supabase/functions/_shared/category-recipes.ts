@@ -833,10 +833,6 @@ export async function enrichWithResearch(
 ): Promise<ResearchEnrichment> {
   const recipe = CATEGORY_RECIPES[categoryId];
   if (!recipe?.needs_fresh_info || !recipe.research_focus) return EMPTY_ENRICHMENT;
-  if (!firecrawlApiKey) {
-    console.log(`[research] skipping (no FIRECRAWL_API_KEY) for category=${categoryId}`);
-    return EMPTY_ENRICHMENT;
-  }
 
   const ctx: BrandResearchContext =
     typeof brandCtxOrName === "string" || brandCtxOrName === undefined
@@ -845,8 +841,14 @@ export async function enrichWithResearch(
 
   const override = ctx.override || {};
   if (override.enabled === false) {
+    // User explicitly disabled research for this category — respect that, no fallback.
     console.log(`[research] disabled by brand override for category=${categoryId}`);
     return EMPTY_ENRICHMENT;
+  }
+
+  if (!firecrawlApiKey) {
+    console.log(`[research] no FIRECRAWL_API_KEY — using offline heuristic for category=${categoryId}`);
+    return buildOfflineHeuristic(categoryId, recipe, ctx, "no API key configured");
   }
 
   // Resolve recency: brand override > category default
