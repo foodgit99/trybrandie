@@ -1287,28 +1287,16 @@ TREND RULES:
         }
       }
 
-      // Determine canvas dimensions
+      // Determine canvas dimensions (platform-locked).
       const size = canvas_size || "1080x1080";
-      const [w, h] = size.split("x");
-      const sizeLabels: Record<string, string> = {
-        "1080x1080": "square (1080x1080, aspect ratio 1:1)",
-        "1920x1080": "landscape rectangle (1920x1080, aspect ratio 16:9)",
-        "1080x1920": "portrait story (1080x1920, aspect ratio 9:16)",
-      };
-      const sizeLabel = sizeLabels[size] || `${w}x${h}`;
+      const canvas = resolveCanvas(size);
+      const w = canvas.w;
+      const h = canvas.h;
+      const sizeLabel = `${canvas.platform} ${canvas.label} (${w}x${h})`;
 
-      // Canvas format context for upstream agents
-      const canvasFormatBrief = size === "1080x1080"
-        ? "\n\nCANVAS FORMAT: SQUARE (1:1). Design for a PERFECTLY SQUARE canvas. Plan a centered, compact, symmetrical composition. All elements should be balanced around the center. Avoid wide horizontal layouts — keep content compact and vertically centered."
-        : size === "1080x1920"
-        ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Design for a TALL, NARROW canvas. Plan a vertically stacked composition with elements flowing top-to-bottom. Use strong vertical hierarchy. Avoid wide horizontal spreads — stack elements vertically."
-        : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). Design for a WIDE, HORIZONTAL canvas. Plan a horizontally spread composition. Content can span the full width. Use horizontal balance and side-by-side element placement.";
-
-      const canvasFormatCopy = size === "1080x1080"
-        ? "\n\nCANVAS FORMAT: SQUARE (1:1). Keep copy SHORT and COMPACT — fewer text elements, tight word count. A square canvas has limited space. Prefer a strong headline with minimal supporting text."
-        : size === "1080x1920"
-        ? "\n\nCANVAS FORMAT: TALL PORTRAIT (9:16). Copy should follow a VERTICAL HIERARCHY — headline at top, supporting text in middle, CTA at bottom. You have vertical space so stacked text blocks work well, but keep each block concise."
-        : "\n\nCANVAS FORMAT: WIDE LANDSCAPE (16:9). You have more HORIZONTAL space. Copy can be slightly more expansive. Side-by-side text elements work well. Keep good horizontal balance.";
+      // Canvas format context for upstream agents (works for any aspect ratio).
+      const canvasFormatBrief = buildCanvasFormatBrief(w, h, canvas.label);
+      const canvasFormatCopy = buildCanvasFormatCopy(w, h);
 
       // Collect inspiration examples — load from brand_inspiration table
       let inspirationUrls: string[] = brand?.inspiration_examples || [];
