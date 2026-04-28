@@ -14,18 +14,39 @@ const COL: Record<CategoryDialogKind, "last_category_series" | "last_category_ca
 const lsKey = (userId: string, brandId: string, kind: CategoryDialogKind) =>
   `brandie:lastCategory:${userId}:${brandId}:${kind}`;
 
-/** Sync read from localStorage cache (per user + brand). */
+/**
+ * Sync read from localStorage cache (per user + brand).
+ * If `availableCategories` is provided, validates the saved value against it
+ * (case-insensitive) and returns "" if the category was renamed/removed —
+ * also clearing the stale cache entry so it won't be used again.
+ */
 export const getLastCategory = (
   userId: string | undefined,
   brandId: string | undefined,
-  kind: CategoryDialogKind
+  kind: CategoryDialogKind,
+  availableCategories?: ReadonlyArray<string>
 ): string => {
   if (!userId || !brandId || typeof window === "undefined") return "";
+  let saved = "";
   try {
-    return window.localStorage.getItem(lsKey(userId, brandId, kind)) || "";
+    saved = window.localStorage.getItem(lsKey(userId, brandId, kind)) || "";
   } catch {
     return "";
   }
+  if (!saved) return "";
+  if (!availableCategories || availableCategories.length === 0) return saved;
+
+  const norm = (s: string) => s.trim().toLowerCase();
+  const match = availableCategories.find((c) => norm(c) === norm(saved));
+  if (match) return match; // canonical casing from current options
+
+  // Stale value — clear cache so it's not reused.
+  try {
+    window.localStorage.removeItem(lsKey(userId, brandId, kind));
+  } catch {
+    // ignore
+  }
+  return "";
 };
 
 /** Persist to localStorage + `user_brand_dialog_prefs` (fire-and-forget upsert). */
