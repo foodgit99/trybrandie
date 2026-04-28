@@ -647,6 +647,15 @@ export function buildCopyForbiddenContext(categoryId: string): string {
 // TTL matches the category's recency window so cache freshness can never exceed
 // what the underlying search filter would have returned anyway.
 
+export type ResearchMode = "fast" | "accurate";
+export type ResearchRecency = "24h" | "7d" | "30d";
+
+export interface ResearchOverride {
+  mode?: ResearchMode;        // fast = fewer results, lower latency; accurate = more results
+  recency?: ResearchRecency;  // overrides category default `tbs` window
+  enabled?: boolean;          // false disables research even for fresh-info categories
+}
+
 export interface BrandResearchContext {
   brandName?: string;
   industry?: string;
@@ -656,7 +665,20 @@ export interface BrandResearchContext {
   postType?: string;                // resolved category name (human label)
   platform?: string;                // e.g. "Instagram", "TikTok"
   region?: string;                  // for location-relevant searches
+  override?: ResearchOverride;      // per-brand, per-category research tuning
 }
+
+const RECENCY_TO_TBS: Record<ResearchRecency, string> = {
+  "24h": "qdr:d",
+  "7d":  "qdr:w",
+  "30d": "qdr:m",
+};
+
+const RECENCY_TO_TTL_MS: Record<ResearchRecency, number> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "7d":  7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+};
 
 // Optional persistent cache adapter — pass an admin Supabase client to enable.
 // Kept as a loose type so this shared file doesn't pull a Supabase import.
@@ -727,6 +749,13 @@ export async function enrichWithResearch(
       ? { brandName: typeof brandCtxOrName === "string" ? brandCtxOrName : undefined }
       : brandCtxOrName;
 
+  const override = ctx.override || {};
+  if (override.enabled === false) {
+    console.log(`[research] disabled by brand override for category=${categoryId}`);
+    return EMPTY_ENRICHMENT;
+  }
+
+  // Resolve recency: brand override > category default
   const recencyMap: Record<string, string> = {
     trending: "qdr:d",
     entertainment: "qdr:w",
@@ -734,8 +763,12 @@ export async function enrichWithResearch(
     informational: "qdr:m",
     interactive: "qdr:w",
   };
-  const tbs = recencyMap[categoryId] || "qdr:w";
-  const ttlMs = CACHE_TTL_MS[categoryId] || DEFAULT_TTL_MS;
+  const tbs = override.recency ? RECENCY_TO_TBS[override.recency] : (recencyMap[categoryId] || "qdr:w");
+  const ttlMs = override.recency ? RECENCY_TO_TTL_MS[override.recency] : (CACHE_TTL_MS[categoryId] || DEFAULT_TTL_MS);
+
+  // Resolve aggressiveness: fast = fewer results / shorter snippets, accurate = more results
+  const mode: ResearchMode = override.mode || "fast";
+  const searchLimit = mode === "accurate" ? 8 : 3;
 
   const vibe = (ctx.vibeKeywords || []).slice(0, 3).filter(Boolean).join(", ");
   const postTypeLabel = ctx.postType || recipe.name;
@@ -756,7 +789,7 @@ export async function enrichWithResearch(
   const query = queryBits.join(" — ").slice(0, 380);
 
   const dayBucket = Math.floor(Date.now() / ttlMs);
-  const cacheKey = `${categoryId}:${hashQuery(query)}:${dayBucket}`;
+  const cacheKey = `${categoryId}:${mode}:${tbs}:${hashQuery(query)}:${dayBucket}`;
 
   // --- LAYER 1: In-memory cache ---
   const memHit = memCache.get(cacheKey);
@@ -820,7 +853,7 @@ export async function enrichWithResearch(
       },
       body: JSON.stringify({
         query,
-        limit: 5,
+        limit: searchLimit,
         tbs,
         ...(ctx.region ? { country: ctx.region.slice(0, 2).toLowerCase() } : {}),
       }),
@@ -846,7 +879,7 @@ export async function enrichWithResearch(
     }
 
     const sources: ResearchSource[] = results
-      .slice(0, 5)
+      .slice(0, searchLimit)
       .map((r) => ({
         title: (r.title || "").trim().slice(0, 140),
         url: (r.url || "").trim(),

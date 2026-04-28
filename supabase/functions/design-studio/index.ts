@@ -1374,9 +1374,30 @@ ${brand.special_instructions}
       // Builds a brand-aware query (name, industry, vibe, tone, post type, audience).
       // Degrades gracefully if FIRECRAWL_API_KEY is missing.
       const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+
+      // Fetch per-brand research preferences (Fast vs Accurate, recency window per category).
+      // Stored in brand_trend_preferences.research_prefs as { [categoryId]: { mode, recency, enabled } }.
+      const researchPrefsPromise = (async (): Promise<Record<string, { mode?: "fast" | "accurate"; recency?: "24h" | "7d" | "30d"; enabled?: boolean }>> => {
+        if (!brand?.id) return {};
+        try {
+          const { data } = await adminClient
+            .from("brand_trend_preferences")
+            .select("research_prefs")
+            .eq("brand_id", brand.id)
+            .maybeSingle();
+          const raw = (data as any)?.research_prefs;
+          return raw && typeof raw === "object" ? raw : {};
+        } catch (e) {
+          console.log("research_prefs fetch failed:", e instanceof Error ? e.message : e);
+          return {};
+        }
+      })();
+
       const researchPromise = (async () => {
         const cat = await contentCategoryPromise;
         const recipe = CATEGORY_RECIPES[cat];
+        const prefs = await researchPrefsPromise;
+        const override = prefs[cat] || {};
         const vibeKeywords = [
           ...(brand?.vibe ? [brand.vibe] : []),
           ...((brand?.personality_traits || []) as string[]),
@@ -1391,6 +1412,7 @@ ${brand.special_instructions}
           audienceDescriptor: audienceProfile?.persona_summary,
           postType: recipe?.name || cat,
           platform: "Instagram",
+          override,
         }, FIRECRAWL_API_KEY, adminClient);
       })();
 
