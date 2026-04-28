@@ -2368,6 +2368,10 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         console.error("Failed to persist trace:", traceErr);
       }
 
+      if (updatesUsed.length > 0) {
+        markUpdatesUsed(adminClient, updatesUsed.map((u: any) => u.id)).catch(() => {});
+      }
+
       return new Response(
         JSON.stringify({
           image_url: singleResult.image_url,
