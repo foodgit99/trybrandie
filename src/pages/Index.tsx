@@ -340,6 +340,42 @@ const Index = () => {
                 </button>
               ))}
             </div>
+
+            {/* Quick Update chips — prefill type for faster logging */}
+            <div className="rounded-2xl border border-border bg-card/60 p-4">
+              <div className="flex items-center justify-between mb-3 gap-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Log a quick update
+                </p>
+                <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                  Tap to prefill
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { type: "testimonial", label: "💬 Testimonial" },
+                  { type: "event", label: "🎤 Event" },
+                  { type: "product", label: "📦 Product update" },
+                  { type: "milestone", label: "🏆 Milestone" },
+                  { type: "csr", label: "🤝 CSR" },
+                  { type: "press", label: "📰 Press" },
+                  { type: "partnership", label: "🔗 Partnership" },
+                  { type: "customer_story", label: "✨ Customer story" },
+                ].map((chip) => (
+                  <button
+                    key={chip.type}
+                    onClick={() =>
+                      navigate(
+                        `/brand?addUpdate=1&type=${encodeURIComponent(chip.type)}#brand-updates`,
+                      )
+                    }
+                    className="text-xs rounded-full border border-border bg-background px-3 py-1.5 hover:bg-secondary/70 hover:border-primary/30 transition-colors"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </section>
 
           {/* Weekly Streak */}
