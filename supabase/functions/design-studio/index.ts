@@ -2083,8 +2083,22 @@ User request: "${userPrompt}"`;
 
       // Await both in parallel
       const [copyResult, captionResult] = await Promise.all([copywriterPromise, captionPromise]);
-      copyStructure = copyResult;
+      // Enforce CTA policy on copy (strips CTA-style language for "forbidden" categories,
+      // injects sensible default for "required" if missing).
+      copyStructure = enforceCTAPolicy(copyResult, resolvedCategory);
+      if (copyStructure && copyResult && copyStructure.cta !== copyResult.cta) {
+        console.log(`[CTA enforcement] category=${resolvedCategory} policy=${CATEGORY_RECIPES[resolvedCategory]?.cta_policy} cta_before="${copyResult.cta}" cta_after="${copyStructure.cta}"`);
+      }
       captionText = captionResult;
+
+      // --- CATEGORY BIAS: nudge free/semi-flexible genes toward category preferences ---
+      if (genomeData) {
+        applyCategoryBias(genomeData, resolvedCategory, 0.7);
+        const fitScore = computeCategoryFit(genomeData, resolvedCategory);
+        genomeData._category_fit = fitScore;
+        console.log(`[category-bias] category=${resolvedCategory} fit_score=${fitScore} biases_applied=${genomeData._category_bias_applied || 0}`);
+      }
+
 
       // --- HELPER: Apply stability gate to a genome ---
       function applyStabilityGate(genome: any, brandData: any, trendId: string | undefined, trendInt: number | undefined, copy: any): { genome: any; scores: Record<string, number> } {
