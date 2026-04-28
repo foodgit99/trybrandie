@@ -59,6 +59,8 @@ import {
   Plus,
   Trash2,
   Layers,
+  Search,
+  ExternalLink,
 } from "lucide-react";
 import {
   Popover,
