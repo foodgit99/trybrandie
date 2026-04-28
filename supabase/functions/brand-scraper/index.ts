@@ -155,48 +155,69 @@ Return a JSON object with this exact schema:
   }
 }`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
+    // Build a fallback brand from scraped metadata so onboarding can continue
+    // even if the AI step fails or returns malformed JSON.
+    const fallbackHexes: string[] = [];
+    const colors = branding.colors || {};
+    for (const k of ["primary", "secondary", "accent", "background", "textPrimary"]) {
+      const v = colors[k];
+      if (typeof v === "string" && /^#[0-9a-fA-F]{3,8}$/.test(v)) fallbackHexes.push(v);
+    }
+    const buildFallbackBrand = () => ({
+      name: metadata.title?.split(/[|–-]/)[0]?.trim() || "",
+      tagline: null,
+      description: metadata.description || "",
+      logo_url: branding.images?.logo || branding.logo || null,
+      primary_colors: fallbackHexes.slice(0, 1),
+      secondary_colors: fallbackHexes.slice(1, 2),
+      accent_colors: fallbackHexes.slice(2, 3),
+      typography_primary: "DM Sans",
+      typography_secondary: "Playfair Display",
+      vibe: "Minimal",
+      tone_of_voice: "",
+      personality_traits: [] as string[],
+      audience_raw_inputs: {},
     });
 
-    const aiData = await aiRes.json();
-    if (!aiRes.ok) {
-      console.error("AI error:", aiData);
-      return new Response(
-        JSON.stringify({ error: "AI analysis failed" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const content = aiData.choices?.[0]?.message?.content;
-    if (!content) {
-      return new Response(
-        JSON.stringify({ error: "No AI response" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    let brandData;
+    let brandData: any = null;
     try {
-      brandData = JSON.parse(content);
-    } catch {
-      console.error("Failed to parse AI response:", content);
-      return new Response(
-        JSON.stringify({ error: "Failed to parse brand analysis" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      const aiRes = await withTimeout(fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3.1-pro-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      }), TIMEOUTS.AI_CALL, "AI brand analysis");
+
+      const aiRaw = await aiRes.text();
+      if (!aiRes.ok) {
+        console.error("AI error:", aiRes.status, aiRaw.substring(0, 300));
+      } else {
+        let aiData: any = {};
+        try { aiData = JSON.parse(aiRaw); } catch {
+          console.error("AI returned non-JSON:", aiRaw.substring(0, 200));
+        }
+        const content = aiData?.choices?.[0]?.message?.content;
+        if (content) {
+          try { brandData = JSON.parse(content); }
+          catch { console.error("Failed to parse AI content:", String(content).substring(0, 200)); }
+        }
+      }
+    } catch (e) {
+      console.error("AI call failed:", e instanceof Error ? e.message : e);
+    }
+
+    if (!brandData) {
+      console.warn("Falling back to metadata-based brand extraction");
+      brandData = buildFallbackBrand();
     }
 
     // Use logo from branding data if AI didn't extract one
