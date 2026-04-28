@@ -395,7 +395,35 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       delete next[id];
       return next;
     });
+    // After dismiss, the list shrinks by one — keep the cursor on the same
+    // visual slot (which now shows the next item) without going out of bounds.
+    setLowConfIndex((i) => Math.max(0, Math.min(i, lowConfidenceUpdates.length - 2)));
   };
+
+  // Advance the stepper to the next low-confidence update, wrapping to the
+  // start if we're already on the last one.
+  const goNextLowConf = () => {
+    if (lowConfidenceUpdates.length <= 1) return;
+    setLowConfIndex((i) => (i + 1) % lowConfidenceUpdates.length);
+  };
+  const goPrevLowConf = () => {
+    if (lowConfidenceUpdates.length <= 1) return;
+    setLowConfIndex((i) =>
+      (i - 1 + lowConfidenceUpdates.length) % lowConfidenceUpdates.length,
+    );
+  };
+
+  // Clamp the cursor whenever the underlying list size changes (e.g. an answer
+  // saves and the item drops out, or new low-conf items arrive after refetch).
+  useEffect(() => {
+    if (lowConfidenceUpdates.length === 0) {
+      if (lowConfIndex !== 0) setLowConfIndex(0);
+      return;
+    }
+    if (lowConfIndex >= lowConfidenceUpdates.length) {
+      setLowConfIndex(lowConfidenceUpdates.length - 1);
+    }
+  }, [lowConfidenceUpdates.length, lowConfIndex]);
 
   const reset = () => {
     setForm(emptyForm());
