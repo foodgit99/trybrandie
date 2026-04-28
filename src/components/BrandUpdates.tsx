@@ -154,6 +154,16 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [planning, setPlanning] = useState(false);
 
+  type FollowUp = {
+    update_id: string;
+    update_title: string;
+    update_type: string;
+    confidence: number;
+    missing_fields: string[];
+    question: string;
+  };
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
