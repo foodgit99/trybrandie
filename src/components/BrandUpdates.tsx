@@ -282,15 +282,29 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       if (error) throw error;
       const count = (data as any)?.count || 0;
       const used = (data as any)?.updates_used || 0;
+      const fups: FollowUp[] = Array.isArray((data as any)?.follow_ups) ? (data as any).follow_ups : [];
+      setFollowUps(fups);
       qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
-      toast({
-        title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
-        description:
-          count > 0
-            ? `Grounded in ${used} update${used === 1 ? "" : "s"}. Opening Content Hub…`
-            : "Opening Content Hub…",
-      });
-      navigate("/content");
+
+      if (count === 0 && fups.length > 0) {
+        toast({
+          title: "Need a bit more detail first",
+          description: `${fups.length} quick question${fups.length === 1 ? "" : "s"} below will unlock stronger drafts.`,
+        });
+        // Stay on this page so the user can answer the follow-ups inline.
+        document
+          .getElementById("brand-updates-followups")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        toast({
+          title: count > 0 ? `Drafted ${count} idea${count === 1 ? "" : "s"}` : "Plan ready",
+          description:
+            count > 0
+              ? `Grounded in ${used} update${used === 1 ? "" : "s"}.${fups.length > 0 ? ` ${fups.length} follow-up${fups.length === 1 ? "" : "s"} for weaker updates.` : ""} Opening Content Hub…`
+              : "Opening Content Hub…",
+        });
+        navigate("/content");
+      }
     } catch (e: any) {
       toast({
         title: "Couldn't draft from updates",
@@ -300,6 +314,19 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     } finally {
       setPlanning(false);
     }
+  };
+
+  // Open an update from a follow-up question for editing.
+  const answerFollowUp = (updateId: string) => {
+    const u = (updates || []).find((x) => x.id === updateId);
+    if (!u) return;
+    startEdit(u);
+    setFollowUps((prev) => prev.filter((f) => f.update_id !== updateId));
+    setTimeout(() => {
+      document
+        .getElementById("brand-updates")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const runAiCheck = async () => {
