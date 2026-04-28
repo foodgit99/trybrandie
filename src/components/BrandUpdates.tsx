@@ -287,6 +287,114 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     });
   }, [updates, showArchived]);
 
+  // Active LOW-confidence updates (excluding ones the user dismissed this session).
+  // These are the items the AI generation pipeline will SKIP unless they get more detail.
+  const lowConfidenceUpdates = useMemo(() => {
+    if (showArchived) return [];
+    return (updates || []).filter(
+      (u) =>
+        u.status === "active" &&
+        tierFor(u.confidence) === "low" &&
+        !inlineDismissed.has(u.id),
+    );
+  }, [updates, showArchived, inlineDismissed]);
+
+  // Append the user's inline answer to the update's content, re-run the AI
+  // editorial check to refresh the confidence score, and persist both.
+  const saveInlineAnswer = async (u: BrandUpdate) => {
+    const answer = (inlineAnswers[u.id] || "").trim();
+    if (!answer) {
+      toast({
+        title: "Add a quick answer first",
+        description: "Even one sentence lifts confidence enough for the AI to use it.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (inlineSavingId) return;
+    setInlineSavingId(u.id);
+    try {
+      const question = buildFollowUpQuestion(u);
+      // Append the Q+A as a new line so the original wording is preserved.
+      const mergedContent = `${(u.content || "").trim()}\n\nFollow-up — ${question}\nAnswer: ${answer}`.slice(0, 600);
+
+      // Re-score the merged content so future generations know it's stronger now.
+      let newConfidence: number | null = null;
+      let newMissing: string[] | null = null;
+      try {
+        const { data: aiData, error: aiErr } = await supabase.functions.invoke("summarise-update", {
+          body: {
+            update_type: u.update_type,
+            title: u.title || "",
+            content: mergedContent,
+            attribution: u.attribution || "",
+          },
+        });
+        if (!aiErr && aiData) {
+          const c = (aiData as any).confidence;
+          if (typeof c === "number") newConfidence = Math.max(0, Math.min(100, Math.round(c)));
+          const mf = (aiData as any).missing_fields;
+          if (Array.isArray(mf)) newMissing = mf.slice(0, 8);
+        }
+      } catch {
+        // Non-blocking: still save the answer even if the rescore fails.
+      }
+
+      const payload: Record<string, any> = { content: mergedContent };
+      if (newConfidence !== null) payload.confidence = newConfidence;
+      if (newMissing !== null) payload.missing_fields = newMissing;
+
+      const { error } = await supabase
+        .from("brand_updates" as any)
+        .update(payload)
+        .eq("id", u.id);
+      if (error) throw error;
+
+      // Clear the textarea + remove the in-flight follow-up entry (if any).
+      setInlineAnswers((prev) => {
+        const next = { ...prev };
+        delete next[u.id];
+        return next;
+      });
+      setFollowUps((prev) => prev.filter((f) => f.update_id !== u.id));
+
+      const tier = tierFor(newConfidence);
+      toast({
+        title: "Answer saved",
+        description:
+          tier === "low"
+            ? "Saved — but confidence is still low. Try adding a name, number or date."
+            : tier === "medium"
+              ? `Confidence lifted to ${newConfidence}/100 — AI can now use it as soft inspiration.`
+              : `Strong signal (${newConfidence}/100) — AI will quote this directly.`,
+      });
+
+      qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
+      refetch();
+    } catch (e: any) {
+      toast({
+        title: "Couldn't save the answer",
+        description: e?.message || "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setInlineSavingId(null);
+    }
+  };
+
+  const dismissInline = (id: string) => {
+    setInlineDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setInlineAnswers((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
   const reset = () => {
     setForm(emptyForm());
     setAdding(false);
