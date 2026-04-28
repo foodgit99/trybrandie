@@ -189,6 +189,9 @@ const ContentHub = () => {
   const [ideaDay, setIdeaDay] = useState<string>("");
   const [ideaSaving, setIdeaSaving] = useState(false);
 
+  // Category filter (applies across Series, Campaigns, and Ideas)
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
   const brandId = brand?.id;
 
   // Autopilot settings from database
@@ -916,9 +919,18 @@ const ContentHub = () => {
   const isLoading = pillarsLoading || seriesLoading || campaignsLoading || ideasLoading;
   const hasPillars = pillars && pillars.length > 0;
 
+  // Apply category filter
+  const matchesCategory = (raw: string | null | undefined) => {
+    if (categoryFilter === "all") return true;
+    return parseCategoryIds(raw).includes(categoryFilter as ContentCategoryId);
+  };
+  const filteredSeries = (series || []).filter((s: any) => matchesCategory(s.content_category));
+  const filteredCampaigns = (campaigns || []).filter((c: any) => matchesCategory(c.content_category));
+  const filteredWeeklyIdeas = (weeklyIdeas || []).filter((i: any) => matchesCategory(i.content_category));
+
   // Build weekly calendar
   const ideasByDay = DAYS.reduce((acc, day) => {
-    acc[day] = (weeklyIdeas || []).filter((i: any) => {
+    acc[day] = filteredWeeklyIdeas.filter((i: any) => {
       if (!i.scheduled_for) return false;
       const d = new Date(i.scheduled_for);
       const dayIndex = (d.getDay() + 6) % 7;
@@ -943,6 +955,49 @@ const ContentHub = () => {
             <p className="text-muted-foreground text-sm mt-1">
               Your content strategy, powered by AI
             </p>
+          </div>
+
+          {/* Category filter — applies to Series, Campaigns, and weekly Ideas */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                categoryFilter === "all"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+              }`}
+            >
+              All
+            </button>
+            {CONTENT_CATEGORIES.map((cat) => {
+              const active = categoryFilter === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"
+                  }`}
+                  title={cat.label}
+                >
+                  <span>{cat.emoji}</span>
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
+            {categoryFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setCategoryFilter("all")}
+                className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline px-1"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
           {/* Strategist prompt banner */}
@@ -1599,9 +1654,9 @@ const ContentHub = () => {
                     AI Generate
                   </Button>
                 </div>
-                {series && series.length > 0 ? (
+                {filteredSeries.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {series.map((s: any, i: number) => (
+                    {filteredSeries.map((s: any, i: number) => (
                       <motion.div key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                         <Card className="hover:border-primary/30 transition-colors group relative">
                           <CardContent className="p-4 space-y-1.5">
@@ -1660,9 +1715,9 @@ const ContentHub = () => {
                     AI Generate
                   </Button>
                 </div>
-                {campaigns && campaigns.length > 0 ? (
+                {filteredCampaigns.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {campaigns.map((c: any, i: number) => (
+                    {filteredCampaigns.map((c: any, i: number) => (
                       <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                         <Card className="hover:border-primary/30 transition-colors group relative">
                           <CardContent className="p-4 space-y-1.5">
