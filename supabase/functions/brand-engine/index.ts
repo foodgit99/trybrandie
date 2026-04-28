@@ -915,7 +915,7 @@ For any LOW-confidence updates supplied separately, propose ONE short, plain-lan
         });
 
       // Strip transport-only fields before insert
-      const dbRows = ideasToInsert.map(({ _draft_confidence, _needs_user_input, ...row }) => row);
+      const dbRows = ideasToInsert.map(({ _draft_confidence: _dc, _needs_user_input: _nui, ...row }: any) => row);
 
       if (dbRows.length === 0 && lowConfidence.length === 0) {
         return new Response(
