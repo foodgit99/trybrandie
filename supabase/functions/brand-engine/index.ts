@@ -430,11 +430,20 @@ Each campaign should target a specific content category. Vary categories across 
         creditProfile = creditCheck.profile;
       }
 
-      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes] = await Promise.all([
+      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes] = await Promise.all([
         supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
         supabase.from("campaigns").select("*").eq("brand_id", brand_id),
         supabase.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brand_id).maybeSingle(),
+        (() => {
+          const since = new Date();
+          since.setDate(since.getDate() - 14);
+          return supabase
+            .from("content_ideas")
+            .select("content_category, scheduled_for, created_at")
+            .eq("brand_id", brand_id)
+            .gte("created_at", since.toISOString());
+        })(),
       ]);
 
       const pillars = pillarsRes.data || [];
