@@ -430,11 +430,20 @@ Each campaign should target a specific content category. Vary categories across 
         creditProfile = creditCheck.profile;
       }
 
-      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes] = await Promise.all([
+      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes] = await Promise.all([
         supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
         supabase.from("campaigns").select("*").eq("brand_id", brand_id),
         supabase.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brand_id).maybeSingle(),
+        (() => {
+          const since = new Date();
+          since.setDate(since.getDate() - 14);
+          return supabase
+            .from("content_ideas")
+            .select("content_category, scheduled_for, created_at")
+            .eq("brand_id", brand_id)
+            .gte("created_at", since.toISOString());
+        })(),
       ]);
 
       const pillars = pillarsRes.data || [];
@@ -472,13 +481,42 @@ Each campaign should target a specific content category. Vary categories across 
         ? `\n\nINDUSTRY TREND INTELLIGENCE (use these to inform content angles):\n${(trendIntel.trends_data as any[]).map((t: any) => `- ${t.title}: ${t.summary}`).join("\n")}`
         : "";
 
+      // --- Last-2-weeks coverage gap analysis ---
+      const recentIdeas = recentIdeasRes.data || [];
+      const recentCounts: Record<string, number> = {};
+      for (const cat of CONTENT_CATEGORY_ENUM) recentCounts[cat] = 0;
+      for (const r of recentIdeas) {
+        const c = (r as any).content_category;
+        if (c && Object.prototype.hasOwnProperty.call(recentCounts, c)) recentCounts[c] += 1;
+      }
+      const missingCategories = CONTENT_CATEGORY_ENUM.filter(c => recentCounts[c] === 0);
+      const underusedCategories = CONTENT_CATEGORY_ENUM
+        .filter(c => recentCounts[c] > 0 && recentCounts[c] <= 1)
+        .sort((a, b) => recentCounts[a] - recentCounts[b]);
+      const overusedCategories = CONTENT_CATEGORY_ENUM
+        .filter(c => recentCounts[c] >= 3)
+        .sort((a, b) => recentCounts[b] - recentCounts[a]);
+
+      const coverageContext = `\n\nLAST 2 WEEKS — CATEGORY COVERAGE:\n${CONTENT_CATEGORY_ENUM.map(c => `- ${c}: ${recentCounts[c]}`).join("\n")}\n${missingCategories.length > 0 ? `\nMISSING (0 posts in last 14 days — PRIORITIZE THESE): ${missingCategories.join(", ")}` : ""}${underusedCategories.length > 0 ? `\nUNDERUSED (1 post in last 14 days — favor these): ${underusedCategories.join(", ")}` : ""}${overusedCategories.length > 0 ? `\nOVERUSED (3+ posts in last 14 days — minimize these): ${overusedCategories.join(", ")}` : ""}`;
+
       const result = await callAI(lovableKey, {
         system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
 
 ${CONTENT_CATEGORIES_REF}
 
 CRITICAL — CONTENT CATEGORY ASSIGNMENT:
-Each idea MUST be assigned a content_category from the 10 categories above. The week's ideas MUST represent at least 4 different content categories. Aim for maximum variety. Use the content category to determine the visual approach and copy tone in the design prompt:
+Each idea MUST be assigned a content_category. The value MUST be exactly one of: ${CONTENT_CATEGORY_ENUM.join(", ")}. No other values are accepted.
+
+CRITICAL — WEEKLY CATEGORY DIVERSITY:
+This week's ideas MUST collectively cover at least 6 of the 10 content categories. Do NOT assign more than 2 ideas to the same category in a single week. Aim for maximum variety across the week.
+
+CRITICAL — COVERAGE GAP CORRECTION:
+Use the LAST 2 WEEKS coverage data below to actively rebalance the brand's content mix:
+- ALWAYS include at least one idea from each MISSING category (when relevant to the brand).
+- Favor UNDERUSED categories over repeating recent ones.
+- AVOID OVERUSED categories unless tied to a holiday, campaign, or recurring series for this week.
+
+Use the content category to determine the visual approach and copy tone in the design prompt:
 - Announcement → bold, high-energy headline prompt
 - Educational → structured, tip-based prompt with clear hierarchy
 - Promotional → CTA-forward, offer-driven prompt
@@ -497,7 +535,7 @@ Choose the format that best serves the content's PURPOSE, not just its pillar la
 HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday" and content_category "holidays". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
 
 TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.`,
-        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}`,
+        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}`,
         tool: {
           name: "create_weekly_ideas",
           description: "Create post ideas for the week",
@@ -557,7 +595,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         prompt: idea.prompt,
         idea_type: idea.idea_type,
         content_format: idea.content_format || "graphic",
-        content_category: idea.content_category || null,
+        content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
         status: "suggested",
         scheduled_for: dateMap.get(idea.day) || null,
       }));
