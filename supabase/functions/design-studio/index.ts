@@ -1402,7 +1402,7 @@ ${brand.special_instructions}
         const contentCategory = await contentCategoryPromise;
         const categoryData = CONTENT_CATEGORIES[contentCategory];
         const categoryContext = categoryData ? `\n\nCONTENT CATEGORY: ${categoryData.name}\n${categoryData.brief_directive}` : "";
-        const researchCtx = await researchPromise;
+        const researchCtx = (await researchPromise).promptText;
 
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
