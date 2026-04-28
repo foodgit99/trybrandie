@@ -108,6 +108,18 @@
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   }
 
+  /* Reserve space below page content so nothing sits under the floating nav.
+     Applied only on mobile/tablet (where the nav is bottom-floating) and only
+     when the nav is actually rendered (toggled by FloatingNavBar). */
+  body.has-floating-nav {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+  }
+  @media (min-width: 1024px) {
+    body.has-floating-nav {
+      padding-bottom: 0;
+    }
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Instrument Serif', Georgia, serif;
   }
