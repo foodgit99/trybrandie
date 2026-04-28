@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, Palette, History, Plus } from "lucide-react";
+import { Home, LayoutGrid, Palette, History, Plus, type LucideIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -62,7 +62,7 @@ const FloatingNavBar = () => {
 interface NavItemProps {
   to: string;
   label: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   end?: boolean;
   primary?: boolean;
   variant: "mobile" | "desktop";
