@@ -19,12 +19,21 @@ const FloatingNavBar = () => {
   const hiddenRoutes = ["/studio", "/auth", "/onboarding", "/reset-password"];
   const visible = !!user && !hiddenRoutes.some((r) => location.pathname.startsWith(r));
 
+  // Toggle the body padding class strictly based on nav visibility.
+  // Re-runs on every route change (location.pathname) so navigating into a
+  // hidden route (auth/studio/onboarding/reset-password) immediately removes
+  // the reservation, and navigating back restores it. Cleanup on unmount
+  // guarantees the class never lingers.
   useEffect(() => {
     if (visible) {
       document.body.classList.add("has-floating-nav");
-      return () => document.body.classList.remove("has-floating-nav");
+    } else {
+      document.body.classList.remove("has-floating-nav");
     }
-  }, [visible]);
+    return () => {
+      document.body.classList.remove("has-floating-nav");
+    };
+  }, [visible, location.pathname]);
 
   if (!visible) return null;
 
