@@ -74,9 +74,25 @@ interface FormState {
   image_url: string;
   source_url: string;
   event_date: string;
+  expires_at: string;
 }
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const addDaysIso = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+// Returns days until expiry (negative = already expired). Null if no expiry set.
+const daysUntilExpiry = (expires_at: string | null): number | null => {
+  if (!expires_at) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(expires_at + "T00:00:00");
+  return Math.ceil((exp.getTime() - today.getTime()) / 86400000);
+};
 
 const emptyForm = (): FormState => ({
   update_type: "testimonial",
@@ -86,6 +102,7 @@ const emptyForm = (): FormState => ({
   image_url: "",
   source_url: "",
   event_date: todayIso(),
+  expires_at: "",
 });
 
 const EXAMPLE_PROMPTS = [
