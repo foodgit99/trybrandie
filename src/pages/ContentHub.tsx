@@ -844,7 +844,7 @@ const ContentHub = () => {
   };
 
   const openCreateIdea = (day: string) => {
-    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: getLastCategory(user?.id, brandId, "idea") });
+    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: getLastCategory(user?.id, brandId, "idea", validCategoryIds) });
     setEditingIdeaId(null);
     setIdeaDay(day);
     setIdeaDialogOpen(true);
