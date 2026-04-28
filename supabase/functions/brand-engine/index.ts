@@ -964,7 +964,7 @@ For any LOW-confidence updates supplied separately, propose ONE short, plain-lan
       // Attach per-idea draft metadata onto the response so the client can
       // show "needs your input" badges.
       const enrichedIdeas = inserted.map((row) => {
-        const meta = ideasToInsert.find((i) => i.title === row.title && i.prompt.startsWith(row.prompt.split("\n\nBefore")[0]));
+        const meta = ideasToInsert.find((i: any) => i.title === row.title && i.prompt.startsWith(row.prompt.split("\n\nBefore")[0]));
         return {
           ...row,
           draft_confidence: meta?._draft_confidence ?? null,
