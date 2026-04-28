@@ -1878,8 +1878,16 @@ ${brand.special_instructions}
       // Resolve content category (already completed during brief — instant)
       const resolvedCategory = await contentCategoryPromise;
       const resolvedCategoryData = CONTENT_CATEGORIES[resolvedCategory];
-      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}` : "";
-      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}` : "";
+      const researchContext = await researchPromise;
+      const copyForbiddenContext = buildCopyForbiddenContext(resolvedCategory);
+      const ctaPolicyLine = (() => {
+        const policy = CATEGORY_RECIPES[resolvedCategory]?.cta_policy;
+        if (policy === "forbidden") return "\n\nCTA POLICY: This category does NOT use a CTA. Leave the cta field as an empty string. Do NOT include any action language ('shop', 'buy', 'learn more', 'sign up', etc.) anywhere in the copy.";
+        if (policy === "required") return "\n\nCTA POLICY: A clear, specific CTA is REQUIRED for this category. Never leave the cta field empty.";
+        return "";
+      })();
+      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}` : "";
+      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}` : "";
 
       const trendPresetForCopy = trend && trend !== "none" ? (({
         "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
