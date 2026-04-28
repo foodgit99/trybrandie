@@ -342,7 +342,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     }
     setSaving(true);
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         brand_id: brandId,
         user_id: userId,
         update_type: form.update_type,
@@ -355,6 +355,15 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         expires_at: form.expires_at || null,
         status: "active",
       };
+      // Persist the AI confidence + missing-fields if the user ran the
+      // editorial check before saving. This is what the generation
+      // pipeline reads to decide how strongly to rely on the update.
+      if (aiCheck) {
+        payload.confidence = Math.max(0, Math.min(100, Math.round(aiCheck.confidence)));
+        payload.missing_fields = Array.isArray(aiCheck.missing_fields)
+          ? aiCheck.missing_fields.slice(0, 8)
+          : [];
+      }
       if (editingId) {
         const { error } = await supabase.from("brand_updates" as any).update(payload).eq("id", editingId);
         if (error) throw error;
