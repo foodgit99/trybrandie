@@ -480,7 +480,15 @@ const ContentHub = () => {
 
   // Hydrate last-selected categories for the active brand so they follow the user across devices
   useEffect(() => {
-    if (user?.id && brandId) void hydrateLastCategoriesForBrand(user.id, brandId);
+    if (!user?.id || !brandId) return;
+    let cancelled = false;
+    void hydrateLastCategoriesForBrand(user.id, brandId).then(() => {
+      if (cancelled) return;
+      setCategoryFilterState(getLastFilterCategory(user.id, brandId, validCategoryIds));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, brandId]);
 
   // --- Engine Actions ---
