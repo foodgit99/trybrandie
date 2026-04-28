@@ -81,6 +81,7 @@ import { CategoryBadge, CategoryBadgeList, CategoryDot } from "@/components/cont
 import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
+import { getLastCategory, setLastCategory } from "@/lib/lastCategoryPref";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
