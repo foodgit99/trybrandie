@@ -1461,20 +1461,26 @@ const ContentHub = () => {
                   </CardContent>
                 </Card>
                 {/* Category Coverage */}
-                <CategoryCoveragePanel
-                  weeklyIdeas={weeklyIdeas || []}
-                  pillars={pillars || []}
-                  series={series || []}
-                  campaigns={campaigns || []}
-                  onAddIdeaForCategory={(catId) => {
-                    const todayIdx = (new Date().getDay() + 6) % 7;
-                    const day = DAYS[todayIdx];
-                    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: catId });
-                    setEditingIdeaId(null);
-                    setIdeaDay(day);
-                    setIdeaDialogOpen(true);
-                  }}
-                />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 px-1">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category Coverage</h3>
+                    <FeatureInfoButton {...FEATURE_INFO.categoryCoverage} />
+                  </div>
+                  <CategoryCoveragePanel
+                    weeklyIdeas={weeklyIdeas || []}
+                    pillars={pillars || []}
+                    series={series || []}
+                    campaigns={campaigns || []}
+                    onAddIdeaForCategory={(catId) => {
+                      const todayIdx = (new Date().getDay() + 6) % 7;
+                      const day = DAYS[todayIdx];
+                      setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: catId });
+                      setEditingIdeaId(null);
+                      setIdeaDay(day);
+                      setIdeaDialogOpen(true);
+                    }}
+                  />
+                </div>
                 {/* Autopilot Settings */}
                 <Card className={`border transition-colors ${autopilotAll ? "border-primary/40 bg-primary/[0.04]" : "border-border/60"}`}>
                   <CardContent className="p-4 space-y-3">
