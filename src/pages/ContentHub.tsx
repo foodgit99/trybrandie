@@ -1876,6 +1876,7 @@ const ContentHub = () => {
                   })()}
                 </span>
               )}
+              <FeatureInfoButton {...FEATURE_INFO.trends} className="ml-1" />
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
