@@ -1243,6 +1243,7 @@ const ContentHub = () => {
                         <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
                           <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
                             {DAY_LABELS[day]}
+                          </span>
                           <div className="flex-1 min-w-0">
                             {dayIdeas.length === 0 ? (
                               <span className="text-xs text-muted-foreground/50">—</span>
