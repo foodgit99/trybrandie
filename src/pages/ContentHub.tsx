@@ -1661,7 +1661,7 @@ const ContentHub = () => {
             </section>
           </Collapsible>
           {/* Regenerate All */}
-          <div className="flex justify-center pt-2">
+          <div className="flex items-center justify-center gap-1.5 pt-2">
             <Button
               variant="outline"
               size="sm"
@@ -1672,10 +1672,17 @@ const ContentHub = () => {
               {generating === "full" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Regenerate All
             </Button>
+            <FeatureInfoButton {...FEATURE_INFO.regenerateAll} />
           </div>
 
           {/* Audience Intelligence context banner */}
-          <AudienceContextBanner brandId={brand?.id} />
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 px-1">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Audience Suggestions</h3>
+              <FeatureInfoButton {...FEATURE_INFO.audienceContext} />
+            </div>
+            <AudienceContextBanner brandId={brand?.id} />
+          </div>
 
           <div className="h-[70px]" />
         </motion.div>
