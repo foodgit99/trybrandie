@@ -1490,7 +1490,10 @@ const ContentHub = () => {
                           <Zap className={`h-3.5 w-3.5 ${autopilotAll ? "text-primary" : "text-muted-foreground"} transition-colors`} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium">Autopilot</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium">Autopilot</p>
+                            <FeatureInfoButton {...FEATURE_INFO.autopilot} />
+                          </div>
                           <p className="text-[11px] text-muted-foreground leading-tight">
                             Brandie will automatically create and email your designs on scheduled days
                           </p>
