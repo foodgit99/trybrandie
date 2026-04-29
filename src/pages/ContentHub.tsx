@@ -1206,6 +1206,197 @@ const ContentHub = () => {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
+                {/* Calendar nav + actions */}
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {weekOffset !== 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setWeekOffset(0)}>Today</Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)} title="Next week">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating}>
+                    {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Generate Ideas
+                  </Button>
+                  <CalendarExport
+                    weeklyIdeas={weeklyIdeas}
+                    brand={brand}
+                    pillars={pillars}
+                    series={series}
+                    campaigns={campaigns}
+                    weekLabel={weekLabel}
+                    selectedMonday={selectedMonday}
+                    selectedSunday={selectedSunday}
+                  />
+                </div>
+                {/* Calendar */}
+                <Card>
+                  <CardContent className="p-0 divide-y divide-border">
+                    {DAYS.map((day) => {
+                      const dayIdeas = ideasByDay[day] || [];
+                      const todayIndex = (new Date().getDay() + 6) % 7;
+                      const isToday = DAYS[todayIndex] === day;
+                      return (
+                        <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
+                          <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
+                            {DAY_LABELS[day]}
+                          <div className="flex-1 min-w-0">
+                            {dayIdeas.length === 0 ? (
+                              <span className="text-xs text-muted-foreground/50">—</span>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {dayIdeas.map((idea: any) => (
+                                  <div key={idea.id} className="flex items-center gap-2 group/idea">
+                                    {idea.status === "created" ? (
+                                      <Check className="h-3 w-3 text-green-500 shrink-0" />
+                                    ) : (
+                                      <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                                    )}
+                                    <CategoryDot raw={idea.content_category} />
+                                    <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                                      {idea.title}
+                                    </span>
+                                    {idea.autopilot && idea.status !== "created" && (idea as any).autopilot_status !== "completed" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-primary/15 text-primary border-primary/20">
+                                        <Zap className="h-2 w-2" />
+                                        autopilot
+                                      </Badge>
+                                    )}
+                                    {/* Actionable autopilot states only */}
+                                    {(idea as any).autopilot_status === "failed_no_credits" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot couldn't create — no credits remaining">
+                                        <AlertTriangle className="h-2 w-2" />
+                                        no credits
+                                      </Badge>
+                                    )}
+                                    {(idea as any).autopilot_status === "failed_error" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot encountered an error — will retry automatically">
+                                        <AlertTriangle className="h-2 w-2" />
+                                        failed
+                                      </Badge>
+                                    )}
+                                    {(idea as any).autopilot_status === "processing" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                                        <Loader2 className="h-2 w-2 animate-spin" />
+                                        creating…
+                                      </Badge>
+                                    )}
+                                    {/* Only show format chip when it's a carousel (graphic is the default — no need to label) */}
+                                    {idea.content_format === "carousel" && (
+                                      <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
+                                        carousel
+                                      </span>
+                                    )}
+                                    {idea.idea_type === "holiday" && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                                        <Gift className="h-2 w-2" />
+                                        holiday
+                                      </Badge>
+                                    )}
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button className="p-0.5 rounded hover:bg-muted transition-colors ml-auto shrink-0 opacity-0 group-hover/idea:opacity-100 max-sm:opacity-100">
+                                          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-44">
+                                        {idea.status !== "created" && (
+                                          <DropdownMenuItem onClick={() => handleFormatAction(idea)} className="text-xs gap-2">
+                                            {(idea.content_format || "graphic") === "carousel"
+                                              ? <><Layers className="h-3.5 w-3.5" /> Create carousel</>
+                                              : <><ArrowRight className="h-3.5 w-3.5" /> Create graphic</>
+                                            }
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem
+                                          onClick={async () => {
+                                            const newVal = !idea.autopilot;
+                                            await supabase.from("content_ideas").update({ autopilot: newVal } as any).eq("id", idea.id);
+                                            queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                                            toast({ title: newVal ? "Autopilot enabled ⚡" : "Autopilot disabled" });
+                                          }}
+                                          className="text-xs gap-2"
+                                        >
+                                          <Zap className={`h-3.5 w-3.5 ${idea.autopilot ? "text-primary" : ""}`} />
+                                          {idea.autopilot ? "Disable autopilot" : "Enable autopilot"}
+                                        </DropdownMenuItem>
+                                        {((idea as any).autopilot_status === "failed_no_credits" || (idea as any).autopilot_status === "failed_error") && (
+                                          <DropdownMenuItem
+                                            onClick={async () => {
+                                              const today = new Date().toISOString().split("T")[0];
+                                              await supabase.from("content_ideas").update({
+                                                autopilot_status: "pending",
+                                                scheduled_for: today,
+                                              } as any).eq("id", idea.id);
+                                              queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                                              toast({ title: "Retry queued", description: "Will be retried on the next autopilot run" });
+                                            }}
+                                            className="text-xs gap-2"
+                                          >
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                            Retry autopilot
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem onClick={() => openCreateIdea(day)} className="text-xs gap-2">
+                                          <Plus className="h-3.5 w-3.5" />
+                                          Add idea
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => openEditIdea(idea)} className="text-xs gap-2">
+                                          <Pencil className="h-3.5 w-3.5" />
+                                          Edit idea
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => deleteIdea(idea.id)} className="text-xs gap-2 text-destructive focus:text-destructive">
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {dayIdeas.length === 0 && (
+                            <div className="shrink-0">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className="p-0.5 rounded hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 max-sm:opacity-100">
+                                    <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-44">
+                                  <DropdownMenuItem onClick={() => openCreateIdea(day)} className="text-xs gap-2">
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Add idea
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+                {/* Category Coverage */}
+                <CategoryCoveragePanel
+                  weeklyIdeas={weeklyIdeas || []}
+                  pillars={pillars || []}
+                  series={series || []}
+                  campaigns={campaigns || []}
+                  onAddIdeaForCategory={(catId) => {
+                    const todayIdx = (new Date().getDay() + 6) % 7;
+                    const day = DAYS[todayIdx];
+                    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: catId });
+                    setEditingIdeaId(null);
+                    setIdeaDay(day);
+                    setIdeaDialogOpen(true);
+                  }}
+                />
                 {/* Autopilot Settings */}
                 <Card className={`border transition-colors ${autopilotAll ? "border-primary/40 bg-primary/[0.04]" : "border-border/60"}`}>
                   <CardContent className="p-4 space-y-3">
@@ -1379,195 +1570,6 @@ const ContentHub = () => {
                     </div>
                   );
                 })()}
-                <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  {weekOffset !== 0 && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setWeekOffset(0)}>Today</Button>
-                  )}
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)} title="Next week">
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating}>
-                    {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                    Generate Ideas
-                  </Button>
-                  <CalendarExport
-                    weeklyIdeas={weeklyIdeas}
-                    brand={brand}
-                    pillars={pillars}
-                    series={series}
-                    campaigns={campaigns}
-                    weekLabel={weekLabel}
-                    selectedMonday={selectedMonday}
-                    selectedSunday={selectedSunday}
-                  />
-                </div>
-                <CategoryCoveragePanel
-                  weeklyIdeas={weeklyIdeas || []}
-                  pillars={pillars || []}
-                  series={series || []}
-                  campaigns={campaigns || []}
-                  onAddIdeaForCategory={(catId) => {
-                    const todayIdx = (new Date().getDay() + 6) % 7;
-                    const day = DAYS[todayIdx];
-                    setIdeaForm({ ...emptyIdea, autopilot: autopilotAll, content_category: catId });
-                    setEditingIdeaId(null);
-                    setIdeaDay(day);
-                    setIdeaDialogOpen(true);
-                  }}
-                />
-                <Card>
-                  <CardContent className="p-0 divide-y divide-border">
-                    {DAYS.map((day) => {
-                      const dayIdeas = ideasByDay[day] || [];
-                      const todayIndex = (new Date().getDay() + 6) % 7;
-                      const isToday = DAYS[todayIndex] === day;
-                      return (
-                        <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
-                          <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
-                            {DAY_LABELS[day]}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            {dayIdeas.length === 0 ? (
-                              <span className="text-xs text-muted-foreground/50">—</span>
-                            ) : (
-                              <div className="space-y-1.5">
-                                {dayIdeas.map((idea: any) => (
-                                  <div key={idea.id} className="flex items-center gap-2 group/idea">
-                                    {idea.status === "created" ? (
-                                      <Check className="h-3 w-3 text-green-500 shrink-0" />
-                                    ) : (
-                                      <Lightbulb className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-                                    )}
-                                    <CategoryDot raw={idea.content_category} />
-                                    <span className={`text-xs truncate ${idea.status === "created" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                                      {idea.title}
-                                    </span>
-                                    {idea.autopilot && idea.status !== "created" && (idea as any).autopilot_status !== "completed" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-primary/15 text-primary border-primary/20">
-                                        <Zap className="h-2 w-2" />
-                                        autopilot
-                                      </Badge>
-                                    )}
-                                    {/* Actionable autopilot states only */}
-                                    {(idea as any).autopilot_status === "failed_no_credits" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot couldn't create — no credits remaining">
-                                        <AlertTriangle className="h-2 w-2" />
-                                        no credits
-                                      </Badge>
-                                    )}
-                                    {(idea as any).autopilot_status === "failed_error" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot encountered an error — will retry automatically">
-                                        <AlertTriangle className="h-2 w-2" />
-                                        failed
-                                      </Badge>
-                                    )}
-                                    {(idea as any).autopilot_status === "processing" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
-                                        <Loader2 className="h-2 w-2 animate-spin" />
-                                        creating…
-                                      </Badge>
-                                    )}
-                                    {/* Only show format chip when it's a carousel (graphic is the default — no need to label) */}
-                                    {idea.content_format === "carousel" && (
-                                      <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
-                                        carousel
-                                      </span>
-                                    )}
-                                    {idea.idea_type === "holiday" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
-                                        <Gift className="h-2 w-2" />
-                                        holiday
-                                      </Badge>
-                                    )}
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <button className="p-0.5 rounded hover:bg-muted transition-colors ml-auto shrink-0 opacity-0 group-hover/idea:opacity-100 max-sm:opacity-100">
-                                          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                                        </button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end" className="w-44">
-                                        {idea.status !== "created" && (
-                                          <DropdownMenuItem onClick={() => handleFormatAction(idea)} className="text-xs gap-2">
-                                            {(idea.content_format || "graphic") === "carousel"
-                                              ? <><Layers className="h-3.5 w-3.5" /> Create carousel</>
-                                              : <><ArrowRight className="h-3.5 w-3.5" /> Create graphic</>
-                                            }
-                                          </DropdownMenuItem>
-                                        )}
-                                        <DropdownMenuItem
-                                          onClick={async () => {
-                                            const newVal = !idea.autopilot;
-                                            await supabase.from("content_ideas").update({ autopilot: newVal } as any).eq("id", idea.id);
-                                            queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
-                                            toast({ title: newVal ? "Autopilot enabled ⚡" : "Autopilot disabled" });
-                                          }}
-                                          className="text-xs gap-2"
-                                        >
-                                          <Zap className={`h-3.5 w-3.5 ${idea.autopilot ? "text-primary" : ""}`} />
-                                          {idea.autopilot ? "Disable autopilot" : "Enable autopilot"}
-                                        </DropdownMenuItem>
-                                        {((idea as any).autopilot_status === "failed_no_credits" || (idea as any).autopilot_status === "failed_error") && (
-                                          <DropdownMenuItem
-                                            onClick={async () => {
-                                              const today = new Date().toISOString().split("T")[0];
-                                              await supabase.from("content_ideas").update({
-                                                autopilot_status: "pending",
-                                                scheduled_for: today,
-                                              } as any).eq("id", idea.id);
-                                              queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
-                                              toast({ title: "Retry queued", description: "Will be retried on the next autopilot run" });
-                                            }}
-                                            className="text-xs gap-2"
-                                          >
-                                            <RotateCcw className="h-3.5 w-3.5" />
-                                            Retry autopilot
-                                          </DropdownMenuItem>
-                                        )}
-                                        <DropdownMenuItem onClick={() => openCreateIdea(day)} className="text-xs gap-2">
-                                          <Plus className="h-3.5 w-3.5" />
-                                          Add idea
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => openEditIdea(idea)} className="text-xs gap-2">
-                                          <Pencil className="h-3.5 w-3.5" />
-                                          Edit idea
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => deleteIdea(idea.id)} className="text-xs gap-2 text-destructive focus:text-destructive">
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                          Delete
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {dayIdeas.length === 0 && (
-                            <div className="shrink-0">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button className="p-0.5 rounded hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 max-sm:opacity-100">
-                                    <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44">
-                                  <DropdownMenuItem onClick={() => openCreateIdea(day)} className="text-xs gap-2">
-                                    <Plus className="h-3.5 w-3.5" />
-                                    Add idea
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
               </CollapsibleContent>
             </section>
           </Collapsible>
