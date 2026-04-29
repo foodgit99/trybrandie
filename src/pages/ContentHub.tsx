@@ -85,6 +85,81 @@ import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/
 const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory, getLastSortOption, setLastSortOption, type ContentHubSortOption } from "@/lib/lastCategoryPref";
+import FeatureInfoButton from "@/components/content/FeatureInfoButton";
+
+// --- Feature info copy (summary + deeper marketing rationale) ---
+const FEATURE_INFO = {
+  upcomingEvents: {
+    title: "Upcoming Events",
+    summary:
+      "Holidays and key cultural moments coming up in the next 14 days, with one-tap design starters.",
+    learnMore:
+      "Timely content earns disproportionate attention. Audiences are already searching, talking, and shopping around well-known events — so brands that show up early ride that wave instead of fighting for attention from scratch.\n\nUse this to plan ahead, secure visibility before competitors, and build emotional relevance by aligning your brand with moments your audience already cares about.",
+  },
+  pillars: {
+    title: "Content Pillars",
+    summary:
+      "The 3–5 core themes your brand consistently talks about across all your content.",
+    learnMore:
+      "Pillars are the marketing equivalent of brand positioning. They keep your messaging focused so the audience quickly understands what you stand for and why to follow you.\n\nWithout pillars, content feels random and forgettable. With them, every post reinforces a clear identity — which builds trust, recall, and category authority over time.",
+  },
+  campaigns: {
+    title: "Campaigns",
+    summary:
+      "Time-bound content pushes around a specific goal — a launch, promo, or seasonal moment.",
+    learnMore:
+      "Campaigns concentrate your audience's attention. By telling a connected story across multiple posts within a tight window, you create momentum, urgency, and a reason to act now.\n\nThis is how brands turn awareness into measurable outcomes — sales, sign-ups, bookings — instead of just posting steady content that quietly fades.",
+  },
+  series: {
+    title: "Recurring Series",
+    summary:
+      "Repeating post formats your audience can expect on a schedule (e.g. Monday Tips, Friday Features).",
+    learnMore:
+      "Series build the most powerful asset in marketing: appointment viewing. When people learn to expect something from you on a specific day, you stop competing for attention — they come looking for you.\n\nThey also dramatically reduce content fatigue. Once a format works, you can reuse the structure forever, swapping only the topic. Less effort, more consistency, stronger brand recognition.",
+  },
+  trends: {
+    title: "Trends",
+    summary:
+      "What's currently moving in your industry — topics, formats, and conversations to ride.",
+    learnMore:
+      "Riding a relevant trend gives your content a natural reach boost because algorithms and audiences are already paying attention. It signals that your brand is alive, current, and tuned in.\n\nThe key is selective participation: trends that align with your pillars amplify your positioning, while random trend-chasing dilutes it. Use this list to spot the few that genuinely fit.",
+  },
+  calendar: {
+    title: "Content Calendar",
+    summary:
+      "A weekly view of every idea scheduled across your days, color-coded by category.",
+    learnMore:
+      "Consistency outperforms intensity. Brands that post predictably stay top-of-mind, while bursts of activity followed by silence quietly erode trust and reach.\n\nThe calendar lets you plan a balanced mix — promotional, educational, social-proof, entertainment — so you're nurturing the audience instead of only selling. That balance is what turns followers into buyers over time.",
+  },
+  categoryCoverage: {
+    title: "Category Coverage",
+    summary:
+      "A breakdown of how your scheduled posts are distributed across content categories.",
+    learnMore:
+      "A healthy content mix protects you from looking too 'salesy' or too 'fluffy'. Audiences disengage from feeds that lean too far in one direction.\n\nUse coverage as a quick diagnostic: if you're 80% promotional, audiences tune out; if you never sell, you build attention but no revenue. Aim for a deliberate ratio that supports both relationship and conversion.",
+  },
+  autopilot: {
+    title: "Autopilot",
+    summary:
+      "Brandie automatically generates and emails your scheduled designs at your chosen delivery time.",
+    learnMore:
+      "The biggest reason brands stop posting isn't strategy — it's friction. Autopilot removes the daily decision of 'what should I post today?' so consistency becomes the default.\n\nBy delivering ready-made, on-brand designs to your inbox, it turns content from a recurring task into a system. The compounding effect is what most small brands never reach: months of consistent presence with minimal effort.",
+  },
+  regenerateAll: {
+    title: "Regenerate All",
+    summary:
+      "Rebuild your full content strategy — pillars, campaigns, series, and weekly ideas — in one go.",
+    learnMore:
+      "Brands evolve. Audiences shift, offers change, seasons turn. A periodic full refresh keeps your content engine aligned with where the business is now, not where it was when you started.\n\nUse this when you've updated your brand, audience profile, or goals — or when content has started to feel repetitive. A clean regeneration restores creative range and strategic relevance.",
+  },
+  audienceContext: {
+    title: "Audience Suggestions",
+    summary:
+      "Ideas pulled directly from your audience's pains, desires, and decision triggers.",
+    learnMore:
+      "The most persuasive content speaks to a specific person, not a market. By grounding ideas in your audience's actual jobs-to-be-done — what they're struggling with, what they want, what makes them buy — you bypass generic advice and create content that feels personally written.\n\nThis is the difference between content people scroll past and content people screenshot.",
+  },
+} as const;
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS: Record<string, string> = {
