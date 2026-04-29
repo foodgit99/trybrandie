@@ -154,14 +154,17 @@ const ContentHub = () => {
   const [selectedTrend, setSelectedTrend] = useState<any>(null);
   const [showAllTrends, setShowAllTrends] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    trends: false,
-    pillars: false,
+    trends: true,
+    pillars: true,
     calendar: true,
-    series: false,
-    campaigns: false,
+    series: true,
+    campaigns: true,
   });
 
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // Hub section dialogs (replacing inline expandable sections)
+  const [hubDialog, setHubDialog] = useState<null | "pillars" | "campaigns" | "series" | "trends">(null);
 
   // Credit confirmation dialog state
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
