@@ -1697,6 +1697,7 @@ const ContentHub = () => {
               <Layers className="h-4 w-4 text-primary" />
               Content Pillars
               {hasPillars && <Badge variant="secondary" className="text-[10px]">{pillars!.length}</Badge>}
+              <FeatureInfoButton {...FEATURE_INFO.pillars} className="ml-1" />
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
