@@ -1809,6 +1809,7 @@ const ContentHub = () => {
               <Repeat className="h-4 w-4 text-primary" />
               Recurring Series
               {series && series.length > 0 && <Badge variant="secondary" className="text-[10px]">{series.length}</Badge>}
+              <FeatureInfoButton {...FEATURE_INFO.series} className="ml-1" />
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
