@@ -1146,6 +1146,37 @@ const ContentHub = () => {
             );
           })()}
 
+          {/* Hub action buttons — open dialogs */}
+          <section className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { key: "pillars" as const, label: "Content Pillars", description: "Themes that guide your content", icon: Layers, count: pillars?.length ?? 0 },
+                { key: "campaigns" as const, label: "Campaigns", description: "Time-bound content pushes", icon: Megaphone, count: campaigns?.length ?? 0 },
+                { key: "series" as const, label: "Recurring Series", description: "Repeating post formats", icon: Repeat, count: series?.length ?? 0 },
+                { key: "trends" as const, label: "Trends", description: "What's moving in your industry", icon: TrendingUp, count: Array.isArray(trendIntel?.trends_data) ? (trendIntel!.trends_data as any[]).length : 0 },
+              ].map((action) => (
+                <button
+                  key={action.key}
+                  onClick={() => setHubDialog(action.key)}
+                  className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-5 hover:bg-secondary/60 hover:border-primary/30 transition-all text-center"
+                >
+                  <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                    <action.icon className="h-5 w-5 text-primary" />
+                    {action.count > 0 && (
+                      <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
+                        {action.count}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{action.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{action.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
           {/* Loading / Empty state */}
           {generating === "full" && !hasPillars && (
             <Card className="border-dashed">
