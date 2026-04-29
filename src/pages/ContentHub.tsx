@@ -1189,6 +1189,7 @@ const ContentHub = () => {
                   <div className="flex items-center gap-2">
                     <Gift className="h-4 w-4 text-primary" />
                     <h2 className="text-sm font-semibold">Upcoming Events</h2>
+                    <FeatureInfoButton {...FEATURE_INFO.upcomingEvents} />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {upcoming.slice(0, 4).map((h, i) => {
