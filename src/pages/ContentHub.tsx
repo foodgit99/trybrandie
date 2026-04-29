@@ -1752,6 +1752,7 @@ const ContentHub = () => {
               <Megaphone className="h-4 w-4 text-primary" />
               Campaigns
               {campaigns && campaigns.length > 0 && <Badge variant="secondary" className="text-[10px]">{campaigns.length}</Badge>}
+              <FeatureInfoButton {...FEATURE_INFO.campaigns} className="ml-1" />
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
