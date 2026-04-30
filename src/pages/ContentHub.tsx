@@ -306,9 +306,24 @@ const ContentHub = () => {
   const autopilotAll = autopilotSettings?.enabled ?? false;
   const deliveryTime = autopilotSettings?.delivery_time ?? "morning";
   const autopilotTimezone = (autopilotSettings as any)?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const autopilotMode: "manual" | "assisted" | "autonomous" =
+    ((autopilotSettings as any)?.mode as any) ?? (autopilotAll ? "assisted" : "manual");
+  const minQueueThreshold: number = (autopilotSettings as any)?.min_queue_threshold ?? 5;
 
-  const updateAutopilotSetting = async (updates: { enabled?: boolean; delivery_time?: string; timezone?: string }) => {
+  const updateAutopilotSetting = async (updates: {
+    enabled?: boolean;
+    delivery_time?: string;
+    timezone?: string;
+    mode?: "manual" | "assisted" | "autonomous";
+    min_queue_threshold?: number;
+  }) => {
     if (!brandId || !user) return;
+    // Keep `enabled` in sync with `mode` so legacy queries / cron filters keep working.
+    const finalUpdates: Record<string, unknown> = { ...updates };
+    if (updates.mode !== undefined) {
+      finalUpdates.enabled = updates.mode !== "manual";
+    }
+
     const { data: existing } = await supabase
       .from("autopilot_settings")
       .select("id")
@@ -318,7 +333,7 @@ const ContentHub = () => {
     if (existing) {
       await supabase
         .from("autopilot_settings")
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...finalUpdates, updated_at: new Date().toISOString() } as any)
         .eq("brand_id", brandId);
     } else {
       await supabase
@@ -326,10 +341,12 @@ const ContentHub = () => {
         .insert({
           brand_id: brandId,
           user_id: user.id,
-          enabled: updates.enabled ?? false,
-          delivery_time: updates.delivery_time ?? "morning",
-          timezone: updates.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-        });
+          enabled: finalUpdates.enabled ?? false,
+          delivery_time: (finalUpdates.delivery_time as string) ?? "morning",
+          timezone: (finalUpdates.timezone as string) ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+          mode: (finalUpdates.mode as string) ?? "manual",
+          min_queue_threshold: (finalUpdates.min_queue_threshold as number) ?? 5,
+        } as any);
     }
     queryClient.invalidateQueries({ queryKey: ["autopilot-settings", brandId] });
   };
