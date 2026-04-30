@@ -86,6 +86,8 @@ const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory, getLastSortOption, setLastSortOption, type ContentHubSortOption } from "@/lib/lastCategoryPref";
 import FeatureInfoButton from "@/components/content/FeatureInfoButton";
+import BrandPulse from "@/components/content/BrandPulse";
+import NextBestActionCard, { type CtaAction } from "@/components/content/NextBestActionCard";
 
 // --- Feature info copy (summary + deeper marketing rationale) ---
 const FEATURE_INFO = {
@@ -1177,6 +1179,63 @@ const ContentHub = () => {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Brand Pulse — composite health header */}
+          {brandId && (
+            <BrandPulse
+              weeklyIdeas={(weeklyIdeas as any[]) || []}
+              autopilotEnabled={autopilotAll}
+              nextRunAt={getNextRunTime()}
+              timezone={autopilotTimezone}
+              pillarsCount={pillars?.length ?? 0}
+            />
+          )}
+
+          {/* Next Best Action — single recommendation that turns the Hub from passive to autonomous */}
+          {brandId && (
+            <NextBestActionCard
+              brandId={brandId}
+              onAction={(action: CtaAction) => {
+                switch (action) {
+                  case "open_pillars":
+                    setHubDialog("pillars");
+                    break;
+                  case "open_campaigns":
+                    setHubDialog("campaigns");
+                    break;
+                  case "open_series":
+                    setHubDialog("series");
+                    break;
+                  case "generate_weekly_ideas":
+                    handleGenerate("generate_weekly_ideas");
+                    break;
+                  case "enable_autopilot":
+                    updateAutopilotSetting({ enabled: true });
+                    toast({ title: "Autopilot enabled ⚡", description: "We'll deliver designs daily." });
+                    break;
+                  case "review_failed": {
+                    // Retry all failed_error ideas in one batch
+                    (async () => {
+                      const failed = ((weeklyIdeas as any[]) || []).filter(
+                        (i) => i.autopilot_status === "failed_error",
+                      );
+                      if (failed.length === 0) return;
+                      await supabase
+                        .from("content_ideas")
+                        .update({ autopilot_status: "pending" } as any)
+                        .in("id", failed.map((f) => f.id));
+                      toast({ title: `${failed.length} idea${failed.length > 1 ? "s" : ""} queued for retry` });
+                      queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+                      queryClient.invalidateQueries({ queryKey: ["next-best-action", brandId] });
+                    })();
+                    break;
+                  }
+                  default:
+                    break;
+                }
+              }}
+            />
           )}
 
           {/* Upcoming Events Card */}
