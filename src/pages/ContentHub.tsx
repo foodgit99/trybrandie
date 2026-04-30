@@ -1578,7 +1578,8 @@ const ContentHub = () => {
                       <Switch
                         checked={autopilotAll}
                         onCheckedChange={async (checked) => {
-                          await updateAutopilotSetting({ enabled: checked });
+                          // Switch is a quick on/off — sets mode to assisted (on) or manual (off)
+                          await updateAutopilotSetting({ mode: checked ? "assisted" : "manual" });
                           toast({
                             title: checked ? "Autopilot enabled" : "Autopilot disabled",
                             description: checked
