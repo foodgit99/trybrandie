@@ -286,8 +286,6 @@ Special Instructions: ${brand.special_instructions || "N/A"}
 
       // 1. CRITICAL — Failed autopilot (out of credits)
       const noCreditFails = failedIdeas.filter((i: any) => i.autopilot_status === "failed_no_credits").length;
-      // Reference getWeekHolidays so the import stays used elsewhere; harmless no-op.
-      void getWeekHolidays;
       if (noCreditFails > 0) {
         candidates.push({
           severity: "critical",
