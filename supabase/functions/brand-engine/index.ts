@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getWeekHolidays } from "../_shared/holiday-calendar.ts";
+import { getWeekHolidays, getUpcomingHolidays } from "../_shared/holiday-calendar.ts";
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 
 const corsHeaders = {
@@ -233,6 +233,162 @@ Special Instructions: ${brand.special_instructions || "N/A"}
     if (action === "check_content_gen_status") {
       const status = await checkContentGenStatus();
       return jsonResponse({ is_free: status.is_free, credits_required: status.credits_required, available_credits: status.available_credits });
+    }
+
+    // --- Next Best Action: deterministic recommendation engine ---
+    // Reads brand signals (pillars, ideas, autopilot, holidays) and returns ONE prioritized action.
+    // No AI call — fast, free, predictable. The "intelligence" is the prioritization heuristic.
+    if (action === "recommend_next_action") {
+      const today = new Date();
+      const in14Days = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const [pillarsRes, ideasRes, autopilotRes, lastRunRes, creditStatus] = await Promise.all([
+        supabase.from("content_pillars").select("id, name").eq("brand_id", brand_id),
+        supabase.from("content_ideas").select("id, status, scheduled_for, autopilot_status, autopilot, pillar_id").eq("brand_id", brand_id),
+        supabase.from("autopilot_settings").select("enabled, delivery_time").eq("brand_id", brand_id).maybeSingle(),
+        supabase.from("autopilot_runs").select("started_at, errors, processed").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+        checkContentGenStatus().catch(() => null),
+      ]);
+
+      const pillars = pillarsRes.data || [];
+      const ideas = ideasRes.data || [];
+      const autopilot = autopilotRes.data;
+      const upcomingHolidays = getUpcomingHolidays(14);
+
+      const failedIdeas = ideas.filter((i: any) =>
+        i.autopilot_status === "failed_no_credits" || i.autopilot_status === "failed_error"
+      );
+      const upcomingScheduled = ideas.filter((i: any) => {
+        if (!i.scheduled_for) return false;
+        const d = new Date(i.scheduled_for);
+        return d >= today && d <= in14Days;
+      });
+      const pendingDesign = ideas.filter((i: any) => i.status !== "created").length;
+
+      // --- Priority cascade (highest to lowest) ---
+      type Action = {
+        severity: "critical" | "warn" | "info" | "good";
+        headline: string;
+        reason: string;
+        cta_label: string;
+        cta_action:
+          | "open_pillars"
+          | "open_campaigns"
+          | "open_series"
+          | "generate_weekly_ideas"
+          | "open_studio"
+          | "enable_autopilot"
+          | "topup_credits"
+          | "review_failed";
+        cta_payload?: Record<string, unknown>;
+      };
+      const candidates: Action[] = [];
+
+      // 1. CRITICAL — Failed autopilot (out of credits)
+      const noCreditFails = failedIdeas.filter((i: any) => i.autopilot_status === "failed_no_credits").length;
+      if (noCreditFails > 0) {
+        candidates.push({
+          severity: "critical",
+          headline: `${noCreditFails} autopilot post${noCreditFails > 1 ? "s" : ""} couldn't generate — out of credits`,
+          reason: "Your brand depends on consistent posting. Credits are how autopilot keeps that promise.",
+          cta_label: "Top up credits",
+          cta_action: "topup_credits",
+        });
+      }
+
+      // 2. CRITICAL — No pillars yet
+      if (pillars.length === 0) {
+        candidates.push({
+          severity: "critical",
+          headline: "No content pillars yet — your brand has no editorial spine",
+          reason: "Pillars are the 3–5 themes your brand stands for. Without them, every post feels random and audiences struggle to remember why to follow you.",
+          cta_label: "Generate pillars",
+          cta_action: "open_pillars",
+        });
+      }
+
+      // 3. WARN — Holiday in next 7 days with no scheduled content
+      const soonHoliday = upcomingHolidays.find((h: any) => h.daysUntil >= 0 && h.daysUntil <= 7);
+      if (soonHoliday && upcomingScheduled.length < 3) {
+        candidates.push({
+          severity: "warn",
+          headline: `${soonHoliday.name} is coming up — and your week looks empty`,
+          reason: "Audiences are already searching and talking about this moment. Brands that show up early ride that wave instead of fighting for attention from scratch.",
+          cta_label: "Plan this week",
+          cta_action: "generate_weekly_ideas",
+        });
+      }
+
+      // 4. WARN — Autopilot off
+      if (!autopilot?.enabled) {
+        candidates.push({
+          severity: "warn",
+          headline: "Autopilot is off — your brand depends on you remembering",
+          reason: "The biggest reason brands stop posting isn't strategy — it's friction. Autopilot turns content from a recurring task into a system.",
+          cta_label: "Enable autopilot",
+          cta_action: "enable_autopilot",
+        });
+      }
+
+      // 5. WARN — Empty week (no scheduled ideas)
+      if (upcomingScheduled.length === 0 && pillars.length > 0) {
+        candidates.push({
+          severity: "warn",
+          headline: "No content scheduled for the next 14 days",
+          reason: "Consistency compounds. Even 2–3 posts per week beats sporadic bursts because audiences learn when to expect you.",
+          cta_label: "Generate this week's ideas",
+          cta_action: "generate_weekly_ideas",
+        });
+      }
+
+      // 6. INFO — Big design backlog
+      if (pendingDesign >= 5) {
+        candidates.push({
+          severity: "info",
+          headline: `${pendingDesign} ideas waiting to be designed`,
+          reason: "Ideas only matter when they ship. Convert your backlog into actual posts before adding more.",
+          cta_label: "Open studio",
+          cta_action: "open_studio",
+        });
+      }
+
+      // 7. INFO — Errored ideas (other than no-credit) ready to retry
+      const errorFails = failedIdeas.filter((i: any) => i.autopilot_status === "failed_error").length;
+      if (errorFails > 0 && noCreditFails === 0) {
+        candidates.push({
+          severity: "info",
+          headline: `${errorFails} idea${errorFails > 1 ? "s" : ""} failed — ready to retry`,
+          reason: "Most autopilot errors are transient (gateway hiccups). Retrying usually works.",
+          cta_label: "Review failed",
+          cta_action: "review_failed",
+        });
+      }
+
+      // 8. GOOD — Everything healthy
+      if (candidates.length === 0) {
+        candidates.push({
+          severity: "good",
+          headline: "Your brand is on track this week",
+          reason: `Pillars set, ${upcomingScheduled.length} ideas scheduled, autopilot ${autopilot?.enabled ? "running" : "ready"}. Use this calm to invest in something deeper.`,
+          cta_label: "Plan a campaign",
+          cta_action: "open_campaigns",
+        });
+      }
+
+      const pick = candidates[0];
+      return jsonResponse({
+        recommendation: pick,
+        signals: {
+          pillars_count: pillars.length,
+          scheduled_next_14d: upcomingScheduled.length,
+          pending_design: pendingDesign,
+          failed_no_credits: noCreditFails,
+          failed_error: errorFails,
+          autopilot_enabled: !!autopilot?.enabled,
+          available_credits: creditStatus?.available_credits ?? null,
+          upcoming_holiday: soonHoliday ? { name: soonHoliday.name, days_until: soonHoliday.daysUntil } : null,
+        },
+      });
     }
 
     if (action === "generate_pillars") {
