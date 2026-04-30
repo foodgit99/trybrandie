@@ -388,7 +388,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
           failed_error: errorFails,
           autopilot_enabled: !!autopilot?.enabled,
           available_credits: creditStatus?.available_credits ?? null,
-          upcoming_holiday: soonHoliday ? { name: soonHoliday.name, date: soonHoliday.date } : null,
+          upcoming_holiday: soonHoliday ? { name: soonHoliday.name, days_until: soonHoliday.daysUntil } : null,
         },
       });
     }
