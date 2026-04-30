@@ -310,10 +310,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       }
 
       // 3. WARN — Holiday in next 7 days with no scheduled content
-      const soonHoliday = upcomingHolidays.find((h: any) => {
-        const days = Math.ceil((new Date(h.date).getTime() - today.getTime()) / 86400000);
-        return days >= 0 && days <= 7;
-      });
+      const soonHoliday = upcomingHolidays.find((h: any) => h.daysUntil >= 0 && h.daysUntil <= 7);
       if (soonHoliday && upcomingScheduled.length < 3) {
         candidates.push({
           severity: "warn",
