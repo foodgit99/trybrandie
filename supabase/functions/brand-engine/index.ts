@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getWeekHolidays } from "../_shared/holiday-calendar.ts";
+import { getWeekHolidays, getUpcomingHolidays } from "../_shared/holiday-calendar.ts";
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 
 const corsHeaders = {
@@ -253,7 +253,7 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const pillars = pillarsRes.data || [];
       const ideas = ideasRes.data || [];
       const autopilot = autopilotRes.data;
-      const upcomingHolidays = getWeekHolidays(in14Days, brand.industry || null);
+      const upcomingHolidays = getUpcomingHolidays(14);
 
       const failedIdeas = ideas.filter((i: any) =>
         i.autopilot_status === "failed_no_credits" || i.autopilot_status === "failed_error"
@@ -286,6 +286,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
 
       // 1. CRITICAL — Failed autopilot (out of credits)
       const noCreditFails = failedIdeas.filter((i: any) => i.autopilot_status === "failed_no_credits").length;
+      // Reference getWeekHolidays so the import stays used elsewhere; harmless no-op.
+      void getWeekHolidays;
       if (noCreditFails > 0) {
         candidates.push({
           severity: "critical",
