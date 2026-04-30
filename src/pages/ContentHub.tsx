@@ -1603,6 +1603,76 @@ const ContentHub = () => {
                         }}
                       />
                     </div>
+
+                    {/* Mode selector — Manual / Assisted / Autonomous */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Mode</Label>
+                        <span className="text-[10px] text-muted-foreground">
+                          {autopilotMode === "manual" && "You plan, you deliver"}
+                          {autopilotMode === "assisted" && "You plan, Brandie delivers"}
+                          {autopilotMode === "autonomous" && "Brandie plans and delivers"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/50 p-1">
+                        {(["manual", "assisted", "autonomous"] as const).map((m) => {
+                          const active = autopilotMode === m;
+                          const label = m === "manual" ? "Manual" : m === "assisted" ? "Assisted" : "Autonomous";
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={async () => {
+                                await updateAutopilotSetting({ mode: m });
+                                toast({
+                                  title:
+                                    m === "manual"
+                                      ? "Switched to Manual"
+                                      : m === "assisted"
+                                      ? "Switched to Assisted ⚡"
+                                      : "Switched to Autonomous 🚀",
+                                  description:
+                                    m === "manual"
+                                      ? "Brandie will not auto-create or auto-plan."
+                                      : m === "assisted"
+                                      ? "Brandie will auto-create scheduled ideas."
+                                      : "Brandie will auto-plan each week and auto-create ideas.",
+                                });
+                                queryClient.invalidateQueries({ queryKey: ["next-best-action", brandId] });
+                              }}
+                              className={`text-xs font-medium px-2 py-1.5 rounded-md transition-colors ${
+                                active
+                                  ? "bg-background text-foreground shadow-sm"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {autopilotMode === "autonomous" && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <Label htmlFor="min-queue" className="text-[11px] text-muted-foreground whitespace-nowrap">
+                            Auto-plan when queue below
+                          </Label>
+                          <Input
+                            id="min-queue"
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={minQueueThreshold}
+                            onChange={(e) => {
+                              const v = Math.max(1, Math.min(30, parseInt(e.target.value || "5", 10)));
+                              updateAutopilotSetting({ min_queue_threshold: v });
+                            }}
+                            className="h-7 w-16 text-xs"
+                          />
+                          <span className="text-[11px] text-muted-foreground">ideas</span>
+                        </div>
+                      )}
+                    </div>
+
                     {autopilotAll && (
                       <>
                       <div className="flex items-center gap-3 pl-9.5">
