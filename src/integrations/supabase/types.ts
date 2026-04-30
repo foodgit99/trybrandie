@@ -281,9 +281,12 @@ export type Database = {
           delivery_time: string
           enabled: boolean
           id: string
+          min_queue_threshold: number
+          mode: string
           timezone: string
           updated_at: string
           user_id: string
+          weekly_plan_last_run: string | null
         }
         Insert: {
           brand_id: string
@@ -291,9 +294,12 @@ export type Database = {
           delivery_time?: string
           enabled?: boolean
           id?: string
+          min_queue_threshold?: number
+          mode?: string
           timezone?: string
           updated_at?: string
           user_id: string
+          weekly_plan_last_run?: string | null
         }
         Update: {
           brand_id?: string
@@ -301,9 +307,12 @@ export type Database = {
           delivery_time?: string
           enabled?: boolean
           id?: string
+          min_queue_threshold?: number
+          mode?: string
           timezone?: string
           updated_at?: string
           user_id?: string
+          weekly_plan_last_run?: string | null
         }
         Relationships: [
           {
