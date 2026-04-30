@@ -41,20 +41,36 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
 
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceCall = token === serviceKey;
+
+    // Read body once so we can use user_id from it for service calls
+    const body = await req.json().catch(() => ({}));
+    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check, user_id: bodyUserId } = body || {};
+
+    let userId: string;
+    let supabase: ReturnType<typeof createClient>;
     const serviceClient = createClient(supabaseUrl, serviceKey);
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) {
-      console.error("Auth error in brand-engine:", userError);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (isServiceCall) {
+      // Background job (e.g. autopilot-planner cron) — use service client and trust user_id from body
+      if (!bodyUserId) {
+        return new Response(JSON.stringify({ error: "Service calls require user_id in body" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      userId = bodyUserId;
+      supabase = serviceClient;
+    } else {
+      supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !user) {
+        console.error("Auth error in brand-engine:", userError);
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      userId = user.id;
     }
-    const userId = user.id;
 
-    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check } = await req.json();
 
     if (!brand_id) {
       return new Response(JSON.stringify({ error: "brand_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
