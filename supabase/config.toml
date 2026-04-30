@@ -52,3 +52,9 @@ verify_jwt = false
 
 [functions.brand-scraper]
 verify_jwt = false
+
+[functions.autopilot-planner]
+verify_jwt = false
+
+[functions.autopilot-retry]
+verify_jwt = false
