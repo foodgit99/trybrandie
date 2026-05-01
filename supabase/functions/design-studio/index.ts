@@ -154,8 +154,13 @@ async function enforceCanvasDimensions(
     const srcRatio = srcW / srcH;
     const ratioDelta = Math.abs(Math.log(srcRatio / targetRatio));
 
-    // Case 1: aspect ratios already match (<= ~2% off). Pure resize.
+    // Case 1: aspect ratios already match (<= ~2% off). Pure resize — but
+    // never upscale (upscaling softens the image). If source is already at or
+    // above the target resolution, keep native resolution to preserve quality.
     if (ratioDelta < 0.02) {
+      if (srcW >= targetW && srcH >= targetH) {
+        return inputBytes;
+      }
       const resized = img.resize(targetW, targetH);
       return await resized.encode();
     }
@@ -170,6 +175,10 @@ async function enforceCanvasDimensions(
       const cropX = Math.floor((srcW - cropW) / 2);
       const cropY = Math.floor((srcH - cropH) / 2);
       const cropped = img.crop(cropX, cropY, cropW, cropH);
+      // Only downscale to target — never upscale beyond cropped resolution.
+      if (cropW <= targetW && cropH <= targetH) {
+        return await cropped.encode();
+      }
       const resized = cropped.resize(targetW, targetH);
       return await resized.encode();
     }
