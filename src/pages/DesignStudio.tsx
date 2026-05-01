@@ -836,62 +836,56 @@ const DesignStudio = () => {
     try {
       const response = await fetch(currentImage);
       const blob = await response.blob();
+      const isFree = !profile || (profile as any)?.subscription_tier === "free";
 
-      if (format === "png") {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        const objectUrl = URL.createObjectURL(blob);
-        img.src = objectUrl;
-        await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; });
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
-        if (!profile || (profile as any)?.subscription_tier === "free") {
-          addWatermark(ctx, canvas.width, canvas.height);
-        }
-        canvas.toBlob((pngBlob) => {
-          if (!pngBlob) return;
-          const url = URL.createObjectURL(pngBlob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `brandie-design-${Date.now()}.png`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, "image/png");
-        URL.revokeObjectURL(objectUrl);
-      } else {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        const objectUrl = URL.createObjectURL(blob);
-        img.src = objectUrl;
-        await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; });
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext("2d")!;
+      // Fast path for paid users + PNG: ship original bytes from storage
+      // (zero re-encoding, max quality, full native resolution).
+      if (format === "png" && !isFree) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `brandie-design-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const objectUrl = URL.createObjectURL(blob);
+      img.src = objectUrl;
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d")!;
+      if (format === "jpg") {
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        if (!profile || (profile as any)?.subscription_tier === "free") {
-          addWatermark(ctx, canvas.width, canvas.height);
-        }
-        canvas.toBlob((jpgBlob) => {
-          if (!jpgBlob) return;
-          const url = URL.createObjectURL(jpgBlob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `brandie-design-${Date.now()}.jpg`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, "image/jpeg", 0.92);
-        URL.revokeObjectURL(objectUrl);
       }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0);
+      if (isFree) {
+        addWatermark(ctx, canvas.width, canvas.height);
+      }
+      const mime = format === "png" ? "image/png" : "image/jpeg";
+      const ext = format === "png" ? "png" : "jpg";
+      // Maximum quality for both formats (1.0 = lossless-ish for JPEG).
+      canvas.toBlob((outBlob) => {
+        if (!outBlob) return;
+        const url = URL.createObjectURL(outBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `brandie-design-${Date.now()}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, mime, 1.0);
+      URL.revokeObjectURL(objectUrl);
     } catch {
       toast({ title: "Download failed", variant: "destructive" });
     }

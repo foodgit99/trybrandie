@@ -52,11 +52,21 @@ const DesignViewer = ({ designs, initialIndex, open, onClose, onAddToFolder }: D
   const design = designs[currentIndex];
 
   const handleDownload = async () => {
-    const link = document.createElement("a");
-    link.href = design.image_url;
-    link.download = `${design.title || "design"}.png`;
-    link.target = "_blank";
-    link.click();
+    try {
+      const resp = await fetch(design.image_url);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${design.title || "design"}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Fallback: open in new tab if blob fetch fails (e.g., CORS).
+      window.open(design.image_url, "_blank");
+    }
   };
 
   return (
