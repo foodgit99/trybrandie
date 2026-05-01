@@ -1083,6 +1083,58 @@ const ContentHub = () => {
     return acc;
   }, {} as Record<string, any[]>);
 
+  // --- Holiday conflicts: map a day-of-week (within current week) -> upcoming holiday on that day with no idea
+  const holidayByDay: Record<string, UpcomingHoliday | null> = DAYS.reduce((acc, day) => {
+    acc[day] = null;
+    return acc;
+  }, {} as Record<string, UpcomingHoliday | null>);
+  {
+    const monday = getWeekMonday(weekOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const upcoming = getUpcomingHolidays(21);
+    for (const h of upcoming) {
+      if (h.date >= monday && h.date <= sunday) {
+        const dayIndex = (h.date.getDay() + 6) % 7;
+        const dayKey = DAYS[dayIndex];
+        if (!holidayByDay[dayKey]) holidayByDay[dayKey] = h;
+      }
+    }
+  }
+
+  // --- Drag & drop reschedule ---
+  const [draggingIdeaId, setDraggingIdeaId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+
+  const rescheduleIdea = async (ideaId: string, targetDay: string) => {
+    const newDate = getDateForDay(targetDay);
+    const idea = (weeklyIdeas || []).find((i: any) => i.id === ideaId);
+    if (!idea) return;
+    if (idea.scheduled_for === newDate) return;
+    const { error } = await supabase
+      .from("content_ideas")
+      .update({ scheduled_for: newDate } as any)
+      .eq("id", ideaId);
+    if (error) {
+      toast({ title: "Couldn't reschedule", description: error.message, variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+    toast({ title: `Moved to ${DAY_LABELS[targetDay]}` });
+  };
+
+  const fillDay = (day: string) => {
+    // Pre-fill the create dialog for this day with last-used category
+    setIdeaForm({
+      ...emptyIdea,
+      autopilot: autopilotAll,
+      content_category: getLastCategory(user?.id, brandId, "idea", validCategoryIds),
+    });
+    setEditingIdeaId(null);
+    setIdeaDay(day);
+    setIdeaDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
