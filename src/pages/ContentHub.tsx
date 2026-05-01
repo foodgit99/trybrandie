@@ -1444,18 +1444,67 @@ const ContentHub = () => {
                       const dayIdeas = ideasByDay[day] || [];
                       const todayIndex = (new Date().getDay() + 6) % 7;
                       const isToday = DAYS[todayIndex] === day;
+                      const conflictHoliday = holidayByDay[day];
+                      const hasConflict = !!conflictHoliday && dayIdeas.length === 0;
+                      const isDropTarget = dragOverDay === day && draggingIdeaId !== null;
                       return (
-                        <div key={day} className={`flex items-center gap-3 px-4 py-3 group/day ${isToday ? "bg-brandie-neon/10" : ""}`}>
+                        <div
+                          key={day}
+                          className={`flex items-center gap-3 px-4 py-3 group/day transition-colors ${isToday ? "bg-brandie-neon/10" : ""} ${isDropTarget ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}
+                          onDragOver={(e) => {
+                            if (draggingIdeaId) {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                              if (dragOverDay !== day) setDragOverDay(day);
+                            }
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverDay === day) setDragOverDay(null);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const id = e.dataTransfer.getData("text/plain") || draggingIdeaId;
+                            setDragOverDay(null);
+                            setDraggingIdeaId(null);
+                            if (id) rescheduleIdea(id, day);
+                          }}
+                        >
                           <span className={`text-xs font-medium w-8 shrink-0 ${isToday ? "text-brandie-neon font-bold" : "text-muted-foreground"}`}>
                             {DAY_LABELS[day]}
                           </span>
                           <div className="flex-1 min-w-0">
                             {dayIdeas.length === 0 ? (
-                              <span className="text-xs text-muted-foreground/50">—</span>
+                              <div className="flex items-center gap-2">
+                                {hasConflict ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400"
+                                    title={`${conflictHoliday!.name} falls on this day with nothing scheduled`}
+                                  >
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {conflictHoliday!.name} — nothing scheduled
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground/50">—</span>
+                                )}
+                              </div>
                             ) : (
                               <div className="space-y-1.5">
                                 {dayIdeas.map((idea: any) => (
-                                  <div key={idea.id} className="flex items-center gap-2 group/idea">
+                                  <div
+                                    key={idea.id}
+                                    className={`flex items-center gap-2 group/idea rounded px-1 -mx-1 transition-opacity ${draggingIdeaId === idea.id ? "opacity-40" : ""}`}
+                                    draggable
+                                    onDragStart={(e) => {
+                                      setDraggingIdeaId(idea.id);
+                                      e.dataTransfer.effectAllowed = "move";
+                                      e.dataTransfer.setData("text/plain", idea.id);
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggingIdeaId(null);
+                                      setDragOverDay(null);
+                                    }}
+                                    title="Drag to another day to reschedule"
+                                  >
                                     {idea.status === "created" ? (
                                       <Check className="h-3 w-3 text-green-500 shrink-0" />
                                     ) : (
@@ -1471,7 +1520,6 @@ const ContentHub = () => {
                                         autopilot
                                       </Badge>
                                     )}
-                                    {/* Actionable autopilot states only */}
                                     {(idea as any).autopilot_status === "failed_no_credits" && (
                                       <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot couldn't create — no credits remaining">
                                         <AlertTriangle className="h-2 w-2" />
@@ -1490,7 +1538,6 @@ const ContentHub = () => {
                                         creating…
                                       </Badge>
                                     )}
-                                    {/* Only show format chip when it's a carousel (graphic is the default — no need to label) */}
                                     {idea.content_format === "carousel" && (
                                       <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
                                         carousel
@@ -1567,20 +1614,16 @@ const ContentHub = () => {
                             )}
                           </div>
                           {dayIdeas.length === 0 && (
-                            <div className="shrink-0">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button className="p-0.5 rounded hover:bg-muted transition-colors opacity-0 group-hover/day:opacity-100 max-sm:opacity-100">
-                                    <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44">
-                                  <DropdownMenuItem onClick={() => openCreateIdea(day)} className="text-xs gap-2">
-                                    <Plus className="h-3.5 w-3.5" />
-                                    Add idea
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                            <div className="shrink-0 flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => fillDay(day)}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${hasConflict ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20" : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover/day:opacity-100 max-sm:opacity-100"}`}
+                                title={hasConflict ? `Fill ${DAY_LABELS[day]} with a ${conflictHoliday!.name} idea` : `Fill ${DAY_LABELS[day]}`}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Fill day
+                              </button>
                             </div>
                           )}
                         </div>
