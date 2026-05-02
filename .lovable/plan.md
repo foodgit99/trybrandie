@@ -1,122 +1,90 @@
+# Plan: Onboarding for an Autonomous Content System
 
-# Content Hub → Autonomous Content System
+## The shift in user psychology
 
-## Vision
+Today's onboarding asks the user to **build a brand profile** (10 steps of inputs) before anything happens. That's a workbench experience. For an Autonomous Content System, the user should feel like they're **flipping the ignition on an engine** — not configuring a tool.
 
-Today the Content Hub is a **dashboard of tools** (Pillars, Campaigns, Series, Trends, Calendar, Autopilot, Coverage, Audience). The user still has to think: *"What do I do next?"*
-
-The best version is a **conductor**: the Hub decides what the brand needs this week, executes most of it autonomously, and only surfaces the human in moments that genuinely require taste or approval. Tools become *drill-downs from a recommendation*, not the starting point.
-
-## The 4 Optimization Pillars
-
-### 1. A single "Brand Pulse" header (replaces scattered status)
-
-One always-visible strip at the top showing the brand's content health at a glance:
+The new mental model:
 
 ```text
-┌───────────────────────────────────────────────────────────────┐
-│ Brand Pulse  ●●●●○  Healthy   ·  12 posts this week           │
-│ Autopilot ON · Next delivery: Tomorrow 9:14 AM (Africa/Lagos) │
-│ ⚡ 1 action needed → "Approve 3 ideas before Friday"  [Open] │
-└───────────────────────────────────────────────────────────────┘
+OLD:  Sign up → Fill 10 forms → Eventually generate something
+NEW:  Sign up → Pick playbook → Engine starts → Brand fills in behind the scenes
 ```
 
-Composed of 4 signals already in the DB:
-- **Coverage score** (from `CategoryCoveragePanel` logic) → balanced vs skewed
-- **Cadence score** (ideas/week vs target from `autopilot_settings`)
-- **Approval backlog** (ideas in `pending` state)
-- **Failure surface** (any `autopilot_status = failed_*`)
+The very first thing the user sees after signup is **not a form**. It's a single screen that says: *"Pick the playbook your business runs on. Brandie takes it from here."*
 
-This collapses Upcoming Events + Autopilot status + Coverage into one decision-grade summary. The four hub buttons (Pillars/Campaigns/Series/Trends) stay below as "deeper controls."
+---
 
-### 2. "Next Best Action" engine — the autonomy layer
+## The very first action: "Choose Your Industry Playbook"
 
-A new lightweight orchestrator (extend `brand-engine` with `action: "recommend_next_action"`) that runs whenever the Hub loads and returns ONE recommendation card:
+A single full-screen step — no progress bar, no 10/10 — with a grid of ~9 industry playbooks. Each card shows: icon, name, one-line promise, and a sample of the kind of weekly content the engine will run for them.
 
-Examples it would emit:
-- *"Your Education pillar hasn't posted in 14 days — generate 3 ideas?"* → 1-click
-- *"Lagos Fashion Week is in 5 days and you have no related content — draft a campaign?"*
-- *"4 autopilot posts failed for low credits — top up or skip?"*
-- *"Your audience JTBD says they buy on Fridays — schedule 2 promo posts?"*
+Examples:
+- Restaurants & Cafés — *"Daily specials, weekend hype, regular-customer love."*
+- Beauty & Salons — *"Before/afters, booking nudges, treatment education."*
+- Fitness & Wellness — *"Class promos, transformation stories, motivation Mondays."*
+- Boutique Retail — *"New arrivals, styling tips, sale countdowns."*
+- Professional Services — *"Authority posts, client wins, lead-gen offers."*
+- Real Estate — *"New listings, market updates, neighbourhood spotlights."*
+- Coaches & Creators — *"Insight posts, testimonial reels, offer launches."*
+- Events & Hospitality — *"Countdown, behind-the-scenes, recap."*
+- Other — fallback to a general SMB playbook.
 
-Inputs: pillar last-post recency, holiday calendar (`holidayCalendar.ts`), trend cache (`brand_trend_intel`), JTBD buying triggers, autopilot failure rows, coverage skew.
+Bottom of the screen: a single primary button — **"Start my engine"** — not "Continue" or "Next".
 
-Output: one card with a primary CTA that triggers the right existing flow. This is what turns the Hub from passive to autonomous.
+## What happens after they click
 
-### 3. Unified Autopilot — plan + deliver + recover in one loop
+The screen transitions to a live "engine starting" sequence (3–5s, feels like a system booting, not a loading spinner):
 
-Today autopilot only *delivers* what the user already created. Make it own the full loop:
+```text
+✓ Loading [Industry] playbook
+✓ Setting up your weekly cadence
+✓ Generating your first 7 posts
+→ Add your brand details to personalise
+```
 
-- **Plan** weekly: every Sunday it auto-runs `generate_weekly_ideas` if the queue is below threshold (e.g. <5 pending). User just sees "12 new ideas drafted for next week — review."
-- **Deliver** daily (existing `content-autopilot` cron — keep as-is).
-- **Recover**: any `failed_*` idea is auto-rescheduled the next morning *only* if credits are available; otherwise it surfaces in Brand Pulse. (Today this is partly there but invisible.)
-- **Settings**: collapse the current Autopilot card into a single "⚙️ Autopilot rules" sheet (delivery time, timezone, weekly auto-plan toggle, min-queue threshold, credit floor).
+Then it routes to a **shortened brand setup** — only the bare essentials needed to render the first post:
+1. Website URL (auto-scrape — already exists) **or** brand name + one-sentence description
+2. Logo (upload / design / skip)
+3. One brand colour (or accept the playbook's default palette)
 
-Expose three modes the user picks once during onboarding:
-- **Manual** — generate on demand (today's default behavior)
-- **Assisted** — autopilot delivers, user plans (current autopilot)
-- **Fully Autonomous** — autopilot plans AND delivers (new)
+That's it. 3 inputs instead of 10. Everything else (tone, vibe, personality, audience JTBD, fonts) gets **inferred from the playbook + scrape** and shown as editable later in Brand Centre.
 
-### 4. Progressive disclosure of the 4 tool buttons
+## What the user sees on first login to the home screen
 
-Pillars/Campaigns/Series/Trends stay as the 4-button grid (per recent UX), but each button gets:
+Not "What will you design today?" — that's still a workbench question. Instead:
 
-- A **status pill** ("3 active", "Needs refresh", "Empty")
-- An **inline "Auto-fill" action** in the dialog (e.g. inside the Trends dialog: "Apply top trending style to next 5 posts")
-- The "i" tooltip you already added stays as the rationale layer
+```text
+Your engine is running.
+This week: 7 posts queued · 2 published · next post Tuesday 9am
 
-This removes the need to ever leave the Hub for routine work.
+[ Review this week's plan ]   [ Pause engine ]
+```
 
-## Calendar improvements (small but high-impact)
+The hero becomes a **status panel for the autonomous system**, not a creative prompt. The "create new design" affordance still exists but moves from hero to a secondary action — the user is no longer expected to drive the daily output.
 
-- **Drag-to-reschedule** ideas across days (already shown by category color)
-- **"Generate to fill"** buttons on empty days
-- **Conflict warnings**: 2 promos on the same day, or category clash with a holiday
+---
 
-## What gets removed / merged
+## Technical scope
 
-- **Upcoming Events** card → folded into Brand Pulse (events become triggers, not a separate widget)
-- **Audience Suggestions** standalone panel → moves inside the "Next Best Action" reasoning ("because your audience…")
-- **Regenerate All** button → demoted to inside the ⚙️ settings sheet (it's destructive and rarely the right move once Autopilot owns planning)
-- **Category Coverage** standalone card → its score lives in Brand Pulse; full breakdown becomes a popover from the score chip
+**Files to modify:**
+- `src/pages/Onboarding.tsx` — replace step `-1` (website prompt) with a new `IndustryPlaybookStep`. Collapse the existing 10 steps into 3 essential steps that follow.
+- `src/lib/industryPlaybooks.ts` (new) — define the 9 playbooks with: id, name, icon, tagline, default tone, default vibe, default palette hint, suggested cadence, and a starter set of `content_ideas` templates (category + prompt skeleton per day-of-week).
+- `src/pages/Index.tsx` — replace the "What will you design today?" hero with an `EngineStatusHero` component that shows: posts queued this week, next scheduled post, autopilot on/off toggle, and a "Review this week" CTA into Content Hub.
+- `src/components/onboarding/EngineStartingSequence.tsx` (new) — the 3–5s "booting" animation that runs after playbook selection while the planner seeds ideas.
+- `supabase/functions/autopilot-planner/index.ts` — accept a `playbook_id` argument; when a brand is brand-new and has no `content_ideas`, seed 7 ideas from the playbook's template set on first run.
+- `brands` table — add a `playbook_id text` column (migration).
+- `mem://features/onboarding-flow` — update the memory to reflect the new flow.
 
-End state: ~40% less visual surface, ~10x more direction.
+**What we're explicitly NOT doing in this round:**
+- Full audience JTBD wizard during onboarding (move to optional "tune your engine" later).
+- Trend Lab selection at signup (the playbook implies sensible defaults).
+- Logo designer as a forced step (keep as optional skip).
 
-## Technical Plan
+## Open question to confirm before building
 
-### Frontend (`src/pages/ContentHub.tsx`)
-- New `BrandPulse` component (top of Hub) — composes existing queries, no new fetches
-- New `NextBestActionCard` component — calls `brand-engine` with new action
-- Refactor: collapse 3 cards (Upcoming/Coverage/Autopilot) into Pulse + a single ⚙️ sheet
-- Keep the 4-button grid; add status pills derived from existing query data
-- Calendar: add drag-and-drop with `@dnd-kit/core` (already a Tailwind/Radix-friendly lib); add "fill day" CTA on empty cells
+The 9 playbooks above are my best guess at SMB coverage. Want to:
+1. Ship with these 9 as-is, **or**
+2. Start with 4–5 tighter playbooks (Restaurants, Beauty, Fitness, Retail, Services) and expand once we see which industries actually convert?
 
-### Edge function (`supabase/functions/brand-engine/index.ts`)
-- New action `recommend_next_action` — reads pillars/ideas/autopilot_runs/holiday_calendar/JTBD, runs a small Gemini Flash-Lite classifier, returns `{ headline, reason, cta_action, cta_payload, severity }`
-- New action `autopilot_weekly_plan` — generates the next week's ideas if queue below threshold, idempotent (skip if already run this week)
-
-### Cron (Supabase `pg_cron`)
-- Add a Sunday 00:30 UTC job that, for each brand on "Fully Autonomous" mode, invokes `autopilot_weekly_plan`
-- Add a daily 06:00 UTC job that retries `failed_*` ideas where `credits_available = true`
-
-### Database (migration)
-- `autopilot_settings`: add `mode text default 'assisted'` ('manual' | 'assisted' | 'autonomous'), `min_queue_threshold int default 5`, `weekly_plan_last_run timestamptz`
-- New table `brand_pulse_snapshots` (optional) to memoize daily score for trend lines
-
-### Memory updates
-- Update `mem://features/content-autopilot` to reflect the 3 modes + weekly planner
-- New `mem://features/brand-pulse` describing the score composition
-
-## Phasing (so we don't ship one giant PR)
-
-**Phase 1 — Brand Pulse + Next Best Action card** (highest perceived intelligence per line of code)
-
-**Phase 2 — Autonomous mode + weekly planner cron** (the "magic" tier)
-
-**Phase 3 — Calendar drag/drop + fill-day + conflict warnings** (productivity polish)
-
-Each phase is independently shippable and reversible.
-
-## Why this is the "best version right now"
-
-It uses **only systems already in the codebase** (brand-engine, content-autopilot, JTBD, trend cache, holiday calendar, category coverage) but reorganizes them around a **single decision the user actually has** each session: *"What should I focus on for my brand today?"* Instead of 8 widgets answering 8 questions, one Pulse + one Action answers the only one that matters — and Autopilot quietly handles the rest.
+I'd recommend option 2 — fewer, sharper choices feel more like a curated system and less like a directory. Tell me which you prefer and I'll build accordingly.
