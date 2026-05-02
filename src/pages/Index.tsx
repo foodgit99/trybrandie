@@ -261,35 +261,8 @@ const Index = () => {
           transition={{ duration: 0.5 }}
           className="space-y-10 sm:space-y-12"
         >
-          {/* Hero CTA */}
-          <section className="text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {(() => {
-                const hour = new Date().getHours();
-                const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-                const firstName = profile?.full_name?.split(" ")[0];
-                return firstName ? `${greeting}, ${firstName} 👋` : `${greeting} 👋`;
-              })()}
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">What will you design today?</h2>
-            <p className="text-muted-foreground max-w-md mx-auto text-sm sm:text-base">
-              Describe what you need and your AI creative director will bring it to life, always on brand.
-            </p>
-            <div className="hidden sm:flex flex-row items-center justify-center gap-3 mt-4">
-              <Button size="lg" className="h-12 px-8 rounded-xl gap-2" onClick={() => navigate("/studio")}>
-                <Plus className="h-4 w-4" />
-                Create New Design
-              </Button>
-              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2" onClick={() => navigate("/content")}>
-                <Layers className="h-4 w-4" />
-                Content Hub
-              </Button>
-              <Button variant="outline" size="lg" className="h-12 px-6 rounded-xl gap-2" onClick={() => navigate("/brand")}>
-                <Palette className="h-4 w-4" />
-                Brand Centre
-              </Button>
-            </div>
-          </section>
+          {/* Engine Status Hero — autonomous content system */}
+          <EngineStatusHero brandId={brand?.id} firstName={profile?.full_name?.split(" ")[0] || null} />
 
           {/* Today's Content */}
           <motion.section
