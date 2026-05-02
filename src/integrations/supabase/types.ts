@@ -564,6 +564,7 @@ export type Database = {
           name: string
           onboarding_complete: boolean
           personality_traits: string[] | null
+          playbook_id: string | null
           primary_colors: string[] | null
           secondary_colors: string[] | null
           special_instructions: string | null
@@ -586,6 +587,7 @@ export type Database = {
           name: string
           onboarding_complete?: boolean
           personality_traits?: string[] | null
+          playbook_id?: string | null
           primary_colors?: string[] | null
           secondary_colors?: string[] | null
           special_instructions?: string | null
@@ -608,6 +610,7 @@ export type Database = {
           name?: string
           onboarding_complete?: boolean
           personality_traits?: string[] | null
+          playbook_id?: string | null
           primary_colors?: string[] | null
           secondary_colors?: string[] | null
           special_instructions?: string | null
