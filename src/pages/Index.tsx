@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useBrand } from "@/hooks/useBrand";
 import { Badge } from "@/components/ui/badge";
 import DesignViewer from "@/components/DesignViewer";
+import EngineStatusHero from "@/components/home/EngineStatusHero";
 
 const Index = () => {
   const { user } = useAuth();
