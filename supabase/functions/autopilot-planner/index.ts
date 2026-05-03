@@ -127,8 +127,22 @@ Deno.serve(async (req) => {
         });
         const { error: insertErr } = await supabase.from("content_ideas").insert(rows);
         if (insertErr) throw insertErr;
-        console.log(`[autopilot-planner] seeded ${rows.length} ideas for brand ${brand.id} (${playbookId})`);
-        return jsonResponse({ seeded: rows.length });
+
+        // Turn the engine ON by default so the user lands on a "Live" home.
+        await supabase
+          .from("autopilot_settings")
+          .upsert(
+            {
+              brand_id: brand.id,
+              user_id: brand.user_id,
+              enabled: true,
+              mode: "autonomous",
+            },
+            { onConflict: "brand_id" },
+          );
+
+        console.log(`[autopilot-planner] seeded ${rows.length} ideas + engine ON for brand ${brand.id} (${playbookId})`);
+        return jsonResponse({ seeded: rows.length, engine: "live" });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error("[autopilot-planner] seed error:", msg);

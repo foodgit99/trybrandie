@@ -20,38 +20,38 @@ const fadeUp = {
 const features = [
   {
     icon: Palette,
-    title: "Brand Centre",
-    description: "Store your colours, typography, logo, tone of voice, and personality. Every design reflects your unique identity.",
+    title: "Industry Playbooks",
+    description: "Pre-tuned content cadences for restaurants, beauty, fitness, retail, and services. Pick one and the engine knows what to post, when, and why.",
     image: featureBrandCentre,
   },
   {
-    icon: MessageSquare,
-    title: "Design Studio",
-    description: "Chat with your AI creative director. Describe what you need, refine via conversation, and download in seconds.",
-    image: featureDesignStudio,
-  },
-  {
     icon: Layers,
-    title: "Carousel Creator",
-    description: "Generate multi-slide Instagram carousels with a narrative arc — Hook, Value, CTA — all brand-consistent.",
-    image: featureCarousel,
+    title: "Always-Full Queue",
+    description: "Every week, the engine drafts the next seven posts in advance — sequenced for narrative, variety, and conversion. You're never staring at an empty calendar.",
+    image: featureContentHub,
   },
   {
     icon: Brain,
-    title: "Content Hub",
-    description: "Plan your content calendar with AI-generated ideas, content pillars, and one-click design creation.",
-    image: featureContentHub,
+    title: "Brand Memory",
+    description: "Your colours, fonts, tone, and personality live inside the engine. Every generated post comes out unmistakably yours — no styling, no fixing.",
+    image: featureDesignStudio,
+  },
+  {
+    icon: MessageSquare,
+    title: "Conversational Tweaks",
+    description: "Want it shorter, bolder, warmer? Just tell the engine. It adjusts in seconds while keeping every other detail locked.",
+    image: featureCarousel,
   },
   {
     icon: Target,
     title: "Audience Intelligence",
-    description: "Define who you're targeting using the JTBD framework. Brandie crafts copy and visuals that resonate and convert.",
+    description: "JTBD profiling shapes every headline and CTA — so the engine doesn't just post pretty pictures, it posts persuasion.",
     image: featureAudience,
   },
   {
     icon: TrendingUp,
-    title: "Trend Lab",
-    description: "Stay current with design trends — Neo Brutalism, Hyper Chromatic, Kinetic Typography — blended with your brand.",
+    title: "Trend Adaptation",
+    description: "The engine watches modern design trends and quietly evolves your visual style — so your feed never looks dated, without you ever lifting a finger.",
     image: featureTrendLab,
   },
 ];
@@ -66,10 +66,10 @@ const LandingFeatures = () => (
         className="text-center mb-16 space-y-3"
       >
         <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
-          Everything you need to design at scale
+          An engine, not a tool.
         </motion.h2>
         <motion.p variants={fadeUp} custom={1} className="text-muted-foreground max-w-lg mx-auto">
-          Six powerful tools working together — brand memory, audience psychology, trend intelligence, and AI creativity.
+          Six systems running in the background — playbooks, brand memory, audience psychology, trend intelligence — so you don't have to think about marketing.
         </motion.p>
       </motion.div>
 

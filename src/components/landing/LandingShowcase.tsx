@@ -118,13 +118,13 @@ const LandingShowcase = () => {
             </motion.div>
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} className="space-y-5 order-1 md:order-2">
               <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
-                Smarter with every design
+                The engine learns your taste
               </motion.h2>
               <motion.p variants={fadeUp} custom={1} className="text-primary-foreground/70 leading-relaxed">
-                Brandie's Visual Style Genome learns what works. Upvote your favourites and the system adapts — refining tone, layout, and styling to match your taste. Combined with JTBD audience profiling, every design is both beautiful and persuasive.
+                Brandie's Visual Style Genome remembers what you upvote and quietly tunes future posts — tone, layout, palette, hook style. Combined with JTBD audience profiling, the engine doesn't just get faster. It gets sharper, week after week.
               </motion.p>
               <motion.div variants={fadeUp} custom={2} className="flex flex-wrap gap-3">
-                {["Genome Scoring", "Mutation Engine", "Brand Memory", "JTBD Profiling", "Trend Adaptation"].map((tag) => (
+                {["Style Genome", "Mutation Engine", "Brand Memory", "JTBD Profiling", "Trend Adaptation"].map((tag) => (
                   <span key={tag} className="text-xs px-3 py-1.5 rounded-full border border-primary-foreground/20 text-primary-foreground/80">
                     {tag}
                   </span>
