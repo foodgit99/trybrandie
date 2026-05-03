@@ -4,6 +4,7 @@ import LandingFeatures from "@/components/landing/LandingFeatures";
 import LandingShowcase from "@/components/landing/LandingShowcase";
 import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
 import LandingPricing from "@/components/landing/LandingPricing";
+import LandingFAQ from "@/components/landing/LandingFAQ";
 import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 
