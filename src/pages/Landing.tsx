@@ -16,6 +16,7 @@ const Landing = () => (
     <LandingShowcase />
     <LandingHowItWorks />
     <LandingPricing />
+    <LandingFAQ />
     <LandingCTA />
     <LandingFooter />
   </div>
