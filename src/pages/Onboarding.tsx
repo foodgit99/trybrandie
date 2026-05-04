@@ -80,6 +80,12 @@ const Onboarding = () => {
 
   const handleSelectPlaybook = (id: string) => {
     setPlaybookId(id);
+    if (id === "general" && customIndustry.trim()) {
+      setData((prev) => ({
+        ...prev,
+        description: prev.description || `${customIndustry.trim()} business.`,
+      }));
+    }
     setPhase("boot");
   };
 
