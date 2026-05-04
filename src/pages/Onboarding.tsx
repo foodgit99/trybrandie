@@ -35,6 +35,7 @@ const Onboarding = () => {
   const [scanMessage, setScanMessage] = useState("");
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [customIndustry, setCustomIndustry] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
