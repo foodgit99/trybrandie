@@ -155,7 +155,7 @@ const EngineStatusHero = ({ brandId, firstName }: Props) => {
           <Button
             variant="outline"
             size="lg"
-            className="h-11 rounded-xl gap-2"
+            className="h-11 rounded-xl gap-2 hidden sm:inline-flex"
             onClick={() => navigate("/studio")}
           >
             <Plus className="h-4 w-4" />
