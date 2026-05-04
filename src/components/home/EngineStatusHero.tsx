@@ -147,7 +147,7 @@ const EngineStatusHero = ({ brandId, firstName }: Props) => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button size="lg" className="h-11 rounded-xl gap-2 flex-1" onClick={() => navigate("/content")}>
+          <Button className="h-10 rounded-xl gap-2 flex-1" onClick={() => navigate("/content")}>
             <CalendarDays className="h-4 w-4" />
             Review this week
             <ArrowRight className="h-4 w-4" />
