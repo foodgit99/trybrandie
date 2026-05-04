@@ -35,6 +35,7 @@ const Onboarding = () => {
   const [scanMessage, setScanMessage] = useState("");
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [customIndustry, setCustomIndustry] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -79,6 +80,12 @@ const Onboarding = () => {
 
   const handleSelectPlaybook = (id: string) => {
     setPlaybookId(id);
+    if (id === "general" && customIndustry.trim()) {
+      setData((prev) => ({
+        ...prev,
+        description: prev.description || `${customIndustry.trim()} business.`,
+      }));
+    }
     setPhase("boot");
   };
 
@@ -283,6 +290,36 @@ const Onboarding = () => {
                     </p>
                   </button>
                 ))}
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-border bg-card/50 p-5 space-y-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium">Don't see your industry?</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Type it in and we'll build a balanced weekly cadence tailored to it.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    value={customIndustry}
+                    onChange={(e) => setCustomIndustry(e.target.value)}
+                    placeholder="e.g. Architecture firm, Pet grooming, Law practice…"
+                    className="h-11 flex-1"
+                    maxLength={80}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customIndustry.trim()) handleSelectPlaybook("general");
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => customIndustry.trim() && handleSelectPlaybook("general")}
+                    disabled={!customIndustry.trim()}
+                    className="h-11 gap-2 rounded-xl"
+                  >
+                    Use this
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </motion.div>
           )}
