@@ -2566,6 +2566,15 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       const singleResult = await renderVariation(genomeData, genomeScores, "A");
 
+      // Render succeeded — now deduct credits.
+      if (pendingDeduction) {
+        try {
+          await pendingDeduction();
+        } catch (e) {
+          console.error("Credit deduction failed after successful render:", e);
+        }
+      }
+
       // Log trace
       tracer.log();
       try {
