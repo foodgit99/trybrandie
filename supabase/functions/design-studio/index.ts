@@ -1270,7 +1270,9 @@ TREND RULES:
         }
       }
 
-      // Check and increment generation count — skip for free edits
+      // Pre-check credits — actual deduction happens AFTER successful generation.
+      // This prevents users from being charged for failed designs.
+      let pendingDeduction: null | (() => Promise<void>) = null;
       if (!isFreeEdit) {
         // Single generation: 2 credits flat (always HD via Pro Image model)
         const creditCost = 2;
@@ -1310,47 +1312,58 @@ TREND RULES:
             });
           }
 
-          // Deduction order: free monthly → bonus → reward → paid
-          let remainingCost = creditCost;
-          const updates: any = {};
-          if (needsReset) {
-            updates.generations_reset_at = now.toISOString();
-            updates.bonus_earned_count = 0;
-            updates.bonus_earned_reset_at = now.toISOString();
-          }
+          // Build deferred deduction closure — only invoked after successful render.
+          pendingDeduction = async () => {
+            // Re-query reward rows at deduction time to avoid using stale balances.
+            const { data: freshRewardRows } = await adminClient
+              .from("credit_rewards")
+              .select("id, remaining")
+              .eq("user_id", user.id)
+              .gt("remaining", 0)
+              .gt("expires_at", new Date().toISOString())
+              .order("expires_at", { ascending: true });
 
-          // 1. Consume free monthly credits
-          const freeToUse = Math.min(remainingCost, freeRemaining);
-          updates.generations_count = currentCount + freeToUse;
-          remainingCost -= freeToUse;
-
-          // 2. Consume bonus credits
-          if (remainingCost > 0) {
-            const bonusToUse = Math.min(remainingCost, bonusCredits);
-            updates.bonus_credits = bonusCredits - bonusToUse;
-            remainingCost -= bonusToUse;
-          }
-
-          // 3. Consume reward credits (soonest-expiring first)
-          if (remainingCost > 0 && rewardRows && rewardRows.length > 0) {
-            for (const rw of rewardRows) {
-              if (remainingCost <= 0) break;
-              const toUse = Math.min(remainingCost, rw.remaining);
-              await adminClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
-              remainingCost -= toUse;
+            // Deduction order: free monthly → bonus → reward → paid
+            let remainingCost = creditCost;
+            const updates: any = {};
+            if (needsReset) {
+              updates.generations_reset_at = now.toISOString();
+              updates.bonus_earned_count = 0;
+              updates.bonus_earned_reset_at = now.toISOString();
             }
-          }
 
-          // 4. Consume paid credits
-          if (remainingCost > 0) {
-            updates.paid_credits = paidCredits - remainingCost;
-          }
+            // 1. Consume free monthly credits
+            const freeToUse = Math.min(remainingCost, freeRemaining);
+            updates.generations_count = currentCount + freeToUse;
+            remainingCost -= freeToUse;
 
-          await adminClient.from("profiles").update(updates).eq("user_id", user.id);
+            // 2. Consume bonus credits
+            if (remainingCost > 0) {
+              const bonusToUse = Math.min(remainingCost, bonusCredits);
+              updates.bonus_credits = bonusCredits - bonusToUse;
+              remainingCost -= bonusToUse;
+            }
 
-          const newCount = updates.generations_count ?? currentCount;
-          const newBonus = updates.bonus_credits ?? bonusCredits;
-          const newPaid = updates.paid_credits ?? paidCredits;
+            // 3. Consume reward credits (soonest-expiring first)
+            if (remainingCost > 0 && freshRewardRows && freshRewardRows.length > 0) {
+              for (const rw of freshRewardRows) {
+                if (remainingCost <= 0) break;
+                const toUse = Math.min(remainingCost, rw.remaining);
+                await adminClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+                remainingCost -= toUse;
+              }
+            }
+
+            // 4. Consume paid credits
+            if (remainingCost > 0) {
+              updates.paid_credits = paidCredits - remainingCost;
+            }
+
+            await adminClient.from("profiles").update(updates).eq("user_id", user.id);
+
+            const newCount = updates.generations_count ?? currentCount;
+            const newBonus = updates.bonus_credits ?? bonusCredits;
+            const newPaid = updates.paid_credits ?? paidCredits;
 
             // Check if credits are running low (< 5 remaining) and send warning email
             const remainingCredits = Math.max(0, FREE_MONTHLY - newCount) + newBonus + newPaid;
@@ -1358,13 +1371,13 @@ TREND RULES:
               try {
                 const { data: userData } = await adminClient.auth.admin.getUserById(user.id);
                 const userEmail = userData?.user?.email;
-                
+
                 if (userEmail && profile.referral_code) {
                   console.log(`Sending low credits warning to ${userEmail}, remaining: ${remainingCredits}`);
-                  
+
                   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
                   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-                  
+
                   fetch(`${supabaseUrl}/functions/v1/send-email`, {
                     method: "POST",
                     headers: {
@@ -1374,9 +1387,9 @@ TREND RULES:
                     body: JSON.stringify({
                       type: "low_credits",
                       to: userEmail,
-                      data: { 
+                      data: {
                         remaining_credits: remainingCredits,
-                        referral_code: profile.referral_code 
+                        referral_code: profile.referral_code,
                       },
                     }),
                   }).catch(e => console.error("Low credits email failed:", e));
@@ -1385,6 +1398,7 @@ TREND RULES:
                 console.error("Error checking for low credits email:", e);
               }
             }
+          };
         }
       }
 
@@ -2552,6 +2566,15 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
       const singleResult = await renderVariation(genomeData, genomeScores, "A");
 
+      // Render succeeded — now deduct credits.
+      if (pendingDeduction) {
+        try {
+          await pendingDeduction();
+        } catch (e) {
+          console.error("Credit deduction failed after successful render:", e);
+        }
+      }
+
       // Log trace
       tracer.log();
       try {
@@ -2602,7 +2625,8 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       // Carousel pricing: floor(slides * 1.5), quality-independent. Single still uses render_quality.
       const creditCost = Math.floor(numSlides * 1.5);
 
-      // Credit check
+      // Pre-check credits — actual deduction happens AFTER all slides successfully render.
+      let pendingCarouselDeduction: null | (() => Promise<void>) = null;
       const { data: profile } = await adminClient
         .from("profiles")
         .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
@@ -2619,7 +2643,6 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         const bonusCredits = profile.bonus_credits || 0;
         const paidCredits = (profile as any).paid_credits || 0;
 
-        // Query active reward credits
         const { data: rewardRows } = await adminClient
           .from("credit_rewards")
           .select("id, remaining")
@@ -2637,36 +2660,44 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           });
         }
 
-        // Deduction order: free monthly → bonus → reward → paid
-        let remainingCost = creditCost;
-        const updates: any = {};
-        if (needsReset) updates.generations_reset_at = now.toISOString();
+        pendingCarouselDeduction = async () => {
+          const { data: freshRewardRows } = await adminClient
+            .from("credit_rewards")
+            .select("id, remaining")
+            .eq("user_id", user.id)
+            .gt("remaining", 0)
+            .gt("expires_at", new Date().toISOString())
+            .order("expires_at", { ascending: true });
 
-        const freeToUse = Math.min(remainingCost, freeRemaining);
-        updates.generations_count = currentCount + freeToUse;
-        remainingCost -= freeToUse;
+          let remainingCost = creditCost;
+          const updates: any = {};
+          if (needsReset) updates.generations_reset_at = now.toISOString();
 
-        if (remainingCost > 0) {
-          const bonusToUse = Math.min(remainingCost, bonusCredits);
-          updates.bonus_credits = bonusCredits - bonusToUse;
-          remainingCost -= bonusToUse;
-        }
+          const freeToUse = Math.min(remainingCost, freeRemaining);
+          updates.generations_count = currentCount + freeToUse;
+          remainingCost -= freeToUse;
 
-        // Consume reward credits (soonest-expiring first)
-        if (remainingCost > 0 && rewardRows && rewardRows.length > 0) {
-          for (const rw of rewardRows) {
-            if (remainingCost <= 0) break;
-            const toUse = Math.min(remainingCost, rw.remaining);
-            await adminClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
-            remainingCost -= toUse;
+          if (remainingCost > 0) {
+            const bonusToUse = Math.min(remainingCost, bonusCredits);
+            updates.bonus_credits = bonusCredits - bonusToUse;
+            remainingCost -= bonusToUse;
           }
-        }
 
-        if (remainingCost > 0) {
-          updates.paid_credits = paidCredits - remainingCost;
-        }
+          if (remainingCost > 0 && freshRewardRows && freshRewardRows.length > 0) {
+            for (const rw of freshRewardRows) {
+              if (remainingCost <= 0) break;
+              const toUse = Math.min(remainingCost, rw.remaining);
+              await adminClient.from("credit_rewards").update({ remaining: rw.remaining - toUse }).eq("id", rw.id);
+              remainingCost -= toUse;
+            }
+          }
 
-        await adminClient.from("profiles").update(updates).eq("user_id", user.id);
+          if (remainingCost > 0) {
+            updates.paid_credits = paidCredits - remainingCost;
+          }
+
+          await adminClient.from("profiles").update(updates).eq("user_id", user.id);
+        };
       }
 
       const carouselId = crypto.randomUUID();
@@ -2910,6 +2941,15 @@ Return structured JSON.`;
       } catch {}
 
       console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}`);
+
+      // All slides rendered successfully — deduct credits now.
+      if (pendingCarouselDeduction) {
+        try {
+          await pendingCarouselDeduction();
+        } catch (e) {
+          console.error("Carousel credit deduction failed after successful render:", e);
+        }
+      }
 
       return new Response(JSON.stringify({
         carousel_id: carouselId,
