@@ -2942,6 +2942,15 @@ Return structured JSON.`;
 
       console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}`);
 
+      // All slides rendered successfully — deduct credits now.
+      if (pendingCarouselDeduction) {
+        try {
+          await pendingCarouselDeduction();
+        } catch (e) {
+          console.error("Carousel credit deduction failed after successful render:", e);
+        }
+      }
+
       return new Response(JSON.stringify({
         carousel_id: carouselId,
         slides: slides.sort((a, b) => a.slide_index - b.slide_index),
