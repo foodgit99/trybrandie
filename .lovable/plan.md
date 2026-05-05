@@ -1,90 +1,31 @@
-# Plan: Onboarding for an Autonomous Content System
+# Why the user got the error
 
-## The shift in user psychology
+The DB error `new row for relation "brands" violates check constraint "brands_vibe_check"` is caused by a Postgres CHECK constraint on `public.brands.vibe`:
 
-Today's onboarding asks the user to **build a brand profile** (10 steps of inputs) before anything happens. That's a workbench experience. For an Autonomous Content System, the user should feel like they're **flipping the ignition on an engine** — not configuring a tool.
-
-The new mental model:
-
-```text
-OLD:  Sign up → Fill 10 forms → Eventually generate something
-NEW:  Sign up → Pick playbook → Engine starts → Brand fills in behind the scenes
+```
+CHECK (vibe = ANY (ARRAY['Minimal','Bold','Luxury','Playful','Corporate','Cinematic']))
 ```
 
-The very first thing the user sees after signup is **not a form**. It's a single screen that says: *"Pick the playbook your business runs on. Brandie takes it from here."*
+When I recently expanded the industry playbooks in `src/lib/industryPlaybooks.ts`, several new playbooks set `defaultVibe` to values **outside** this allowed list:
 
----
+- Warm, Modern, Friendly, Calm
 
-## The very first action: "Choose Your Industry Playbook"
+The Education & Coaching playbook the user picked sets `defaultVibe` to one of these (likely "Friendly"), so when onboarding ran `insert into brands { vibe: 'Friendly', ... }`, Postgres rejected it.
 
-A single full-screen step — no progress bar, no 10/10 — with a grid of ~9 industry playbooks. Each card shows: icon, name, one-line promise, and a sample of the kind of weekly content the engine will run for them.
+This also violates our own internal rule: "Use validation triggers instead of CHECK constraints" — but more importantly the constraint is now stale relative to the playbook list.
 
-Examples:
-- Restaurants & Cafés — *"Daily specials, weekend hype, regular-customer love."*
-- Beauty & Salons — *"Before/afters, booking nudges, treatment education."*
-- Fitness & Wellness — *"Class promos, transformation stories, motivation Mondays."*
-- Boutique Retail — *"New arrivals, styling tips, sale countdowns."*
-- Professional Services — *"Authority posts, client wins, lead-gen offers."*
-- Real Estate — *"New listings, market updates, neighbourhood spotlights."*
-- Coaches & Creators — *"Insight posts, testimonial reels, offer launches."*
-- Events & Hospitality — *"Countdown, behind-the-scenes, recap."*
-- Other — fallback to a general SMB playbook.
+# Fix
 
-Bottom of the screen: a single primary button — **"Start my engine"** — not "Continue" or "Next".
+Two coordinated changes:
 
-## What happens after they click
+### 1. Database migration
+Drop the `brands_vibe_check` CHECK constraint entirely. Vibe is a free-form descriptor used as a styling hint by the AI agents — it doesn't need a hard enum lock at the DB level. Existing rows are unaffected (drop is non-destructive).
 
-The screen transitions to a live "engine starting" sequence (3–5s, feels like a system booting, not a loading spinner):
+If we want any safety, we'd add a lightweight validation trigger that only checks for non-empty/length, but that's optional. Recommendation: just drop it — the playbook list is the source of truth and is curated in code.
 
-```text
-✓ Loading [Industry] playbook
-✓ Setting up your weekly cadence
-✓ Generating your first 7 posts
-→ Add your brand details to personalise
-```
+### 2. No code changes required
+Once the constraint is gone, all current `defaultVibe` values (Warm, Modern, Friendly, Calm, plus the originals) will insert cleanly. The Brand Centre vibe input is already free-text in the rest of the app.
 
-Then it routes to a **shortened brand setup** — only the bare essentials needed to render the first post:
-1. Website URL (auto-scrape — already exists) **or** brand name + one-sentence description
-2. Logo (upload / design / skip)
-3. One brand colour (or accept the playbook's default palette)
+# Recovery for the affected user
 
-That's it. 3 inputs instead of 10. Everything else (tone, vibe, personality, audience JTBD, fonts) gets **inferred from the playbook + scrape** and shown as editable later in Brand Centre.
-
-## What the user sees on first login to the home screen
-
-Not "What will you design today?" — that's still a workbench question. Instead:
-
-```text
-Your engine is running.
-This week: 7 posts queued · 2 published · next post Tuesday 9am
-
-[ Review this week's plan ]   [ Pause engine ]
-```
-
-The hero becomes a **status panel for the autonomous system**, not a creative prompt. The "create new design" affordance still exists but moves from hero to a secondary action — the user is no longer expected to drive the daily output.
-
----
-
-## Technical scope
-
-**Files to modify:**
-- `src/pages/Onboarding.tsx` — replace step `-1` (website prompt) with a new `IndustryPlaybookStep`. Collapse the existing 10 steps into 3 essential steps that follow.
-- `src/lib/industryPlaybooks.ts` (new) — define the 9 playbooks with: id, name, icon, tagline, default tone, default vibe, default palette hint, suggested cadence, and a starter set of `content_ideas` templates (category + prompt skeleton per day-of-week).
-- `src/pages/Index.tsx` — replace the "What will you design today?" hero with an `EngineStatusHero` component that shows: posts queued this week, next scheduled post, autopilot on/off toggle, and a "Review this week" CTA into Content Hub.
-- `src/components/onboarding/EngineStartingSequence.tsx` (new) — the 3–5s "booting" animation that runs after playbook selection while the planner seeds ideas.
-- `supabase/functions/autopilot-planner/index.ts` — accept a `playbook_id` argument; when a brand is brand-new and has no `content_ideas`, seed 7 ideas from the playbook's template set on first run.
-- `brands` table — add a `playbook_id text` column (migration).
-- `mem://features/onboarding-flow` — update the memory to reflect the new flow.
-
-**What we're explicitly NOT doing in this round:**
-- Full audience JTBD wizard during onboarding (move to optional "tune your engine" later).
-- Trend Lab selection at signup (the playbook implies sensible defaults).
-- Logo designer as a forced step (keep as optional skip).
-
-## Open question to confirm before building
-
-The 9 playbooks above are my best guess at SMB coverage. Want to:
-1. Ship with these 9 as-is, **or**
-2. Start with 4–5 tighter playbooks (Restaurants, Beauty, Fitness, Retail, Services) and expand once we see which industries actually convert?
-
-I'd recommend option 2 — fewer, sharper choices feel more like a curated system and less like a directory. Tell me which you prefer and I'll build accordingly.
+After the migration, the user can simply retry onboarding (or resume from where they were). No data was written for them since the insert failed atomically.

@@ -1,0 +1,1 @@
+ALTER TABLE public.brands DROP CONSTRAINT IF EXISTS brands_vibe_check;
