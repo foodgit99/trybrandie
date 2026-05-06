@@ -40,6 +40,7 @@ const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
   });
 
   const goToAudience = () => navigate("/brand?section=audience#audience");
+  const startAudience = () => navigate("/brand?section=audience&startAudience=1#audience");
 
   if (isLoading) {
     return (
