@@ -21,7 +21,7 @@ interface AudienceRow {
 }
 
 const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
-  const navigate = useNavigate();
+  const [whyOpen, setWhyOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["content-hub-audiences", brandId],
