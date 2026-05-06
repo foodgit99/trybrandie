@@ -40,6 +40,7 @@ const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
   });
 
   const goToAudience = () => navigate("/brand?section=audience#audience");
+  const startAudience = () => navigate("/brand?section=audience&startAudience=1#audience");
 
   if (isLoading) {
     return (
@@ -142,6 +143,16 @@ const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
                             Audience-aware designs consistently outperform generic posts.
                           </p>
                         </div>
+                      </div>
+                      <div className="sm:col-span-3 flex justify-end pt-1">
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-600/90 text-white"
+                          onClick={startAudience}
+                        >
+                          Create audience profile now
+                          <ArrowRight className="h-3 w-3" />
+                        </Button>
                       </div>
                     </motion.div>
                   )}

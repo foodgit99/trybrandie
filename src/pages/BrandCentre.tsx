@@ -177,6 +177,8 @@ const BrandCentre = () => {
   }, [audiences, selectedAudienceId]);
 
   // Auto-open and scroll to Audience Intelligence when linked from Content Hub
+  const startAudience = searchParams.get("startAudience") === "1";
+  const autoStartedRef = useRef(false);
   useEffect(() => {
     if (searchParams.get("section") === "audience") {
       setAudienceOpen(true);
@@ -185,6 +187,19 @@ const BrandCentre = () => {
       }, 100);
     }
   }, [searchParams]);
+
+  // One-click: jump straight into creating a new audience profile
+  useEffect(() => {
+    if (!startAudience || autoStartedRef.current || !brand?.id) return;
+    if (audiences.length === 0) {
+      autoStartedRef.current = true;
+      addAudienceMutation.mutate();
+    } else {
+      autoStartedRef.current = true;
+      setSelectedAudienceId(audiences[0].id);
+      setAudienceEditing(true);
+    }
+  }, [startAudience, brand?.id, audiences]);
 
   useEffect(() => {
     if (selectedAudience?.raw_inputs && typeof selectedAudience.raw_inputs === "object") {
