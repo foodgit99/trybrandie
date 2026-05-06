@@ -1,12 +1,14 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Users, ArrowRight, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Users, ArrowRight, Sparkles, ChevronDown, Target, MessageSquareQuote, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface AudienceContextBannerProps {
   brandId: string | undefined;
@@ -20,6 +22,7 @@ interface AudienceRow {
 
 const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
   const navigate = useNavigate();
+  const [whyOpen, setWhyOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["content-hub-audiences", brandId],
@@ -70,25 +73,81 @@ const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
         transition={{ duration: 0.3 }}
       >
         <Card className="border-amber-500/20 bg-amber-500/[0.04]">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-              <Users className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                <Users className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">No target audience set</p>
+                <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+                  Add an audience so suggestions speak to the right people.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1.5 rounded-lg shrink-0"
+                onClick={goToAudience}
+              >
+                Set up audience
+                <ArrowRight className="h-3 w-3" />
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">No target audience set</p>
-              <p className="text-xs text-muted-foreground leading-snug mt-0.5">
-                Add an audience so suggestions speak to the right people.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs gap-1.5 rounded-lg shrink-0"
-              onClick={goToAudience}
-            >
-              Set up audience
-              <ArrowRight className="h-3 w-3" />
-            </Button>
+            <Collapsible open={whyOpen} onOpenChange={setWhyOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300 hover:underline focus:outline-none"
+                >
+                  Why is this important?
+                  <ChevronDown
+                    className={`h-3 w-3 transition-transform ${whyOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <AnimatePresence initial={false}>
+                  {whyOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-3 grid gap-2.5 sm:grid-cols-3 rounded-lg border border-amber-500/20 bg-background/60 p-3"
+                    >
+                      <div className="flex gap-2">
+                        <Target className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-medium">Sharper targeting</p>
+                          <p className="text-[11px] text-muted-foreground leading-snug">
+                            Suggestions speak to the specific people most likely to buy.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <MessageSquareQuote className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-medium">Persuasive copy</p>
+                          <p className="text-[11px] text-muted-foreground leading-snug">
+                            Copy taps real struggles, desires, and language patterns from a JTBD profile.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-medium">Higher conversion</p>
+                          <p className="text-[11px] text-muted-foreground leading-snug">
+                            Audience-aware designs consistently outperform generic posts.
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
       </motion.div>
