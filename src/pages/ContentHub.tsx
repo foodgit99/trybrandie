@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
@@ -1124,7 +1124,7 @@ const ContentHub = () => {
   };
 
   const fillDay = (day: string) => {
-    // Pre-fill the create dialog for this day with last-used category
+    // Manual create — pre-fill the create dialog for this day with last-used category
     setIdeaForm({
       ...emptyIdea,
       autopilot: autopilotAll,
@@ -1134,6 +1134,83 @@ const ContentHub = () => {
     setIdeaDay(day);
     setIdeaDialogOpen(true);
   };
+
+  // AI-fill a single empty day (additive — never wipes existing ideas)
+  const [fillingDay, setFillingDay] = useState<string | null>(null);
+  const aiFillDay = async (day: string) => {
+    if (!brandId || fillingDay) return;
+    setFillingDay(day);
+    try {
+      const status = await callEngine("check_content_gen_status");
+      const run = async () => {
+        const res = await callEngine("fill_empty_days", { week_offset: weekOffset, target_days: [day], skip_credit_check: true });
+        queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+        if ((res?.filled || 0) > 0) toast({ title: `Filled ${DAY_LABELS[day]}` });
+      };
+      if (status.is_free) {
+        await run();
+      } else {
+        setPendingAction(() => async () => { await run(); });
+        setCreditDialogOpen(true);
+      }
+    } catch (e: any) {
+      if (!["Rate limited", "Credits exhausted"].includes(e?.message)) {
+        toast({ title: "Couldn't fill day", description: e?.message || "Please try again.", variant: "destructive" });
+      }
+    } finally {
+      setFillingDay(null);
+    }
+  };
+
+  // AI-fill every empty day in the current week
+  const [fillingWeek, setFillingWeek] = useState(false);
+  const fillWeekEmptyDays = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!brandId || fillingWeek) return;
+    const emptyCount = DAYS.filter((d) => !(ideasByDay[d] || []).length).length;
+    if (emptyCount === 0) return;
+    const silent = !!opts?.silent;
+    const run = async () => {
+      setFillingWeek(true);
+      try {
+        const res = await callEngine("fill_empty_days", { week_offset: weekOffset, skip_credit_check: true });
+        queryClient.invalidateQueries({ queryKey: ["weekly-ideas", brandId] });
+        if (!silent && (res?.filled || 0) > 0) toast({ title: `Filled ${res.filled} day${res.filled === 1 ? "" : "s"}` });
+      } catch (e: any) {
+        if (!silent && !["Rate limited", "Credits exhausted"].includes(e?.message)) {
+          toast({ title: "Couldn't fill week", description: e?.message || "Please try again.", variant: "destructive" });
+        }
+      } finally {
+        setFillingWeek(false);
+      }
+    };
+    try {
+      const status = await callEngine("check_content_gen_status");
+      if (status.is_free) {
+        await run();
+      } else if (!silent) {
+        setPendingAction(() => run);
+        setCreditDialogOpen(true);
+      }
+      // if not free and silent → skip without charging
+    } catch {
+      if (!silent) await run();
+    }
+  }, [brandId, fillingWeek, ideasByDay, weekOffset]);
+
+  // Auto-fill empty days when the week loads (free generations only).
+  // Runs once per (brand, weekOffset) per session.
+  const autoFilledRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!brandId || ideasLoading) return;
+    const key = `${brandId}:${weekOffset}`;
+    if (autoFilledRef.current.has(key)) return;
+    const hasAnyStrategy = (pillars && pillars.length > 0) || (series && series.length > 0) || (campaigns && campaigns.length > 0);
+    if (!hasAnyStrategy) return;
+    const empty = DAYS.filter((d) => !(ideasByDay[d] || []).length).length;
+    if (empty === 0) return;
+    autoFilledRef.current.add(key);
+    fillWeekEmptyDays({ silent: true });
+  }, [brandId, weekOffset, ideasLoading, ideasByDay, pillars, series, campaigns, fillWeekEmptyDays]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -1422,9 +1499,13 @@ const ContentHub = () => {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)} title="Next week">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating}>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => fillWeekEmptyDays()} disabled={fillingWeek || !!generating} title="Auto-fill any empty days this week">
+                    {fillingWeek ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Fill week
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating} title="Regenerate the entire week's plan">
                     {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                    Generate Ideas
+                    Regenerate
                   </Button>
                   <CalendarExport
                     weeklyIdeas={weeklyIdeas}
@@ -1617,12 +1698,22 @@ const ContentHub = () => {
                             <div className="shrink-0 flex items-center gap-1">
                               <button
                                 type="button"
+                                onClick={() => aiFillDay(day)}
+                                disabled={fillingDay === day || fillingWeek}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-50 ${hasConflict ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20" : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground"}`}
+                                title={hasConflict ? `Auto-fill ${DAY_LABELS[day]} with a ${conflictHoliday!.name} idea` : `Auto-fill ${DAY_LABELS[day]} with an AI idea`}
+                              >
+                                {fillingDay === day ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                Auto-fill
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => fillDay(day)}
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${hasConflict ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20" : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover/day:opacity-100 max-sm:opacity-100"}`}
-                                title={hasConflict ? `Fill ${DAY_LABELS[day]} with a ${conflictHoliday!.name} idea` : `Fill ${DAY_LABELS[day]}`}
+                                className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground px-2 py-0.5 text-[10px] font-medium transition-colors opacity-0 group-hover/day:opacity-100 max-sm:opacity-100"
+                                title={`Manually add an idea for ${DAY_LABELS[day]}`}
                               >
                                 <Plus className="h-3 w-3" />
-                                Fill day
+                                Add
                               </button>
                             </div>
                           )}
