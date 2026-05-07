@@ -1387,6 +1387,30 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
 
             <Separator />
 
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Subscription Plan</Label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm"
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value)}
+                >
+                  <option value="free">Free</option>
+                  <option value="entrepreneur">Entrepreneur (Paid)</option>
+                  <option value="creator">Creator (Paid)</option>
+                  <option value="agency">Agency (Paid)</option>
+                </select>
+                <Button
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={handleTierSave}
+                  disabled={savingTier || tier === currentTier}
+                >
+                  {savingTier ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </div>
+
             <Button
               size="sm"
               className="w-full rounded-xl gap-2"
