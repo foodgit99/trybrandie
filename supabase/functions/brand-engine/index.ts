@@ -789,6 +789,173 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       return jsonResponse({ ideas: inserted });
     }
 
+    if (action === "fill_empty_days") {
+      // Additive: generate ONE idea per empty day in the target week. Never deletes existing.
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+      const offset = typeof week_offset === "number" ? week_offset : 0;
+      monday.setDate(monday.getDate() + offset * 7);
+      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+      const weekDates = days.map((d, i) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        return { day: d, date: date.toISOString().split("T")[0] };
+      });
+      const weekStart = weekDates[0].date;
+      const weekEnd = weekDates[6].date;
+
+      // Find which days already have ideas
+      const { data: existing } = await supabase
+        .from("content_ideas")
+        .select("scheduled_for")
+        .eq("brand_id", brand_id)
+        .gte("scheduled_for", weekStart)
+        .lte("scheduled_for", weekEnd);
+      const filledDates = new Set((existing || []).map((r: any) => r.scheduled_for));
+      let emptyDays = weekDates.filter((d) => !filledDates.has(d.date));
+
+      // Optional caller restriction (e.g. fill a single day)
+      if (Array.isArray(target_days) && target_days.length > 0) {
+        const set = new Set(target_days);
+        emptyDays = emptyDays.filter((d) => set.has(d.day));
+      }
+
+      if (emptyDays.length === 0) {
+        return jsonResponse({ ideas: [], filled: 0, message: "No empty days to fill." });
+      }
+
+      let creditProfile: any = null;
+      let creditCheck: any = null;
+      if (!skip_credit_check) {
+        creditCheck = await enforceContentGenCredits();
+        if (creditCheck.blocked) return creditCheck.response;
+        creditProfile = creditCheck.profile;
+      }
+
+      const [pillarsRes, seriesRes, campaignsRes, recentIdeasRes] = await Promise.all([
+        supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
+        supabase.from("post_series").select("*").eq("brand_id", brand_id),
+        supabase.from("campaigns").select("*").eq("brand_id", brand_id),
+        (() => {
+          const since = new Date();
+          since.setDate(since.getDate() - 14);
+          return supabase
+            .from("content_ideas")
+            .select("content_category, title")
+            .eq("brand_id", brand_id)
+            .gte("created_at", since.toISOString());
+        })(),
+      ]);
+      const pillars = pillarsRes.data || [];
+      const series = seriesRes.data || [];
+      const campaigns = campaignsRes.data || [];
+      const pillarContext = pillars.map((p: any) => `${p.icon_emoji || ""} ${p.name}: ${p.description || ""}`).join("\n");
+      const seriesContext = series.map((s: any) => `${s.name} (${s.recurrence}, ${s.preferred_day}): ${s.description || ""}`).join("\n");
+      const campaignContext = campaigns.map((c: any) => `${c.name}: ${c.description || ""}`).join("\n");
+
+      const recent = recentIdeasRes.data || [];
+      const recentTitles = recent.slice(0, 30).map((r: any) => r.title).filter(Boolean).join(" | ");
+      const recentCounts: Record<string, number> = {};
+      for (const cat of CONTENT_CATEGORY_ENUM) recentCounts[cat] = 0;
+      for (const r of recent) {
+        const c = (r as any).content_category;
+        if (c && Object.prototype.hasOwnProperty.call(recentCounts, c)) recentCounts[c] += 1;
+      }
+      const missing = CONTENT_CATEGORY_ENUM.filter((c) => recentCounts[c] === 0);
+
+      // Holidays for the week — bias empty days that match a holiday
+      const weekHolidays = getWeekHolidays(monday);
+      const holidayByDay: Record<string, string> = {};
+      for (const h of weekHolidays) {
+        const d = new Date(h.date);
+        const idx = (d.getDay() + 6) % 7;
+        holidayByDay[days[idx]] = h.name;
+      }
+
+      const targetSpec = emptyDays
+        .map((d) => `- ${d.day} (${d.date})${holidayByDay[d.day] ? ` — HOLIDAY: ${holidayByDay[d.day]}` : ""}`)
+        .join("\n");
+
+      const result = await callAI(lovableKey, {
+        system: `You are a social media content planner. Generate exactly ONE post idea for EACH listed empty day. Do not repeat or rephrase the recent titles provided. Maximize category variety, prioritising categories that are missing from the last 14 days when relevant to the brand.
+
+${CONTENT_CATEGORIES_REF}
+
+Each idea MUST include a content_category from: ${CONTENT_CATEGORY_ENUM.join(", ")}.
+Holiday days MUST use idea_type "holiday" and content_category "holidays".
+Use content_format "carousel" only for educational/how-to/listicle/step-by-step ideas; otherwise "graphic". Never "video".`,
+        user: `Brand: ${brand.name}\n\nFILL THESE EMPTY DAYS (one idea per day, in order):\n${targetSpec}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nMISSING CATEGORIES (last 14 days — prioritise): ${missing.join(", ") || "none"}\nRECENT TITLES (do NOT repeat): ${recentTitles || "none"}`,
+        tool: {
+          name: "fill_days",
+          description: "Create one idea per empty day",
+          parameters: {
+            type: "object",
+            properties: {
+              ideas: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string" },
+                    prompt: { type: "string" },
+                    day: { type: "string", enum: days },
+                    pillar_name: { type: "string" },
+                    series_name: { type: "string" },
+                    campaign_name: { type: "string" },
+                    idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
+                    content_format: { type: "string", enum: ["graphic", "carousel"] },
+                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
+                  },
+                  required: ["title", "prompt", "day", "idea_type", "content_format", "content_category"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["ideas"],
+            additionalProperties: false,
+          },
+        },
+      });
+
+      if (result.error) return errorResponse(result);
+
+      const pillarMap = new Map(pillars.map((p: any) => [p.name.toLowerCase(), p.id]));
+      const seriesMap = new Map(series.map((s: any) => [s.name.toLowerCase(), s.id]));
+      const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
+      const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
+      const allowedDays = new Set(emptyDays.map((d) => d.day));
+
+      const ideasToInsert = (result.data.ideas || [])
+        .filter((idea: any) => allowedDays.has(idea.day))
+        .map((idea: any) => ({
+          brand_id,
+          user_id: userId,
+          pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
+          series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
+          campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
+          title: idea.title,
+          prompt: idea.prompt,
+          idea_type: idea.idea_type,
+          content_format: idea.content_format || "graphic",
+          content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+          status: "suggested",
+          scheduled_for: dateMap.get(idea.day) || null,
+        }));
+
+      let inserted: any[] = [];
+      if (ideasToInsert.length > 0) {
+        const { data, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
+        if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
+        inserted = data || [];
+      }
+
+      if (creditProfile && inserted.length > 0) await deductAndTrackGeneration(creditProfile, creditCheck?.rewardRows);
+
+      return jsonResponse({ ideas: inserted, filled: inserted.length });
+    }
+
     if (action === "categorize_existing") {
       // Backfill content_category for legacy rows where it's NULL.
       // Free action — no credit deduction. Caps per call to keep prompt size sane.
