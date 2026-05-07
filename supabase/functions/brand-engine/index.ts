@@ -46,7 +46,7 @@ serve(async (req) => {
 
     // Read body once so we can use user_id from it for service calls
     const body = await req.json().catch(() => ({}));
-    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check, user_id: bodyUserId } = body || {};
+    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check, user_id: bodyUserId, target_days } = body || {};
 
     let userId: string;
     let supabase: ReturnType<typeof createClient>;
