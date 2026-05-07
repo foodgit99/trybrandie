@@ -1694,12 +1694,22 @@ const ContentHub = () => {
                             <div className="shrink-0 flex items-center gap-1">
                               <button
                                 type="button"
+                                onClick={() => aiFillDay(day)}
+                                disabled={fillingDay === day || fillingWeek}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-50 ${hasConflict ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20" : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground"}`}
+                                title={hasConflict ? `Auto-fill ${DAY_LABELS[day]} with a ${conflictHoliday!.name} idea` : `Auto-fill ${DAY_LABELS[day]} with an AI idea`}
+                              >
+                                {fillingDay === day ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                Auto-fill
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => fillDay(day)}
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${hasConflict ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20" : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover/day:opacity-100 max-sm:opacity-100"}`}
-                                title={hasConflict ? `Fill ${DAY_LABELS[day]} with a ${conflictHoliday!.name} idea` : `Fill ${DAY_LABELS[day]}`}
+                                className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground px-2 py-0.5 text-[10px] font-medium transition-colors opacity-0 group-hover/day:opacity-100 max-sm:opacity-100"
+                                title={`Manually add an idea for ${DAY_LABELS[day]}`}
                               >
                                 <Plus className="h-3 w-3" />
-                                Fill day
+                                Add
                               </button>
                             </div>
                           )}
