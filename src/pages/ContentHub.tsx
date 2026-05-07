@@ -1499,9 +1499,13 @@ const ContentHub = () => {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)} title="Next week">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating}>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => fillWeekEmptyDays()} disabled={fillingWeek || !!generating} title="Auto-fill any empty days this week">
+                    {fillingWeek ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Fill week
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating} title="Regenerate the entire week's plan">
                     {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                    Generate Ideas
+                    Regenerate
                   </Button>
                   <CalendarExport
                     weeklyIdeas={weeklyIdeas}
