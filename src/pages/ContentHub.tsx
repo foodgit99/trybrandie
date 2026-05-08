@@ -1513,6 +1513,16 @@ const ContentHub = () => {
                     {fillingWeek ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     Fill week
                   </Button>
+                  <Select value={autoFillMode} onValueChange={(v) => updateAutopilotSetting({ auto_fill_mode: v as any })}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs" title="Choose when Brandie should automatically fill empty calendar days">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="never" className="text-xs">Never auto-fill</SelectItem>
+                      <SelectItem value="free_only" className="text-xs">Free tier only</SelectItem>
+                      <SelectItem value="always" className="text-xs">Always auto-fill</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating} title="Regenerate the entire week's plan">
                     {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     Regenerate
