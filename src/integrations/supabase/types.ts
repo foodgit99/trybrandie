@@ -276,6 +276,7 @@ export type Database = {
       }
       autopilot_settings: {
         Row: {
+          auto_fill_mode: string
           brand_id: string
           created_at: string
           delivery_time: string
@@ -289,6 +290,7 @@ export type Database = {
           weekly_plan_last_run: string | null
         }
         Insert: {
+          auto_fill_mode?: string
           brand_id: string
           created_at?: string
           delivery_time?: string
@@ -302,6 +304,7 @@ export type Database = {
           weekly_plan_last_run?: string | null
         }
         Update: {
+          auto_fill_mode?: string
           brand_id?: string
           created_at?: string
           delivery_time?: string

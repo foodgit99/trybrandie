@@ -309,6 +309,8 @@ const ContentHub = () => {
   const autopilotMode: "manual" | "assisted" | "autonomous" =
     ((autopilotSettings as any)?.mode as any) ?? (autopilotAll ? "assisted" : "manual");
   const minQueueThreshold: number = (autopilotSettings as any)?.min_queue_threshold ?? 5;
+  const autoFillMode: "never" | "free_only" | "always" =
+    ((autopilotSettings as any)?.auto_fill_mode as any) ?? "free_only";
 
   const updateAutopilotSetting = async (updates: {
     enabled?: boolean;
@@ -316,6 +318,7 @@ const ContentHub = () => {
     timezone?: string;
     mode?: "manual" | "assisted" | "autonomous";
     min_queue_threshold?: number;
+    auto_fill_mode?: "never" | "free_only" | "always";
   }) => {
     if (!brandId || !user) return;
     // Keep `enabled` in sync with `mode` so legacy queries / cron filters keep working.
@@ -1164,11 +1167,12 @@ const ContentHub = () => {
 
   // AI-fill every empty day in the current week
   const [fillingWeek, setFillingWeek] = useState(false);
-  const fillWeekEmptyDays = useCallback(async (opts?: { silent?: boolean }) => {
+  const fillWeekEmptyDays = useCallback(async (opts?: { silent?: boolean; force?: boolean }) => {
     if (!brandId || fillingWeek) return;
     const emptyCount = DAYS.filter((d) => !(ideasByDay[d] || []).length).length;
     if (emptyCount === 0) return;
     const silent = !!opts?.silent;
+    const force = !!opts?.force;
     const run = async () => {
       setFillingWeek(true);
       try {
@@ -1183,6 +1187,10 @@ const ContentHub = () => {
         setFillingWeek(false);
       }
     };
+    if (force) {
+      await run();
+      return;
+    }
     try {
       const status = await callEngine("check_content_gen_status");
       if (status.is_free) {
@@ -1197,11 +1205,13 @@ const ContentHub = () => {
     }
   }, [brandId, fillingWeek, ideasByDay, weekOffset]);
 
-  // Auto-fill empty days when the week loads (free generations only).
+  // Auto-fill empty days when the week loads, based on the user's auto-fill setting.
+  // Modes: 'never' (skip), 'free_only' (only if user is on free tier), 'always' (always fill, may use credits).
   // Runs once per (brand, weekOffset) per session.
   const autoFilledRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!brandId || ideasLoading) return;
+    if (autoFillMode === "never") return;
     const key = `${brandId}:${weekOffset}`;
     if (autoFilledRef.current.has(key)) return;
     const hasAnyStrategy = (pillars && pillars.length > 0) || (series && series.length > 0) || (campaigns && campaigns.length > 0);
@@ -1209,8 +1219,8 @@ const ContentHub = () => {
     const empty = DAYS.filter((d) => !(ideasByDay[d] || []).length).length;
     if (empty === 0) return;
     autoFilledRef.current.add(key);
-    fillWeekEmptyDays({ silent: true });
-  }, [brandId, weekOffset, ideasLoading, ideasByDay, pillars, series, campaigns, fillWeekEmptyDays]);
+    fillWeekEmptyDays({ silent: true, force: autoFillMode === "always" });
+  }, [brandId, weekOffset, ideasLoading, ideasByDay, pillars, series, campaigns, fillWeekEmptyDays, autoFillMode]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -1503,6 +1513,16 @@ const ContentHub = () => {
                     {fillingWeek ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     Fill week
                   </Button>
+                  <Select value={autoFillMode} onValueChange={(v) => updateAutopilotSetting({ auto_fill_mode: v as any })}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs" title="Choose when Brandie should automatically fill empty calendar days">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="never" className="text-xs">Never auto-fill</SelectItem>
+                      <SelectItem value="free_only" className="text-xs">Free tier only</SelectItem>
+                      <SelectItem value="always" className="text-xs">Always auto-fill</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleGenerate("generate_weekly_ideas")} disabled={!!generating} title="Regenerate the entire week's plan">
                     {generating === "generate_weekly_ideas" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     Regenerate
