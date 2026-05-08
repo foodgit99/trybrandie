@@ -309,6 +309,8 @@ const ContentHub = () => {
   const autopilotMode: "manual" | "assisted" | "autonomous" =
     ((autopilotSettings as any)?.mode as any) ?? (autopilotAll ? "assisted" : "manual");
   const minQueueThreshold: number = (autopilotSettings as any)?.min_queue_threshold ?? 5;
+  const autoFillMode: "never" | "free_only" | "always" =
+    ((autopilotSettings as any)?.auto_fill_mode as any) ?? "free_only";
 
   const updateAutopilotSetting = async (updates: {
     enabled?: boolean;
@@ -316,6 +318,7 @@ const ContentHub = () => {
     timezone?: string;
     mode?: "manual" | "assisted" | "autonomous";
     min_queue_threshold?: number;
+    auto_fill_mode?: "never" | "free_only" | "always";
   }) => {
     if (!brandId || !user) return;
     // Keep `enabled` in sync with `mode` so legacy queries / cron filters keep working.
