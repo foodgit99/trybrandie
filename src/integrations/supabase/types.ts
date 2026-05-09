@@ -1183,6 +1183,48 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          credited_at: string
+          credited_via: string
+          credits: number
+          currency: string
+          id: string
+          raw_event: Json | null
+          reference: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          credited_at?: string
+          credited_via: string
+          credits?: number
+          currency?: string
+          id?: string
+          raw_event?: Json | null
+          reference: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credited_at?: string
+          credited_via?: string
+          credits?: number
+          currency?: string
+          id?: string
+          raw_event?: Json | null
+          reference?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_series: {
         Row: {
           brand_id: string
