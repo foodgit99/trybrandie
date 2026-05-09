@@ -138,13 +138,15 @@ Deno.serve(async (req) => {
 
     const valid = await verifySignature(body, signature, PAYSTACK_SECRET_KEY);
     if (!valid) {
+      console.warn(`[paystack-webhook] invalid signature; sig_present=${!!signature} body_len=${body.length}`);
       return new Response("Invalid signature", { status: 401 });
     }
+    console.log(`[paystack-webhook] signature OK`);
 
     const event = JSON.parse(body);
 
     if (event.event === "charge.success") {
-      const { metadata, reference, amount } = event.data;
+      const { metadata, reference, amount, currency } = event.data;
       const user_id = metadata?.user_id;
       const credits = Number(metadata?.credits) || 0;
 
@@ -152,22 +154,51 @@ Deno.serve(async (req) => {
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Deposit paid credits additively
-      if (user_id && credits > 0) {
-        const { data: currentProfile } = await supabase
-          .from("profiles")
-          .select("paid_credits")
-          .eq("user_id", user_id)
-          .single();
+      console.log(`[paystack-webhook] charge.success ref=${reference} user=${user_id} credits=${credits}`);
 
-        const currentPaid = (currentProfile as any)?.paid_credits || 0;
+      // Idempotent crediting via unique payment_transactions.reference
+      let didCredit = false;
+      if (user_id && credits > 0 && reference) {
+        const { error: insErr } = await supabase
+          .from("payment_transactions")
+          .insert({
+            reference,
+            user_id,
+            credits,
+            amount: (amount || 0) / 100,
+            currency: currency || "NGN",
+            status: "credited",
+            credited_via: "webhook",
+            raw_event: event,
+          });
 
-        await supabase
-          .from("profiles")
-          .update({
-            paid_credits: currentPaid + credits,
-          })
-          .eq("user_id", user_id);
+        if (insErr) {
+          if ((insErr as any).code === "23505") {
+            console.log(`[paystack-webhook] ref=${reference} already credited; skipping`);
+          } else {
+            console.error(`[paystack-webhook] ledger insert failed:`, insErr);
+          }
+        } else {
+          const { data: currentProfile } = await supabase
+            .from("profiles")
+            .select("paid_credits")
+            .eq("user_id", user_id)
+            .single();
+          const currentPaid = (currentProfile as any)?.paid_credits || 0;
+          await supabase
+            .from("profiles")
+            .update({ paid_credits: currentPaid + credits })
+            .eq("user_id", user_id);
+          didCredit = true;
+          console.log(`[paystack-webhook] credited ${credits} to user=${user_id} (was ${currentPaid})`);
+        }
+      }
+
+      // Skip affiliate processing if this reference was already processed
+      if (!didCredit) {
+        return new Response(JSON.stringify({ received: true, already_processed: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       // Track affiliate commission (two-tier)

@@ -53,44 +53,73 @@ Deno.serve(async (req) => {
     const amount = data.data.amount / 100;
     const currency = data.data.currency;
 
-    // Credits are deposited by paystack-webhook (authoritative, signature-verified).
-    // This function only verifies status and sends confirmation email.
+    let credited = false;
+    let alreadyCredited = false;
+
     if (user_id && credits > 0) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Send payment confirmation email
-      try {
-        const { data: userData } = await supabase.auth.admin.getUserById(user_id);
-        const userEmail = userData?.user?.email;
-        
-        if (userEmail) {
-          const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({
-              type: "payment_confirmation",
-              to: userEmail,
-              data: { credits, amount, currency },
-            }),
-          });
-          
-          if (emailRes.ok) {
-            console.log(`Payment confirmation email sent to ${userEmail}`);
-          } else {
-            const emailError = await emailRes.text();
-            console.error("Failed to send payment confirmation email:", emailError);
-          }
+      // Idempotent crediting via unique payment_transactions.reference
+      const { error: insErr } = await supabase
+        .from("payment_transactions")
+        .insert({
+          reference,
+          user_id,
+          credits,
+          amount,
+          currency: currency || "NGN",
+          status: "credited",
+          credited_via: "verify",
+          raw_event: data.data,
+        });
+
+      if (insErr) {
+        if ((insErr as any).code === "23505") {
+          alreadyCredited = true;
+          console.log(`[paystack-verify] ref=${reference} already credited`);
+        } else {
+          console.error(`[paystack-verify] ledger insert failed:`, insErr);
         }
-      } catch (emailErr) {
-        console.error("Error sending payment confirmation email:", emailErr);
+      } else {
+        const { data: currentProfile } = await supabase
+          .from("profiles")
+          .select("paid_credits")
+          .eq("user_id", user_id)
+          .single();
+        const currentPaid = (currentProfile as any)?.paid_credits || 0;
+        await supabase
+          .from("profiles")
+          .update({ paid_credits: currentPaid + credits })
+          .eq("user_id", user_id);
+        credited = true;
+        console.log(`[paystack-verify] credited ${credits} to user=${user_id} (was ${currentPaid})`);
+
+        // Send payment confirmation email only when this call performed the credit
+        try {
+          const { data: userData } = await supabase.auth.admin.getUserById(user_id);
+          const userEmail = userData?.user?.email;
+          if (userEmail) {
+            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${supabaseKey}`,
+              },
+              body: JSON.stringify({
+                type: "payment_confirmation",
+                to: userEmail,
+                data: { credits, amount, currency },
+              }),
+            });
+          }
+        } catch (emailErr) {
+          console.error("Error sending payment confirmation email:", emailErr);
+        }
       }
     } else {
-      console.warn(`Missing metadata - user_id: ${user_id}, credits: ${credits}`);
+      console.warn(`[paystack-verify] missing metadata - user_id: ${user_id}, credits: ${credits}`);
     }
 
     return new Response(
@@ -99,6 +128,8 @@ Deno.serve(async (req) => {
         credits,
         amount,
         currency,
+        credited,
+        already_credited: alreadyCredited,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
