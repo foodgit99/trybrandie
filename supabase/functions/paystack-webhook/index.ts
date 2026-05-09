@@ -138,8 +138,10 @@ Deno.serve(async (req) => {
 
     const valid = await verifySignature(body, signature, PAYSTACK_SECRET_KEY);
     if (!valid) {
+      console.warn(`[paystack-webhook] invalid signature; sig_present=${!!signature} body_len=${body.length}`);
       return new Response("Invalid signature", { status: 401 });
     }
+    console.log(`[paystack-webhook] signature OK`);
 
     const event = JSON.parse(body);
 
