@@ -272,11 +272,16 @@ async function processIdea(
     .eq("brand_id", idea.brand_id)
     .maybeSingle();
 
+  const isCarousel = idea.content_format === "carousel";
+  const slideCount = 5;
+  console.log(`[autopilot] idea ${idea.id} format=${isCarousel ? "carousel" : "graphic"}${isCarousel ? ` slides=${slideCount}` : ""}`);
+
   // Build design payload
   const designPayload: Record<string, any> = {
     user_id: idea.user_id,
-    action: "generate",
+    action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: "1080x1080",
+    ...(isCarousel && { slide_count: slideCount }),
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
       id: brand.id,
