@@ -272,11 +272,16 @@ async function processIdea(
     .eq("brand_id", idea.brand_id)
     .maybeSingle();
 
+  const isCarousel = idea.content_format === "carousel";
+  const slideCount = 5;
+  console.log(`[autopilot] idea ${idea.id} format=${isCarousel ? "carousel" : "graphic"}${isCarousel ? ` slides=${slideCount}` : ""}`);
+
   // Build design payload
   const designPayload: Record<string, any> = {
     user_id: idea.user_id,
-    action: "generate",
+    action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: "1080x1080",
+    ...(isCarousel && { slide_count: slideCount }),
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
       id: brand.id,
@@ -338,59 +343,85 @@ async function processIdea(
 
   const designData = await designRes.json();
 
-  if (!designData?.image_url) {
-    console.error(`[autopilot] No image_url returned for idea ${idea.id}`);
-    await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-    return { success: false, status: "failed_error", error: "no_image_url" };
-  }
+  let coverImageUrl: string | undefined;
+  let coverDesignId: string | undefined;
 
-  // Save design
-  const { data: savedDesign, error: saveErr } = await supabase
-    .from("designs")
-    .insert({
-      user_id: idea.user_id,
-      brand_id: idea.brand_id,
-      title: idea.title.slice(0, 100),
-      prompt: designData.design_prompt || idea.prompt,
-      image_url: designData.image_url,
-      canvas_size: "1080x1080",
-      vote: 0,
-      ...(designData.genome && { genome: designData.genome }),
-      ...(designData.caption && { caption: designData.caption }),
-      ...(designData.copy_structure && { copy_structure: designData.copy_structure }),
-      ...(trendPref?.trend_enabled && trendPref.selected_trend !== "none" && {
-        trend_used: trendPref.selected_trend,
-        trend_intensity: trendPref.default_trend_intensity,
-      }),
-    })
-    .select("id")
-    .single();
+  if (isCarousel) {
+    const slides = Array.isArray(designData?.slides) ? designData.slides : [];
+    if (slides.length === 0) {
+      console.error(`[autopilot] No slides returned for carousel idea ${idea.id}`);
+      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
+      return { success: false, status: "failed_error", error: "no_slides" };
+    }
+    const sorted = [...slides].sort((a: any, b: any) => (a.slide_index ?? 0) - (b.slide_index ?? 0));
+    const cover = sorted[0];
+    coverImageUrl = cover?.image_url;
+    coverDesignId = cover?.design_id;
 
-  if (saveErr) {
-    console.error(`[autopilot] Failed to save design for idea ${idea.id}:`, saveErr);
-    await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-    return { success: false, status: "failed_error", error: saveErr.message };
+    if (!coverDesignId) {
+      console.error(`[autopilot] Carousel cover missing design_id for idea ${idea.id}`);
+      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
+      return { success: false, status: "failed_error", error: "no_cover_design_id" };
+    }
+  } else {
+    if (!designData?.image_url) {
+      console.error(`[autopilot] No image_url returned for idea ${idea.id}`);
+      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
+      return { success: false, status: "failed_error", error: "no_image_url" };
+    }
+
+    // Save design (single graphic only — carousels are saved by design-studio per slide).
+    const { data: savedDesign, error: saveErr } = await supabase
+      .from("designs")
+      .insert({
+        user_id: idea.user_id,
+        brand_id: idea.brand_id,
+        title: idea.title.slice(0, 100),
+        prompt: designData.design_prompt || idea.prompt,
+        image_url: designData.image_url,
+        canvas_size: "1080x1080",
+        vote: 0,
+        ...(designData.genome && { genome: designData.genome }),
+        ...(designData.caption && { caption: designData.caption }),
+        ...(designData.copy_structure && { copy_structure: designData.copy_structure }),
+        ...(trendPref?.trend_enabled && trendPref.selected_trend !== "none" && {
+          trend_used: trendPref.selected_trend,
+          trend_intensity: trendPref.default_trend_intensity,
+        }),
+      })
+      .select("id")
+      .single();
+
+    if (saveErr) {
+      console.error(`[autopilot] Failed to save design for idea ${idea.id}:`, saveErr);
+      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
+      return { success: false, status: "failed_error", error: saveErr.message };
+    }
+
+    coverImageUrl = designData.image_url;
+    coverDesignId = savedDesign.id;
   }
 
   // Update content_ideas
   await supabase
     .from("content_ideas")
-    .update({ design_id: savedDesign.id, status: "created", autopilot_status: "completed" } as any)
+    .update({ design_id: coverDesignId, status: "created", autopilot_status: "completed" } as any)
     .eq("id", idea.id);
 
   // Send email notification
-  if (userEmail) {
+  if (userEmail && coverImageUrl) {
+    const emailTitle = isCarousel ? `${idea.title} (carousel, ${slideCount} slides)` : idea.title;
     await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
       body: JSON.stringify({
         type: "autopilot_design_ready",
         to: userEmail,
-        data: { idea_title: idea.title, image_url: designData.image_url, design_id: savedDesign.id },
+        data: { idea_title: emailTitle, image_url: coverImageUrl, design_id: coverDesignId },
       }),
     }).catch((e) => console.error(`[autopilot] Email failed for idea ${idea.id}:`, e));
   }
 
-  console.log(`[autopilot] ✅ Processed idea ${idea.id} → design ${savedDesign.id}`);
+  console.log(`[autopilot] ✅ Processed idea ${idea.id} → design ${coverDesignId}${isCarousel ? ` (carousel ${designData.carousel_id})` : ""}`);
   return { success: true };
 }
