@@ -65,34 +65,60 @@ const Plans = () => {
   const credits = units * CREDITS_PER_UNIT;
   const price = units * PRICE_PER_UNIT;
 
-  // Verify Paystack callback
+  // Verify Paystack callback (with polling fallback in case webhook is delayed)
   useEffect(() => {
     const reference = searchParams.get("reference") || searchParams.get("trxref");
     if (!reference || !user) return;
 
     setVerifying(true);
-    supabase.functions
-      .invoke("paystack-verify", { body: { reference } })
-      .then(({ data, error }) => {
-        if (error || !data?.verified) {
-          toast({
-            title: "Payment verification failed",
-            description: "Please contact support if you were charged.",
-            variant: "destructive",
-          });
-        } else {
-          setPaymentSuccess({
-            credits: data.credits,
-            amount: data.amount,
-            currency: data.currency,
-          });
-          queryClient.invalidateQueries({ queryKey: ["profile-studio"] });
-          queryClient.invalidateQueries({ queryKey: ["profile"] });
-          queryClient.invalidateQueries({ queryKey: ["header-profile"] });
+    let cancelled = false;
+    const maxAttempts = 10;
+    const intervalMs = 2000;
+
+    (async () => {
+      let lastData: any = null;
+      let lastError: any = null;
+      for (let attempt = 0; attempt < maxAttempts && !cancelled; attempt++) {
+        const { data, error } = await supabase.functions.invoke("paystack-verify", {
+          body: { reference },
+        });
+        lastData = data;
+        lastError = error;
+        if (data?.verified && (data.credited || data.already_credited)) break;
+        if (attempt < maxAttempts - 1) {
+          await new Promise((r) => setTimeout(r, intervalMs));
         }
-        setSearchParams({}, { replace: true });
-      })
-      .finally(() => setVerifying(false));
+      }
+      if (cancelled) return;
+
+      if (lastError || !lastData?.verified) {
+        toast({
+          title: "Payment verification failed",
+          description: "Please contact support if you were charged.",
+          variant: "destructive",
+        });
+      } else if (!lastData.credited && !lastData.already_credited) {
+        toast({
+          title: "Payment received — credits are syncing",
+          description: "Refresh in a moment. Contact support if it doesn't appear.",
+        });
+      } else {
+        setPaymentSuccess({
+          credits: lastData.credits,
+          amount: lastData.amount,
+          currency: lastData.currency,
+        });
+        queryClient.invalidateQueries({ queryKey: ["profile-studio"] });
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        queryClient.invalidateQueries({ queryKey: ["header-profile"] });
+      }
+      setSearchParams({}, { replace: true });
+      setVerifying(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams, user]);
 
   const handleBuyCredits = async () => {
