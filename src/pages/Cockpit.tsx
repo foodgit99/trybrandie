@@ -65,10 +65,10 @@ const Cockpit = () => {
       if (!user) return null;
       const { data } = await supabase
         .from("profiles")
-        .select("free_credits, paid_credits, bonus_credits, full_name")
+        .select("paid_credits, bonus_credits, full_name")
         .eq("user_id", user.id)
         .maybeSingle();
-      return data;
+      return data as { paid_credits: number; bonus_credits: number; full_name: string | null } | null;
     },
     enabled: !!user,
   });
@@ -104,8 +104,7 @@ const Cockpit = () => {
   }, [ideas, monday]);
 
   // Signals
-  const totalCredits =
-    (profile?.free_credits ?? 0) + (profile?.paid_credits ?? 0) + (profile?.bonus_credits ?? 0);
+  const totalCredits = (profile?.paid_credits ?? 0) + (profile?.bonus_credits ?? 0);
   const approvedCount = ideas.filter((i: any) => i.status === "scheduled" || i.status === "posted").length;
   const designsReady = ideas.filter((i: any) => i.design_id).length;
   const daysCovered = days.filter((d) => d.dayIdeas.length > 0).length;
@@ -263,7 +262,7 @@ const Cockpit = () => {
               <div className="flex-1">
                 <h3 className="font-serif text-lg text-foreground">Trend Pulse</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Localized hooks shaping {brand?.industry || "your niche"} this week.
+                  Localized hooks shaping your niche this week.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <PulseChip label="Payday weekend" />
