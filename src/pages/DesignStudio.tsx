@@ -858,10 +858,11 @@ const DesignStudio = () => {
     ctx.restore();
   };
 
-  const downloadAs = async (format: "png" | "jpg") => {
-    if (!currentImage) return;
+  const downloadAs = async (format: "png" | "jpg", url?: string) => {
+    const sourceUrl = url || currentImage;
+    if (!sourceUrl) return;
     try {
-      const response = await fetch(currentImage);
+      const response = await fetch(sourceUrl);
       const blob = await response.blob();
       const isFree = !profile || (profile as any)?.subscription_tier === "free";
 
