@@ -431,19 +431,38 @@ const DesignStudio = () => {
         .order("created_at", { ascending: true });
 
       if (msgData && msgData.length > 0) {
+        const baseMsgs: Message[] = msgData.map((m: any) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          imageUrl: m.image_url || undefined,
+          attachedImageUrl: m.attached_image_url || undefined,
+        }));
+        const urls = Array.from(
+          new Set(baseMsgs.filter((m) => m.role === "assistant" && m.imageUrl).map((m) => m.imageUrl as string))
+        );
+        let urlMap: Record<string, { id: string; vote: number }> = {};
+        if (urls.length) {
+          const { data: dRows } = await supabase
+            .from("designs")
+            .select("id, image_url, vote")
+            .eq("user_id", user.id)
+            .in("image_url", urls);
+          (dRows || []).forEach((d: any) => {
+            urlMap[d.image_url] = { id: d.id, vote: (d.vote as -1 | 0 | 1) ?? 0 };
+          });
+        }
         setMessages(
-          msgData.map((m: any) => ({
-            role: m.role as "user" | "assistant",
-            content: m.content,
-            imageUrl: m.image_url || undefined,
-            attachedImageUrl: m.attached_image_url || undefined,
-          }))
+          baseMsgs.map((m) =>
+            m.role === "assistant" && m.imageUrl && urlMap[m.imageUrl]
+              ? { ...m, designId: urlMap[m.imageUrl].id, vote: urlMap[m.imageUrl].vote as -1 | 0 | 1 }
+              : m
+          )
         );
       } else {
         // Fallback for designs saved before chat history was stored
         setMessages([
           { role: "user", content: data.prompt },
-          { role: "assistant", content: "Here's your design.", imageUrl: data.image_url },
+          { role: "assistant", content: "Here's your design.", imageUrl: data.image_url, designId, vote: (data.vote as -1 | 0 | 1) ?? 0 },
         ]);
       }
     };
