@@ -707,6 +707,8 @@ const DesignStudio = () => {
           role: "assistant",
           content: r.explanation + ` (${r.slides.length} slides generated)`,
           imageUrl: r.slides[0].image_url,
+          designId: r.slides[0].design_id,
+          vote: 0,
         };
         setMessages((prev) => [...prev, assistantMsg]);
         setSaved(true);
