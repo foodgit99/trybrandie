@@ -89,6 +89,10 @@ type Message = {
   researchSources?: ResearchSource[];
   updatesUsed?: UpdateUsed[];
   contentCategory?: string;
+  /** Per-generation design id so each assistant message acts independently */
+  designId?: string;
+  /** Per-generation vote so upvote/downvote target this specific design */
+  vote?: -1 | 0 | 1;
 };
 
 type StrategistAction = {
