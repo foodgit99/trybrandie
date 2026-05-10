@@ -89,6 +89,10 @@ type Message = {
   researchSources?: ResearchSource[];
   updatesUsed?: UpdateUsed[];
   contentCategory?: string;
+  /** Per-generation design id so each assistant message acts independently */
+  designId?: string;
+  /** Per-generation vote so upvote/downvote target this specific design */
+  vote?: -1 | 0 | 1;
 };
 
 type StrategistAction = {
@@ -427,19 +431,38 @@ const DesignStudio = () => {
         .order("created_at", { ascending: true });
 
       if (msgData && msgData.length > 0) {
+        const baseMsgs: Message[] = msgData.map((m: any) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          imageUrl: m.image_url || undefined,
+          attachedImageUrl: m.attached_image_url || undefined,
+        }));
+        const urls = Array.from(
+          new Set(baseMsgs.filter((m) => m.role === "assistant" && m.imageUrl).map((m) => m.imageUrl as string))
+        );
+        let urlMap: Record<string, { id: string; vote: number }> = {};
+        if (urls.length) {
+          const { data: dRows } = await supabase
+            .from("designs")
+            .select("id, image_url, vote")
+            .eq("user_id", user.id)
+            .in("image_url", urls);
+          (dRows || []).forEach((d: any) => {
+            urlMap[d.image_url] = { id: d.id, vote: (d.vote as -1 | 0 | 1) ?? 0 };
+          });
+        }
         setMessages(
-          msgData.map((m: any) => ({
-            role: m.role as "user" | "assistant",
-            content: m.content,
-            imageUrl: m.image_url || undefined,
-            attachedImageUrl: m.attached_image_url || undefined,
-          }))
+          baseMsgs.map((m) =>
+            m.role === "assistant" && m.imageUrl && urlMap[m.imageUrl]
+              ? { ...m, designId: urlMap[m.imageUrl].id, vote: urlMap[m.imageUrl].vote as -1 | 0 | 1 }
+              : m
+          )
         );
       } else {
         // Fallback for designs saved before chat history was stored
         setMessages([
           { role: "user", content: data.prompt },
-          { role: "assistant", content: "Here's your design.", imageUrl: data.image_url },
+          { role: "assistant", content: "Here's your design.", imageUrl: data.image_url, designId, vote: (data.vote as -1 | 0 | 1) ?? 0 },
         ]);
       }
     };
@@ -703,6 +726,8 @@ const DesignStudio = () => {
           role: "assistant",
           content: r.explanation + ` (${r.slides.length} slides generated)`,
           imageUrl: r.slides[0].image_url,
+          designId: r.slides[0].design_id,
+          vote: 0,
         };
         setMessages((prev) => [...prev, assistantMsg]);
         setSaved(true);
@@ -724,6 +749,8 @@ const DesignStudio = () => {
         researchSources: Array.isArray(r.research_sources) ? r.research_sources : undefined,
         updatesUsed: Array.isArray(r.updates_used) ? r.updates_used : undefined,
         contentCategory: r.content_category,
+        designId: r.design_id,
+        vote: 0,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setCurrentImage(r.image_url);
@@ -798,22 +825,22 @@ const DesignStudio = () => {
     }
   };
 
-  const handleVote = async (v: -1 | 1) => {
-    const newVote = vote === v ? 0 : v;
-    setVote(newVote);
-    // Update vote on the auto-saved or manually saved design
-    if (currentDesignId) {
-      await supabase
-        .from("designs")
-        .update({ vote: newVote })
-        .eq("id", currentDesignId)
-        .eq("user_id", user!.id);
-    } else if (saved && currentImage) {
-      await supabase
-        .from("designs")
-        .update({ vote: newVote })
-        .eq("image_url", currentImage)
-        .eq("user_id", user!.id);
+  const handleVote = async (v: -1 | 1, idx: number) => {
+    const msg = messages[idx];
+    if (!msg) return;
+    const cur = msg.vote ?? 0;
+    const newVote = (cur === v ? 0 : v) as -1 | 0 | 1;
+    setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, vote: newVote } : m)));
+    // Keep legacy global vote in sync for the latest design (genome scores etc.)
+    if (msg.imageUrl && msg.imageUrl === currentImage) setVote(newVote);
+    try {
+      if (msg.designId) {
+        await supabase.from("designs").update({ vote: newVote }).eq("id", msg.designId).eq("user_id", user!.id);
+      } else if (msg.imageUrl) {
+        await supabase.from("designs").update({ vote: newVote }).eq("image_url", msg.imageUrl).eq("user_id", user!.id);
+      }
+    } catch {
+      // best-effort; UI already reflects intent
     }
   };
 
@@ -831,10 +858,11 @@ const DesignStudio = () => {
     ctx.restore();
   };
 
-  const downloadAs = async (format: "png" | "jpg") => {
-    if (!currentImage) return;
+  const downloadAs = async (format: "png" | "jpg", url?: string) => {
+    const sourceUrl = url || currentImage;
+    if (!sourceUrl) return;
     try {
-      const response = await fetch(currentImage);
+      const response = await fetch(sourceUrl);
       const blob = await response.blob();
       const isFree = !profile || (profile as any)?.subscription_tier === "free";
 
@@ -1658,17 +1686,17 @@ const DesignStudio = () => {
                     )}
                     <div className="flex items-center gap-1 px-1">
                       <button
-                        onClick={() => handleVote(1)}
+                        onClick={() => handleVote(1, i)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          i === lastImageIdx && vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          msg.vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsUp className="h-[18px] w-[18px]" />
                       </button>
                       <button
-                        onClick={() => handleVote(-1)}
+                        onClick={() => handleVote(-1, i)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          i === lastImageIdx && vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          msg.vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsDown className="h-[18px] w-[18px]" />
@@ -1701,11 +1729,11 @@ const DesignStudio = () => {
                             <Save className="h-3.5 w-3.5 mr-2" />
                             {saved ? "Saved" : "Save design"}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => downloadAs("png")}>
+                          <DropdownMenuItem onClick={() => downloadAs("png", msg.imageUrl)}>
                             <Download className="h-3.5 w-3.5 mr-2" />
                             Download PNG
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => downloadAs("jpg")}>
+                          <DropdownMenuItem onClick={() => downloadAs("jpg", msg.imageUrl)}>
                             <Download className="h-3.5 w-3.5 mr-2" />
                             Download JPG
                           </DropdownMenuItem>
