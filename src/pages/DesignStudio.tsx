@@ -730,6 +730,8 @@ const DesignStudio = () => {
         researchSources: Array.isArray(r.research_sources) ? r.research_sources : undefined,
         updatesUsed: Array.isArray(r.updates_used) ? r.updates_used : undefined,
         contentCategory: r.content_category,
+        designId: r.design_id,
+        vote: 0,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setCurrentImage(r.image_url);
