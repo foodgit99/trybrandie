@@ -1686,17 +1686,17 @@ const DesignStudio = () => {
                     )}
                     <div className="flex items-center gap-1 px-1">
                       <button
-                        onClick={() => handleVote(1)}
+                        onClick={() => handleVote(1, i)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          i === lastImageIdx && vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          msg.vote === 1 ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsUp className="h-[18px] w-[18px]" />
                       </button>
                       <button
-                        onClick={() => handleVote(-1)}
+                        onClick={() => handleVote(-1, i)}
                         className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                          i === lastImageIdx && vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          msg.vote === -1 ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <ThumbsDown className="h-[18px] w-[18px]" />
@@ -1729,11 +1729,11 @@ const DesignStudio = () => {
                             <Save className="h-3.5 w-3.5 mr-2" />
                             {saved ? "Saved" : "Save design"}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => downloadAs("png")}>
+                          <DropdownMenuItem onClick={() => downloadAs("png", msg.imageUrl)}>
                             <Download className="h-3.5 w-3.5 mr-2" />
                             Download PNG
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => downloadAs("jpg")}>
+                          <DropdownMenuItem onClick={() => downloadAs("jpg", msg.imageUrl)}>
                             <Download className="h-3.5 w-3.5 mr-2" />
                             Download JPG
                           </DropdownMenuItem>
