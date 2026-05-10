@@ -825,22 +825,22 @@ const DesignStudio = () => {
     }
   };
 
-  const handleVote = async (v: -1 | 1) => {
-    const newVote = vote === v ? 0 : v;
-    setVote(newVote);
-    // Update vote on the auto-saved or manually saved design
-    if (currentDesignId) {
-      await supabase
-        .from("designs")
-        .update({ vote: newVote })
-        .eq("id", currentDesignId)
-        .eq("user_id", user!.id);
-    } else if (saved && currentImage) {
-      await supabase
-        .from("designs")
-        .update({ vote: newVote })
-        .eq("image_url", currentImage)
-        .eq("user_id", user!.id);
+  const handleVote = async (v: -1 | 1, idx: number) => {
+    const msg = messages[idx];
+    if (!msg) return;
+    const cur = msg.vote ?? 0;
+    const newVote = (cur === v ? 0 : v) as -1 | 0 | 1;
+    setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, vote: newVote } : m)));
+    // Keep legacy global vote in sync for the latest design (genome scores etc.)
+    if (msg.imageUrl && msg.imageUrl === currentImage) setVote(newVote);
+    try {
+      if (msg.designId) {
+        await supabase.from("designs").update({ vote: newVote }).eq("id", msg.designId).eq("user_id", user!.id);
+      } else if (msg.imageUrl) {
+        await supabase.from("designs").update({ vote: newVote }).eq("image_url", msg.imageUrl).eq("user_id", user!.id);
+      }
+    } catch {
+      // best-effort; UI already reflects intent
     }
   };
 
