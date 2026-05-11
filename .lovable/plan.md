@@ -1,73 +1,46 @@
-## New Page: `Cockpit` (`/cockpit`)
+# Plan: Share image to WhatsApp from Cockpit
 
-A focused, single-screen command center that makes Amina feel like a systemized owner. Not another dashboard — a *ritual surface* that mirrors the PRD's "Monday Briefing → Approve → Execute" flow. Reuses existing data (content_ideas, brand, autopilot status, trends) so this is a pure UI/UX layer over current backend.
+## Goal
+When the user taps **Share to WhatsApp** on the *Today's Drop* card, attach the **generated image** to the WhatsApp share (Status, chat, etc.) — not just the caption text.
 
-### Naming
-- Page: **Cockpit** (one word, matches PRD: "the dashboard should feel like a cockpit, not an art studio").
-- Route: `/cockpit`
-- Nav: replaces "Home" slot in `FloatingNavBar` (Index stays at `/dashboard`).
+## Why the current behavior happens
+`wa.me/?text=...` is a text-only deep link. WhatsApp exposes no public URL parameter for media. The only browser-level way to push an image into WhatsApp is the **Web Share API Level 2** (`navigator.share({ files })`), which opens the OS share sheet — from there the user picks WhatsApp → Status/Chat and the image arrives attached with the caption pre-filled.
 
----
+## Implementation (single file: `src/pages/Cockpit.tsx`)
 
-### Screen Anatomy (mobile-first, top → bottom)
+Replace the existing `handleShareWhatsApp` handler with a tiered strategy:
 
-**1. The Briefing Header**
-- Greeting: "Good morning, {first name}." (Instrument Serif, large)
-- Status line: "Your Week 19 Blueprint is ready for review." + day badge
-- Right: tiny credit chip + settings cog
+### Tier 1 — Native file share (mobile, modern browsers)
+1. `fetch(imageUrl)` → `blob()` → wrap in `File` (`image/jpeg` or `image/png` based on URL).
+2. Build payload: `{ files: [file], text: caption, title: "Today's Drop" }`.
+3. If `navigator.canShare?.(payload)` is true → `await navigator.share(payload)`.
+4. Result: native share sheet opens → user picks WhatsApp → image + caption attached.
 
-**2. CEO Briefing Strip** (Pillar 6 — Performance Pulse)
-- Horizontal scroll of 3 "signal" cards: Posts Approved · Designs Ready · Days Covered
-- Numbers are the hero. Muted labels. No vanity metrics.
+### Tier 2 — Mobile without file share support
+1. Trigger image download (anchor with `download` attr, or `window.open` for cross-origin).
+2. Copy caption to clipboard.
+3. Open `https://wa.me/?text=<caption>` so user can manually attach the just-downloaded image.
+4. Toast: *"Image downloaded — attach it in WhatsApp."*
 
-**3. This Week's Blueprint** (Pillars 3 + 4 — Strategy + Planning)
-- A 7-day vertical timeline (mobile) / horizontal rail (desktop)
-- Each day = a card with: day label, narrative arc tag (Teaser/Educate/Hard Sell/Urgency/Close), idea title, format chip (graphic/carousel), thumbnail when ready
-- States: `pending` (skeleton + "AI is drafting"), `ready` (preview + Approve/Swap), `approved` (check + "Scheduled"), `posted`
-- Top-right of section: **Approve All Week** primary button (the "Green Light")
+### Tier 3 — Desktop fallback
+1. Same as Tier 2 but open `https://web.whatsapp.com/` instead of `wa.me`.
+2. Toast guides user.
 
-**4. Trend Pulse** (Pillar 1)
-- Compact card: "3 trends shaping your niche this week" → expandable list of localized hooks (Payday weekend, etc.) pulled from existing trend-scout data
-- Each trend has "Use this" → injects into Idea Stack
+### Detection helpers
+- `const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent)`
+- `const canShareFiles = !!navigator.canShare && navigator.canShare({ files: [new File([], "x.jpg", { type: "image/jpeg" })] })`
+- All wrapped in try/catch (user-cancel on `navigator.share` throws `AbortError` — swallow silently).
 
-**5. Idea Stack** (Pillar 2)
-- Horizontal scroller of 5–7 angle cards (Storyteller, Problem/Solution, Social Proof, Authority, Urgency, Behind-the-Scenes, Testimonial)
-- Tap → "Swap into Day X" sheet (the "Quick Pivot")
+### CORS note
+The image lives on Supabase storage with public read. `fetch` will succeed and return a usable Blob (already verified pattern used elsewhere in the app for downloads). If a CORS edge case appears, fall through to Tier 2.
 
-**6. Today's Drop** (Pillar 5 — Execution)
-- Sticky bottom card on mobile when a post is due today
-- Shows asset thumb + caption preview + two buttons: **Share to WhatsApp** (deep link `https://wa.me/?text=...`) and **Copy Caption**
+## Out of scope
+- No backend changes
+- No new edge functions
+- No changes to image generation, captions, or any other Cockpit section
+- No new dependencies
 
----
-
-### Visual / UX Direction
-
-- **Cockpit feel, not art studio.** Reduced color, tons of whitespace, single accent (existing gold token), Instrument Serif for headers, DM Sans for body (already in `index.css`).
-- **One primary action visible at all times** ("Approve All Week" or "Share Today's Post").
-- **Calm motion**: framer-motion fade/slide on mount only — no looping animations.
-- **Empty state**: if no plan exists, single CTA "Generate this week's blueprint" → triggers existing `brand-engine`/`autopilot-planner` flow.
-- All colors via semantic tokens; no raw hex.
-
----
-
-### Technical Notes
-
-- New file: `src/pages/Cockpit.tsx`
-- New components: `src/components/cockpit/BriefingHeader.tsx`, `SignalStrip.tsx`, `WeekBlueprint.tsx`, `DayCard.tsx`, `TrendPulseCard.tsx`, `IdeaStack.tsx`, `TodaysDrop.tsx`
-- Data sources (read-only, existing):
-  - `content_ideas` (week range, autopilot_status, design_id, content_format)
-  - `designs` (preview thumbs)
-  - `profiles` (credits, autopilot mode)
-  - `brand` (name, palette)
-  - `trend-recommend` edge fn for Trend Pulse
-- Actions reuse existing handlers from `ContentHub.tsx` (approve, swap, regenerate) — extracted into a small hook `useWeekBlueprint` so both pages share logic.
-- Add route in `src/App.tsx` under `ProtectedRoute`.
-- Update `FloatingNavBar.tsx`: swap `/` Home item for `/cockpit` (label "Cockpit", icon `Gauge`).
-- WhatsApp share = `wa.me` deep link with caption text; image download triggers existing design download util.
-
-### Out of Scope
-- No backend/schema changes. No new edge functions. No changes to autopilot logic.
-- ContentHub stays as the power-user surface; Cockpit is the calm executive view.
-
-### Acceptance
-- Logged-in user lands on `/cockpit`, sees this week's plan, can Approve All in one tap, and share today's post to WhatsApp — all in under 60 seconds, mobile-first.
+## Acceptance
+- On a phone: tap **Share to WhatsApp** → native share sheet → pick WhatsApp Status → image is attached with caption pre-filled.
+- On desktop: image downloads, caption copied, `web.whatsapp.com` opens with a toast explaining the step.
+- Cancelling the share sheet does not show an error toast.
