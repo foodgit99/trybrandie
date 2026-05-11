@@ -152,10 +152,58 @@ const Cockpit = () => {
 
   const handleGenerateWeek = () => navigate("/content");
 
-  const shareToWhatsApp = (idea: any) => {
+  const shareToWhatsApp = async (idea: any) => {
     const caption = idea.designs?.caption || idea.title || "Check this out";
-    const url = `https://wa.me/?text=${encodeURIComponent(caption)}`;
-    window.open(url, "_blank");
+    const imageUrl: string | undefined = idea.designs?.image_url || idea.designs?.render_url;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // Tier 1: Web Share API with file
+    if (imageUrl) {
+      try {
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
+        const file = new File([blob], `brandie-drop.${ext}`, { type: blob.type || "image/jpeg" });
+        const payload: ShareData = { files: [file], text: caption, title: "Today's Drop" };
+        if (navigator.canShare?.(payload) && navigator.share) {
+          try {
+            await navigator.share(payload);
+            return;
+          } catch (err: any) {
+            if (err?.name === "AbortError") return;
+            // fall through to download fallback
+          }
+        }
+
+        // Tier 2/3: download image + open WhatsApp with caption
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objUrl;
+        a.download = `brandie-drop.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
+
+        try { await navigator.clipboard.writeText(caption); } catch {}
+
+        const waUrl = isMobile
+          ? `https://wa.me/?text=${encodeURIComponent(caption)}`
+          : `https://web.whatsapp.com/`;
+        window.open(waUrl, "_blank");
+
+        toast({
+          title: "Image downloaded",
+          description: "Caption copied. Attach the image in WhatsApp to post.",
+        });
+        return;
+      } catch (e) {
+        // fall through to plain text share
+      }
+    }
+
+    // Final fallback: text only
+    window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, "_blank");
   };
 
   const copyCaption = async (idea: any) => {
