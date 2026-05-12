@@ -699,63 +699,85 @@ export type Database = {
       }
       content_ideas: {
         Row: {
+          approval_status: string
           autopilot: boolean
           autopilot_status: string | null
+          blueprint_id: string | null
           brand_id: string
           campaign_id: string | null
           content_category: string | null
           content_format: string
           created_at: string
+          day_of_week: number | null
           design_id: string | null
           id: string
           idea_type: string
           pillar_id: string | null
+          playbook_role: string | null
           prompt: string
           scheduled_for: string | null
           series_id: string | null
           status: string
           title: string
           user_id: string
+          whatsapp_dm: string | null
         }
         Insert: {
+          approval_status?: string
           autopilot?: boolean
           autopilot_status?: string | null
+          blueprint_id?: string | null
           brand_id: string
           campaign_id?: string | null
           content_category?: string | null
           content_format?: string
           created_at?: string
+          day_of_week?: number | null
           design_id?: string | null
           id?: string
           idea_type?: string
           pillar_id?: string | null
+          playbook_role?: string | null
           prompt: string
           scheduled_for?: string | null
           series_id?: string | null
           status?: string
           title: string
           user_id: string
+          whatsapp_dm?: string | null
         }
         Update: {
+          approval_status?: string
           autopilot?: boolean
           autopilot_status?: string | null
+          blueprint_id?: string | null
           brand_id?: string
           campaign_id?: string | null
           content_category?: string | null
           content_format?: string
           created_at?: string
+          day_of_week?: number | null
           design_id?: string | null
           id?: string
           idea_type?: string
           pillar_id?: string | null
+          playbook_role?: string | null
           prompt?: string
           scheduled_for?: string | null
           series_id?: string | null
           status?: string
           title?: string
           user_id?: string
+          whatsapp_dm?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "content_ideas_blueprint_id_fkey"
+            columns: ["blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_blueprints"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "content_ideas_brand_id_fkey"
             columns: ["brand_id"]
@@ -1294,6 +1316,7 @@ export type Database = {
           content_hub_gen_count: number
           content_hub_gen_reset_at: string
           created_at: string
+          daily_push_hour: number
           full_name: string | null
           generations_count: number
           generations_reset_at: string
@@ -1301,8 +1324,12 @@ export type Database = {
           last_category_campaign: string | null
           last_category_idea: string | null
           last_category_series: string | null
+          last_daily_push_at: string | null
+          last_monday_briefing_at: string | null
           logo_generations_used: number
+          monday_briefing_hour: number
           paid_credits: number
+          posting_timezone: string
           referral_code: string | null
           referred_by: string | null
           subscription_tier: string
@@ -1320,6 +1347,7 @@ export type Database = {
           content_hub_gen_count?: number
           content_hub_gen_reset_at?: string
           created_at?: string
+          daily_push_hour?: number
           full_name?: string | null
           generations_count?: number
           generations_reset_at?: string
@@ -1327,8 +1355,12 @@ export type Database = {
           last_category_campaign?: string | null
           last_category_idea?: string | null
           last_category_series?: string | null
+          last_daily_push_at?: string | null
+          last_monday_briefing_at?: string | null
           logo_generations_used?: number
+          monday_briefing_hour?: number
           paid_credits?: number
+          posting_timezone?: string
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
@@ -1346,6 +1378,7 @@ export type Database = {
           content_hub_gen_count?: number
           content_hub_gen_reset_at?: string
           created_at?: string
+          daily_push_hour?: number
           full_name?: string | null
           generations_count?: number
           generations_reset_at?: string
@@ -1353,8 +1386,12 @@ export type Database = {
           last_category_campaign?: string | null
           last_category_idea?: string | null
           last_category_series?: string | null
+          last_daily_push_at?: string | null
+          last_monday_briefing_at?: string | null
           logo_generations_used?: number
+          monday_briefing_hour?: number
           paid_credits?: number
+          posting_timezone?: string
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
@@ -1715,6 +1752,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weekly_blueprints: {
+        Row: {
+          approved_at: string | null
+          brand_id: string
+          created_at: string
+          id: string
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          approved_at?: string | null
+          brand_id: string
+          created_at?: string
+          id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          approved_at?: string | null
+          brand_id?: string
+          created_at?: string
+          id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
       }
     }
     Views: {

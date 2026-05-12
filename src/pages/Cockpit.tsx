@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay, getWeek } from "date-fns";
@@ -49,6 +49,8 @@ const Cockpit = () => {
   const { user } = useAuth();
   const { brand } = useBrand(user);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const dropParam = searchParams.get("drop");
   const { toast } = useToast();
   const qc = useQueryClient();
   const [approving, setApproving] = useState(false);
@@ -115,6 +117,16 @@ const Cockpit = () => {
     [ideas, today]
   );
   const todaysDrop = todayIdeas.find((i: any) => i.design_id) || todayIdeas[0];
+
+  // Auto-scroll to today's drop section if arrived via daily push deep link
+  useEffect(() => {
+    if (dropParam) {
+      setTimeout(() => {
+        const el = document.getElementById("todays-drop");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+    }
+  }, [dropParam]);
 
   const greeting = useMemo(() => {
     const h = today.getHours();
@@ -359,7 +371,7 @@ const Cockpit = () => {
 
         {/* Today's Drop */}
         {todaysDrop && (
-          <section className="mb-6">
+          <section id="todays-drop" className="mb-6">
             <h2 className="mb-3 font-serif text-2xl text-foreground">Today's Drop</h2>
             <Card className="overflow-hidden border-border/60 bg-card">
               <div className="flex flex-col sm:flex-row">

@@ -1030,6 +1030,77 @@ Deno.serve(async (req) => {
         subject = `Your Brandie affiliate report — ${data?.month || "this month"} 📊`;
         html = affiliateMonthlyDigestHtml(data || {});
         break;
+      case "monday_briefing": {
+        const name = data?.name || "";
+        const weekLabel = data?.week_label || "this week";
+        const ideas: Array<{ day: string; title: string; role?: string }> = data?.ideas || [];
+        const briefingUrl = `${APP_URL}/briefing`;
+        subject = `Your weekly strategy is ready · ${weekLabel} 📅`;
+        const ideaRows = ideas
+          .map(
+            (i) => `<tr>
+              <td style="padding:10px 12px;border-bottom:1px solid #ececec;font-size:13px;color:#9ca3af;width:90px;text-transform:uppercase;letter-spacing:0.06em;">${i.day}${i.role ? ` · ${i.role}` : ""}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #ececec;font-size:15px;color:#1a1a2e;">${i.title}</td>
+            </tr>`
+          )
+          .join("");
+        html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:28px 40px;text-align:center;">
+    <p style="color:#c4a265;font-size:11px;letter-spacing:0.2em;margin:0 0 6px;text-transform:uppercase;">Monday Briefing</p>
+    <h1 style="color:#fff;font-size:24px;margin:0;font-weight:700;">Your week is ready, ${name || "there"}</h1>
+  </td></tr>
+  <tr><td style="padding:28px 40px 8px;">
+    <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 18px;">
+      Here's your full content plan for ${weekLabel}. Review it, swap anything that doesn't fit, then approve once. Brandie handles the rest of the week.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%" style="border-radius:12px;overflow:hidden;border:1px solid #ececec;">
+      ${ideaRows || `<tr><td style="padding:16px;color:#6b7280;font-size:14px;">No ideas drafted yet — open the Briefing Room to generate them.</td></tr>`}
+    </table>
+  </td></tr>
+  <tr><td style="padding:24px 40px 32px;text-align:center;">
+    <a href="${briefingUrl}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+      Review & Approve Week
+    </a>
+    <p style="font-size:12px;color:#9ca3af;margin:18px 0 0;">Takes less than 2 minutes.</p>
+  </td></tr>
+</table></td></tr></table></body></html>`;
+        break;
+      }
+      case "daily_drop_ready": {
+        const ideaTitle = data?.idea_title || "Today's drop";
+        const hook = data?.hook || data?.caption || "";
+        const imageUrl = data?.image_url;
+        const dropUrl = data?.design_id
+          ? `${APP_URL}/cockpit?drop=${data.design_id}`
+          : `${APP_URL}/cockpit`;
+        const dayLabel = data?.day_label || "Today";
+        subject = `${dayLabel}'s drop is ready 📲`;
+        html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:24px 40px;">
+    <p style="color:#c4a265;font-size:11px;letter-spacing:0.2em;margin:0 0 4px;text-transform:uppercase;">${dayLabel}'s Drop</p>
+    <h1 style="color:#fff;font-size:22px;margin:0;font-weight:700;">${ideaTitle}</h1>
+  </td></tr>
+  ${imageUrl ? `<tr><td><img src="${imageUrl}" alt="Today's drop" style="display:block;width:100%;height:auto;" /></td></tr>` : ""}
+  <tr><td style="padding:24px 40px;">
+    ${hook ? `<p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 22px;">${hook}</p>` : ""}
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${dropUrl}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Open & Share to WhatsApp
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:8px 40px 28px;text-align:center;">
+    <p style="font-size:12px;color:#9ca3af;margin:0;">One tap. One share. Done.</p>
+  </td></tr>
+</table></td></tr></table></body></html>`;
+        break;
+      }
       case "affiliate_milestone": {
         const fmt = (n: number) => `₦${n.toLocaleString("en-NG")}`;
         const milestone = data?.milestone || 0;
