@@ -1,46 +1,107 @@
-# Plan: Share image to WhatsApp from Cockpit
+## Sprint A — The Ritual
 
-## Goal
-When the user taps **Share to WhatsApp** on the *Today's Drop* card, attach the **generated image** to the WhatsApp share (Status, chat, etc.) — not just the caption text.
+Goal: Make Amina's week feel like a ritual she shows up to, not a tool she uses. Monday she gets briefed, she approves, and every day she just drops the post.
 
-## Why the current behavior happens
-`wa.me/?text=...` is a text-only deep link. WhatsApp exposes no public URL parameter for media. The only browser-level way to push an image into WhatsApp is the **Web Share API Level 2** (`navigator.share({ files })`), which opens the OS share sheet — from there the user picks WhatsApp → Status/Chat and the image arrives attached with the caption pre-filled.
+---
 
-## Implementation (single file: `src/pages/Cockpit.tsx`)
+### 1. Briefing Room screen (`/briefing`)
 
-Replace the existing `handleShareWhatsApp` handler with a tiered strategy:
+A single dedicated screen replacing the "scattered cockpit" feel for the weekly review moment.
 
-### Tier 1 — Native file share (mobile, modern browsers)
-1. `fetch(imageUrl)` → `blob()` → wrap in `File` (`image/jpeg` or `image/png` based on URL).
-2. Build payload: `{ files: [file], text: caption, title: "Today's Drop" }`.
-3. If `navigator.canShare?.(payload)` is true → `await navigator.share(payload)`.
-4. Result: native share sheet opens → user picks WhatsApp → image + caption attached.
+Layout:
+```text
+┌─────────────────────────────────────┐
+│  This Week's Plan · Week of Nov 11  │
+│  Status: Awaiting Approval          │
+├─────────────────────────────────────┤
+│  Mon · Teaser     [thumb] [caption] │
+│  Tue · Education  [thumb] [caption] │
+│  Wed · Proof      [thumb] [caption] │
+│  Thu · Urgency    [thumb] [caption] │
+│  Fri · Close      [thumb] [caption] │
+│  Sat · Lifestyle  [thumb] [caption] │
+│  Sun · Rest / CTA [thumb] [caption] │
+├─────────────────────────────────────┤
+│  [Swap a day] [Edit copy]           │
+│  [✓ Approve All Drops]              │
+└─────────────────────────────────────┘
+```
 
-### Tier 2 — Mobile without file share support
-1. Trigger image download (anchor with `download` attr, or `window.open` for cross-origin).
-2. Copy caption to clipboard.
-3. Open `https://wa.me/?text=<caption>` so user can manually attach the just-downloaded image.
-4. Toast: *"Image downloaded — attach it in WhatsApp."*
+- Inline "Quick Pivot": clicking a day opens a sheet to swap the angle (e.g., "replace with restock announcement") — re-runs only that idea card, not the week.
+- Lock state: once approved, week is locked. Edits require explicit "Unlock week" action.
 
-### Tier 3 — Desktop fallback
-1. Same as Tier 2 but open `https://web.whatsapp.com/` instead of `wa.me`.
-2. Toast guides user.
+### 2. Approve All gate
 
-### Detection helpers
-- `const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent)`
-- `const canShareFiles = !!navigator.canShare && navigator.canShare({ files: [new File([], "x.jpg", { type: "image/jpeg" })] })`
-- All wrapped in try/catch (user-cancel on `navigator.share` throws `AbortError` — swallow silently).
+- New columns on `content_ideas` (or new `weekly_blueprints` table): `approval_status` (`draft` | `approved` | `locked`), `approved_at`, `week_start_date`.
+- Autopilot planner stops setting ideas straight to `scheduled` — instead drops them as `draft` tied to a blueprint row.
+- Daily reminder + auto-post jobs only act on `approved` ideas. Drafts are invisible to the daily push.
+- "Approve All" button: single click flips the whole week to `approved`, fires confirmation toast, and triggers the Monday Briefing email/WhatsApp confirmation.
 
-### CORS note
-The image lives on Supabase storage with public read. `fetch` will succeed and return a usable Blob (already verified pattern used elsewhere in the app for downloads). If a CORS edge case appears, fall through to Tier 2.
+### 3. Daily Execution Push
 
-## Out of scope
-- No backend changes
-- No new edge functions
-- No changes to image generation, captions, or any other Cockpit section
-- No new dependencies
+- New edge function `daily-execution-push` (cron at user's local 8am — store `posting_timezone` + `daily_push_hour` on profile).
+- For each user with an approved drop today: send WhatsApp-style notification via:
+  - **Email** (existing `send-email`) — short subject "Today's drop is ready 📲", body = hook + thumbnail + 1-tap "Open in Brandie" deep link to `/cockpit?drop=<idea_id>`.
+  - **In-app**: notification bell + push (web push API, opt-in).
+- Cockpit `?drop=` param auto-opens the design viewer with WhatsApp share button already focused.
 
-## Acceptance
-- On a phone: tap **Share to WhatsApp** → native share sheet → pick WhatsApp Status → image is attached with caption pre-filled.
-- On desktop: image downloads, caption copied, `web.whatsapp.com` opens with a toast explaining the step.
-- Cancelling the share sheet does not show an error toast.
+### 4. Monday Briefing trigger
+
+- New edge function `monday-briefing` (cron Monday 7am local).
+- Runs autopilot-planner if no draft blueprint exists for the week, then sends:
+  - Email "Your Weekly Strategy is ready" with 7-day summary + CTA "Review & Approve" → `/briefing`.
+  - In-app banner on home/cockpit: "Your week is ready — 2 min to approve."
+
+### 5. WhatsApp DM copy field
+
+- Copywriter agent output schema gains `whatsapp_dm` (separate from `caption`/`hook`).
+- Format rules: line breaks, emoji-led, single CTA, no hashtags, ≤ 350 chars.
+- Brand-strategist + content-autopilot prompts updated to emit it.
+- Add field to `content_ideas` table.
+- Cockpit share sheet: tabs "Status / Feed Caption / DM Broadcast" — DM tab copies `whatsapp_dm` to clipboard + opens `wa.me`.
+
+### 6. Cockpit copy refresh (light touch)
+
+Replace creator-tool verbs with operator verbs across Cockpit + Home headers:
+- "Generate" → "Review today's drop"
+- "Create design" → "Open today's post"
+- "Design Studio" stays (it's the creative escape hatch), but Cockpit hero now reads "Today's drop · ready to share."
+
+---
+
+### Technical scope
+
+**DB migration**
+- `weekly_blueprints` table (`user_id`, `week_start_date`, `status`, `approved_at`, `playbook_id` nullable for Sprint B).
+- `content_ideas`: add `blueprint_id`, `approval_status`, `whatsapp_dm`, `day_of_week`, `playbook_role`.
+- `profiles`: add `posting_timezone`, `daily_push_hour` (default 8), `monday_briefing_hour` (default 7).
+
+**Edge functions**
+- New: `monday-briefing`, `daily-execution-push`.
+- Modify: `content-autopilot` (write to blueprint as `draft`), `brand-strategist` / copywriter prompts (emit `whatsapp_dm`), `content-daily-reminder` (filter to `approved`).
+- pg_cron: hourly tick that fans out per-user based on `posting_timezone`.
+
+**Frontend**
+- New page: `src/pages/Briefing.tsx` + route in `App.tsx`.
+- New components: `BriefingDayRow`, `QuickPivotSheet`, `ApproveAllBar`, `WhatsAppDMTab`.
+- Cockpit: read `?drop=` param, render "Today's drop" hero, add DM tab to share sheet.
+- FloatingNavBar: add "Briefing" entry (Monday-prominent or always-on, TBD).
+
+**Email template**
+- New transactional template: `monday-briefing` (7-day summary + Approve CTA).
+- New transactional template: `daily-drop-ready` (today's hook + thumbnail + deep link).
+
+---
+
+### Out of scope (deferred to Sprint B / C)
+- Playbook engine / Idea Stack angles (Sprint B).
+- Signals capture + CEO Briefing (Sprint C).
+- Web push notification permissions UI (email-only for v1 of the push).
+- NG-specific trigger calendar seed (Sprint B).
+
+---
+
+### Open questions before build
+1. Should "Approve All" allow per-day edits *after* approval (soft lock) or require explicit unlock (hard lock)?
+2. Is the daily push **email-only** for V1, or do we also want WhatsApp Cloud API? (Cloud API needs Meta Business approval — adds weeks.)
+3. Should the Monday Briefing also include a **24h pulse on last week's drops** ("3 posted, 2 skipped") or stay forward-looking only for Sprint A?
