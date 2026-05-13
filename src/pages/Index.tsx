@@ -253,6 +253,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Dashboard — Brandie" description="Your Brandie home: today's drop, weekly plan, and quick actions." path="/dashboard" noindex />
       <AppHeader />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
