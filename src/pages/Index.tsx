@@ -13,6 +13,7 @@ import { useBrand } from "@/hooks/useBrand";
 import { Badge } from "@/components/ui/badge";
 import DesignViewer from "@/components/DesignViewer";
 import EngineStatusHero from "@/components/home/EngineStatusHero";
+import SEO from "@/components/SEO";
 
 const Index = () => {
   const { user } = useAuth();
