@@ -1224,6 +1224,7 @@ const ContentHub = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Content Hub — Brandie" description="Your weekly content engine: pulse, blueprint, and queued posts." path="/content" noindex />
       <AppHeader />
       <main className="max-w-4xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div

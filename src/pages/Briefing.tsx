@@ -203,6 +203,7 @@ const Briefing = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Briefing Room — Brandie" description="Review and approve this week's content blueprint." path="/briefing" noindex />
       <AppHeader />
       <main className="mx-auto w-full max-w-3xl px-4 pb-32 pt-6 lg:pl-24">
         <motion.section

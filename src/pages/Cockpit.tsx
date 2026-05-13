@@ -226,6 +226,7 @@ const Cockpit = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Cockpit — Brandie" description="Today's drop and one-tap WhatsApp share." path="/cockpit" noindex />
       <AppHeader />
 
       <main className="mx-auto w-full max-w-3xl px-4 pb-12 pt-6 lg:pl-24">
