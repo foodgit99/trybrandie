@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import SEO from "@/components/SEO";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -807,6 +808,7 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Brand Centre — Brandie" description="Manage your brand identity, products, audience, and visual style genome." path="/brand" noindex />
       <AppHeader />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">

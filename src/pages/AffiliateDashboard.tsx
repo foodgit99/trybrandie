@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -391,7 +392,8 @@ const AffiliateDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
+      <SEO title="Affiliate Dashboard — Brandie" description="Track referrals, commissions, and milestones." path="/affiliate" noindex />
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl sm:text-3xl font-serif tracking-tight">Friends of Brandie</h1>
@@ -661,7 +663,7 @@ const AffiliateDashboard = () => {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 };

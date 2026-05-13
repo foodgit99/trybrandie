@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -229,6 +230,7 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO title="Onboarding — Brandie" description="Set up your brand and start your autonomous content engine." path="/onboarding" noindex />
       {/* Progress strip — only during input phases */}
       {inputPhases.includes(phase) && (
         <div className="w-full bg-secondary h-1">

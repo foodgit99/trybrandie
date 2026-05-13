@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useBrand } from "@/hooks/useBrand";
@@ -61,6 +62,7 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Settings — Brandie" description="Manage your account, preferences, and notifications." path="/settings" noindex />
       <AppHeader />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-8 py-8 sm:py-12">

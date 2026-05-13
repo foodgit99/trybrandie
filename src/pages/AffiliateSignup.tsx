@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -228,6 +229,7 @@ const AffiliateSignup = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Friends of Brandie — Affiliate Program" description="Earn 20% first-month and 5% lifetime commission referring small businesses to Brandie." path="/affiliate/signup" />
       {/* ─── Nav ─── */}
       <nav className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">

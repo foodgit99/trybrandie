@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -232,6 +233,7 @@ const DesignHistory = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Design History — Brandie" description="Browse every design your engine has generated." path="/history" noindex />
       <AppHeader />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-8 py-8 sm:py-12">

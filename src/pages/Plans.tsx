@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -153,6 +154,7 @@ const Plans = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Plans & Credits — Brandie" description="Top up credits and manage your Brandie plan." path="/plans" noindex />
       <AppHeader />
 
       <main className="max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-16">
