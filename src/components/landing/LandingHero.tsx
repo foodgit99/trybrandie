@@ -133,6 +133,7 @@ const LandingHero = () => {
               className="w-full h-full object-cover"
               width={1408}
               height={768}
+              fetchPriority="high"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
           </div>
