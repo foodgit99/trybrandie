@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";

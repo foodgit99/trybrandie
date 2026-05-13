@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useBrand } from "@/hooks/useBrand";
