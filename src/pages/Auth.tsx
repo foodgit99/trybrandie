@@ -238,7 +238,7 @@ const Auth = () => {
           </div>
         </motion.div>
       </div>
-    </div>
+    </main>
   );
 };
 
