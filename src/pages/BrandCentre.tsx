@@ -807,6 +807,7 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Brand Centre — Brandie" description="Manage your brand identity, products, audience, and visual style genome." path="/brand" noindex />
       <AppHeader />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
