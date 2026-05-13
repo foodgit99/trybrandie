@@ -663,7 +663,7 @@ const AffiliateDashboard = () => {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 };
