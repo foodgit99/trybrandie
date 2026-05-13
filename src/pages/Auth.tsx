@@ -100,7 +100,8 @@ const Auth = () => {
   const onSubmit = mode === "login" ? handleLogin : mode === "signup" ? handleSignup : handleForgotPassword;
 
   return (
-    <div className="flex min-h-screen">
+    <main className="flex min-h-screen">
+      <SEO title="Sign in — Brandie" description="Sign in or create your Brandie account to start your autonomous content engine." path="/auth" noindex />
       {/* Left — branding */}
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-secondary">
         <motion.div
