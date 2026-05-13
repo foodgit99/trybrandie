@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import SEO from "@/components/SEO";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
