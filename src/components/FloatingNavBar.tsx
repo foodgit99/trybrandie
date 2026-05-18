@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, Palette, Plus, Gauge, ClipboardCheck, type LucideIcon } from "lucide-react";
+import { Home, LayoutGrid, Palette, Plus, Gauge, type LucideIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "Home", icon: Home, end: true },
-  { to: "/briefing", label: "Briefing", icon: ClipboardCheck },
-  { to: "/studio", label: "New Design", icon: Plus, primary: true },
   { to: "/cockpit", label: "Cockpit", icon: Gauge },
+  { to: "/studio", label: "New Design", icon: Plus, primary: true },
+  { to: "/content", label: "Content", icon: LayoutGrid },
   { to: "/brand", label: "Brand", icon: Palette },
 ];
 

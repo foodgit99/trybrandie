@@ -1,107 +1,70 @@
-## Sprint A — The Ritual
+## Goal
 
-Goal: Make Amina's week feel like a ritual she shows up to, not a tool she uses. Monday she gets briefed, she approves, and every day she just drops the post.
+Remove `/briefing` as a separate surface and bring the unique pieces it owns into a collapsible **"Week blueprint"** panel on `/cockpit`. `/content` remains the deep editor; `/cockpit` becomes the single weekly command center.
 
----
+## What `/briefing` uniquely owns today
 
-### 1. Briefing Room screen (`/briefing`)
+Most of Briefing is already mirrored on Cockpit (week strip, approve-all, day cards, narrative arc tags). The pieces Cockpit doesn't yet have:
 
-A single dedicated screen replacing the "scattered cockpit" feel for the weekly review moment.
+1. **Blueprint lock/unlock flow** — reads/writes `weekly_blueprints` (status `draft` / `approved` / `locked`), creates the row on approve, links `content_ideas.blueprint_id`.
+2. **Week rationale framing** — the "Approve your week / Your week is locked in" headline, week range, narrative-arc explanation per day (Teaser → Educate → Hard Sell → Urgency → Closing → Story → Recap).
+3. **Quick Pivot sheet** — per-day textarea that rewrites `content_ideas.prompt`, clears `design_id`, resets `status` to `suggested` so autopilot regenerates the drop.
+4. **Locked-state UX** — "Unlock week" button, status badge, sticky approve bar copy.
 
-Layout:
+## Implementation
+
+### 1. Add a "Week blueprint" collapsible panel on `/cockpit`
+
+- New section above **This Week's Blueprint** (or wrapping it), using `@/components/ui/collapsible`.
+- Trigger row: `Week {n} blueprint` + status pill (`Draft` / `Locked`) + chevron. Default **open** when there are pending drafts, **collapsed** when locked.
+- Body contains:
+  - One-paragraph rationale (the existing "Approve / Locked / Awaiting" copy + week date range).
+  - The 7-day narrative-arc legend (one-line strip of `ARC_TAGS` with the date underneath) so users see *why* each day exists. Cockpit's existing `DayRow` list stays below.
+  - Stat trio (`Drops planned`, `Days covered`, `Status`) — small inline variant, not the full-width cards from Briefing.
+
+### 2. Wire blueprint state into Cockpit
+
+- Add a `useQuery(["blueprint", brand.id, weekStartISO])` mirroring Briefing's query.
+- Extend the existing `handleApproveAll` to also upsert the `weekly_blueprints` row (`status: "approved"`, `approved_at: now()`) and set `blueprint_id` on each updated `content_ideas` row — same logic as Briefing today.
+- Add `handleUnlock` (flip blueprint back to `draft`) shown when `isLocked`.
+- Approve-all button keeps current placement; copy switches to "Unlock week" when locked.
+
+### 3. Port Quick Pivot
+
+- Move the Briefing `Sheet` + `handleQuickPivot` into Cockpit.
+- Add a `Quick pivot` action on each `DayRow` (only when not locked) next to the existing open-in-content affordance.
+
+### 4. Delete `/briefing`
+
+- Remove `<Route path="/briefing" …>` from `src/App.tsx` (add a redirect to `/cockpit` so old links/emails don't 404).
+- Delete `src/pages/Briefing.tsx`.
+- Remove the `Briefing` entry from `src/components/FloatingNavBar.tsx` `navItems`. Cockpit (`Gauge`) stays.
+- Remove `/briefing` from `public/sitemap.xml` if listed.
+
+### 5. Repoint the Monday email
+
+- In `supabase/functions/monday-briefing/index.ts`, change any link that points to `/briefing` to `/cockpit` (anchor to `#week-blueprint` if helpful).
+- No schema or cron changes.
+
+### 6. Query-key hygiene (light touch, not full sync)
+
+- Invalidate both `["cockpit-week-ideas"]` and the new `["blueprint", …]` keys after approve / unlock / pivot, so the panel stays in sync within Cockpit. Full Cockpit ↔ Content realtime sync is **out of scope** for this change.
+
+## Files touched
+
 ```text
-┌─────────────────────────────────────┐
-│  This Week's Plan · Week of Nov 11  │
-│  Status: Awaiting Approval          │
-├─────────────────────────────────────┤
-│  Mon · Teaser     [thumb] [caption] │
-│  Tue · Education  [thumb] [caption] │
-│  Wed · Proof      [thumb] [caption] │
-│  Thu · Urgency    [thumb] [caption] │
-│  Fri · Close      [thumb] [caption] │
-│  Sat · Lifestyle  [thumb] [caption] │
-│  Sun · Rest / CTA [thumb] [caption] │
-├─────────────────────────────────────┤
-│  [Swap a day] [Edit copy]           │
-│  [✓ Approve All Drops]              │
-└─────────────────────────────────────┘
+src/pages/Cockpit.tsx              edit  (add panel, blueprint query, pivot sheet, unlock)
+src/pages/Briefing.tsx             delete
+src/App.tsx                        edit  (remove route, add /briefing → /cockpit redirect)
+src/components/FloatingNavBar.tsx  edit  (drop Briefing nav item)
+public/sitemap.xml                 edit  (drop /briefing entry if present)
+supabase/functions/monday-briefing/index.ts  edit  (link → /cockpit)
 ```
 
-- Inline "Quick Pivot": clicking a day opens a sheet to swap the angle (e.g., "replace with restock announcement") — re-runs only that idea card, not the week.
-- Lock state: once approved, week is locked. Edits require explicit "Unlock week" action.
+No DB migrations. No changes to `/content`. No realtime work.
 
-### 2. Approve All gate
+## Out of scope
 
-- New columns on `content_ideas` (or new `weekly_blueprints` table): `approval_status` (`draft` | `approved` | `locked`), `approved_at`, `week_start_date`.
-- Autopilot planner stops setting ideas straight to `scheduled` — instead drops them as `draft` tied to a blueprint row.
-- Daily reminder + auto-post jobs only act on `approved` ideas. Drafts are invisible to the daily push.
-- "Approve All" button: single click flips the whole week to `approved`, fires confirmation toast, and triggers the Monday Briefing email/WhatsApp confirmation.
-
-### 3. Daily Execution Push
-
-- New edge function `daily-execution-push` (cron at user's local 8am — store `posting_timezone` + `daily_push_hour` on profile).
-- For each user with an approved drop today: send WhatsApp-style notification via:
-  - **Email** (existing `send-email`) — short subject "Today's drop is ready 📲", body = hook + thumbnail + 1-tap "Open in Brandie" deep link to `/cockpit?drop=<idea_id>`.
-  - **In-app**: notification bell + push (web push API, opt-in).
-- Cockpit `?drop=` param auto-opens the design viewer with WhatsApp share button already focused.
-
-### 4. Monday Briefing trigger
-
-- New edge function `monday-briefing` (cron Monday 7am local).
-- Runs autopilot-planner if no draft blueprint exists for the week, then sends:
-  - Email "Your Weekly Strategy is ready" with 7-day summary + CTA "Review & Approve" → `/briefing`.
-  - In-app banner on home/cockpit: "Your week is ready — 2 min to approve."
-
-### 5. WhatsApp DM copy field
-
-- Copywriter agent output schema gains `whatsapp_dm` (separate from `caption`/`hook`).
-- Format rules: line breaks, emoji-led, single CTA, no hashtags, ≤ 350 chars.
-- Brand-strategist + content-autopilot prompts updated to emit it.
-- Add field to `content_ideas` table.
-- Cockpit share sheet: tabs "Status / Feed Caption / DM Broadcast" — DM tab copies `whatsapp_dm` to clipboard + opens `wa.me`.
-
-### 6. Cockpit copy refresh (light touch)
-
-Replace creator-tool verbs with operator verbs across Cockpit + Home headers:
-- "Generate" → "Review today's drop"
-- "Create design" → "Open today's post"
-- "Design Studio" stays (it's the creative escape hatch), but Cockpit hero now reads "Today's drop · ready to share."
-
----
-
-### Technical scope
-
-**DB migration**
-- `weekly_blueprints` table (`user_id`, `week_start_date`, `status`, `approved_at`, `playbook_id` nullable for Sprint B).
-- `content_ideas`: add `blueprint_id`, `approval_status`, `whatsapp_dm`, `day_of_week`, `playbook_role`.
-- `profiles`: add `posting_timezone`, `daily_push_hour` (default 8), `monday_briefing_hour` (default 7).
-
-**Edge functions**
-- New: `monday-briefing`, `daily-execution-push`.
-- Modify: `content-autopilot` (write to blueprint as `draft`), `brand-strategist` / copywriter prompts (emit `whatsapp_dm`), `content-daily-reminder` (filter to `approved`).
-- pg_cron: hourly tick that fans out per-user based on `posting_timezone`.
-
-**Frontend**
-- New page: `src/pages/Briefing.tsx` + route in `App.tsx`.
-- New components: `BriefingDayRow`, `QuickPivotSheet`, `ApproveAllBar`, `WhatsAppDMTab`.
-- Cockpit: read `?drop=` param, render "Today's drop" hero, add DM tab to share sheet.
-- FloatingNavBar: add "Briefing" entry (Monday-prominent or always-on, TBD).
-
-**Email template**
-- New transactional template: `monday-briefing` (7-day summary + Approve CTA).
-- New transactional template: `daily-drop-ready` (today's hook + thumbnail + deep link).
-
----
-
-### Out of scope (deferred to Sprint B / C)
-- Playbook engine / Idea Stack angles (Sprint B).
-- Signals capture + CEO Briefing (Sprint C).
-- Web push notification permissions UI (email-only for v1 of the push).
-- NG-specific trigger calendar seed (Sprint B).
-
----
-
-### Open questions before build
-1. Should "Approve All" allow per-day edits *after* approval (soft lock) or require explicit unlock (hard lock)?
-2. Is the daily push **email-only** for V1, or do we also want WhatsApp Cloud API? (Cloud API needs Meta Business approval — adds weeks.)
-3. Should the Monday Briefing also include a **24h pulse on last week's drops** ("3 posted, 2 skipped") or stay forward-looking only for Sprint A?
+- Unifying React Query cache keys across `/cockpit` and `/content`.
+- Adding Supabase Realtime on `content_ideas`.
+- Redesigning Cockpit beyond inserting the collapsible panel.

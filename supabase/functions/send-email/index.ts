@@ -1034,7 +1034,7 @@ Deno.serve(async (req) => {
         const name = data?.name || "";
         const weekLabel = data?.week_label || "this week";
         const ideas: Array<{ day: string; title: string; role?: string }> = data?.ideas || [];
-        const briefingUrl = `${APP_URL}/briefing`;
+        const briefingUrl = `${APP_URL}/cockpit#week-blueprint`;
         subject = `Your weekly strategy is ready · ${weekLabel} 📅`;
         const ideaRows = ideas
           .map(

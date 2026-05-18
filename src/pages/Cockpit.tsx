@@ -19,6 +19,10 @@ import {
   Clock,
   Plus,
   ChevronRight,
+  ChevronDown,
+  Lock,
+  Pencil,
+  Replace,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +34,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 // Narrative arc tags map by day-of-week (Mon-Sun)
@@ -55,10 +72,15 @@ const Cockpit = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [approving, setApproving] = useState(false);
+  const [pivotIdea, setPivotIdea] = useState<any | null>(null);
+  const [pivotPrompt, setPivotPrompt] = useState("");
+  const [pivotSaving, setPivotSaving] = useState(false);
+  const [rationaleOpen, setRationaleOpen] = useState(true);
 
   const today = useMemo(() => new Date(), []);
   const monday = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [today]);
   const sunday = useMemo(() => endOfWeek(today, { weekStartsOn: 1 }), [today]);
+  const weekStartISO = useMemo(() => monday.toISOString().split("T")[0], [monday]);
   const weekNum = getWeek(today);
 
   // Profile (credits)
@@ -93,6 +115,24 @@ const Cockpit = () => {
     enabled: !!brand?.id,
   });
 
+  // Weekly blueprint (lock/unlock state)
+  const { data: blueprint, refetch: refetchBp } = useQuery({
+    queryKey: ["blueprint", brand?.id, weekStartISO],
+    queryFn: async () => {
+      if (!brand?.id) return null;
+      const { data } = await supabase
+        .from("weekly_blueprints")
+        .select("*")
+        .eq("brand_id", brand.id)
+        .eq("week_start_date", weekStartISO)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!brand?.id,
+  });
+
+  const isLocked = blueprint?.status === "locked" || blueprint?.status === "approved";
+
   // Group by day
   const days = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
@@ -112,6 +152,11 @@ const Cockpit = () => {
   const designsReady = ideas.filter((i: any) => i.design_id).length;
   const daysCovered = days.filter((d) => d.dayIdeas.length > 0).length;
   const pendingApproval = ideas.filter((i: any) => i.status === "suggested" || i.status === "created").length;
+
+  // Default open when drafts pending, collapsed when locked
+  useEffect(() => {
+    setRationaleOpen(!isLocked);
+  }, [isLocked]);
 
   const todayIdeas = useMemo(
     () => ideas.filter((i: any) => i.scheduled_for && isSameDay(new Date(i.scheduled_for), today)),
@@ -138,14 +183,47 @@ const Cockpit = () => {
 
   const firstName = (profile?.full_name || user?.email?.split("@")[0] || "there").split(" ")[0];
 
-  // Approve all (mark suggested → scheduled)
+  const invalidateWeek = () => {
+    qc.invalidateQueries({ queryKey: ["cockpit-week-ideas"] });
+    qc.invalidateQueries({ queryKey: ["blueprint"] });
+    refetchIdeas();
+    refetchBp();
+  };
+
+  // Approve all (mark suggested → scheduled) AND upsert blueprint row
   const handleApproveAll = async () => {
-    if (!brand?.id || pendingApproval === 0) return;
+    if (!brand?.id || !user) return;
     setApproving(true);
     try {
+      // Ensure blueprint exists & mark approved
+      let bpId = blueprint?.id;
+      if (!bpId) {
+        const { data: newBp, error: bpErr } = await supabase
+          .from("weekly_blueprints")
+          .insert({
+            user_id: user.id,
+            brand_id: brand.id,
+            week_start_date: weekStartISO,
+            status: "approved",
+            approved_at: new Date().toISOString(),
+            source: "manual",
+          })
+          .select("id")
+          .single();
+        if (bpErr) throw bpErr;
+        bpId = newBp.id;
+      } else {
+        await supabase
+          .from("weekly_blueprints")
+          .update({ status: "approved", approved_at: new Date().toISOString() })
+          .eq("id", bpId);
+      }
+
+      // Flip drafts to scheduled + link blueprint
       const ids = ideas
         .filter((i: any) => i.status === "suggested" || i.status === "created")
         .map((i: any) => i.id);
+      const allIds = ideas.map((i: any) => i.id);
       if (ids.length) {
         const { error } = await supabase
           .from("content_ideas")
@@ -153,13 +231,62 @@ const Cockpit = () => {
           .in("id", ids);
         if (error) throw error;
       }
-      toast({ title: "Week approved", description: `${ids.length} posts scheduled.` });
-      qc.invalidateQueries({ queryKey: ["cockpit-week-ideas"] });
-      refetchIdeas();
+      if (allIds.length && bpId) {
+        await supabase
+          .from("content_ideas")
+          .update({ blueprint_id: bpId } as any)
+          .in("id", allIds);
+      }
+
+      toast({ title: "Week locked in", description: `${allIds.length} drops scheduled. Brandie will deliver on schedule.` });
+      invalidateWeek();
     } catch (e: any) {
       toast({ title: "Couldn't approve", description: e.message, variant: "destructive" });
     } finally {
       setApproving(false);
+    }
+  };
+
+  const handleUnlock = async () => {
+    if (!blueprint?.id) return;
+    try {
+      await supabase
+        .from("weekly_blueprints")
+        .update({ status: "draft", approved_at: null })
+        .eq("id", blueprint.id);
+      toast({ title: "Week unlocked", description: "You can edit or swap drops." });
+      invalidateWeek();
+    } catch (e: any) {
+      toast({ title: "Couldn't unlock", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const openPivot = (idea: any) => {
+    setPivotIdea(idea);
+    setPivotPrompt(idea?.prompt || "");
+  };
+
+  const handleQuickPivot = async () => {
+    if (!pivotIdea || !pivotPrompt.trim()) return;
+    setPivotSaving(true);
+    try {
+      await supabase
+        .from("content_ideas")
+        .update({
+          prompt: pivotPrompt.trim(),
+          design_id: null,
+          status: "suggested",
+          autopilot_status: null,
+        } as any)
+        .eq("id", pivotIdea.id);
+      toast({ title: "Day updated", description: "Brandie will regenerate this drop on the next autopilot run." });
+      setPivotIdea(null);
+      setPivotPrompt("");
+      invalidateWeek();
+    } catch (e: any) {
+      toast({ title: "Couldn't update", description: e.message, variant: "destructive" });
+    } finally {
+      setPivotSaving(false);
     }
   };
 
@@ -170,7 +297,6 @@ const Cockpit = () => {
     const imageUrl: string | undefined = idea.designs?.image_url || idea.designs?.render_url;
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    // Tier 1: Web Share API with file
     if (imageUrl) {
       try {
         const res = await fetch(imageUrl);
@@ -184,11 +310,9 @@ const Cockpit = () => {
             return;
           } catch (err: any) {
             if (err?.name === "AbortError") return;
-            // fall through to download fallback
           }
         }
 
-        // Tier 2/3: download image + open WhatsApp with caption
         const objUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = objUrl;
@@ -205,17 +329,13 @@ const Cockpit = () => {
           : `https://web.whatsapp.com/`;
         window.open(waUrl, "_blank");
 
-        toast({
-          title: "Image downloaded",
-          description: "Caption copied. Attach the image in WhatsApp to post.",
-        });
+        toast({ title: "Image downloaded", description: "Caption copied. Attach the image in WhatsApp to post." });
         return;
       } catch (e) {
-        // fall through to plain text share
+        // fall through
       }
     }
 
-    // Final fallback: text only
     window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, "_blank");
   };
 
@@ -269,7 +389,7 @@ const Cockpit = () => {
         </section>
 
         {/* Week Blueprint */}
-        <section className="mb-10">
+        <section id="week-blueprint" className="mb-10">
           <div className="mb-4 flex items-end justify-between">
             <div>
               <h2 className="font-serif text-2xl text-foreground">This Week's Blueprint</h2>
@@ -277,7 +397,12 @@ const Cockpit = () => {
                 {format(monday, "MMM d")} – {format(sunday, "MMM d")}
               </p>
             </div>
-            {pendingApproval > 0 ? (
+            {isLocked ? (
+              <Button variant="outline" size="sm" onClick={handleUnlock}>
+                <Lock className="mr-2 h-4 w-4" />
+                Unlock week
+              </Button>
+            ) : pendingApproval > 0 ? (
               <Button onClick={handleApproveAll} disabled={approving} size="sm">
                 {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                 Approve All ({pendingApproval})
@@ -289,6 +414,62 @@ const Cockpit = () => {
               </Button>
             ) : null}
           </div>
+
+          {/* Rationale collapsible */}
+          {daysCovered > 0 && (
+            <Collapsible open={rationaleOpen} onOpenChange={setRationaleOpen} className="mb-4">
+              <Card className="border-border/60 bg-card">
+                <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 p-4 text-left">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Week {weekNum} blueprint
+                    </span>
+                    <Badge variant={isLocked ? "default" : "outline"} className="h-5 gap-1 px-2 text-[10px]">
+                      {isLocked ? (<><Lock className="h-2.5 w-2.5" /> Locked</>) : pendingApproval > 0 ? "Draft" : "Awaiting"}
+                    </Badge>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      rationaleOpen && "rotate-180"
+                    )}
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-4 border-t border-border/60 px-4 py-4">
+                    <p className="text-sm text-muted-foreground">
+                      {isLocked
+                        ? "Brandie is on the wheel. Just show up and share — each day is mapped to a narrative arc that builds momentum across the week."
+                        : pendingApproval > 0
+                        ? "Review each day below, swap anything that doesn't fit with Quick pivot, then approve once. Each day is mapped to a narrative arc that builds momentum across the week."
+                        : "Each day is mapped to a narrative arc that builds momentum across the week."}
+                    </p>
+                    <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {days.map((d, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "flex w-20 shrink-0 flex-col items-center rounded-xl border px-2 py-2",
+                            isSameDay(d.date, today) ? "border-foreground/40 bg-secondary" : "border-border/60"
+                          )}
+                        >
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {format(d.date, "EEE")}
+                          </span>
+                          <span className="font-serif text-base leading-none text-foreground">
+                            {format(d.date, "d")}
+                          </span>
+                          <span className="mt-1 text-center text-[10px] font-medium text-foreground/80">
+                            {d.arc}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
 
           {ideasLoading ? (
             <div className="space-y-3">
@@ -307,7 +488,9 @@ const Cockpit = () => {
                   arc={d.arc}
                   ideas={d.dayIdeas}
                   isToday={isSameDay(d.date, today)}
+                  locked={isLocked}
                   onOpen={() => navigate("/content")}
+                  onPivot={openPivot}
                 />
               ))}
             </div>
@@ -418,6 +601,47 @@ const Cockpit = () => {
           </section>
         )}
       </main>
+
+      {/* Quick Pivot Sheet */}
+      <Sheet open={!!pivotIdea} onOpenChange={(o) => !o && setPivotIdea(null)}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-serif text-2xl">Quick pivot</SheetTitle>
+            <SheetDescription>
+              Rewrite the angle for this drop. Brandie will regenerate the design on the next autopilot run.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-4">
+            {pivotIdea && pivotIdea.scheduled_for && (
+              <div className="rounded-xl border border-border/60 bg-card p-3 text-sm">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {format(new Date(pivotIdea.scheduled_for), "EEEE · MMM d")}
+                </p>
+                <p className="mt-1 font-medium text-foreground">{pivotIdea.title}</p>
+              </div>
+            )}
+            <Textarea
+              value={pivotPrompt}
+              onChange={(e) => setPivotPrompt(e.target.value)}
+              placeholder="e.g. swap to a restock announcement for the bestseller scarf"
+              className="min-h-[140px]"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPivotIdea(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleQuickPivot} disabled={pivotSaving || !pivotPrompt.trim()}>
+                {pivotSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Replace className="mr-2 h-4 w-4" />
+                )}
+                Save pivot
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
@@ -449,64 +673,88 @@ const DayRow = ({
   arc,
   ideas,
   isToday,
+  locked,
   onOpen,
+  onPivot,
 }: {
   date: Date;
   arc: string;
   ideas: any[];
   isToday: boolean;
+  locked: boolean;
   onOpen: () => void;
+  onPivot: (idea: any) => void;
 }) => {
   const idea = ideas[0];
   const status = idea?.status;
   const hasDesign = !!idea?.design_id;
 
   return (
-    <button
-      onClick={onOpen}
+    <div
       className={cn(
-        "group flex w-full items-center gap-4 rounded-2xl border bg-card p-4 text-left transition-colors hover:border-foreground/30",
+        "rounded-2xl border bg-card transition-colors",
         isToday ? "border-foreground/40" : "border-border/60"
       )}
     >
-      <div className="flex w-14 shrink-0 flex-col items-center">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{format(date, "EEE")}</span>
-        <span className="font-serif text-2xl leading-none text-foreground">{format(date, "d")}</span>
-      </div>
+      <button
+        onClick={onOpen}
+        className="group flex w-full items-center gap-4 p-4 text-left"
+      >
+        <div className="flex w-14 shrink-0 flex-col items-center">
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">{format(date, "EEE")}</span>
+          <span className="font-serif text-2xl leading-none text-foreground">{format(date, "d")}</span>
+        </div>
 
-      <div className="h-10 w-px bg-border/60" />
+        <div className="h-10 w-px bg-border/60" />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            {arc}
-          </span>
-          {idea?.content_format === "carousel" && (
-            <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
-              Carousel
-            </Badge>
-          )}
-          {isToday && (
-            <Badge className="h-4 px-1.5 text-[10px]">Today</Badge>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              {arc}
+            </span>
+            {idea?.content_format === "carousel" && (
+              <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
+                Carousel
+              </Badge>
+            )}
+            {isToday && (
+              <Badge className="h-4 px-1.5 text-[10px]">Today</Badge>
+            )}
+          </div>
+          {idea ? (
+            <p className="mt-1 truncate text-sm font-medium text-foreground">{idea.title}</p>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground italic">Open day to add a post</p>
           )}
         </div>
-        {idea ? (
-          <p className="mt-1 truncate text-sm font-medium text-foreground">{idea.title}</p>
-        ) : (
-          <p className="mt-1 text-sm text-muted-foreground italic">Open day to add a post</p>
-        )}
-      </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        {idea ? (
-          <StatusPill status={status} hasDesign={hasDesign} />
-        ) : (
-          <span className="rounded-full border border-dashed border-border p-1.5 text-muted-foreground">
-            <Plus className="h-3.5 w-3.5" />
-          </span>
-        )}
-      </div>
-    </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {idea ? (
+            <StatusPill status={status} hasDesign={hasDesign} />
+          ) : (
+            <span className="rounded-full border border-dashed border-border p-1.5 text-muted-foreground">
+              <Plus className="h-3.5 w-3.5" />
+            </span>
+          )}
+        </div>
+      </button>
+
+      {idea && !locked && (
+        <div className="flex justify-end gap-2 border-t border-border/40 px-4 py-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPivot(idea);
+            }}
+          >
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Quick pivot
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 
