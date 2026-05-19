@@ -25,13 +25,13 @@ export const MODEL_CHAINS = {
   },
   /** Image generation (Fast) */
   imageFast: {
-    primary: "google/gemini-2.5-flash-image",
-    fallbacks: ["google/gemini-3.1-flash-image-preview"],
+    primary: "google/gemini-3-pro-image-preview",
+    fallbacks: ["google/gemini-3.1-flash-image-preview", "google/gemini-2.5-flash-image"],
   },
   /** Image generation (HD) */
   imageHD: {
     primary: "google/gemini-3-pro-image-preview",
-    fallbacks: ["google/gemini-3.1-flash-image-preview"],
+    fallbacks: ["google/gemini-3.1-flash-image-preview", "google/gemini-2.5-flash-image"],
   },
 } as const;
 
