@@ -147,6 +147,15 @@ const AudiencePromptManager = () => {
           lastShownAt: Date.now(),
         };
         writeState(userId, brandId, next);
+        trackEvent(
+          "audience_prompt_impression",
+          {
+            shown_count: next.shownCount,
+            route: location.pathname,
+            brand_age_ms: brandCreatedAt ? Date.now() - brandCreatedAt : null,
+          },
+          { userId, brandId }
+        );
       }
     };
 
