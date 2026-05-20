@@ -9,6 +9,7 @@ import FloatingDesignStatus from "@/components/FloatingDesignStatus";
 import ScrollToTop from "@/components/ScrollToTop";
 import FloatingNavBar from "@/components/FloatingNavBar";
 import LowCreditsBanner from "@/components/LowCreditsBanner";
+import AudiencePromptManager from "@/components/audience/AudiencePromptManager";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { useAdminRole } from "@/hooks/useAdminRole";
