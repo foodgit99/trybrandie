@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import AudiencePromptDialog from "./AudiencePromptDialog";
+import { trackEvent } from "@/lib/analytics";
 
 // Routes where the prompt is allowed to appear.
 const ELIGIBLE_ROUTES = ["/", "/dashboard", "/cockpit", "/content", "/studio", "/history"];
