@@ -182,22 +182,26 @@ const AudiencePromptManager = () => {
       const state = userId && brandId ? readState(userId, brandId) : null;
       if (state && state.lastAction !== "later" && state.lastAction !== "never" && state.lastAction !== "accepted") {
         updateAction("dismissed", SUPPRESS_DISMISS_MS);
+        trackEvent("audience_prompt_dismissed", { method: "close" }, { userId, brandId });
       }
     }
   };
 
   const handleLater = () => {
     updateAction("later", SUPPRESS_LATER_MS);
+    trackEvent("audience_prompt_later", {}, { userId, brandId });
     setOpen(false);
   };
 
   const handleNever = () => {
     updateAction("never", 365 * 24 * 60 * 60 * 1000);
+    trackEvent("audience_prompt_never", {}, { userId, brandId });
     setOpen(false);
   };
 
   const handleAccept = () => {
     updateAction("accepted", SUPPRESS_LATER_MS);
+    trackEvent("audience_prompt_accepted", {}, { userId, brandId });
     setOpen(false);
   };
 
