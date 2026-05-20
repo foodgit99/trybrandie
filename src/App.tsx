@@ -139,6 +139,7 @@ const App = () => (
         <FloatingDesignStatus />
         <FloatingNavBar />
         <LowCreditsBanner />
+        <AudiencePromptManager />
       </BrowserRouter>
       </DesignGenerationProvider>
     </TooltipProvider>
