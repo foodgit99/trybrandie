@@ -1307,6 +1307,33 @@ export type Database = {
           },
         ]
       }
+      product_events: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          event_name: string
+          id: string
+          properties: Json
+          user_id: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          event_name: string
+          id?: string
+          properties?: Json
+          user_id?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          event_name?: string
+          id?: string
+          properties?: Json
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
