@@ -2664,6 +2664,23 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
             </div>
+            {ideaForm.content_format === "carousel" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Slides</Label>
+                <Select
+                  value={String(ideaForm.slide_count || 5)}
+                  onValueChange={(v) => setIdeaForm((f) => ({ ...f, slide_count: Number(v) }))}
+                >
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[2,3,4,5,6,7,8,9,10].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n} slides</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div style={{ display: "none" }}>
             <div className="space-y-1.5">
               <Label className="text-xs">Content Category (optional)</Label>
               <Select
