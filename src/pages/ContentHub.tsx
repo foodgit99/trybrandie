@@ -1000,13 +1000,15 @@ const ContentHub = () => {
     if (!ideaForm.title.trim() || !ideaForm.prompt.trim() || !brandId || !user) return;
     setIdeaSaving(true);
     try {
+      const fmt = ideaForm.content_format || "graphic";
       const payload: any = {
         title: ideaForm.title.trim(),
         prompt: ideaForm.prompt.trim(),
         pillar_id: ideaForm.pillar_id || null,
         series_id: ideaForm.series_id || null,
         campaign_id: ideaForm.campaign_id || null,
-        content_format: ideaForm.content_format || "graphic",
+        content_format: fmt,
+        slide_count: fmt === "carousel" ? Math.min(10, Math.max(2, Number(ideaForm.slide_count) || 5)) : null,
         autopilot: ideaForm.autopilot,
         content_category: parseCategoryIds(ideaForm.content_category)[0] || null,
       };
