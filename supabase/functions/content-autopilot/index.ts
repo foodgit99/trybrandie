@@ -211,11 +211,11 @@ async function finalizeRun(supabase: any, runId: string | undefined, found: numb
     .eq("id", runId);
 }
 
-async function logEvent(supabase: any, runId: string | undefined, ideaId: string, brandId: string, status: string, errorMessage?: string) {
+async function logEvent(supabase: any, runId: string | undefined, ideaId: string, brandId: string, status: string, errorMessage?: string, metadata?: Record<string, any>) {
   if (!runId) return;
   await supabase
     .from("autopilot_run_events")
-    .insert({ run_id: runId, idea_id: ideaId, brand_id: brandId, status, error_message: errorMessage || null });
+    .insert({ run_id: runId, idea_id: ideaId, brand_id: brandId, status, error_message: errorMessage || null, metadata: metadata || null });
 }
 
 // ─── Process a single idea ──────────────────────────────
