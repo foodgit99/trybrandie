@@ -27,6 +27,26 @@ THE 10 CONTENT CATEGORIES:
 
 const CONTENT_CATEGORY_ENUM = ["announcement", "educational", "informational", "entertainment", "promotional", "trending", "holidays", "social_proof", "bts", "interactive"];
 
+// Categories that strongly prefer carousel format (multi-slide swipeable content)
+const CAROUSEL_CATEGORIES = new Set(["educational", "informational", "social_proof"]);
+const CAROUSEL_PILLAR_REGEX = /\b(how[- ]?to|tips?|listicle|step|guide|tutorial|breakdown|before[- ]?after)\b/i;
+
+function forceCarouselFormat(rawFormat: any, category: any, pillarName: any): "graphic" | "carousel" {
+  const fmt = rawFormat === "carousel" ? "carousel" : "graphic";
+  if (fmt === "carousel") return "carousel";
+  if (typeof category === "string" && CAROUSEL_CATEGORIES.has(category)) return "carousel";
+  if (typeof pillarName === "string" && CAROUSEL_PILLAR_REGEX.test(pillarName)) return "carousel";
+  return "graphic";
+}
+
+function clampSlideCount(raw: any): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 5;
+  return Math.min(10, Math.max(2, Math.round(n)));
+}
+
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
