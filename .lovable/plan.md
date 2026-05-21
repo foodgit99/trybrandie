@@ -1,115 +1,69 @@
 ## Goal
 
-When a user has a brand set up but **zero audience profiles** in Audience Intelligence, surface a polished, personalised popup that explains *why* it matters for their specific business and routes them to create one — without becoming repetitive or annoying.
+When autopilot is enabled for a brand, the system should automatically generate carousels (not just single graphics) for ideas whose content type benefits from a multi-slide format — without the user manually toggling each idea.
 
----
+## Current state
 
-## 1. Detection logic
+- `content-autopilot/index.ts` **already** branches on `idea.content_format === "carousel"` and calls `design-studio` with `action: "generate_carousel"`. ✅
+- `brand-engine` weekly-ideas generator already assigns `content_format: "graphic" | "carousel"` per idea via the LLM. ✅
+- **Gap 1 — Autopilot enrolment.** Both `brand-engine.generate_weekly_ideas` and `autopilot-planner` seed mode insert `content_ideas` rows **without** `autopilot: true`. The DB default is `false`, so the runner's `.eq("autopilot", true)` filter excludes them. Autopilot only fires today for ideas the user manually bulk-toggles.
+- **Gap 2 — Seed playbooks.** `autopilot-planner` seed playbooks mis-use `idea_type: "carousel"` on two entries (retail "Style this", services "How we work") instead of `content_format: "carousel"`, and never assign `content_format` to any seeded idea.
+- **Gap 3 — Slide count.** `content-autopilot` hardcodes `slideCount = 5`. `content_ideas` has no per-idea slide count, so all autopilot carousels are stuck at 5 slides.
+- **Gap 4 — Format classification rule.** The LLM in `brand-engine` decides format ad-hoc. We should anchor a deterministic rule for autopilot.
 
-A new global component `<AudiencePromptManager />` mounted inside the authenticated app shell will:
+## Plan
 
-1. Read the active brand via `useBrand()`.
-2. Skip entirely if any of these are true:
-   - No brand exists yet, or `brand.onboarding_complete === false` (don't interrupt onboarding).
-   - Current route is a utility/auth route (`/auth`, `/onboarding`, `/plans`, `/reset-password`, `/affiliate*`, `/admin`).
-   - User is currently inside a long-running flow (Design Studio generating, Cockpit lock action in progress) — detected via existing `DesignGenerationContext` and a simple body-attribute check.
-3. Otherwise, query `target_audiences` for `brand_id`:
-   - If `count === 0` → eligible to prompt.
-   - If `count > 0` → never show again for that brand (clear any localStorage flag).
+### 1. Auto-enrol new ideas into autopilot when brand has autopilot enabled
 
----
+In both `brand-engine` insert paths (`generate_weekly_ideas`, `fill_empty_days`) and `autopilot-planner` seed mode:
 
-## 2. Pacing & frequency rules
+- Read `autopilot_settings.enabled` for the brand once.
+- If `enabled === true`, set `autopilot: true` on every inserted `content_ideas` row.
+- Seed mode already turns autopilot ON at the end — so seeded ideas should be inserted with `autopilot: true` directly.
 
-State stored in `localStorage` under key `brandie:audience-prompt:v1:{userId}:{brandId}` as JSON:
+This makes "autopilot enabled" the single source of truth — no per-idea toggle needed.
 
-```ts
-{
-  shownCount: number,
-  lastShownAt: number,   // epoch ms
-  lastAction: "dismissed" | "later" | "never" | null,
-  firstEligibleAt: number,
-  sessionTimeMs: number  // accumulated time on eligible pages
-}
-```
+### 2. Make seed playbooks carousel-aware
 
-Rules:
+In `supabase/functions/autopilot-planner/index.ts`:
 
-| Condition | Behaviour |
-|---|---|
-| Brand created < 24h ago | Don't show yet — let them explore. Mark `firstEligibleAt = brand.created_at + 24h`. |
-| Brand ≥ 24h old, first eligible session | Wait until **45 s of accumulated active time** on Home / Cockpit / Content Hub / Design Studio in the current session before opening. |
-| User clicks **"Maybe later"** | Suppress for **3 days**. |
-| User clicks **"Don't show again"** | Suppress permanently (`lastAction = "never"`). |
-| User closes (X / Esc / overlay) | Treat as "dismissed", suppress for **5 days**. |
-| Hard lifetime cap | Max **3 appearances** per brand. After that, only the small `AudienceContextBanner` inline nudge keeps showing on /content. |
-| Already shown this session | Never re-open in same session. |
-| User navigates to `/brand?section=audience` | Suppress for 2 days (they're already there). |
+- Replace the mis-typed `idea_type: "carousel"` entries with `content_format: "carousel"` on educational / how-to / listicle / step-by-step seeds. Curate ~2 carousel ideas per playbook:
+  - restaurants → "Behind the kitchen" (carousel, 4 slides)
+  - beauty → "Treatment 101" (carousel, 4 slides)
+  - fitness → "Form check" (carousel, 5 slides)
+  - retail → "Style this" (carousel, 5 slides)
+  - services → "How we work" (carousel, 5 slides)
+  - general → "Tip of the week" (carousel, 4 slides)
+- Insert each seed with explicit `content_format` (default `"graphic"`) and `slide_count` when carousel.
 
-The 45 s accumulator pauses when the tab is hidden (uses `document.visibilityState`).
+### 3. Per-idea slide count
 
----
+- Migration: add `slide_count INT` (nullable, range check 2–10) to `content_ideas`.
+- `brand-engine` weekly generator: extend the LLM JSON schema with optional `slide_count` (2–10). Default to 5 when carousel + null.
+- `content-autopilot`: use `idea.slide_count ?? 5` instead of the hardcoded `5`. Pass through to `design-studio`.
+- `ContentHub` idea dialog: when format = carousel, surface a small slide-count select (2–10, default 5). UI-only addition.
 
-## 3. Personalised copy
+### 4. Format-routing rule (server-side anchor)
 
-Pulled from Brand Centre (`brands` row):
+In `brand-engine` weekly generator, after the LLM returns ideas, run a deterministic post-pass: if `content_category` ∈ {`education`, `thought_leadership`, `social_proof` (case-study sub-type)} or `pillar_name` matches `how-to|tips|listicle|step|guide`, force `content_format = "carousel"`. Prevents the LLM from defaulting everything to "graphic".
 
-- `name` → addressed by name: *"{brand.name} is missing its sharpest weapon."*
-- `description` / `tagline` → woven into subtext when present.
-- `vibe` / `personality_traits` → optional tone hint for the secondary line.
+### 5. Telemetry
 
-A small helper `buildAudienceCopy(brand)` returns `{ heading, subheading, bullets[] }`. Fallback copy used if brand fields are sparse.
+Log `content_format` and `slide_count` in `autopilot_run_events` (extend the `logEvent` helper signature — additive only, no schema change required since we can stuff into existing `error_message` field is wrong; instead add nullable `metadata JSONB` column to `autopilot_run_events` and write `{format, slide_count}` on `completed` events). This lets us measure carousel mix per brand.
 
-**Example outputs:**
+## Technical details
 
-> **Heading:** "{brand.name}, who exactly are you talking to?"
-> **Sub:** "Your brand voice is set — but every post is still going out to *everyone*. The brands that win are the ones that write to *one* specific human. Tell us who buys from {brand.name} and we'll rewrite every suggestion to speak straight to them."
+- Files edited:
+  - `supabase/functions/autopilot-planner/index.ts` — seed playbooks + autopilot enrolment in seed mode.
+  - `supabase/functions/brand-engine/index.ts` — autopilot enrolment in `generate_weekly_ideas` + `fill_empty_days`, slide_count in LLM schema, deterministic format post-pass.
+  - `supabase/functions/content-autopilot/index.ts` — use `idea.slide_count`, log metadata.
+  - `src/pages/ContentHub.tsx` — slide-count select in idea dialog (carousel only).
+- Migrations:
+  - `ALTER TABLE content_ideas ADD COLUMN slide_count INT CHECK (slide_count BETWEEN 2 AND 10);`
+  - `ALTER TABLE autopilot_run_events ADD COLUMN metadata JSONB;`
+- No new edge functions, no credit-model changes (carousel pricing already handled inside `design-studio`).
 
-Three benefit bullets reused from the existing `AudienceContextBanner` rationale (sharper targeting, persuasive copy, higher conversion) but rewritten in second person.
+## Out of scope
 
----
-
-## 4. Component design
-
-`src/components/audience/AudiencePromptDialog.tsx` — presentational
-- shadcn `Dialog`, `max-h-[85vh] overflow-y-auto`, warm-neutral styling consistent with brand palette.
-- Hero icon (Users + Sparkles), gradient accent.
-- Primary CTA: **"Create my audience profile"** → `navigate("/brand?section=audience&startAudience=1#audience")`.
-- Secondary: **"Maybe later"**.
-- Footer link (small, muted): **"Don't show this again"**.
-
-`src/components/audience/AudiencePromptManager.tsx` — logic
-- Owns the eligibility query, the session timer, the localStorage state, and renders the dialog.
-- Mounted once inside `App.tsx` under the auth-protected layout so it's available across `/`, `/cockpit`, `/content`, `/design`, etc.
-
-`src/lib/audiencePromptCopy.ts` — pure helper that builds the personalised strings from a `Brand` object.
-
----
-
-## 5. Wiring
-
-- `src/App.tsx`: mount `<AudiencePromptManager />` inside the authenticated route tree (after `<ScrollToTop />`).
-- No changes to existing `AudienceContextBanner` — it keeps acting as the always-visible inline nudge on /content. The popup is the bigger, one-time-ish escalation.
-
----
-
-## 6. Technical notes
-
-- Uses `@tanstack/react-query` with `enabled: !!brandId` and a 5-minute staleTime so we don't re-poll on every nav.
-- Session timer implemented with `setInterval(1000)` only while a) tab is visible, b) route is in the eligible set, c) the prompt hasn't already fired this session.
-- All localStorage reads/writes wrapped in try/catch (private-mode safe).
-- No backend / schema changes required — `target_audiences` already exists with proper RLS, and brand fields are already fetched by `useBrand()`.
-
----
-
-## Files
-
-**New**
-- `src/components/audience/AudiencePromptDialog.tsx`
-- `src/components/audience/AudiencePromptManager.tsx`
-- `src/lib/audiencePromptCopy.ts`
-
-**Edited**
-- `src/App.tsx` (mount the manager inside protected layout)
-
-No edge function, no DB migration.
+- Changing carousel pricing or model selection (already standardised on `gemini-3-pro-image-preview` per memory).
+- Retroactively flipping `autopilot=true` on existing ideas — only new inserts after this change get auto-enrolled. We can add a one-shot backfill if you want.
