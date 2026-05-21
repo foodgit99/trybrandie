@@ -208,10 +208,11 @@ interface IdeaForm {
   series_id: string;
   campaign_id: string;
   content_format: string;
+  slide_count: number;
   autopilot: boolean;
   content_category: string; // single id
 }
-const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", autopilot: false, content_category: "" };
+const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", slide_count: 5, autopilot: false, content_category: "" };
 
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
