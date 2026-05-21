@@ -116,6 +116,7 @@ Deno.serve(async (req) => {
         const rows = seeds.map((s, i) => {
           const d = new Date(today);
           d.setDate(d.getDate() + i);
+          const format: "graphic" | "carousel" = s.content_format === "carousel" ? "carousel" : "graphic";
           return {
             brand_id: brand.id,
             user_id: brand.user_id,
@@ -123,8 +124,11 @@ Deno.serve(async (req) => {
             prompt: s.prompt,
             content_category: s.category,
             idea_type: s.idea_type || "single",
+            content_format: format,
+            slide_count: format === "carousel" ? (s.slide_count ?? 5) : null,
             status: "suggested",
             scheduled_for: isoDate(d),
+            autopilot: true, // seed mode flips autopilot ON below, so auto-enrol
           };
         });
         const { error: insertErr } = await supabase.from("content_ideas").insert(rows);
