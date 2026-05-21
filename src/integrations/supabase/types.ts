@@ -207,6 +207,7 @@ export type Database = {
           error_message: string | null
           id: string
           idea_id: string
+          metadata: Json | null
           run_id: string
           status: string
         }
@@ -216,6 +217,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           idea_id: string
+          metadata?: Json | null
           run_id: string
           status: string
         }
@@ -225,6 +227,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           idea_id?: string
+          metadata?: Json | null
           run_id?: string
           status?: string
         }
@@ -717,6 +720,7 @@ export type Database = {
           prompt: string
           scheduled_for: string | null
           series_id: string | null
+          slide_count: number | null
           status: string
           title: string
           user_id: string
@@ -741,6 +745,7 @@ export type Database = {
           prompt: string
           scheduled_for?: string | null
           series_id?: string | null
+          slide_count?: number | null
           status?: string
           title: string
           user_id: string
@@ -765,6 +770,7 @@ export type Database = {
           prompt?: string
           scheduled_for?: string | null
           series_id?: string | null
+          slide_count?: number | null
           status?: string
           title?: string
           user_id?: string
