@@ -208,10 +208,11 @@ interface IdeaForm {
   series_id: string;
   campaign_id: string;
   content_format: string;
+  slide_count: number;
   autopilot: boolean;
   content_category: string; // single id
 }
-const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", autopilot: false, content_category: "" };
+const emptyIdea: IdeaForm = { title: "", prompt: "", pillar_id: "", series_id: "", campaign_id: "", content_format: "graphic", slide_count: 5, autopilot: false, content_category: "" };
 
 const EMOJI_OPTIONS = ["📌", "🎓", "💡", "🎯", "🔥", "💬", "🛒", "🎨", "📸", "🏷️", "❤️", "⭐", "🚀", "🧠", "🤝", "📢"];
 
@@ -981,6 +982,7 @@ const ContentHub = () => {
       series_id: idea.series_id || "",
       campaign_id: idea.campaign_id || "",
       content_format: idea.content_format || "graphic",
+      slide_count: Number(idea.slide_count) || 5,
       autopilot: idea.autopilot || false,
       content_category: parseCategoryIds(idea.content_category)[0] || "",
     });
@@ -998,13 +1000,15 @@ const ContentHub = () => {
     if (!ideaForm.title.trim() || !ideaForm.prompt.trim() || !brandId || !user) return;
     setIdeaSaving(true);
     try {
+      const fmt = ideaForm.content_format || "graphic";
       const payload: any = {
         title: ideaForm.title.trim(),
         prompt: ideaForm.prompt.trim(),
         pillar_id: ideaForm.pillar_id || null,
         series_id: ideaForm.series_id || null,
         campaign_id: ideaForm.campaign_id || null,
-        content_format: ideaForm.content_format || "graphic",
+        content_format: fmt,
+        slide_count: fmt === "carousel" ? Math.min(10, Math.max(2, Number(ideaForm.slide_count) || 5)) : null,
         autopilot: ideaForm.autopilot,
         content_category: parseCategoryIds(ideaForm.content_category)[0] || null,
       };
@@ -2660,6 +2664,23 @@ const ContentHub = () => {
                 </SelectContent>
               </Select>
             </div>
+            {ideaForm.content_format === "carousel" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Slides</Label>
+                <Select
+                  value={String(ideaForm.slide_count || 5)}
+                  onValueChange={(v) => setIdeaForm((f) => ({ ...f, slide_count: Number(v) }))}
+                >
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[2,3,4,5,6,7,8,9,10].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n} slides</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
             <div className="space-y-1.5">
               <Label className="text-xs">Content Category (optional)</Label>
               <Select

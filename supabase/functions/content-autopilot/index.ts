@@ -145,12 +145,13 @@ Deno.serve(async (req) => {
         }
 
         const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey);
+        const meta = { format: idea.content_format || "graphic", slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null };
         if (result.success) {
           processed++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed");
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, meta);
         } else {
           skipped++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error);
+          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, meta);
         }
       } catch (ideaErr) {
         console.error(`[autopilot] Error processing idea ${idea.id}:`, ideaErr);
@@ -211,11 +212,11 @@ async function finalizeRun(supabase: any, runId: string | undefined, found: numb
     .eq("id", runId);
 }
 
-async function logEvent(supabase: any, runId: string | undefined, ideaId: string, brandId: string, status: string, errorMessage?: string) {
+async function logEvent(supabase: any, runId: string | undefined, ideaId: string, brandId: string, status: string, errorMessage?: string, metadata?: Record<string, any>) {
   if (!runId) return;
   await supabase
     .from("autopilot_run_events")
-    .insert({ run_id: runId, idea_id: ideaId, brand_id: brandId, status, error_message: errorMessage || null });
+    .insert({ run_id: runId, idea_id: ideaId, brand_id: brandId, status, error_message: errorMessage || null, metadata: metadata || null });
 }
 
 // ─── Process a single idea ──────────────────────────────
@@ -273,7 +274,7 @@ async function processIdea(
     .maybeSingle();
 
   const isCarousel = idea.content_format === "carousel";
-  const slideCount = 5;
+  const slideCount = isCarousel ? Math.min(10, Math.max(2, Number(idea.slide_count) || 5)) : 0;
   console.log(`[autopilot] idea ${idea.id} format=${isCarousel ? "carousel" : "graphic"}${isCarousel ? ` slides=${slideCount}` : ""}`);
 
   // Build design payload

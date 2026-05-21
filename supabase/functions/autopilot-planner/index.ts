@@ -9,63 +9,65 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Server-side mirror of src/lib/industryPlaybooks.ts (titles + prompts only).
-const PLAYBOOK_SEEDS: Record<string, Array<{ title: string; prompt: string; category: string; idea_type?: string }>> = {
+type Seed = { title: string; prompt: string; category: string; idea_type?: string; content_format?: "graphic" | "carousel"; slide_count?: number };
+
+const PLAYBOOK_SEEDS: Record<string, Array<Seed>> = {
   restaurants: [
-    { title: "Today's special", prompt: "A bold mouth-watering hero shot poster announcing today's special dish with price.", category: "promotion" },
-    { title: "Behind the kitchen", prompt: "A cinematic behind-the-scenes shot of the chef plating, captioned to build trust.", category: "behind_the_scenes" },
+    { title: "Today's special", prompt: "A bold mouth-watering hero shot poster announcing today's special dish with price.", category: "promotional" },
+    { title: "Behind the kitchen", prompt: "A 4-slide carousel walking through how our signature dish is prepared, one step per slide.", category: "bts", content_format: "carousel", slide_count: 4 },
     { title: "Customer love", prompt: "A clean testimonial card quoting a happy regular customer.", category: "social_proof" },
-    { title: "Did you know?", prompt: "An educational micro-fact about one of our signature ingredients.", category: "education" },
-    { title: "Weekend hype", prompt: "A vibrant weekend-vibes post inviting people to book a table.", category: "promotion" },
-    { title: "Order online", prompt: "A clean product-style post with a clear ORDER NOW call to action.", category: "promotion" },
-    { title: "Thank you", prompt: "A warm gratitude post thanking the community for the week.", category: "community" },
+    { title: "Did you know?", prompt: "An educational micro-fact about one of our signature ingredients.", category: "educational" },
+    { title: "Weekend hype", prompt: "A vibrant weekend-vibes post inviting people to book a table.", category: "promotional" },
+    { title: "Order online", prompt: "A clean product-style post with a clear ORDER NOW call to action.", category: "promotional" },
+    { title: "Thank you", prompt: "A warm gratitude post thanking the community for the week.", category: "interactive" },
   ],
   beauty: [
     { title: "Transformation Tuesday", prompt: "A clean side-by-side before/after style poster of a recent client treatment.", category: "social_proof" },
-    { title: "Treatment 101", prompt: "An educational explainer of one signature treatment and its benefit.", category: "education" },
-    { title: "Glow inspiration", prompt: "An aspirational lifestyle post showing the after-feeling, not the service.", category: "inspiration" },
-    { title: "Meet the artist", prompt: "A warm portrait-style post introducing one of the team members.", category: "behind_the_scenes" },
-    { title: "Booking nudge", prompt: "A clear, gentle reminder post with a BOOK NOW call to action for the weekend.", category: "promotion" },
-    { title: "Care tip", prompt: "A short take-home care tip educational post.", category: "education" },
+    { title: "Treatment 101", prompt: "A 4-slide carousel explaining one signature treatment: what it is, how it works, who it's for, the after-result.", category: "educational", content_format: "carousel", slide_count: 4 },
+    { title: "Glow inspiration", prompt: "An aspirational lifestyle post showing the after-feeling, not the service.", category: "entertainment" },
+    { title: "Meet the artist", prompt: "A warm portrait-style post introducing one of the team members.", category: "bts" },
+    { title: "Booking nudge", prompt: "A clear, gentle reminder post with a BOOK NOW call to action for the weekend.", category: "promotional" },
+    { title: "Care tip", prompt: "A short take-home care tip educational post.", category: "educational" },
     { title: "Client love", prompt: "A testimonial card from a recent happy client.", category: "social_proof" },
   ],
   fitness: [
-    { title: "Motivation Monday", prompt: "A bold typographic motivation poster with a punchy one-liner.", category: "inspiration" },
-    { title: "Class promo", prompt: "A high-energy poster promoting this week's signature class with day & time.", category: "promotion" },
-    { title: "Form check", prompt: "A short educational tip post about one common training mistake.", category: "education" },
+    { title: "Motivation Monday", prompt: "A bold typographic motivation poster with a punchy one-liner.", category: "entertainment" },
+    { title: "Class promo", prompt: "A high-energy poster promoting this week's signature class with day & time.", category: "promotional" },
+    { title: "Form check", prompt: "A 5-slide carousel breaking down one common training mistake and the correct form, slide-by-slide.", category: "educational", content_format: "carousel", slide_count: 5 },
     { title: "Transformation", prompt: "A respectful before/after style post celebrating a member's progress.", category: "social_proof" },
-    { title: "Weekend challenge", prompt: "A weekend mini-challenge post inviting members to participate.", category: "community" },
-    { title: "Recovery tip", prompt: "A calmer post about rest, mobility, or recovery.", category: "education" },
-    { title: "Member spotlight", prompt: "A warm spotlight post on one community member.", category: "community" },
+    { title: "Weekend challenge", prompt: "A weekend mini-challenge post inviting members to participate.", category: "interactive" },
+    { title: "Recovery tip", prompt: "A calmer post about rest, mobility, or recovery.", category: "educational" },
+    { title: "Member spotlight", prompt: "A warm spotlight post on one community member.", category: "social_proof" },
   ],
   retail: [
-    { title: "New in", prompt: "A clean editorial-style poster announcing a new arrival product.", category: "product_launch" },
-    { title: "Style this", prompt: "A styling tip post showing 3 ways to wear / use a featured product.", category: "education", idea_type: "carousel" },
+    { title: "New in", prompt: "A clean editorial-style poster announcing a new arrival product.", category: "announcement" },
+    { title: "Style this", prompt: "A 5-slide carousel showing 5 ways to style or use a featured product, one look per slide.", category: "educational", content_format: "carousel", slide_count: 5 },
     { title: "Customer fit", prompt: "A user-generated style testimonial card.", category: "social_proof" },
-    { title: "Limited offer", prompt: "A bold sale or limited-offer poster with clear deadline.", category: "promotion" },
-    { title: "Lookbook", prompt: "A moody lookbook hero image showcasing the season's mood.", category: "inspiration" },
-    { title: "Restock alert", prompt: "A clean alert-style post about a restocked bestseller.", category: "promotion" },
-    { title: "Thank-you note", prompt: "A warm thank-you post to weekend shoppers.", category: "community" },
+    { title: "Limited offer", prompt: "A bold sale or limited-offer poster with clear deadline.", category: "promotional" },
+    { title: "Lookbook", prompt: "A moody lookbook hero image showcasing the season's mood.", category: "entertainment" },
+    { title: "Restock alert", prompt: "A clean alert-style post about a restocked bestseller.", category: "promotional" },
+    { title: "Thank-you note", prompt: "A warm thank-you post to weekend shoppers.", category: "interactive" },
   ],
   services: [
-    { title: "Insight of the week", prompt: "A bold typographic insight post sharing one sharp opinion in our field.", category: "thought_leadership" },
+    { title: "Insight of the week", prompt: "A bold typographic insight post sharing one sharp opinion in our field.", category: "informational" },
     { title: "Client win", prompt: "A clean case-study card highlighting a recent client outcome with a stat.", category: "social_proof" },
-    { title: "How we work", prompt: "An educational explainer of one piece of our process.", category: "education", idea_type: "carousel" },
-    { title: "Myth vs fact", prompt: "A myth-busting post for our industry.", category: "education" },
-    { title: "Free consult offer", prompt: "A clean lead-gen poster offering a free consultation with a clear CTA.", category: "promotion" },
-    { title: "Tool we love", prompt: "A short post recommending a tool or framework we use.", category: "thought_leadership" },
-    { title: "Team note", prompt: "A warm post introducing the team or a team milestone.", category: "community" },
+    { title: "How we work", prompt: "A 5-slide carousel walking through our process step-by-step, one stage per slide.", category: "educational", content_format: "carousel", slide_count: 5 },
+    { title: "Myth vs fact", prompt: "A myth-busting post for our industry.", category: "educational" },
+    { title: "Free consult offer", prompt: "A clean lead-gen poster offering a free consultation with a clear CTA.", category: "promotional" },
+    { title: "Tool we love", prompt: "A short post recommending a tool or framework we use.", category: "informational" },
+    { title: "Team note", prompt: "A warm post introducing the team or a team milestone.", category: "bts" },
   ],
   general: [
-    { title: "What we do", prompt: "A clean intro poster explaining what our business does in one sentence.", category: "education" },
-    { title: "Featured offer", prompt: "A bold poster highlighting our flagship offer with a clear CTA.", category: "promotion" },
+    { title: "What we do", prompt: "A clean intro poster explaining what our business does in one sentence.", category: "informational" },
+    { title: "Featured offer", prompt: "A bold poster highlighting our flagship offer with a clear CTA.", category: "promotional" },
     { title: "Customer story", prompt: "A testimonial card from a happy customer.", category: "social_proof" },
-    { title: "Tip of the week", prompt: "A short educational tip post relevant to our audience.", category: "education" },
-    { title: "Behind the scenes", prompt: "A behind-the-scenes look at our work this week.", category: "behind_the_scenes" },
-    { title: "Inspiration", prompt: "An aspirational lifestyle post in our brand mood.", category: "inspiration" },
-    { title: "Thank you", prompt: "A warm community thank-you post.", category: "community" },
+    { title: "Tip of the week", prompt: "A 4-slide carousel sharing 4 quick tips relevant to our audience, one tip per slide.", category: "educational", content_format: "carousel", slide_count: 4 },
+    { title: "Behind the scenes", prompt: "A behind-the-scenes look at our work this week.", category: "bts" },
+    { title: "Inspiration", prompt: "An aspirational lifestyle post in our brand mood.", category: "entertainment" },
+    { title: "Thank you", prompt: "A warm community thank-you post.", category: "interactive" },
   ],
 };
+
 
 function isoDate(d: Date) {
   return d.toISOString().split("T")[0];
@@ -114,6 +116,7 @@ Deno.serve(async (req) => {
         const rows = seeds.map((s, i) => {
           const d = new Date(today);
           d.setDate(d.getDate() + i);
+          const format: "graphic" | "carousel" = s.content_format === "carousel" ? "carousel" : "graphic";
           return {
             brand_id: brand.id,
             user_id: brand.user_id,
@@ -121,8 +124,11 @@ Deno.serve(async (req) => {
             prompt: s.prompt,
             content_category: s.category,
             idea_type: s.idea_type || "single",
+            content_format: format,
+            slide_count: format === "carousel" ? (s.slide_count ?? 5) : null,
             status: "suggested",
             scheduled_for: isoDate(d),
+            autopilot: true, // seed mode flips autopilot ON below, so auto-enrol
           };
         });
         const { error: insertErr } = await supabase.from("content_ideas").insert(rows);

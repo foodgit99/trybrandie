@@ -27,6 +27,26 @@ THE 10 CONTENT CATEGORIES:
 
 const CONTENT_CATEGORY_ENUM = ["announcement", "educational", "informational", "entertainment", "promotional", "trending", "holidays", "social_proof", "bts", "interactive"];
 
+// Categories that strongly prefer carousel format (multi-slide swipeable content)
+const CAROUSEL_CATEGORIES = new Set(["educational", "informational", "social_proof"]);
+const CAROUSEL_PILLAR_REGEX = /\b(how[- ]?to|tips?|listicle|step|guide|tutorial|breakdown|before[- ]?after)\b/i;
+
+function forceCarouselFormat(rawFormat: any, category: any, pillarName: any): "graphic" | "carousel" {
+  const fmt = rawFormat === "carousel" ? "carousel" : "graphic";
+  if (fmt === "carousel") return "carousel";
+  if (typeof category === "string" && CAROUSEL_CATEGORIES.has(category)) return "carousel";
+  if (typeof pillarName === "string" && CAROUSEL_PILLAR_REGEX.test(pillarName)) return "carousel";
+  return "graphic";
+}
+
+function clampSlideCount(raw: any): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 5;
+  return Math.min(10, Math.max(2, Math.round(n)));
+}
+
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -736,6 +756,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     campaign_name: { type: "string" },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
+                    slide_count: { type: "integer", minimum: 2, maximum: 10, description: "Use when content_format is 'carousel' (default 5)." },
                     content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
                   required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format", "content_category"],
@@ -766,20 +787,34 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
       const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
 
-      const ideasToInsert = result.data.ideas.map((idea: any) => ({
-        brand_id,
-        user_id: userId,
-        pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
-        series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
-        campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
-        title: idea.title,
-        prompt: idea.prompt,
-        idea_type: idea.idea_type,
-        content_format: idea.content_format || "graphic",
-        content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
-        status: "suggested",
-        scheduled_for: dateMap.get(idea.day) || null,
-      }));
+      // Auto-enrol into autopilot if brand has autopilot enabled
+      const { data: apSettings } = await serviceClient
+        .from("autopilot_settings")
+        .select("enabled")
+        .eq("brand_id", brand_id)
+        .maybeSingle();
+      const autopilotOn = !!apSettings?.enabled;
+
+      const ideasToInsert = result.data.ideas.map((idea: any) => {
+        const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
+        const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
+        return {
+          brand_id,
+          user_id: userId,
+          pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
+          series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
+          campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
+          title: idea.title,
+          prompt: idea.prompt,
+          idea_type: idea.idea_type,
+          content_format: format,
+          slide_count: slides,
+          content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+          status: "suggested",
+          scheduled_for: dateMap.get(idea.day) || null,
+          autopilot: autopilotOn,
+        };
+      });
 
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
@@ -906,6 +941,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
                     campaign_name: { type: "string" },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
+                    slide_count: { type: "integer", minimum: 2, maximum: 10, description: "Use when content_format is 'carousel' (default 5)." },
                     content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
                   required: ["title", "prompt", "day", "idea_type", "content_format", "content_category"],
@@ -927,22 +963,35 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
       const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
       const allowedDays = new Set(emptyDays.map((d) => d.day));
 
+      const { data: apSettings } = await serviceClient
+        .from("autopilot_settings")
+        .select("enabled")
+        .eq("brand_id", brand_id)
+        .maybeSingle();
+      const autopilotOn = !!apSettings?.enabled;
+
       const ideasToInsert = (result.data.ideas || [])
         .filter((idea: any) => allowedDays.has(idea.day))
-        .map((idea: any) => ({
-          brand_id,
-          user_id: userId,
-          pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
-          series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
-          campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
-          title: idea.title,
-          prompt: idea.prompt,
-          idea_type: idea.idea_type,
-          content_format: idea.content_format || "graphic",
-          content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
-          status: "suggested",
-          scheduled_for: dateMap.get(idea.day) || null,
-        }));
+        .map((idea: any) => {
+          const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
+          const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
+          return {
+            brand_id,
+            user_id: userId,
+            pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
+            series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
+            campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
+            title: idea.title,
+            prompt: idea.prompt,
+            idea_type: idea.idea_type,
+            content_format: format,
+            slide_count: slides,
+            content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+            status: "suggested",
+            scheduled_for: dateMap.get(idea.day) || null,
+            autopilot: autopilotOn,
+          };
+        });
 
       let inserted: any[] = [];
       if (ideasToInsert.length > 0) {
