@@ -145,12 +145,13 @@ Deno.serve(async (req) => {
         }
 
         const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey);
+        const meta = { format: idea.content_format || "graphic", slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null };
         if (result.success) {
           processed++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed");
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, meta);
         } else {
           skipped++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error);
+          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, meta);
         }
       } catch (ideaErr) {
         console.error(`[autopilot] Error processing idea ${idea.id}:`, ideaErr);
