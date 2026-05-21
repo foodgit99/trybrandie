@@ -982,6 +982,7 @@ const ContentHub = () => {
       series_id: idea.series_id || "",
       campaign_id: idea.campaign_id || "",
       content_format: idea.content_format || "graphic",
+      slide_count: Number(idea.slide_count) || 5,
       autopilot: idea.autopilot || false,
       content_category: parseCategoryIds(idea.content_category)[0] || "",
     });
