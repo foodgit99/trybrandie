@@ -767,20 +767,34 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
       const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
 
-      const ideasToInsert = result.data.ideas.map((idea: any) => ({
-        brand_id,
-        user_id: userId,
-        pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
-        series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
-        campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
-        title: idea.title,
-        prompt: idea.prompt,
-        idea_type: idea.idea_type,
-        content_format: idea.content_format || "graphic",
-        content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
-        status: "suggested",
-        scheduled_for: dateMap.get(idea.day) || null,
-      }));
+      // Auto-enrol into autopilot if brand has autopilot enabled
+      const { data: apSettings } = await serviceClient
+        .from("autopilot_settings")
+        .select("enabled")
+        .eq("brand_id", brand_id)
+        .maybeSingle();
+      const autopilotOn = !!apSettings?.enabled;
+
+      const ideasToInsert = result.data.ideas.map((idea: any) => {
+        const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
+        const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
+        return {
+          brand_id,
+          user_id: userId,
+          pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
+          series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
+          campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
+          title: idea.title,
+          prompt: idea.prompt,
+          idea_type: idea.idea_type,
+          content_format: format,
+          slide_count: slides,
+          content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+          status: "suggested",
+          scheduled_for: dateMap.get(idea.day) || null,
+          autopilot: autopilotOn,
+        };
+      });
 
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
