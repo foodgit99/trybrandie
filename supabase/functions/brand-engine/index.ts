@@ -921,6 +921,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
                     campaign_name: { type: "string" },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
+                    slide_count: { type: "integer", minimum: 2, maximum: 10, description: "Use when content_format is 'carousel' (default 5)." },
                     content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
                   },
                   required: ["title", "prompt", "day", "idea_type", "content_format", "content_category"],
