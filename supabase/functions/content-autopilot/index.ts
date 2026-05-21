@@ -273,7 +273,7 @@ async function processIdea(
     .maybeSingle();
 
   const isCarousel = idea.content_format === "carousel";
-  const slideCount = 5;
+  const slideCount = isCarousel ? Math.min(10, Math.max(2, Number(idea.slide_count) || 5)) : 0;
   console.log(`[autopilot] idea ${idea.id} format=${isCarousel ? "carousel" : "graphic"}${isCarousel ? ` slides=${slideCount}` : ""}`);
 
   // Build design payload
