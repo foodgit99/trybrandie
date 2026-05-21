@@ -2680,7 +2680,7 @@ const ContentHub = () => {
                 </Select>
               </div>
             )}
-            <div style={{ display: "none" }}>
+            
             <div className="space-y-1.5">
               <Label className="text-xs">Content Category (optional)</Label>
               <Select
