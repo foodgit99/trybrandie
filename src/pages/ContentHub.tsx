@@ -1671,6 +1671,15 @@ const ContentHub = () => {
                                         </button>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end" className="w-44">
+                                        {idea.status === "created" && idea.content_format === "carousel" && (idea as any).design_id && (
+                                          <DropdownMenuItem
+                                            onClick={() => setPreviewState({ open: true, designId: (idea as any).design_id, title: idea.title })}
+                                            className="text-xs gap-2"
+                                          >
+                                            <LayoutGrid className="h-3.5 w-3.5" />
+                                            Preview slides
+                                          </DropdownMenuItem>
+                                        )}
                                         {idea.status !== "created" && (
                                           <DropdownMenuItem onClick={() => handleFormatAction(idea)} className="text-xs gap-2">
                                             {(idea.content_format || "graphic") === "carousel"
