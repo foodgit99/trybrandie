@@ -70,7 +70,7 @@ const MarketingKitTab = ({ referralLink }: Props) => {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {SWIPE_POSTS.map((p) => {
-            const filled = p.body.replaceAll("{LINK}", referralLink);
+            const filled = p.body.split("{LINK}").join(referralLink);
             return (
               <div key={p.id} className="rounded-xl border border-border p-4 space-y-3 bg-muted/20">
                 <div className="flex items-center justify-between gap-2">
