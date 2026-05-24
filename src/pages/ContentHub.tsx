@@ -1654,9 +1654,21 @@ const ContentHub = () => {
                                       </Badge>
                                     )}
                                     {idea.content_format === "carousel" && (
-                                      <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
-                                        carousel
-                                      </span>
+                                      idea.status === "created" && (idea as any).design_id ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); setPreviewState({ open: true, designId: (idea as any).design_id, title: idea.title }); }}
+                                          title="Preview carousel slides"
+                                          className="inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/25 transition-colors"
+                                        >
+                                          <LayoutGrid className="h-2 w-2" />
+                                          carousel
+                                        </button>
+                                      ) : (
+                                        <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
+                                          carousel
+                                        </span>
+                                      )
                                     )}
                                     {idea.idea_type === "holiday" && (
                                       <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
