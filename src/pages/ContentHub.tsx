@@ -87,6 +87,7 @@ const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory, getLastSortOption, setLastSortOption, type ContentHubSortOption } from "@/lib/lastCategoryPref";
 import FeatureInfoButton from "@/components/content/FeatureInfoButton";
+import CarouselPreviewDialog from "@/components/content/CarouselPreviewDialog";
 import BrandPulse from "@/components/content/BrandPulse";
 import NextBestActionCard, { type CtaAction } from "@/components/content/NextBestActionCard";
 
