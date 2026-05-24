@@ -87,6 +87,7 @@ const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
 import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
 import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory, getLastSortOption, setLastSortOption, type ContentHubSortOption } from "@/lib/lastCategoryPref";
 import FeatureInfoButton from "@/components/content/FeatureInfoButton";
+import CarouselPreviewDialog from "@/components/content/CarouselPreviewDialog";
 import BrandPulse from "@/components/content/BrandPulse";
 import NextBestActionCard, { type CtaAction } from "@/components/content/NextBestActionCard";
 
@@ -273,6 +274,13 @@ const ContentHub = () => {
   const [ideaForm, setIdeaForm] = useState<IdeaForm>(emptyIdea);
   const [ideaDay, setIdeaDay] = useState<string>("");
   const [ideaSaving, setIdeaSaving] = useState(false);
+
+  // Carousel slide preview dialog
+  const [previewState, setPreviewState] = useState<{ open: boolean; designId: string | null; title: string }>({
+    open: false,
+    designId: null,
+    title: "",
+  });
 
   // Category filter (applies across Series, Campaigns, and Ideas) — persisted per user+brand
   const [categoryFilter, setCategoryFilterState] = useState<string>("all");
@@ -1646,9 +1654,21 @@ const ContentHub = () => {
                                       </Badge>
                                     )}
                                     {idea.content_format === "carousel" && (
-                                      <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
-                                        carousel
-                                      </span>
+                                      idea.status === "created" && (idea as any).design_id ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); setPreviewState({ open: true, designId: (idea as any).design_id, title: idea.title }); }}
+                                          title="Preview carousel slides"
+                                          className="inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/25 transition-colors"
+                                        >
+                                          <LayoutGrid className="h-2 w-2" />
+                                          carousel
+                                        </button>
+                                      ) : (
+                                        <span className="inline-flex items-center rounded-full border px-1.5 py-0 h-4 text-[9px] font-semibold shrink-0 bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/20">
+                                          carousel
+                                        </span>
+                                      )
                                     )}
                                     {idea.idea_type === "holiday" && (
                                       <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
@@ -1663,6 +1683,15 @@ const ContentHub = () => {
                                         </button>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end" className="w-44">
+                                        {idea.status === "created" && idea.content_format === "carousel" && (idea as any).design_id && (
+                                          <DropdownMenuItem
+                                            onClick={() => setPreviewState({ open: true, designId: (idea as any).design_id, title: idea.title })}
+                                            className="text-xs gap-2"
+                                          >
+                                            <LayoutGrid className="h-3.5 w-3.5" />
+                                            Preview slides
+                                          </DropdownMenuItem>
+                                        )}
                                         {idea.status !== "created" && (
                                           <DropdownMenuItem onClick={() => handleFormatAction(idea)} className="text-xs gap-2">
                                             {(idea.content_format || "graphic") === "carousel"
@@ -2836,6 +2865,12 @@ const ContentHub = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <CarouselPreviewDialog
+        open={previewState.open}
+        onOpenChange={(o) => setPreviewState((s) => ({ ...s, open: o }))}
+        designId={previewState.designId}
+        title={previewState.title}
+      />
     </div>
   );
 };
