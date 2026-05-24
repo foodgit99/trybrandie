@@ -5,6 +5,7 @@ import LandingShowcase from "@/components/landing/LandingShowcase";
 import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
 import LandingPricing from "@/components/landing/LandingPricing";
 import LandingFAQ from "@/components/landing/LandingFAQ";
+import LandingAffiliate from "@/components/landing/LandingAffiliate";
 import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 import SEO from "@/components/SEO";
@@ -49,6 +50,7 @@ const Landing = () => (
       <LandingPricing />
       <LandingFAQ />
       <LandingCTA />
+      <LandingAffiliate />
     </main>
     <LandingFooter />
   </div>
