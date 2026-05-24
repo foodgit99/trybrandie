@@ -10,19 +10,25 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import {
-  DollarSign,
-  Users,
   Clock,
-  Copy,
-  CheckCircle2,
   Loader2,
   ArrowRight,
-  Wallet,
-  Share2,
-  Users2,
-  Link2,
   Trophy,
+  CheckCircle2,
+  DollarSign,
+  Users,
+  Users2,
+  Megaphone,
+  Wallet,
+  CalendarClock,
 } from "lucide-react";
+import AffiliateHeader from "@/components/affiliate/AffiliateHeader";
+import ShareKitCard from "@/components/affiliate/ShareKitCard";
+import MarketingKitTab from "@/components/affiliate/MarketingKitTab";
+import NetworkTree from "@/components/affiliate/NetworkTree";
+import PayoutTimeline from "@/components/affiliate/PayoutTimeline";
+import EmptyState from "@/components/affiliate/EmptyState";
+import { MILESTONES, MIN_PAYOUT_NGN, PAYOUT_PROCESSING_DAYS, formatNgn } from "@/lib/affiliateConfig";
 
 interface Affiliate {
   id: string;
@@ -77,17 +83,7 @@ const COMMISSION_TYPE_LABELS: Record<string, { label: string; color: string }> =
   tier2_recurring: { label: "Network · Recurring", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
 };
 
-const MILESTONES = [
-  { amount: 10000, emoji: "🎉", label: "₦10K", title: "Rising Star" },
-  { amount: 25000, emoji: "⭐", label: "₦25K", title: "Trailblazer" },
-  { amount: 50000, emoji: "🔥", label: "₦50K", title: "Powerhouse" },
-  { amount: 100000, emoji: "💎", label: "₦100K", title: "Diamond" },
-  { amount: 250000, emoji: "🏆", label: "₦250K", title: "Champion" },
-  { amount: 500000, emoji: "💎", label: "₦500K", title: "Elite" },
-  { amount: 1000000, emoji: "👑", label: "₦1M", title: "Legend" },
-];
-
-const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; notified: number[] }) => {
+const MilestonesSection = ({ totalEarned }: { totalEarned: number }) => {
   const nextMilestone = MILESTONES.find((m) => totalEarned < m.amount);
   const progress = nextMilestone
     ? Math.min(100, (totalEarned / nextMilestone.amount) * 100)
@@ -108,22 +104,17 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
       setNewlyUnlocked(highest);
       localStorage.setItem(storageKey, JSON.stringify(earnedMilestones));
 
-      // Fire confetti
       import("canvas-confetti").then((mod) => {
         const confetti = mod.default;
-        // First burst
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-        // Second burst after a short delay
         setTimeout(() => {
           confetti({ particleCount: 50, spread: 100, origin: { y: 0.65 }, angle: 60 });
           confetti({ particleCount: 50, spread: 100, origin: { y: 0.65 }, angle: 120 });
         }, 300);
       });
 
-      // Clear the highlight after a few seconds
       setTimeout(() => setNewlyUnlocked(null), 4000);
     } else {
-      // Sync storage with current state (in case they earned milestones offline)
       localStorage.setItem(storageKey, JSON.stringify(earnedMilestones));
     }
   }, [totalEarned]);
@@ -140,12 +131,11 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
         </h3>
         {nextMilestone && (
           <span className="text-xs text-muted-foreground">
-            ₦{(nextMilestone.amount - totalEarned).toLocaleString()} to {nextMilestone.title}
+            {formatNgn(nextMilestone.amount - totalEarned)} to {nextMilestone.title}
           </span>
         )}
       </div>
 
-      {/* Progress bar to next milestone */}
       {nextMilestone && (
         <div className="space-y-1.5">
           <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -157,13 +147,12 @@ const MilestonesSection = ({ totalEarned, notified }: { totalEarned: number; not
             />
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>₦{totalEarned.toLocaleString()}</span>
+            <span>{formatNgn(totalEarned)}</span>
             <span>{nextMilestone.label}</span>
           </div>
         </div>
       )}
 
-      {/* Milestone badges */}
       <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
         {MILESTONES.map((m) => {
           const earned = totalEarned >= m.amount;
@@ -212,7 +201,7 @@ const AffiliateDashboard = () => {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [networkAffiliates, setNetworkAffiliates] = useState<NetworkAffiliate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("commissions");
 
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -227,6 +216,7 @@ const AffiliateDashboard = () => {
       return;
     }
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
   const loadData = async () => {
@@ -279,13 +269,6 @@ const AffiliateDashboard = () => {
     setLoading(false);
   };
 
-  const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
-    toast({ title: "Link copied!" });
-  };
-
   const saveBankDetails = async () => {
     if (!affiliate) return;
     await supabase
@@ -303,6 +286,13 @@ const AffiliateDashboard = () => {
       toast({ title: "Invalid amount", variant: "destructive" });
       return;
     }
+    if (amt < MIN_PAYOUT_NGN) {
+      toast({
+        title: `Minimum payout is ${formatNgn(MIN_PAYOUT_NGN)}`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (!bankName || !accountNumber || !accountName) {
       toast({ title: "Please save bank details first", variant: "destructive" });
       return;
@@ -317,7 +307,7 @@ const AffiliateDashboard = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Payout requested!", description: "We'll process it within 3–5 business days." });
+      toast({ title: "Payout requested!", description: `We'll process it within ${PAYOUT_PROCESSING_DAYS}.` });
       setPayoutAmount("");
       loadData();
     }
@@ -391,95 +381,36 @@ const AffiliateDashboard = () => {
   const recruitLink = `${window.location.origin}/affiliate/signup?ref=${affiliate.affiliate_code}`;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <SEO title="Affiliate Dashboard — Brandie" description="Track referrals, commissions, and milestones." path="/affiliate" noindex />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl sm:text-3xl font-serif tracking-tight">Friends of Brandie</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Your affiliate dashboard — earn 20% first, 5% lifetime, plus network commissions.
-          </p>
-        </motion.div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[
-            { label: "Total Earned", value: `₦${affiliate.total_earned.toLocaleString()}`, icon: DollarSign },
-            { label: "Direct Earnings", value: `₦${directEarnings.toLocaleString()}`, icon: DollarSign },
-            { label: "Network Earnings", value: `₦${networkEarnings.toLocaleString()}`, icon: Users2 },
-            { label: "Available", value: `₦${availableBalance.toLocaleString()}`, icon: Wallet },
-            { label: "Pending", value: `₦${pendingCommissions.toLocaleString()}`, icon: Clock },
-            { label: "Referrals", value: referrals.length.toString(), icon: Users },
-          ].map((s) => (
-            <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-border p-4 space-y-1"
-            >
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <s.icon className="h-4 w-4" />
-                <span className="text-xs">{s.label}</span>
-              </div>
-              <p className="text-lg font-serif tracking-tight">{s.value}</p>
-            </motion.div>
-          ))}
-        </div>
+        {/* Header & stats */}
+        <AffiliateHeader
+          totalEarned={affiliate.total_earned}
+          directEarnings={directEarnings}
+          networkEarnings={networkEarnings}
+          pendingCommissions={pendingCommissions}
+          availableBalance={availableBalance}
+          onRequestPayout={() => setActiveTab("payouts")}
+        />
 
         {/* Milestones */}
-        <MilestonesSection totalEarned={affiliate.total_earned} notified={affiliate.milestones_notified || []} />
+        <MilestonesSection totalEarned={affiliate.total_earned} />
 
-        {/* Links */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div className="rounded-2xl border border-border p-5 space-y-3">
-            <h3 className="font-medium flex items-center gap-2"><Link2 className="h-4 w-4" /> Referral Link</h3>
-            <p className="text-xs text-muted-foreground">Share to earn commissions on new users.</p>
-            <div className="flex gap-2">
-              <Input readOnly value={referralLink} className="font-mono text-xs" />
-              <Button variant="outline" className="rounded-xl shrink-0 gap-2" onClick={() => copyToClipboard(referralLink, "ref")}>
-                {copied === "ref" ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                {copied === "ref" ? "Copied" : "Copy"}
-              </Button>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs" onClick={() => {
-                const text = encodeURIComponent(`Join Brandie and grow your brand! ${referralLink}`);
-                window.open(`https://wa.me/?text=${text}`, "_blank");
-              }}>
-                <Share2 className="h-3.5 w-3.5" /> WhatsApp
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs" onClick={() => {
-                const text = encodeURIComponent(`Join Brandie and grow your brand! ${referralLink}`);
-                window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
-              }}>
-                <Share2 className="h-3.5 w-3.5" /> X / Twitter
-              </Button>
-            </div>
-          </div>
+        {/* Share kit */}
+        <ShareKitCard
+          referralLink={referralLink}
+          recruitLink={recruitLink}
+          recruitedCount={networkAffiliates.length}
+        />
 
-          <div className="rounded-2xl border border-border p-5 space-y-3">
-            <h3 className="font-medium flex items-center gap-2"><Users2 className="h-4 w-4" /> Recruitment Link</h3>
-            <p className="text-xs text-muted-foreground">Recruit affiliates & earn 5% first + 3% lifetime from their referrals.</p>
-            <div className="flex gap-2">
-              <Input readOnly value={recruitLink} className="font-mono text-xs" />
-              <Button variant="outline" className="rounded-xl shrink-0 gap-2" onClick={() => copyToClipboard(recruitLink, "recruit")}>
-                {copied === "recruit" ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                {copied === "recruit" ? "Copied" : "Copy"}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Recruited affiliates: <span className="font-medium text-foreground">{networkAffiliates.length}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Tabs: Referrals, Commissions, Network, Payouts */}
-        <Tabs defaultValue="commissions" className="space-y-4">
-          <TabsList className="w-full justify-start">
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="w-full justify-start overflow-x-auto">
             <TabsTrigger value="commissions">Commissions</TabsTrigger>
             <TabsTrigger value="referrals">Referrals</TabsTrigger>
-            <TabsTrigger value="network">My Network</TabsTrigger>
+            <TabsTrigger value="network">Network</TabsTrigger>
+            <TabsTrigger value="kit">Marketing Kit</TabsTrigger>
             <TabsTrigger value="payouts">Payouts</TabsTrigger>
           </TabsList>
 
@@ -488,7 +419,16 @@ const AffiliateDashboard = () => {
             <div className="rounded-2xl border border-border p-5 space-y-4">
               <h3 className="font-medium">Commissions ({commissions.length})</h3>
               {commissions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No commissions yet.</p>
+                <EmptyState
+                  icon={DollarSign}
+                  title="No commissions yet"
+                  description="Once a referred user makes a payment, your commission lands here automatically."
+                  ctaLabel="Copy referral link"
+                  onCta={() => {
+                    navigator.clipboard.writeText(referralLink);
+                    toast({ title: "Link copied!" });
+                  }}
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -511,9 +451,9 @@ const AffiliateDashboard = () => {
                                 {typeInfo.label}
                               </span>
                             </td>
-                            <td className="py-2.5">₦{c.payment_amount.toLocaleString()}</td>
+                            <td className="py-2.5">{formatNgn(c.payment_amount)}</td>
                             <td className="py-2.5 font-medium text-emerald-600 dark:text-emerald-400">
-                              ₦{c.commission_amount.toLocaleString()}
+                              {formatNgn(c.commission_amount)}
                             </td>
                             <td className="py-2.5">{new Date(c.created_at).toLocaleDateString()}</td>
                             <td className="py-2.5">{statusBadge(c.status)}</td>
@@ -532,7 +472,16 @@ const AffiliateDashboard = () => {
             <div className="rounded-2xl border border-border p-5 space-y-4">
               <h3 className="font-medium">Referrals ({referrals.length})</h3>
               {referrals.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No referrals yet. Share your link to get started!</p>
+                <EmptyState
+                  icon={Users}
+                  title="No referrals yet"
+                  description="Share your link in a post, story, newsletter or DM to get your first signup."
+                  ctaLabel="Copy referral link"
+                  onCta={() => {
+                    navigator.clipboard.writeText(referralLink);
+                    toast({ title: "Link copied!" });
+                  }}
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -562,36 +511,27 @@ const AffiliateDashboard = () => {
 
           {/* Network */}
           <TabsContent value="network">
-            <div className="rounded-2xl border border-border p-5 space-y-4">
-              <h3 className="font-medium">My Network ({networkAffiliates.length})</h3>
-              <p className="text-xs text-muted-foreground">
-                Affiliates you recruited — you earn 5% first-payment and 3% lifetime commissions from their referrals.
-              </p>
-              {networkAffiliates.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No recruited affiliates yet. Share your recruitment link!</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-muted-foreground border-b border-border">
-                        <th className="pb-2 font-medium">Affiliate</th>
-                        <th className="pb-2 font-medium">Joined</th>
-                        <th className="pb-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {networkAffiliates.map((na) => (
-                        <tr key={na.id} className="border-b border-border/50">
-                          <td className="py-2.5 font-mono text-xs">{na.affiliate_code.slice(0, 4)}****</td>
-                          <td className="py-2.5">{new Date(na.created_at).toLocaleDateString()}</td>
-                          <td className="py-2.5">{statusBadge(na.status)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            {networkAffiliates.length === 0 ? (
+              <div className="rounded-2xl border border-border p-5">
+                <EmptyState
+                  icon={Users2}
+                  title="No recruits yet"
+                  description="Share your recruitment link to earn 5% first + 3% lifetime from each recruit's referrals."
+                  ctaLabel="Copy recruitment link"
+                  onCta={() => {
+                    navigator.clipboard.writeText(recruitLink);
+                    toast({ title: "Link copied!" });
+                  }}
+                />
+              </div>
+            ) : (
+              <NetworkTree recruits={networkAffiliates} networkEarnings={networkEarnings} />
+            )}
+          </TabsContent>
+
+          {/* Marketing Kit */}
+          <TabsContent value="kit">
+            <MarketingKitTab referralLink={referralLink} />
           </TabsContent>
 
           {/* Payouts */}
@@ -620,9 +560,17 @@ const AffiliateDashboard = () => {
 
               <div className="rounded-2xl border border-border p-5 space-y-4">
                 <h3 className="font-medium">Request Payout</h3>
-                <p className="text-sm text-muted-foreground">
-                  Available: <span className="font-medium text-foreground">₦{availableBalance.toLocaleString()}</span>
-                </p>
+                <div className="space-y-1 text-sm">
+                  <p className="text-muted-foreground">
+                    Available: <span className="font-medium text-foreground">{formatNgn(availableBalance)}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Wallet className="h-3 w-3" /> Minimum payout: {formatNgn(MIN_PAYOUT_NGN)}
+                  </p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <CalendarClock className="h-3 w-3" /> Processed within {PAYOUT_PROCESSING_DAYS}
+                  </p>
+                </div>
                 <div className="space-y-3">
                   <div className="space-y-1.5">
                     <Label>Amount (₦)</Label>
@@ -630,31 +578,49 @@ const AffiliateDashboard = () => {
                       type="number"
                       value={payoutAmount}
                       onChange={(e) => setPayoutAmount(e.target.value)}
-                      placeholder="5000"
-                      min={1}
+                      placeholder={`${MIN_PAYOUT_NGN}`}
+                      min={MIN_PAYOUT_NGN}
                       max={availableBalance}
                     />
                   </div>
                   <Button
                     className="w-full rounded-xl gap-2"
-                    disabled={requestingPayout || availableBalance <= 0}
+                    disabled={requestingPayout || availableBalance < MIN_PAYOUT_NGN}
                     onClick={requestPayout}
                   >
                     {requestingPayout ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                     Request Payout
                   </Button>
                 </div>
+              </div>
 
-                {payouts.length > 0 && (
-                  <div className="pt-4 border-t border-border space-y-2">
-                    <h4 className="text-sm font-medium">History</h4>
+              {/* History full-width */}
+              <div className="sm:col-span-2 rounded-2xl border border-border p-5 space-y-4">
+                <h3 className="font-medium">Payout history</h3>
+                {payouts.length === 0 ? (
+                  <EmptyState
+                    icon={Megaphone}
+                    title="No payouts yet"
+                    description="Once you've earned at least the minimum, request your first payout above."
+                  />
+                ) : (
+                  <div className="space-y-3">
                     {payouts.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between text-sm">
-                        <span>₦{p.amount.toLocaleString()}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</span>
-                          {statusBadge(p.status)}
+                      <div
+                        key={p.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/60 p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Wallet className="h-4 w-4 text-primary" />
+                          <div>
+                            <p className="font-medium">{formatNgn(p.amount)}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Requested {new Date(p.created_at).toLocaleDateString()}
+                              {p.processed_at && ` · Paid ${new Date(p.processed_at).toLocaleDateString()}`}
+                            </p>
+                          </div>
                         </div>
+                        <PayoutTimeline status={p.status} />
                       </div>
                     ))}
                   </div>
