@@ -2865,6 +2865,12 @@ const ContentHub = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <CarouselPreviewDialog
+        open={previewState.open}
+        onOpenChange={(o) => setPreviewState((s) => ({ ...s, open: o }))}
+        designId={previewState.designId}
+        title={previewState.title}
+      />
     </div>
   );
 };
