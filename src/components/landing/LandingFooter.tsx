@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import brandieLogo from "@/assets/brandie-logo.png";
 
 const LandingFooter = () => (
@@ -7,7 +8,14 @@ const LandingFooter = () => (
         <img src={brandieLogo} alt="Brandie" className="h-5 w-5" />
         <span className="text-sm font-serif">Brandie</span>
       </div>
-      <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Yaries Digital Labs. All rights reserved.</p>
+      <nav className="flex items-center gap-5 text-xs text-muted-foreground">
+        <Link to="/affiliates" className="hover:text-foreground transition-colors">
+          Affiliates
+        </Link>
+      </nav>
+      <p className="text-xs text-muted-foreground">
+        © {new Date().getFullYear()} Yaries Digital Labs. All rights reserved.
+      </p>
     </div>
   </footer>
 );
