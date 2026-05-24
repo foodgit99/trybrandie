@@ -274,6 +274,13 @@ const ContentHub = () => {
   const [ideaDay, setIdeaDay] = useState<string>("");
   const [ideaSaving, setIdeaSaving] = useState(false);
 
+  // Carousel slide preview dialog
+  const [previewState, setPreviewState] = useState<{ open: boolean; designId: string | null; title: string }>({
+    open: false,
+    designId: null,
+    title: "",
+  });
+
   // Category filter (applies across Series, Campaigns, and Ideas) — persisted per user+brand
   const [categoryFilter, setCategoryFilterState] = useState<string>("all");
   const setCategoryFilter = (v: string) => {
