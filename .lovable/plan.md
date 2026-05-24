@@ -1,69 +1,113 @@
-## Goal
+## Context
 
-When autopilot is enabled for a brand, the system should automatically generate carousels (not just single graphics) for ideas whose content type benefits from a multi-slide format — without the user manually toggling each idea.
+The affiliate system is already substantially built:
+- `/affiliate/signup` (633 lines) — application form with hero, tier explanation
+- `/affiliate` — dashboard with stats, milestones, links, commissions/referrals/network/payouts tabs, payout request flow
+- Admin approval queue in `/admin`
+- 7 email templates wired in `send-email`: application received, approved, rejected, new referral, commission earned, new recruit, network referral
+- Monthly digest cron (`affiliate-monthly-digest`)
+- 2-tier commission engine in `paystack-webhook` (20% direct first / 5% lifetime, 5% network first / 3% lifetime)
+- Milestone gamification with confetti
 
-## Current state
+Two things are missing for the experience to feel complete: **(1)** a public marketing page that converts cold visitors (creators, influencers, agencies) before they hit the signup form, and **(2)** a dashboard polish pass — the current dashboard is functional but utilitarian.
 
-- `content-autopilot/index.ts` **already** branches on `idea.content_format === "carousel"` and calls `design-studio` with `action: "generate_carousel"`. ✅
-- `brand-engine` weekly-ideas generator already assigns `content_format: "graphic" | "carousel"` per idea via the LLM. ✅
-- **Gap 1 — Autopilot enrolment.** Both `brand-engine.generate_weekly_ideas` and `autopilot-planner` seed mode insert `content_ideas` rows **without** `autopilot: true`. The DB default is `false`, so the runner's `.eq("autopilot", true)` filter excludes them. Autopilot only fires today for ideas the user manually bulk-toggles.
-- **Gap 2 — Seed playbooks.** `autopilot-planner` seed playbooks mis-use `idea_type: "carousel"` on two entries (retail "Style this", services "How we work") instead of `content_format: "carousel"`, and never assign `content_format` to any seeded idea.
-- **Gap 3 — Slide count.** `content-autopilot` hardcodes `slideCount = 5`. `content_ideas` has no per-idea slide count, so all autopilot carousels are stuck at 5 slides.
-- **Gap 4 — Format classification rule.** The LLM in `brand-engine` decides format ad-hoc. We should anchor a deterministic rule for autopilot.
+---
 
-## Plan
+## 1. Public Affiliate Marketing Page (`/affiliates`)
 
-### 1. Auto-enrol new ideas into autopilot when brand has autopilot enabled
+New route, **no auth required**, separate from `/affiliate/signup`. Targets cold traffic from social, blog, outreach.
 
-In both `brand-engine` insert paths (`generate_weekly_ideas`, `fill_empty_days`) and `autopilot-planner` seed mode:
+### Sections (top to bottom)
+1. **Hero** — Headline ("Turn your audience into income"), subhead, dual CTA: "Apply now" → `/affiliate/signup`, "See earnings calculator" → smooth scroll. Trust strip (Nigerian payouts, monthly, no cap).
+2. **Why Brandie** — 3 cards: real product creators love, recurring commissions, 2-tier network earnings.
+3. **How it works** — 4-step visual: Apply → Get approved → Share your link → Earn monthly.
+4. **Commission breakdown** — Two-column comparison of Tier 1 (Direct: 20% first + 5% lifetime) vs Tier 2 (Network: 5% first + 3% lifetime), with worked examples.
+5. **Live earnings calculator** — Interactive: sliders for "referrals/month" and "recruited affiliates", live ₦ output for month 1, month 6, year 1. Pure client-side math using existing commission formulas.
+6. **Who it's for** — Three persona cards: Creators, Influencers, Agencies. Each with 2-3 bullets on fit.
+7. **Marketing assets preview** — Mock of swipe copy + banner kit that approved affiliates get (deliverable becomes a dashboard tab in section 2 below).
+8. **Milestones teaser** — Show the 7 milestone tiers (₦10K → ₦1M Legend) as social proof of upside.
+9. **FAQ** — 8 questions: eligibility, payout schedule, minimum payout, cookie window, tax, cross-border, what counts as a referral, support.
+10. **Final CTA** — "Apply in 2 minutes" → `/affiliate/signup`.
 
-- Read `autopilot_settings.enabled` for the brand once.
-- If `enabled === true`, set `autopilot: true` on every inserted `content_ideas` row.
-- Seed mode already turns autopilot ON at the end — so seeded ideas should be inserted with `autopilot: true` directly.
+### Implementation
+- New page `src/pages/AffiliateMarketing.tsx`
+- Route in `src/App.tsx`: `<Route path="/affiliates" element={<AffiliateMarketing />} />` (note plural to distinguish from existing `/affiliate`)
+- Reuse landing-page primitives: `LandingNav`, `LandingFooter`, brand tokens
+- SEO: title "Brandie Affiliate Program — Earn 20% + Lifetime Commissions", description, og image, JSON-LD `FAQPage` for the FAQ section
+- Add link from `LandingFooter` "Affiliates"
+- Update `public/sitemap.xml` + `public/robots.txt` (allow)
+- Extract commission constants into `src/lib/affiliateConfig.ts` so calculator and signup page share one source of truth
 
-This makes "autopilot enabled" the single source of truth — no per-idea toggle needed.
+---
 
-### 2. Make seed playbooks carousel-aware
+## 2. Dashboard Polish (`/affiliate`)
 
-In `supabase/functions/autopilot-planner/index.ts`:
+Keep all existing logic; reorganize and elevate the UI.
 
-- Replace the mis-typed `idea_type: "carousel"` entries with `content_format: "carousel"` on educational / how-to / listicle / step-by-step seeds. Curate ~2 carousel ideas per playbook:
-  - restaurants → "Behind the kitchen" (carousel, 4 slides)
-  - beauty → "Treatment 101" (carousel, 4 slides)
-  - fitness → "Form check" (carousel, 5 slides)
-  - retail → "Style this" (carousel, 5 slides)
-  - services → "How we work" (carousel, 5 slides)
-  - general → "Tip of the week" (carousel, 4 slides)
-- Insert each seed with explicit `content_format` (default `"graphic"`) and `slide_count` when carousel.
+### Header redesign
+- Replace flat 6-stat grid with a 2-row layout:
+  - **Hero row**: large "Total Earned" with sparkline of last 30 days, plus prominent "Request Payout" button when balance available
+  - **Secondary row**: 4 compact stat chips (Direct, Network, Pending, Available)
+- Add a "Tier status" badge next to greeting based on highest milestone reached (e.g. "💎 Diamond Affiliate")
 
-### 3. Per-idea slide count
+### Links section
+- Combine Referral + Recruitment links into a single "Share & Recruit" card with tabs
+- Add "Copy with UTMs" toggle, QR code generator, and pre-written swipe copy buttons (X, WhatsApp, Email, Instagram bio)
+- Auto-shortened display of the link
 
-- Migration: add `slide_count INT` (nullable, range check 2–10) to `content_ideas`.
-- `brand-engine` weekly generator: extend the LLM JSON schema with optional `slide_count` (2–10). Default to 5 when carousel + null.
-- `content-autopilot`: use `idea.slide_count ?? 5` instead of the hardcoded `5`. Pass through to `design-studio`.
-- `ContentHub` idea dialog: when format = carousel, surface a small slide-count select (2–10, default 5). UI-only addition.
+### New tab: Marketing Kit
+- Downloadable banner images (use existing brand assets; 3 sizes: square, story, banner)
+- Swipe copy library: 6 pre-written posts (educational, promotional, testimonial, story) — copy-to-clipboard
+- Email template: text to send to a friend/list
+- Disclosure snippet (FTC-style "I may earn a commission")
 
-### 4. Format-routing rule (server-side anchor)
+### Network tab upgrade
+- Visual tree: you → recruited affiliates → their referral counts (2 levels deep, read-only)
+- Show recruited affiliate's monthly contribution to your earnings
 
-In `brand-engine` weekly generator, after the LLM returns ideas, run a deterministic post-pass: if `content_category` ∈ {`education`, `thought_leadership`, `social_proof` (case-study sub-type)} or `pillar_name` matches `how-to|tips|listicle|step|guide`, force `content_format = "carousel"`. Prevents the LLM from defaulting everything to "graphic".
+### Payouts tab
+- Add minimum payout threshold notice (configurable, default ₦5,000)
+- Payout status timeline (requested → approved → processing → paid) instead of bare badge
+- Show estimated arrival date based on current weekday
 
-### 5. Telemetry
+### Empty states
+- All four tabs: replace plain "No X yet" text with branded empty-state component (icon + headline + single CTA "Copy your link")
 
-Log `content_format` and `slide_count` in `autopilot_run_events` (extend the `logEvent` helper signature — additive only, no schema change required since we can stuff into existing `error_message` field is wrong; instead add nullable `metadata JSONB` column to `autopilot_run_events` and write `{format, slide_count}` on `completed` events). This lets us measure carousel mix per brand.
+### Mobile
+- Verify stats wrap cleanly; convert tabs to scrollable pills on `<sm`
+- Ensure floating nav doesn't overlap CTAs (respect safe-area, per project memory)
 
-## Technical details
+### Implementation
+- Refactor `AffiliateDashboard.tsx` into focused subcomponents under `src/components/affiliate/`:
+  - `AffiliateHeader.tsx`, `ShareKitCard.tsx`, `MarketingKitTab.tsx`, `NetworkTree.tsx`, `PayoutTimeline.tsx`, `EmptyState.tsx`
+- Add `src/lib/affiliateAssets.ts` listing marketing kit URLs (placeholder paths; actual asset generation deferred)
+- No DB schema changes required for this pass
+- Reuse existing data fetched in `loadData()`
 
-- Files edited:
-  - `supabase/functions/autopilot-planner/index.ts` — seed playbooks + autopilot enrolment in seed mode.
-  - `supabase/functions/brand-engine/index.ts` — autopilot enrolment in `generate_weekly_ideas` + `fill_empty_days`, slide_count in LLM schema, deterministic format post-pass.
-  - `supabase/functions/content-autopilot/index.ts` — use `idea.slide_count`, log metadata.
-  - `src/pages/ContentHub.tsx` — slide-count select in idea dialog (carousel only).
-- Migrations:
-  - `ALTER TABLE content_ideas ADD COLUMN slide_count INT CHECK (slide_count BETWEEN 2 AND 10);`
-  - `ALTER TABLE autopilot_run_events ADD COLUMN metadata JSONB;`
-- No new edge functions, no credit-model changes (carousel pricing already handled inside `design-studio`).
+---
 
-## Out of scope
+## Out of scope for this round
+- Payout flow rework + payout-related emails (would be next milestone)
+- Lifecycle automation (inactivity nudges, monthly performance email beyond existing digest)
+- Generating real banner image assets (will use brand-tokened placeholders for now)
 
-- Changing carousel pricing or model selection (already standardised on `gemini-3-pro-image-preview` per memory).
-- Retroactively flipping `autopilot=true` on existing ideas — only new inserts after this change get auto-enrolled. We can add a one-shot backfill if you want.
+---
+
+## Files
+
+**New**
+- `src/pages/AffiliateMarketing.tsx`
+- `src/components/affiliate/AffiliateHeader.tsx`
+- `src/components/affiliate/ShareKitCard.tsx`
+- `src/components/affiliate/MarketingKitTab.tsx`
+- `src/components/affiliate/NetworkTree.tsx`
+- `src/components/affiliate/PayoutTimeline.tsx`
+- `src/components/affiliate/EmptyState.tsx`
+- `src/lib/affiliateConfig.ts`
+- `src/lib/affiliateAssets.ts`
+
+**Edited**
+- `src/App.tsx` (new route)
+- `src/pages/AffiliateDashboard.tsx` (compose new subcomponents)
+- `src/components/landing/LandingFooter.tsx` (link)
+- `public/sitemap.xml`, `public/robots.txt`
