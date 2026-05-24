@@ -50,6 +50,7 @@ const Landing = () => (
       <LandingPricing />
       <LandingFAQ />
       <LandingCTA />
+      <LandingAffiliate />
     </main>
     <LandingFooter />
   </div>
