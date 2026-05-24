@@ -25,6 +25,7 @@ import Settings from "./pages/Settings";
 import Plans from "./pages/Plans";
 import AffiliateSignup from "./pages/AffiliateSignup";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
+import AffiliateMarketing from "./pages/AffiliateMarketing";
 import Admin from "./pages/Admin";
 import ContentHub from "./pages/ContentHub";
 import Cockpit from "./pages/Cockpit";
@@ -131,6 +132,7 @@ const App = () => (
           <Route path="/briefing" element={<Navigate to="/cockpit#week-blueprint" replace />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+          <Route path="/affiliates" element={<AffiliateMarketing />} />
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
