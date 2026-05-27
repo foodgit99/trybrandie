@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import DesignViewer from "@/components/DesignViewer";
+import GenerationLoader from "@/components/GenerationLoader";
 import ReactMarkdown from "react-markdown";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -1873,20 +1874,11 @@ const DesignStudio = () => {
           })()}
           {loading && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
               className="flex justify-start"
             >
-              <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Designing…
-                <button
-                  onClick={() => generation.stopGeneration()}
-                  className="ml-2 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive px-2 py-0.5 text-xs font-medium transition-colors"
-                >
-                  Stop
-                </button>
-              </div>
+              <GenerationLoader onStop={() => generation.stopGeneration()} />
             </motion.div>
           )}
           {/* Suggestion bubbles — after messages */}
