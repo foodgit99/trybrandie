@@ -268,6 +268,59 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
   throw lastError || new Error("retryFetch: all attempts failed");
 }
 
+// --- GPT-IMAGE-2 RENDERER ---
+// gpt-image-2 uses /v1/images/generations (NOT chat completions). Text-only prompt
+// (no reference images), supports sizes 1024x1024 / 1024x1536 / 1536x1024.
+// Returns raw base64 (no data: prefix). enforceCanvasDimensions handles final
+// crop/resize to exact target dims afterward.
+function mapToGptImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1536x1024" {
+  const ratio = w / h;
+  if (ratio > 1.15) return "1536x1024";
+  if (ratio < 0.87) return "1024x1536";
+  return "1024x1024";
+}
+
+async function renderWithGptImage(prompt: string, w: number, h: number): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+  const size = mapToGptImageSize(w, h);
+  const body = JSON.stringify({
+    model: "openai/gpt-image-2",
+    prompt,
+    size,
+    quality: "high",
+    n: 1,
+  });
+
+  const callOnce = () => retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body,
+  });
+
+  let resp = await callOnce();
+  if (!resp.ok) {
+    if (resp.status === 429) throw new Error("RATE_LIMIT");
+    if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
+    const errText = await resp.text();
+    console.error("gpt-image-2 error:", resp.status, errText);
+    throw new Error("Failed to generate image");
+  }
+  let data = await resp.json();
+  let b64: string | undefined = data?.data?.[0]?.b64_json;
+  if (!b64) {
+    console.log("gpt-image-2: no image in response, retrying once...");
+    await new Promise(r => setTimeout(r, 1500));
+    resp = await callOnce();
+    if (resp.ok) {
+      data = await resp.json();
+      b64 = data?.data?.[0]?.b64_json;
+    }
+  }
+  if (!b64) throw new Error("No image generated");
+  return b64;
+}
+
 // --- CONTENT CATEGORIES ---
 // CONTENT_CATEGORIES is now derived from the shared CATEGORY_RECIPES module.
 // This adapter preserves the existing { name, brief_directive, copy_directive, caption_directive }
@@ -2461,85 +2514,26 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         const categoryRenderInjection = buildCategoryRenderInjection(resolvedCategory);
         const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${varCopyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${categoryRenderInjection}${varGenomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
 
-        // Collect all image references
-        const imageRefs: { type: string; image_url: { url: string } }[] = [];
-        if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
-        if (user_image_url) imageRefs.push({ type: "image_url", image_url: { url: user_image_url } });
-        if (action === "edit" && previous_image_url) imageRefs.push({ type: "image_url", image_url: { url: previous_image_url } });
-        for (const inspUrl of inspirationUrls.slice(0, 2)) {
-          imageRefs.push({ type: "image_url", image_url: { url: inspUrl } });
-        }
+        // gpt-image-2 is text-only (no reference image inputs). Reference URLs
+        // are described in the prompt as descriptive hints.
+        const refHints: string[] = [];
+        if (brand?.logo_url) refHints.push(`Brand logo image URL: ${brand.logo_url}`);
+        if (user_image_url) refHints.push(`User-provided reference image URL: ${user_image_url}`);
+        if (action === "edit" && previous_image_url) refHints.push(`Previous design URL (preserve overall layout): ${previous_image_url}`);
+        for (const inspUrl of inspirationUrls.slice(0, 2)) refHints.push(`Inspiration reference: ${inspUrl}`);
         const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
         const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
         if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
-          for (const prodUrl of productImageUrls.slice(0, 2)) {
-            imageRefs.push({ type: "image_url", image_url: { url: prodUrl } });
-          }
+          for (const prodUrl of productImageUrls.slice(0, 2)) refHints.push(`Product image reference: ${prodUrl}`);
         }
+        const refHintsText = refHints.length > 0 ? `\n\nREFERENCE IMAGE HINTS (described, not attached):\n- ${refHints.join("\n- ")}` : "";
+        const editHint = action === "edit" && previous_image_url ? " EDIT: Keep the overall layout similar to the previous design but apply the user's changes." : "";
 
-        const imageContent = imageRefs.length > 0
-          ? [
-              { type: "text", text: imagePromptText + (action === "edit" && previous_image_url ? " EDIT: Keep the overall layout similar to the previous design but apply the user's changes." : "") },
-              ...imageRefs,
-            ]
-          : imagePromptText;
+        const finalPrompt = imagePromptText + editHint + refHintsText;
 
-        // Image Renderer (with retry). Pass aspect_ratio so the model
-        // composes for the correct canvas instead of defaulting to 1:1.
-        const geminiAspect = mapToGeminiAspectRatio(w, h);
-        const imageRequestBody = {
-          model: "google/gemini-3-pro-image-preview",
-          messages: [{ role: "user", content: imageContent }],
-          modalities: ["image", "text"],
-          image_config: { aspect_ratio: geminiAspect },
-        };
-        const imageResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(imageRequestBody),
-        });
-
-        if (!imageResponse.ok) {
-          if (imageResponse.status === 429) throw new Error("RATE_LIMIT");
-          if (imageResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
-          const errText = await imageResponse.text();
-          console.error(`Render ${label} error:`, imageResponse.status, errText);
-          throw new Error(`Failed to generate image (variation ${label})`);
-        }
-
-        // Retry loop for no-image responses
-        let imageBase64: string | undefined;
-        const maxImageRetries = 2;
-        let imageAttempt = 0;
-        let lastImageData: any = null;
-
-        while (imageAttempt <= maxImageRetries) {
-          let resp: Response;
-          if (imageAttempt === 0) {
-            resp = imageResponse;
-          } else {
-            console.log(`Render ${label} retry ${imageAttempt}/${maxImageRetries}`);
-            await new Promise(r => setTimeout(r, 1500 * imageAttempt));
-            resp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify(imageRequestBody),
-            });
-            if (!resp.ok) { imageAttempt++; continue; }
-          }
-          lastImageData = await resp.json();
-          imageBase64 = lastImageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          if (imageBase64) break;
-          imageAttempt++;
-        }
-
-        if (!imageBase64) throw new Error(`No image generated for variation ${label}`);
-
-        let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-        let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+        // Render via gpt-image-2 (/v1/images/generations).
+        const imageBase64 = await renderWithGptImage(finalPrompt, w, h);
+        let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
 
         // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
         binaryData = await enforceCanvasDimensions(binaryData, w, h);
@@ -2836,52 +2830,13 @@ Return structured JSON.`;
 
           const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nMANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Studio-grade, sharp, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.logo_url ? " Include the brand logo." : ""}${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
 
-          const imageRefs: any[] = [];
-          if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
-
-          const imageContent = imageRefs.length > 0
-            ? [{ type: "text", text: slidePrompt }, ...imageRefs]
+          const slidePromptWithLogo = brand?.logo_url
+            ? `${slidePrompt}\n\nBrand logo image URL (described, not attached): ${brand.logo_url}`
             : slidePrompt;
 
           batchPromises.push((async () => {
-            const imgResp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                model: "google/gemini-3-pro-image-preview",
-                messages: [{ role: "user", content: imageContent }],
-                modalities: ["image", "text"],
-              }),
-            });
-
-            if (!imgResp.ok) throw new Error(`Slide ${i + 1} generation failed: ${imgResp.status}`);
-
-            const imgData = await imgResp.json();
-            let imageBase64 = imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-            // One retry if no image
-            if (!imageBase64) {
-              console.log(`Slide ${i + 1}: no image, retrying...`);
-              await new Promise(r => setTimeout(r, 1500));
-              const retry = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  model: "google/gemini-3-pro-image-preview",
-                  messages: [{ role: "user", content: imageContent }],
-                  modalities: ["image", "text"],
-                }),
-              });
-              if (retry.ok) {
-                const retryData = await retry.json();
-                imageBase64 = retryData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-              }
-            }
-
-            if (!imageBase64) throw new Error(`Slide ${i + 1}: no image generated after retry`);
-
-            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-            let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+            const imageBase64 = await renderWithGptImage(slidePromptWithLogo, w, h);
+            let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
             // Strict platform-aspect enforcement on each slide.
             binaryData = await enforceCanvasDimensions(binaryData, w, h);
             const filePath = `${user.id}/${crypto.randomUUID()}.png`;
