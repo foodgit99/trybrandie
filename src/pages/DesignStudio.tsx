@@ -930,7 +930,7 @@ const DesignStudio = () => {
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0);
       if (isFree) {
-        addWatermark(ctx, canvas.width, canvas.height);
+        await addWatermark(ctx, canvas.width, canvas.height);
       }
       const mime = format === "png" ? "image/png" : "image/jpeg";
       const ext = format === "png" ? "png" : "jpg";
