@@ -1,4 +1,19 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import brandieLogoUrl from "/brandie-logo.png";
+
+let _watermarkLogoPromise: Promise<HTMLImageElement> | null = null;
+const loadWatermarkLogo = () => {
+  if (!_watermarkLogoPromise) {
+    _watermarkLogoPromise = new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = brandieLogoUrl;
+    });
+  }
+  return _watermarkLogoPromise;
+};
 import SEO from "@/components/SEO";
 // Guard ref to prevent stale generation results from previous sessions
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
