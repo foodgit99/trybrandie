@@ -1,4 +1,19 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+const brandieLogoUrl = "/brandie-logo.png";
+
+let _watermarkLogoPromise: Promise<HTMLImageElement> | null = null;
+const loadWatermarkLogo = () => {
+  if (!_watermarkLogoPromise) {
+    _watermarkLogoPromise = new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = brandieLogoUrl;
+    });
+  }
+  return _watermarkLogoPromise;
+};
 import SEO from "@/components/SEO";
 // Guard ref to prevent stale generation results from previous sessions
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
@@ -845,18 +860,35 @@ const DesignStudio = () => {
     }
   };
 
-  const addWatermark = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    ctx.save();
-    ctx.globalAlpha = 0.45;
-    ctx.fillStyle = "#ffffff";
-    const fontSize = Math.max(14, Math.round(w / 50));
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "bottom";
-    ctx.shadowColor = "rgba(0,0,0,0.4)";
-    ctx.shadowBlur = 4;
-    ctx.fillText("Made with Brandie", w - 16, h - 12);
-    ctx.restore();
+  const addWatermark = async (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    try {
+      const logo = await loadWatermarkLogo();
+      const targetW = Math.max(64, Math.min(200, Math.round(w * 0.1)));
+      const ratio = logo.naturalHeight / logo.naturalWidth || 1;
+      const targetH = Math.round(targetW * ratio);
+      const margin = Math.round(w * 0.025);
+      const x = w - targetW - margin;
+      const y = h - targetH - margin;
+
+      // Render monochrome white silhouette via offscreen canvas
+      const off = document.createElement("canvas");
+      off.width = targetW;
+      off.height = targetH;
+      const octx = off.getContext("2d")!;
+      octx.drawImage(logo, 0, 0, targetW, targetH);
+      octx.globalCompositeOperation = "source-in";
+      octx.fillStyle = "#ffffff";
+      octx.fillRect(0, 0, targetW, targetH);
+
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.shadowColor = "rgba(0,0,0,0.35)";
+      ctx.shadowBlur = Math.max(2, Math.round(w / 200));
+      ctx.drawImage(off, x, y);
+      ctx.restore();
+    } catch {
+      // Silent skip if logo fails to load
+    }
   };
 
   const downloadAs = async (format: "png" | "jpg", url?: string) => {
@@ -898,7 +930,7 @@ const DesignStudio = () => {
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0);
       if (isFree) {
-        addWatermark(ctx, canvas.width, canvas.height);
+        await addWatermark(ctx, canvas.width, canvas.height);
       }
       const mime = format === "png" ? "image/png" : "image/jpeg";
       const ext = format === "png" ? "png" : "jpg";
