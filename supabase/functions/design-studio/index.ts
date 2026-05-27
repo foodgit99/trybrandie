@@ -284,11 +284,15 @@ async function renderWithGptImage(prompt: string, w: number, h: number): Promise
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
   const size = mapToGptImageSize(w, h);
+  // quality: "low" — keeps render well under the 150s edge function idle limit.
+  // "high" routinely exceeded 150s (especially for multi-slide carousels) and
+  // caused IDLE_TIMEOUT 504s. enforceCanvasDimensions still upscales/crops to
+  // the final target size afterward.
   const body = JSON.stringify({
     model: "openai/gpt-image-2",
     prompt,
     size,
-    quality: "high",
+    quality: "low",
     n: 1,
   });
 
