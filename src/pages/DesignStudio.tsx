@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import brandieLogoUrl from "/brandie-logo.png";
+const brandieLogoUrl = "/brandie-logo.png";
 
 let _watermarkLogoPromise: Promise<HTMLImageElement> | null = null;
 const loadWatermarkLogo = () => {
