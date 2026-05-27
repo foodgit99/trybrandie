@@ -2830,52 +2830,13 @@ Return structured JSON.`;
 
           const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nMANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Studio-grade, sharp, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.logo_url ? " Include the brand logo." : ""}${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
 
-          const imageRefs: any[] = [];
-          if (brand?.logo_url) imageRefs.push({ type: "image_url", image_url: { url: brand.logo_url } });
-
-          const imageContent = imageRefs.length > 0
-            ? [{ type: "text", text: slidePrompt }, ...imageRefs]
+          const slidePromptWithLogo = brand?.logo_url
+            ? `${slidePrompt}\n\nBrand logo image URL (described, not attached): ${brand.logo_url}`
             : slidePrompt;
 
           batchPromises.push((async () => {
-            const imgResp = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                model: "google/gemini-3-pro-image-preview",
-                messages: [{ role: "user", content: imageContent }],
-                modalities: ["image", "text"],
-              }),
-            });
-
-            if (!imgResp.ok) throw new Error(`Slide ${i + 1} generation failed: ${imgResp.status}`);
-
-            const imgData = await imgResp.json();
-            let imageBase64 = imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-            // One retry if no image
-            if (!imageBase64) {
-              console.log(`Slide ${i + 1}: no image, retrying...`);
-              await new Promise(r => setTimeout(r, 1500));
-              const retry = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  model: "google/gemini-3-pro-image-preview",
-                  messages: [{ role: "user", content: imageContent }],
-                  modalities: ["image", "text"],
-                }),
-              });
-              if (retry.ok) {
-                const retryData = await retry.json();
-                imageBase64 = retryData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-              }
-            }
-
-            if (!imageBase64) throw new Error(`Slide ${i + 1}: no image generated after retry`);
-
-            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-            let binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+            const imageBase64 = await renderWithGptImage(slidePromptWithLogo, w, h);
+            let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
             // Strict platform-aspect enforcement on each slide.
             binaryData = await enforceCanvasDimensions(binaryData, w, h);
             const filePath = `${user.id}/${crypto.randomUUID()}.png`;
