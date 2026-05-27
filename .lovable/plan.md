@@ -1,58 +1,93 @@
-## Goal
+# Move Design Generation to Background Job + Polling
 
-Make `openai/gpt-image-2` the sole image rendering model for both single designs and carousels in `supabase/functions/design-studio/index.ts`. Remove all Gemini image models from rendering paths.
+## Why
 
-## Scope
+Today `design-studio` runs the full pipeline (Copywriter → Creative Director → gpt-image-2 render → upload) inside a single synchronous edge-function call. The client `await`s `supabase.functions.invoke("design-studio", …)` and the function holds the HTTP connection open the entire time. Edge functions have a **150s idle timeout** — `gpt-image-2` at higher quality, carousels (multiple slides), and any retry easily blow past that, producing the `IDLE_TIMEOUT` 504 we just hit. The current workaround (forcing `quality: "low"`) sacrifices fidelity.
 
-- `supabase/functions/design-studio/index.ts` — single render (`renderVariation`, ~L2487–2545), carousel slide render (~L2829–2886), and any other image-render call site (search confirms only the chat-completions image calls in this file).
-- `supabase/functions/_shared/model-fallback.ts` — repoint `imageFast` and `imageHD` chains to gpt-image-2 (image generation only).
-- Leave non-rendering features alone: Logo Designer (`logo-designer/index.ts`) stays on Gemini per existing onboarding behaviour; chat/reasoning calls in design-studio (Copywriter, Creative Director, genome, captions) are unchanged.
+A background job + polling architecture decouples request duration from render duration: the API returns immediately with a job ID, work continues in the background, the UI polls (or subscribes to) status until the result is ready.
 
-## API changes (the key shift)
+## Architecture
 
-gpt-image-2 uses **`/v1/images/generations`**, not `/v1/chat/completions`. Body shape is different:
-
-```json
-{ "model": "openai/gpt-image-2", "prompt": "...", "size": "1024x1024", "quality": "low" }
+```text
+[Client]  POST /design-studio (intent: enqueue)
+   │
+   ▼
+[design-studio fn] insert design_jobs row (status=queued)
+   │  return { job_id } immediately (<1s)
+   ▼
+[Worker]  picks up job, runs Copywriter → CD → gpt-image-2 → upload
+   │      updates design_jobs.status as it progresses
+   ▼
+[Client]  polls GET /design-job-status?id=… (or Realtime subscribe)
+   │      until status ∈ {succeeded, failed}
+   ▼      then reads result payload (design id, image URL, copy, scores)
 ```
 
-- No `messages`, no `modalities`, no `image_config.aspect_ratio`.
-- Response shape: `data[0].b64_json` (non-streaming) — pure base64, no `data:image/png;base64,` prefix.
+## Pieces to build
 
-We will use non-streaming (`stream` omitted) on the backend — edge functions return a single JSON to the client, and `enforceCanvasDimensions` already crop/resizes to exact target dims afterward.
+### 1. `design_jobs` table
 
-## Implementation
+Columns: `id uuid pk`, `user_id uuid`, `brand_id uuid`, `kind text` ('single' | 'carousel'), `status text` ('queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'), `progress int` (0–100), `stage text` ('copy' | 'direction' | 'render' | 'upload'), `input jsonb` (prompt + options), `result jsonb` (design id, image URLs, copy, scores), `error jsonb`, `attempts int`, `created_at`, `updated_at`, `started_at`, `finished_at`. RLS: owner can select; service role full. Realtime enabled on the table for push updates.
 
-1. **Helper**: add a local `renderWithGptImage(prompt, w, h)` helper inside `design-studio/index.ts` that:
-   - Maps `(w, h)` to the nearest supported gpt-image-2 `size` (`1024x1024`, `1024x1536`, `1536x1024`) by aspect ratio.
-   - POSTs to `https://ai.gateway.lovable.dev/v1/images/generations` with `{ model: "openai/gpt-image-2", prompt, size, quality: "high" }`.
-   - Wraps with `retryFetch`; on `429` → `RATE_LIMIT`, `402` → `CREDITS_EXHAUSTED`.
-   - Returns base64 string (already raw — no `data:` prefix to strip).
-   - Includes one retry on missing `data[0].b64_json`.
+### 2. Worker execution model — pick ONE
 
-2. **Single render (`renderVariation`)**:
-   - Remove `imageRefs` / `imageContent` multimodal payload (gpt-image-2 is text-only prompt).
-   - Fold any reference-image context (logo URL, inspiration URL, product URL, brand colours) **into the text prompt** as descriptive instructions (e.g. "Brand logo URL for reference: …", "Use these brand colours: …"). Keep `user_image_url`/`previous_image_url` mentions as text-only hints since gpt-image-2 generations can't ingest them — note this as a known limitation.
-   - Replace the fetch block with `await renderWithGptImage(finalPromptText, w, h)`.
-   - Drop `mapToGeminiAspectRatio` usage at this site.
+- **Option A — Inngest (recommended).** Inngest connector is already documented in this project. Steps are durable, retries are built in, no 150s limit (per-step budget), and execution is observable. The enqueue handler sends `app/design.requested`; an Inngest function runs the pipeline and writes progress to `design_jobs`. **Best fit.**
+- **Option B — `EdgeRuntime.waitUntil` + cron sweeper.** Cheaper to ship: the enqueue function spawns the work via `waitUntil` so the response returns instantly while the runtime keeps processing. A pg_cron job every 1m retries any `running` row older than ~3m as a safety net. Downside: still subject to a single edge worker's wall-clock and cold restarts; less robust for carousels.
+- **Option C — pg_cron + `pg_net` polling worker.** Cron every 30s picks oldest `queued` row, calls `design-studio-worker` function. Simple but adds up to 30s startup latency per job.
 
-3. **Carousel render (loop ~L2829–2886)**:
-   - Same swap: build a single text prompt per slide (including logo description if `brand?.logo_url` exists), call `renderWithGptImage`, decode `b64_json`, run `enforceCanvasDimensions`, upload as today.
+Recommend **Option A (Inngest)**; fall back to **B** if we want zero new dependencies.
 
-4. **`_shared/model-fallback.ts`**:
-   - `imageFast.primary` and `imageHD.primary` → `"openai/gpt-image-2"`.
-   - `fallbacks` → `[]` (user wants only gpt-image-2). Keep the chain structure so callers don't break.
-   - Note: only `logo-designer` currently imports these chains for images; verify it still works since it builds chat-completions requests — if it would break, leave `MODEL_CHAINS.imageFast/HD` unused by design-studio and just hardcode gpt-image-2 in design-studio, leaving logo-designer's local Gemini choice untouched. **Decision: hardcode in design-studio, do NOT change `model-fallback.ts`** to avoid collateral damage to logo-designer.
+### 3. Refactor `design-studio/index.ts`
 
-5. **Cleanup**: remove now-unused `mapToGeminiAspectRatio` import/calls in the two render paths (function itself can stay if used elsewhere — will check during edit).
+Split into two entrypoints:
+- `design-studio` (enqueue): validate input, insert `design_jobs` row, dispatch worker (Inngest event or `waitUntil`), return `{ job_id }`. Sub-second.
+- `design-studio-worker` (or Inngest function): contains the existing pipeline (`renderVariation`, carousel loop, `renderWithGptImage`, uploads, credit deduction, brand-updates write). Wraps each stage with a `design_jobs` update (`stage`, `progress`). On success writes `result` + `status='succeeded'`; on failure writes `error` + `status='failed'` and refunds credits.
 
-## Known tradeoffs (called out, not blockers)
+Credit handling: **reserve** credits at enqueue (deduct now, refund on failure) so users can't double-spend by enqueueing many jobs.
 
-- **Reference images dropped**: gpt-image-2 generations endpoint doesn't accept logo/product/inspiration image inputs. We'll describe them in the prompt instead. Logo placement fidelity will degrade vs. the current Gemini chat-image approach.
-- **Aspect ratios**: gpt-image-2 only supports 1:1, 2:3, 3:2. Non-matching canvases (e.g. 9:16 stories) will be generated at the closest supported size then center-cropped by `enforceCanvasDimensions` — already in place, so output dims stay correct.
-- **Cost/latency**: gpt-image-2 is generally slower and more expensive than Gemini Flash Image. Acceptable per user request.
+### 4. Status endpoint OR Realtime
 
-## Verification
+Two ways for the client to learn about completion:
+- **Polling endpoint** `design-job-status` — simple `select` by `id`, returns row. Client polls every 2s with backoff.
+- **Supabase Realtime** subscription on `design_jobs` filtered by `id`. Push-based, no polling load. Recommended; fall back to polling if the channel drops.
 
-- Trigger a single design render and a carousel render from the UI; confirm both produce images and upload successfully.
-- Check edge function logs for `400` from the images endpoint (would indicate body-shape mismatch).
+### 5. Client refactor (`DesignGenerationContext.tsx`)
+
+Replace the single `supabase.functions.invoke("design-studio", …)` await with:
+1. Call enqueue → get `job_id`.
+2. Subscribe to Realtime row OR start a 2s polling loop.
+3. Update existing UI state (`stage`, `progress`) to drive `GenerationLoader` (now we can show real stage labels, not just rotating quotes).
+4. On `succeeded`, hydrate the design into chat exactly like today.
+5. On `failed`, surface `error.message`, refund handled server-side.
+6. `stopGeneration()` becomes a `PATCH` setting `status='cancelled'`; worker checks this flag between stages.
+
+### 6. Misc
+
+- Add idempotency: enqueue accepts an optional `client_request_id` (UUID) with a UNIQUE constraint to dedupe accidental double-submits.
+- Logs: keep `tracer.ts` spans inside the worker; tag with `job_id`.
+- Backward compat: keep the synchronous path behind a feature flag for one release so we can A/B before fully cutting over.
+
+## Effort estimate
+
+- Schema + RLS + migration: ~30 min
+- Enqueue split + worker extraction: ~2 h (mostly moving code, not rewriting)
+- Inngest wiring (Option A) OR `waitUntil` plumbing (Option B): ~1 h
+- Client polling/Realtime + loader stage hookup: ~1.5 h
+- Credit reserve/refund + cancel + idempotency: ~1 h
+- QA across single + carousel + failure paths: ~1 h
+
+Roughly **half a day to a day** of focused work for Option B; **~1 day** for Option A (worth it for carousels).
+
+## What we'd get
+
+- No more 150s timeouts — renders can take 60–120s+ at higher quality.
+- We can restore `gpt-image-2` `quality: "high"`.
+- Real progress UI (stage + %) instead of indeterminate spinner.
+- Resilient to client disconnects, page reloads, network blips — the job keeps running and the user finds it in their gallery.
+- Foundation for queued bulk generations (autopilot already wants this).
+
+## Open questions
+
+1. Inngest vs `waitUntil` — do you want to take on the Inngest dependency now, or ship the lighter `waitUntil` version first and upgrade later?
+2. Should we keep showing the chat-inline preview, or move completed jobs to a "Recent generations" tray since the user might navigate away while waiting?
+3. Cancellation semantics: full refund always, or only if cancelled before the render stage starts?
