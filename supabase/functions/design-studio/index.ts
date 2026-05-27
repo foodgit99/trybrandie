@@ -268,6 +268,59 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
   throw lastError || new Error("retryFetch: all attempts failed");
 }
 
+// --- GPT-IMAGE-2 RENDERER ---
+// gpt-image-2 uses /v1/images/generations (NOT chat completions). Text-only prompt
+// (no reference images), supports sizes 1024x1024 / 1024x1536 / 1536x1024.
+// Returns raw base64 (no data: prefix). enforceCanvasDimensions handles final
+// crop/resize to exact target dims afterward.
+function mapToGptImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1536x1024" {
+  const ratio = w / h;
+  if (ratio > 1.15) return "1536x1024";
+  if (ratio < 0.87) return "1024x1536";
+  return "1024x1024";
+}
+
+async function renderWithGptImage(prompt: string, w: number, h: number): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+  const size = mapToGptImageSize(w, h);
+  const body = JSON.stringify({
+    model: "openai/gpt-image-2",
+    prompt,
+    size,
+    quality: "high",
+    n: 1,
+  });
+
+  const callOnce = () => retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body,
+  });
+
+  let resp = await callOnce();
+  if (!resp.ok) {
+    if (resp.status === 429) throw new Error("RATE_LIMIT");
+    if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
+    const errText = await resp.text();
+    console.error("gpt-image-2 error:", resp.status, errText);
+    throw new Error("Failed to generate image");
+  }
+  let data = await resp.json();
+  let b64: string | undefined = data?.data?.[0]?.b64_json;
+  if (!b64) {
+    console.log("gpt-image-2: no image in response, retrying once...");
+    await new Promise(r => setTimeout(r, 1500));
+    resp = await callOnce();
+    if (resp.ok) {
+      data = await resp.json();
+      b64 = data?.data?.[0]?.b64_json;
+    }
+  }
+  if (!b64) throw new Error("No image generated");
+  return b64;
+}
+
 // --- CONTENT CATEGORIES ---
 // CONTENT_CATEGORIES is now derived from the shared CATEGORY_RECIPES module.
 // This adapter preserves the existing { name, brief_directive, copy_directive, caption_directive }
