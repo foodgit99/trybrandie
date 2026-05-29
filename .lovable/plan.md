@@ -1,45 +1,39 @@
-# Next steps after Inngest sync
+## What I found
 
-The sync succeeded — `Design pipeline worker` is registered. The one **Failed** run is Inngest's automatic post-sync test invocation, which fires with an empty `event.data`. Our worker destructures `job_id` and `body` from `event.data` and throws when they're missing. No real design has been queued yet (the `design_jobs` table is empty).
+- Lovable Cloud is healthy.
+- The deployed `inngest` function still shows **no recent backend invocations** in our function logs.
+- The screenshot is still the same single run ID: `01KST0EH5V2844VKXD7TRQATB8`, queued at **5/29/2026, 2:58:14 PM**.
+- The trigger is `inngest/function.invoked`, which is Inngest’s own sync/test invocation, not a real `app/design.requested` generation event.
 
-## Step 1 — Guard the worker against empty/test payloads
+## Likely root cause
 
-In `supabase/functions/inngest/index.ts`, validate `event.data` at the top of the function and return a no-op result instead of throwing when `job_id` or `body` is missing. This keeps Inngest's health/test invocations green and avoids noisy "Failed" rows in the dashboard.
+The function is registered, but Inngest’s automatic post-sync test run is still failing before the worker sees a real design payload. The safest fix is to make the worker explicitly treat internal Inngest test invocations as no-op success runs, and then test the actual generation path separately.
 
-## Step 2 — Trigger a real end-to-end test
+## Plan
 
-From the app:
-1. Go to **Design Studio**
-2. Submit a prompt to generate a design
+1. Update the Inngest worker handler
+   - Detect internal Inngest test/sync invocations more defensively.
+   - Return a successful no-op response when there is no real `job_id`, `user_id`, and design `body`.
+   - Keep real design runs strict: if `design-studio` returns an error, the worker should still fail so we see genuine pipeline issues.
 
-This exercises the full path:
+2. Deploy only the `inngest` backend function
+   - This ensures Inngest sync uses the updated handler.
 
-```text
-UI → DesignGenerationContext
-   → design-enqueue (inserts design_jobs row, sends app/design.requested event via gateway)
-   → Inngest worker (dispatches to design-studio with service-role auth)
-   → design-studio (runs pipeline in background, writes result to design_jobs)
-   → UI polls design_jobs → FloatingDesignStatus pill → /studio?design=...
-```
+3. Test the Inngest endpoint directly
+   - Call the deployed `inngest` function with a lightweight request to confirm it reaches Lovable Cloud and no longer crashes on empty/test-like payloads.
 
-## Step 3 — Verify each hop
+4. Ask you to resync once after deployment
+   - After deployment, resync should create a **Succeeded** sync/test run instead of another failed one.
 
-After triggering one generation, check:
-- `design_jobs` row created with `status='queued'`, then `processing`, then `completed`
-- Inngest dashboard shows a new **Succeeded** run for `Design pipeline worker`
-- Edge function logs for `design-enqueue` and `design-studio` are clean
-- The floating pill appears, then the finished design opens in `/studio`
-
-## Step 4 — If anything fails
-
-Most likely failure modes and where to look:
-- **Event not received by Inngest** → `design-enqueue` logs (gateway 4xx/5xx)
-- **Worker runs but design-studio 401/403** → service-role auth header in worker dispatch
-- **design-studio runs but no DB write** → `job_id`/`user_id` plumbing in `design-studio`
-- **UI never updates** → realtime/poll subscription in `DesignGenerationContext`
+5. Then test the real generation pipeline
+   - Generate one design from Design Studio.
+   - Verify `design-enqueue` creates a job.
+   - Verify the Inngest run trigger changes from `inngest/function.invoked` to the real design event path.
+   - If that real run fails, debug the actual `design-studio` error rather than the sync/test noise.
 
 ## Technical details
 
-- Empty-payload guard: check `event?.data?.job_id && event?.data?.body` before destructuring; return `{ skipped: true, reason: "no payload (likely sync test)" }` otherwise.
-- No schema or UI changes required for step 1 — it's a 3-line edit in the Inngest worker.
-- Steps 2–4 are observational; only file change is the worker guard.
+- File to change: `supabase/functions/inngest/index.ts`
+- No database changes needed.
+- No frontend changes needed.
+- The current screenshot does not prove the real design pipeline is failing; it shows Inngest’s internal function invocation failing. This plan separates that from the actual `app/design.requested` event flow.
