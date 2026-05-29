@@ -550,7 +550,7 @@ function mapFontToPersonality(fontName: string): string | null {
   return null;
 }
 
-serve(async (req) => {
+async function runFullHandler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
