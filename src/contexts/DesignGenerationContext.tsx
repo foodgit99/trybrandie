@@ -315,33 +315,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
 
     (async () => {
       try {
-        // For chat action, design-enqueue proxies synchronously and returns the response inline.
-        if (params.action === "chat") {
-          const { data, error: fnError } = await supabase.functions.invoke("design-enqueue", {
-            body: edgeFnBody,
-          });
-          if (abortController.signal.aborted) return;
-          if (fnError || data?.error) {
-            setError((fnError?.message) || data?.error || "Generation failed");
-            setStatus("error");
-            stopProgressTimer(0);
-            return;
-          }
-          stopProgressTimer(100);
-          setResult({
-            image_url: data.image_url,
-            design_id: null,
-            explanation: data.explanation || "",
-            design_prompt: data.design_prompt || title,
-            genome: null,
-            caption: null,
-            genome_scores: null,
-            refined: false,
-            free_edit: false,
-          });
-          setStatus("complete");
-          return;
-        }
+
 
         // Enqueue background job
         const { data: enqueueData, error: fnError } = await supabase.functions.invoke("design-enqueue", {
