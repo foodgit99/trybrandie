@@ -10,7 +10,7 @@ const designWorker = inngest.createFunction(
     id: "design-worker",
     name: "Design pipeline worker",
     retries: 0, // Don't retry — design-studio handles credit deduction internally.
-    concurrency: { limit: 12 },
+    concurrency: { limit: 5 },
   },
   { event: "app/design.requested" },
   async ({ event, step }) => {
