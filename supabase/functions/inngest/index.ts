@@ -1,7 +1,7 @@
 // Inngest serve endpoint. Hosts the durable worker that processes
 // design.requested events by invoking design-studio in background mode.
 import { Inngest } from "https://esm.sh/inngest@3";
-import { serve } from "https://esm.sh/inngest@3/deno/fresh";
+import { serve } from "https://esm.sh/inngest@3/edge";
 
 const inngest = new Inngest({ id: "brandie-design" });
 
