@@ -14,7 +14,11 @@ const designWorker = inngest.createFunction(
   },
   { event: "app/design.requested" },
   async ({ event, step }) => {
-    const { job_id, body } = event.data as { job_id: string; user_id: string; body: any };
+    const data = (event?.data ?? {}) as { job_id?: string; user_id?: string; body?: any };
+    if (!data.job_id || !data.user_id || !data.body) {
+      return { skipped: true, reason: "missing payload (likely Inngest sync/test invocation)" };
+    }
+    const { job_id, user_id, body } = data;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
