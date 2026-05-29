@@ -149,29 +149,46 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
       user_email, full_messages, ...edgeFnBody
     } = params;
 
-    (async () => {
-      try {
-        const { data, error: fnError } = await supabase.functions.invoke("design-studio", {
-          body: edgeFnBody,
-        });
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let settled = false;
 
+    const cleanupSubscriptions = () => {
+      if (realtimeChannel) {
+        try { supabase.removeChannel(realtimeChannel); } catch {}
+        realtimeChannel = null;
+      }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    };
+
+    const handleJobRow = async (row: any) => {
+      if (settled || abortController.signal.aborted) return;
+      if (row?.stage && typeof row?.progress === "number" && row.progress > 0) {
+        setProgress(Math.min(95, row.progress));
+      }
+      if (row?.status === "succeeded" && row?.result) {
+        settled = true;
+        cleanupSubscriptions();
+        await onSuccess(row.result);
+      } else if (row?.status === "failed") {
+        settled = true;
+        cleanupSubscriptions();
+        setError(row?.error?.message || "Generation failed");
+        setStatus("error");
+        stopProgressTimer(0);
+      } else if (row?.status === "cancelled") {
+        settled = true;
+        cleanupSubscriptions();
+        setStatus("idle");
+        stopProgressTimer(0);
+      }
+    };
+
+    const onSuccess = async (data: any) => {
+      try {
         if (abortController.signal.aborted) return;
 
-        if (fnError) {
-          setError(fnError.message || "Generation failed");
-          setStatus("error");
-          stopProgressTimer(0);
-          return;
-        }
-
-        if (data?.error) {
-          setError(data.error);
-          setStatus("error");
-          stopProgressTimer(0);
-          return;
-        }
-
-        // Carousel action — saving is handled server-side
+        // Carousel result
         if (params.action === "generate_carousel") {
           stopProgressTimer(100);
           setResult({
@@ -191,7 +208,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           return;
         }
 
-        // Auto-save the design
+        // Single design — auto-save into designs + design_messages
         let designId = current_design_id || null;
         const isEdit = params.action === "edit";
 
@@ -258,7 +275,6 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
                 }));
                 await supabase.from("design_messages").insert(chatRows);
 
-                // Process referral reward on first design (fire-and-forget, idempotent)
                 try {
                   const { data: refResult } = await supabase.rpc("process_referral", { p_user_id: user_id });
                   const ref = refResult as any;
@@ -275,8 +291,6 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           }
         }
 
-        // Variations removed — single generation per call
-
         stopProgressTimer(100);
         setResult({
           image_url: data.image_url,
@@ -292,8 +306,67 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
         });
         setStatus("complete");
       } catch (err: any) {
+        console.error("onSuccess error:", err);
+        setError(err.message || "Something went wrong");
+        setStatus("error");
+        stopProgressTimer(0);
+      }
+    };
+
+    (async () => {
+      try {
+
+
+        // Enqueue background job
+        const { data: enqueueData, error: fnError } = await supabase.functions.invoke("design-enqueue", {
+          body: edgeFnBody,
+        });
+
+        if (abortController.signal.aborted) return;
+
+        if (fnError || enqueueData?.error || !enqueueData?.job_id) {
+          setError(fnError?.message || enqueueData?.error || "Failed to start generation");
+          setStatus("error");
+          stopProgressTimer(0);
+          return;
+        }
+
+        const jobId: string = enqueueData.job_id;
+
+        // Subscribe to Realtime updates on this job row
+        realtimeChannel = supabase
+          .channel(`design_job:${jobId}`)
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "design_jobs", filter: `id=eq.${jobId}` },
+            (payload) => { handleJobRow(payload.new); },
+          )
+          .subscribe();
+
+        // Polling fallback (every 3s) in case realtime drops
+        pollTimer = setInterval(async () => {
+          if (settled || abortController.signal.aborted) return;
+          const { data: row } = await supabase
+            .from("design_jobs")
+            .select("status,progress,stage,result,error")
+            .eq("id", jobId)
+            .maybeSingle();
+          if (row) handleJobRow(row);
+        }, 3000);
+
+        // Handle abort
+        abortController.signal.addEventListener("abort", () => {
+          settled = true;
+          cleanupSubscriptions();
+          // Best-effort: mark cancelled
+          supabase.from("design_jobs")
+            .update({ status: "cancelled", finished_at: new Date().toISOString() })
+            .eq("id", jobId).then(() => {});
+        });
+      } catch (err: any) {
         if (abortController.signal.aborted) return;
         console.error("Generation error:", err);
+        cleanupSubscriptions();
         setError(err.message || "Something went wrong");
         setStatus("error");
         stopProgressTimer(0);

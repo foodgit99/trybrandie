@@ -58,3 +58,10 @@ verify_jwt = false
 
 [functions.autopilot-retry]
 verify_jwt = false
+
+[functions.design-enqueue]
+verify_jwt = false
+
+[functions.inngest]
+verify_jwt = false
+

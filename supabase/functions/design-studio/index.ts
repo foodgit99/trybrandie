@@ -550,7 +550,7 @@ function mapFontToPersonality(fontName: string): string | null {
   return null;
 }
 
-serve(async (req) => {
+async function runFullHandler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -2932,4 +2932,101 @@ Return structured JSON.`;
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+}
+
+// Outer serve handler: supports two modes.
+//   1. Background mode (body.job_id present): kick off the pipeline via
+//      EdgeRuntime.waitUntil, write final result/error to design_jobs, and
+//      return an immediate 202 ack to the caller (Inngest worker).
+//   2. Sync mode (legacy): behave exactly like before.
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  // Peek the body for a job_id without consuming the request for the inner handler.
+  let bodyText = "";
+  try {
+    bodyText = await req.text();
+  } catch {
+    bodyText = "";
+  }
+  let parsed: any = {};
+  try { parsed = bodyText ? JSON.parse(bodyText) : {}; } catch { parsed = {}; }
+
+  const jobId: string | undefined = parsed?.job_id;
+
+  // Rebuild a fresh Request the inner handler can consume (with the same body).
+  const cloneReq = () => new Request(req.url, {
+    method: req.method,
+    headers: req.headers,
+    body: bodyText || undefined,
+  });
+
+  if (!jobId) {
+    return runFullHandler(cloneReq());
+  }
+
+  // Background mode — run the pipeline detached and ack immediately.
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  const work = (async () => {
+    try {
+      await admin.from("design_jobs").update({
+        status: "running",
+        started_at: new Date().toISOString(),
+        progress: 5,
+        stage: "starting",
+      }).eq("id", jobId);
+
+      const res = await runFullHandler(cloneReq());
+      let data: any = null;
+      try { data = await res.json(); } catch { data = null; }
+
+      // Re-check cancellation before writing result
+      const { data: jobRow } = await admin
+        .from("design_jobs").select("status").eq("id", jobId).maybeSingle();
+      if (jobRow?.status === "cancelled") return;
+
+      if (!res.ok || (data && data.error)) {
+        await admin.from("design_jobs").update({
+          status: "failed",
+          error: { message: data?.error || `HTTP ${res.status}`, status: res.status },
+          finished_at: new Date().toISOString(),
+        }).eq("id", jobId);
+      } else {
+        await admin.from("design_jobs").update({
+          status: "succeeded",
+          result: data,
+          progress: 100,
+          stage: "done",
+          finished_at: new Date().toISOString(),
+        }).eq("id", jobId);
+      }
+    } catch (e) {
+      try {
+        await admin.from("design_jobs").update({
+          status: "failed",
+          error: { message: e instanceof Error ? e.message : "Unknown error" },
+          finished_at: new Date().toISOString(),
+        }).eq("id", jobId);
+      } catch {}
+    }
+  })();
+
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+    EdgeRuntime.waitUntil(work);
+  } else {
+    // Fallback: at least don't block the response
+    work.catch(() => {});
+  }
+
+  return new Response(JSON.stringify({ accepted: true, job_id: jobId }), {
+    status: 202,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });
