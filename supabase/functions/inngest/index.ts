@@ -32,7 +32,7 @@ const designWorker = inngest.createFunction(
           apikey: serviceRoleKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ...body, job_id, user_id: event.data.user_id }),
+        body: JSON.stringify({ ...body, job_id, user_id }),
       });
       const text = await res.text();
       if (!res.ok) {
