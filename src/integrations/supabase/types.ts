@@ -964,6 +964,60 @@ export type Database = {
         }
         Relationships: []
       }
+      design_jobs: {
+        Row: {
+          attempts: number
+          brand_id: string | null
+          created_at: string
+          error: Json | null
+          finished_at: string | null
+          id: string
+          input: Json
+          kind: string
+          progress: number
+          result: Json | null
+          stage: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          brand_id?: string | null
+          created_at?: string
+          error?: Json | null
+          finished_at?: string | null
+          id?: string
+          input?: Json
+          kind?: string
+          progress?: number
+          result?: Json | null
+          stage?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          brand_id?: string | null
+          created_at?: string
+          error?: Json | null
+          finished_at?: string | null
+          id?: string
+          input?: Json
+          kind?: string
+          progress?: number
+          result?: Json | null
+          stage?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       design_messages: {
         Row: {
           attached_image_url: string | null
