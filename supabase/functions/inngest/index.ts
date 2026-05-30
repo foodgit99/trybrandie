@@ -9,7 +9,10 @@ const designWorker = inngest.createFunction(
   {
     id: "design-worker",
     name: "Design pipeline worker",
-    retries: 0, // Don't retry — design-studio handles credit deduction internally.
+    // M7: 2 retries with Inngest's default exponential backoff. Safe because the dispatch
+    // step is the gateway call only; credit deduction happens INSIDE design-studio after
+    // a successful render, so a retried dispatch will not double-charge a user.
+    retries: 2,
     concurrency: { limit: 5 },
   },
   { event: "app/design.requested" },

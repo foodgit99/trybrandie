@@ -8,10 +8,12 @@ export interface ModelFallbackConfig {
 
 // Pre-defined fallback chains for different use cases
 export const MODEL_CHAINS = {
-  /** Strategic reasoning — high-fidelity tasks (briefs, genomes, copy) */
+  /** Strategic reasoning — high-fidelity tasks (briefs, genomes, copy).
+   * M8: pinned to gemini-2.5-pro (the 3.1-pro-preview id was returning gateway 404 in logs,
+   * forcing every brief to silently fall back and pay the latency cost). */
   reasoning: {
-    primary: "google/gemini-3.1-pro-preview",
-    fallbacks: ["google/gemini-2.5-pro", "openai/gpt-5-mini"],
+    primary: "google/gemini-2.5-pro",
+    fallbacks: ["google/gemini-3.1-pro-preview", "openai/gpt-5-mini"],
   },
   /** Fast/lightweight tasks (extraction, classification, summarisation) */
   fast: {
