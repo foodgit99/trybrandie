@@ -2375,9 +2375,15 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
         return null;
       })();
 
-      // Caption Agent (runs in parallel with Copywriter — uses design brief directly, not copy output)
+      // Caption Agent — H5: now awaits copywriter so caption mirrors the actual on-image headline.
       const captionPromise = (async () => {
         try {
+          // Wait for copywriter so the caption can reference the exact headline rendered on the design.
+          const upstreamCopy = await copywriterPromise.catch(() => null);
+          const renderedCopyBlock = upstreamCopy
+            ? `\n\nFINAL COPY RENDERED ON THE DESIGN (mirror this language — do NOT contradict or restate differently):\n- Headline: "${upstreamCopy.headline}"${upstreamCopy.subheadline ? `\n- Subheadline: "${upstreamCopy.subheadline}"` : ""}${upstreamCopy.cta ? `\n- CTA: "${upstreamCopy.cta}"` : ""}`
+            : "";
+
           const captionSystemPrompt = `You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts.
 
 BRAND CONTEXT:
@@ -2395,12 +2401,52 @@ RULES:
 5. Use line breaks between caption and hashtags
 6. Do NOT use generic filler — every word must serve the brand
 7. If audience data is available, use emotional drivers and messaging angles
-${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}${captionCategoryContext}`;
+8. The caption must be semantically aligned with the on-image headline when one is provided — extend or contextualise it, never contradict.
+${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}${captionCategoryContext}${renderedCopyBlock}`;
 
-          // Caption uses design brief + user prompt directly (no dependency on copywriter)
           const captionUserPrompt = `Write a social media caption for this design:
 Brief: ${designPrompt}
 User request: "${userPrompt}"`;
+
+          const captionSpan = tracer.startSpan("caption");
+          const captionToolsDef = [{
+            type: "function",
+            function: {
+              name: "set_caption",
+              description: "Set the social media caption and hashtags for the design",
+              parameters: {
+                type: "object",
+                properties: {
+                  caption: { type: "string", description: "The main caption text (2-4 sentences, ready to post)" },
+                  hashtags: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "5-10 relevant hashtags including the # symbol",
+                  },
+                },
+                required: ["caption", "hashtags"],
+                additionalProperties: false,
+              },
+            },
+          }];
+
+          const { response: captionResponse, modelUsed: captionModel } = await callWithFallback(
+            MODEL_CHAINS.chat,
+            (model) => ({
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: "system", content: captionSystemPrompt },
+                  { role: "user", content: captionUserPrompt },
+                ],
+                tools: captionToolsDef,
+                tool_choice: { type: "function", function: { name: "set_caption" } },
+              }),
+            }),
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            LOVABLE_API_KEY,
+          );
+
 
           const captionSpan = tracer.startSpan("caption");
           const captionToolsDef = [{
