@@ -468,6 +468,10 @@ export function applyCategoryBias(
   // If true, treat font_personality as locked and skip it (default: false — typography font_personality
   // is documented as "locked" but for category-bias we allow override since it's stylistic, not brand identity).
   respectFontLock = false,
+  // H3: Genes already set by the trend layer ("category.field" tokens, plus optional "emotion").
+  // When trend intensity is meaningful, skip category mutation for those genes so the two layers
+  // don't fight (e.g. technical-mono → strict_grid being undone by entertainment → broken_grid).
+  trendLockedGenes?: Set<string> | null,
   // deno-lint-ignore no-explicit-any
 ): any {
   const recipe = CATEGORY_RECIPES[categoryId];
@@ -475,12 +479,17 @@ export function applyCategoryBias(
 
   const bias = recipe.genome_bias;
   let appliedCount = 0;
+  let skippedForTrend = 0;
 
   for (const [section, fields] of Object.entries(bias)) {
     if (section === "emotion") {
-      if (typeof fields === "string" && Math.random() < applyChance) {
-        genome.emotion = fields;
-        appliedCount++;
+      if (typeof fields === "string") {
+        if (trendLockedGenes?.has("emotion")) {
+          skippedForTrend++;
+        } else if (Math.random() < applyChance) {
+          genome.emotion = fields;
+          appliedCount++;
+        }
       }
       continue;
     }
@@ -492,6 +501,10 @@ export function applyCategoryBias(
     for (const [field, value] of Object.entries(fields as Record<string, string>)) {
       if (!allowedFields.has(field)) continue;
       if (respectFontLock && section === "typography" && field === "font_personality") continue;
+      if (trendLockedGenes?.has(`${section}.${field}`)) {
+        skippedForTrend++;
+        continue;
+      }
       if (Math.random() < applyChance) {
         genome[section][field] = value;
         appliedCount++;
@@ -502,8 +515,12 @@ export function applyCategoryBias(
   if (appliedCount > 0) {
     genome._category_bias_applied = appliedCount;
   }
+  if (skippedForTrend > 0) {
+    genome._category_bias_skipped_for_trend = skippedForTrend;
+  }
   return genome;
 }
+
 
 // --- HELPER: Compute Category Fit Score (0-100) ---
 // Measures how well the genome aligns with the category's preferred genes.

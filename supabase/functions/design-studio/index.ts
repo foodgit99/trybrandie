@@ -1685,7 +1685,7 @@ ${brand.special_instructions}
           toneOfVoice: brand?.tone_of_voice,
           audienceDescriptor: audienceProfile?.persona_summary,
           postType: recipe?.name || cat,
-          platform: "Instagram",
+          platform: canvas.platform || "Instagram",
           override,
         }, FIRECRAWL_API_KEY, adminClient);
       })();
@@ -1813,6 +1813,22 @@ ${brand.special_instructions}
         };
         const brandVibeLower = (brand?.vibe || "").toLowerCase();
         let basePresetId = vibePresetMap[brandVibeLower] || "bold-startup";
+
+        // H1: Category-driven base preset override — for expressive categories,
+        // force a preset that already carries the right DNA (broken grid, street typography, etc).
+        // This prevents brand vibe (e.g. "luxury") from dictating a meme/entertainment post.
+        const resolvedCategoryForPreset = await contentCategoryPromise;
+        const CATEGORY_PRESET_OVERRIDE: Record<string, string> = {
+          entertainment: "streetwear-alte",
+          trending: "bold-startup",
+          interactive: "bold-startup",
+        };
+        const categoryPresetOverride = CATEGORY_PRESET_OVERRIDE[resolvedCategoryForPreset];
+        if (categoryPresetOverride && categoryPresetOverride !== basePresetId) {
+          console.log(`Genome: category "${resolvedCategoryForPreset}" overrides base preset "${basePresetId}" → "${categoryPresetOverride}"`);
+          basePresetId = categoryPresetOverride;
+        }
+
 
         // --- INSPIRATION IMAGE INFLUENCE ON GENOME ---
         // If inspiration analysis ran, use tags to potentially override preset selection
@@ -2002,23 +2018,40 @@ ${brand.special_instructions}
         genomeResult = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
         console.log(`Genome Composer (deterministic): base preset="${basePresetId}" for vibe="${brandVibeLower}"`);
 
-        // 4. Apply trend overrides if trend is selected, blended by intensity
+        // 4. Apply trend overrides if trend is selected — deterministic top-N blending.
+        // H2: Replaces per-gene Math.random() < intensity (which produced non-reproducible genomes
+        // and made the intensity slider only roughly meaningful) with a stable ranked application:
+        // we apply the top N trend genes where N = round(totalTrendGenes * intensity).
+        // Genes are ordered category-then-field so ordering is deterministic across runs.
+        const trendLockedGenes = new Set<string>(); // "category.field" tokens for H3 conflict resolution
         if (trend && trend !== "none" && TREND_OVERRIDES[trend]) {
           const overrides = TREND_OVERRIDES[trend];
-          const intensity = (trend_intensity ?? 40) / 100;
+          const intensity = Math.min(1, Math.max(0, (trend_intensity ?? 40) / 100));
+          // Flatten all trend gene targets into a deterministic list
+          const flatGenes: Array<{ category: string; field: string | null; value: any }> = [];
           for (const [category, values] of Object.entries(overrides)) {
             if (category === "emotion") {
-              if (intensity > 0.3) genomeResult.emotion = values;
+              flatGenes.push({ category: "emotion", field: null, value: values });
             } else if (typeof values === "object" && values !== null && genomeResult[category]) {
               for (const [field, val] of Object.entries(values as Record<string, string>)) {
-                if (Math.random() < intensity) {
-                  genomeResult[category][field] = val;
-                }
+                flatGenes.push({ category, field, value: val });
               }
             }
           }
-          console.log(`Genome: trend "${trend}" overrides applied at intensity ${trend_intensity ?? 40}%`);
+          const applyCount = Math.round(flatGenes.length * intensity);
+          for (let i = 0; i < applyCount; i++) {
+            const gene = flatGenes[i];
+            if (gene.category === "emotion") {
+              genomeResult.emotion = gene.value;
+              trendLockedGenes.add("emotion");
+            } else if (gene.field) {
+              genomeResult[gene.category][gene.field] = gene.value;
+              trendLockedGenes.add(`${gene.category}.${gene.field}`);
+            }
+          }
+          console.log(`Genome: trend "${trend}" applied ${applyCount}/${flatGenes.length} genes at intensity ${trend_intensity ?? 40}% (deterministic)`);
         }
+
 
         // --- GENOME MUTATION ENGINE (15%) ---
         const MUTATION_RATE = 0.15;
@@ -2138,7 +2171,12 @@ ${brand.special_instructions}
           }
         }
 
+        // Surface trend-locked genes for downstream conflict-resolution (H3)
+        if (trendLockedGenes.size > 0) {
+          genomeResult._trend_locked_genes = Array.from(trendLockedGenes);
+        }
         console.log("Final genome:", JSON.stringify(genomeResult));
+
       } catch (e) {
         console.error("Genome Composer error, proceeding without:", e);
       }
@@ -2337,9 +2375,15 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
         return null;
       })();
 
-      // Caption Agent (runs in parallel with Copywriter — uses design brief directly, not copy output)
+      // Caption Agent — H5: now awaits copywriter so caption mirrors the actual on-image headline.
       const captionPromise = (async () => {
         try {
+          // Wait for copywriter so the caption can reference the exact headline rendered on the design.
+          const upstreamCopy = await copywriterPromise.catch(() => null);
+          const renderedCopyBlock = upstreamCopy
+            ? `\n\nFINAL COPY RENDERED ON THE DESIGN (mirror this language — do NOT contradict or restate differently):\n- Headline: "${upstreamCopy.headline}"${upstreamCopy.subheadline ? `\n- Subheadline: "${upstreamCopy.subheadline}"` : ""}${upstreamCopy.cta ? `\n- CTA: "${upstreamCopy.cta}"` : ""}`
+            : "";
+
           const captionSystemPrompt = `You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts.
 
 BRAND CONTEXT:
@@ -2357,9 +2401,9 @@ RULES:
 5. Use line breaks between caption and hashtags
 6. Do NOT use generic filler — every word must serve the brand
 7. If audience data is available, use emotional drivers and messaging angles
-${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}${captionCategoryContext}`;
+8. The caption must be semantically aligned with the on-image headline when one is provided — extend or contextualise it, never contradict.
+${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}` : ""}${captionCategoryContext}${renderedCopyBlock}`;
 
-          // Caption uses design brief + user prompt directly (no dependency on copywriter)
           const captionUserPrompt = `Write a social media caption for this design:
 Brief: ${designPrompt}
 User request: "${userPrompt}"`;
@@ -2405,6 +2449,9 @@ User request: "${userPrompt}"`;
 
           recordSuccess("ai-gateway");
 
+
+
+
           if (captionResponse.ok) {
             const captionData = await captionResponse.json();
             const toolCall = captionData.choices?.[0]?.message?.tool_calls?.[0];
@@ -2438,11 +2485,18 @@ User request: "${userPrompt}"`;
 
       // --- CATEGORY BIAS: nudge free/semi-flexible genes toward category preferences ---
       if (genomeData) {
-        applyCategoryBias(genomeData, resolvedCategory, 0.7);
+        // H3: When trend intensity is at least 50%, protect trend-locked genes from being
+        // overwritten by category bias (resolves the trend-vs-category collision).
+        const trendIntensityPct = trend_intensity ?? 40;
+        const lockedGenesArr: string[] = Array.isArray(genomeData._trend_locked_genes) ? genomeData._trend_locked_genes : [];
+        const protectTrend = trendIntensityPct >= 50 && lockedGenesArr.length > 0;
+        const trendLockedSet = protectTrend ? new Set(lockedGenesArr) : null;
+        applyCategoryBias(genomeData, resolvedCategory, 0.7, false, trendLockedSet);
         const fitScore = computeCategoryFit(genomeData, resolvedCategory);
         genomeData._category_fit = fitScore;
-        console.log(`[category-bias] category=${resolvedCategory} fit_score=${fitScore} biases_applied=${genomeData._category_bias_applied || 0}`);
+        console.log(`[category-bias] category=${resolvedCategory} fit_score=${fitScore} biases_applied=${genomeData._category_bias_applied || 0} skipped_for_trend=${genomeData._category_bias_skipped_for_trend || 0}`);
       }
+
 
 
       // --- HELPER: Apply stability gate to a genome ---
@@ -2516,7 +2570,13 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         const dimensionEnforcement = buildDimensionEnforcement(w, h, canvas.label);
 
         const categoryRenderInjection = buildCategoryRenderInjection(resolvedCategory);
-        const imagePromptText = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable.${varCopyInjection} ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} IMPORTANT: The design must be about "${userPrompt}". Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${categoryRenderInjection}${varGenomeContext || (trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : "")} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
+
+        // H7: Lead with user intent + visual genome so they receive the highest text-encoder attention.
+        // The studio philosophy / polish / contrast rules follow as supporting context.
+        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${varGenomeContext}${varCopyInjection}`;
+
+        const imagePromptText = `${dimensionEnforcement}\n\n${intentHeader}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${categoryRenderInjection}${!varGenomeContext && trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
+
 
         // gpt-image-2 is text-only (no reference image inputs). Reference URLs
         // are described in the prompt as descriptive hints.

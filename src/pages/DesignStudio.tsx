@@ -680,6 +680,7 @@ const DesignStudio = () => {
           tagline: brand.tagline,
           description: brand.description,
           vibe: brand.vibe,
+          industry: (brand as any).industry,
           primary_colors: brand.primary_colors,
           secondary_colors: brand.secondary_colors,
           accent_colors: brand.accent_colors,
@@ -691,6 +692,7 @@ const DesignStudio = () => {
           special_instructions: (brand as any).special_instructions,
         }
       : null;
+
 
     generationInitiated.current = true;
     generation.startGeneration({
