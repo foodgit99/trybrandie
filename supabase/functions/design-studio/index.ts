@@ -1720,9 +1720,10 @@ ${brand.special_instructions}
                   composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
                   emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
                   design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
+                  audience_insight: { type: "string", description: "M1: ONE concrete JTBD driver this design will activate — pull from the AUDIENCE block in your system prompt if present (a struggling moment, emotional outcome, or buying trigger). Phrase as a single sentence the copy/visuals should embody. If no audience profile is provided, write 'general audience — broad appeal' and move on." },
                   explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
                 },
-                required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
+                required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "audience_insight", "explanation"],
                 additionalProperties: false,
               },
             },
@@ -1768,6 +1769,7 @@ ${brand.special_instructions}
             composition_goal: string;
             emotional_tone: string;
             design_focus: string;
+            audience_insight?: string;
             explanation: string;
           };
         }
@@ -1786,6 +1788,7 @@ ${brand.special_instructions}
           composition_goal: "balanced composition",
           emotional_tone: brand?.vibe || "modern",
           design_focus: "the headline",
+          audience_insight: audienceProfile?.persona_summary || "general audience — broad appeal",
           explanation: explanationFallback,
         };
         } catch (briefErr) {
@@ -2184,7 +2187,7 @@ ${brand.special_instructions}
       })();
 
       // --- AWAIT BRIEF + GENOME IN PARALLEL ---
-      let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; explanation: string };
+      let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; audience_insight?: string; explanation: string };
       let genomeData: any = null;
       try {
         const briefSpan = tracer.startSpan("brief+genome");
