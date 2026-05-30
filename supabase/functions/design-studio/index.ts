@@ -1686,6 +1686,7 @@ ${brand.special_instructions}
           audienceDescriptor: audienceProfile?.persona_summary,
           postType: recipe?.name || cat,
           platform: canvas.platform || "Instagram",
+          topic: userPrompt, // M5: ground offline heuristic in the user's actual ask
           override,
         }, FIRECRAWL_API_KEY, adminClient);
       })();
@@ -1720,9 +1721,10 @@ ${brand.special_instructions}
                   composition_goal: { type: "string", description: "Layout intent: e.g. 'hero image left with text overlay right', 'centered headline over full-bleed photo', 'split layout with product left and copy right'" },
                   emotional_tone: { type: "string", description: "Single word or short phrase: e.g. 'energetic', 'luxurious', 'warm and inviting', 'bold and confident'" },
                   design_focus: { type: "string", description: "What is the hero element: e.g. 'the product image', 'the headline text', 'the brand logo', 'the lifestyle photo'" },
+                  audience_insight: { type: "string", description: "M1: ONE concrete JTBD driver this design will activate — pull from the AUDIENCE block in your system prompt if present (a struggling moment, emotional outcome, or buying trigger). Phrase as a single sentence the copy/visuals should embody. If no audience profile is provided, write 'general audience — broad appeal' and move on." },
                   explanation: { type: "string", description: "Brief explanation of creative choices for the user (1-2 sentences, speak like a creative director)" },
                 },
-                required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "explanation"],
+                required: ["creative_direction", "composition_goal", "emotional_tone", "design_focus", "audience_insight", "explanation"],
                 additionalProperties: false,
               },
             },
@@ -1768,6 +1770,7 @@ ${brand.special_instructions}
             composition_goal: string;
             emotional_tone: string;
             design_focus: string;
+            audience_insight?: string;
             explanation: string;
           };
         }
@@ -1786,6 +1789,7 @@ ${brand.special_instructions}
           composition_goal: "balanced composition",
           emotional_tone: brand?.vibe || "modern",
           design_focus: "the headline",
+          audience_insight: audienceProfile?.persona_summary || "general audience — broad appeal",
           explanation: explanationFallback,
         };
         } catch (briefErr) {
@@ -1866,13 +1870,17 @@ ${brand.special_instructions}
                 presetVotes[preset] = (presetVotes[preset] || 0) + 1;
               }
             }
-            // If inspiration suggests a different preset than vibe, and it has strong signal (2+ votes), override
+            // If inspiration suggests a different preset than vibe, override.
+            // M4: lower the vote threshold to 1 when the brand only has a single inspiration
+            // image (otherwise a 1-reference brand can never trigger an override). Multi-reference
+            // brands still need 2+ votes to avoid noise.
             const topInspirationPreset = Object.entries(presetVotes).sort((a, b) => b[1] - a[1])[0];
-            if (topInspirationPreset && topInspirationPreset[1] >= 2 && topInspirationPreset[0] !== basePresetId) {
-              console.log(`Inspiration override: "${basePresetId}" → "${topInspirationPreset[0]}" (${topInspirationPreset[1]} tag votes from: ${inspirationTags.join(", ")})`);
+            const requiredVotes = inspirationUrls.length <= 1 ? 1 : 2;
+            if (topInspirationPreset && topInspirationPreset[1] >= requiredVotes && topInspirationPreset[0] !== basePresetId) {
+              console.log(`Inspiration override (threshold=${requiredVotes}): "${basePresetId}" → "${topInspirationPreset[0]}" (${topInspirationPreset[1]} tag votes from: ${inspirationTags.join(", ")})`);
               basePresetId = topInspirationPreset[0];
             } else if (topInspirationPreset) {
-              console.log(`Inspiration tags (${inspirationTags.join(", ")}) align with or insufficient to override current preset "${basePresetId}"`);
+              console.log(`Inspiration tags (${inspirationTags.join(", ")}) align with or insufficient (need ${requiredVotes}) to override current preset "${basePresetId}"`);
             }
           }
         }
@@ -2166,6 +2174,41 @@ ${brand.special_instructions}
             }
           }
 
+          // M3: Lock layout.balance + emotion for brands with explicit personality traits.
+          // Brands that have taken the trouble to declare personality should not have their
+          // emotional/structural DNA mutated away by free-gene mutation or category bias.
+          const traits = Array.isArray(brand.personality_traits) ? brand.personality_traits as string[] : [];
+          if (traits.length > 0) {
+            const traitEmotionMap: Record<string, string> = {
+              bold: "energetic", energetic: "energetic", rebellious: "rebellious",
+              playful: "playful", fun: "playful", witty: "playful",
+              luxurious: "luxurious", premium: "luxurious", elegant: "luxurious",
+              calm: "calm", serene: "calm", minimal: "calm", quiet: "calm",
+              authoritative: "authoritative", professional: "authoritative", trusted: "authoritative",
+              warm: "warm", friendly: "warm", approachable: "warm",
+              futuristic: "futuristic", innovative: "futuristic", tech: "futuristic",
+              organic: "organic", natural: "organic", earthy: "organic",
+            };
+            const lowered = traits.map((t) => String(t).toLowerCase());
+            const matchedEmotion = lowered.map((t) => traitEmotionMap[t]).find(Boolean);
+            if (matchedEmotion && genomeResult.emotion !== matchedEmotion) {
+              genomeResult.emotion = matchedEmotion;
+              lockCount++;
+            }
+            // Layout balance: bold/rebellious/playful → asymmetrical; luxury/calm/authoritative → symmetrical
+            const dynamicTraits = new Set(["bold", "energetic", "rebellious", "playful", "fun", "witty", "futuristic"]);
+            const orderedTraits = new Set(["luxurious", "premium", "elegant", "calm", "serene", "minimal", "authoritative", "professional"]);
+            const wantsDynamic = lowered.some((t) => dynamicTraits.has(t));
+            const wantsOrdered = lowered.some((t) => orderedTraits.has(t));
+            if (wantsDynamic && !wantsOrdered && genomeResult.layout.balance === "symmetrical") {
+              genomeResult.layout.balance = "asymmetrical";
+              lockCount++;
+            } else if (wantsOrdered && !wantsDynamic && genomeResult.layout.balance === "dynamic") {
+              genomeResult.layout.balance = "symmetrical";
+              lockCount++;
+            }
+          }
+
           if (lockCount > 0) {
             console.log(`Brand Lock: ${lockCount} gene(s) locked to brand values`);
           }
@@ -2184,7 +2227,7 @@ ${brand.special_instructions}
       })();
 
       // --- AWAIT BRIEF + GENOME IN PARALLEL ---
-      let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; explanation: string };
+      let briefResult: { creative_direction: string; composition_goal: string; emotional_tone: string; design_focus: string; audience_insight?: string; explanation: string };
       let genomeData: any = null;
       try {
         const briefSpan = tracer.startSpan("brief+genome");
@@ -2500,37 +2543,57 @@ User request: "${userPrompt}"`;
 
 
       // --- HELPER: Apply stability gate to a genome ---
+      // M2: If overall < 55 we run a first refinement targeting the weakest dimension.
+      // If brand_alignment is STILL < 50 after that pass (which means we either fixed a
+      // different dimension or the brand-fix didn't lift the score enough), we run a
+      // second, brand-targeted refinement before rendering — better than shipping an
+      // off-brand design.
       function applyStabilityGate(genome: any, brandData: any, trendId: string | undefined, trendInt: number | undefined, copy: any): { genome: any; scores: Record<string, number> } {
         let scores = computeGenomeScores(genome, brandData, trendId, trendInt, copy);
         genome._scores = scores;
-        if (scores.overall < 55) {
-          console.log(`Stability Gate triggered: overall=${scores.overall}`);
-          const dimensions = ["brand_alignment", "trend_balance", "visual_clarity", "conversion", "visual_balance"];
-          const weakest = dimensions.reduce((a, b) => (scores[a] < scores[b] ? a : b));
-          if (weakest === "visual_clarity") {
+
+        const applyFix = (target: string) => {
+          if (target === "visual_clarity") {
             genome.color.contrast = "high";
             genome.typography.hierarchy_logic = "strong_headline_dominance";
             genome.layout.spacing_density = "balanced";
             genome.composition.focal_strategy = "single_focal_point";
             genome.texture.distortion = "none";
-          } else if (weakest === "brand_alignment") {
+          } else if (target === "brand_alignment") {
             const vibeEmotions: Record<string, string> = { cinematic: "luxurious", minimal: "calm", bold: "energetic", playful: "playful", luxury: "luxurious", corporate: "authoritative" };
             genome.emotion = vibeEmotions[(brandData?.vibe || "").toLowerCase()] || genome.emotion;
             const toneFonts: Record<string, string> = { professional: "corporate", humourous: "friendly", formal: "corporate", casual: "friendly", inspirational: "editorial" };
             genome.typography.font_personality = toneFonts[(brandData?.tone_of_voice || "").toLowerCase()] || genome.typography.font_personality;
-          } else if (weakest === "conversion") {
+          } else if (target === "conversion") {
             genome.composition.focal_strategy = "single_focal_point";
             genome.typography.hierarchy_logic = "strong_headline_dominance";
             if (!["energetic", "authoritative", "rebellious"].includes(genome.emotion)) genome.emotion = "energetic";
-          } else if (weakest === "visual_balance") {
+          } else if (target === "visual_balance") {
             genome.layout.balance = "asymmetrical";
             genome.composition.layering_depth = "medium";
             genome.layout.spacing_density = "balanced";
           }
+        };
+
+        if (scores.overall < 55) {
+          console.log(`Stability Gate triggered: overall=${scores.overall}`);
+          const dimensions = ["brand_alignment", "trend_balance", "visual_clarity", "conversion", "visual_balance"];
+          const weakest = dimensions.reduce((a, b) => (scores[a] < scores[b] ? a : b));
+          applyFix(weakest);
           genome._refined = true;
           scores = computeGenomeScores(genome, brandData, trendId, trendInt, copy);
           genome._scores = scores;
         }
+
+        // M2: brand-alignment safety net — if brand_alignment still < 50, force a brand fix.
+        if (scores.brand_alignment < 50) {
+          console.log(`Stability Gate (M2 brand-alignment safety net): brand_alignment=${scores.brand_alignment} — forcing brand fix`);
+          applyFix("brand_alignment");
+          genome._refined_brand = true;
+          scores = computeGenomeScores(genome, brandData, trendId, trendInt, copy);
+          genome._scores = scores;
+        }
+
         return { genome, scores };
       }
 

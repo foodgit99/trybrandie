@@ -684,6 +684,7 @@ export interface BrandResearchContext {
   postType?: string;                // resolved category name (human label)
   platform?: string;                // e.g. "Instagram", "TikTok"
   region?: string;                  // for location-relevant searches
+  topic?: string;                   // M5: user's raw prompt — used as grounding in offline fallback
   override?: ResearchOverride;      // per-brand, per-category research tuning
 }
 
@@ -772,8 +773,14 @@ function buildOfflineHeuristic(
   const industry = ctx.industry ? ` in ${ctx.industry}` : "";
   const audience = ctx.audienceDescriptor ? ` for ${ctx.audienceDescriptor}` : "";
   const vibe = (ctx.vibeKeywords || []).filter(Boolean).slice(0, 3).join(", ");
+  // M5: ground the offline heuristic in the user's actual topic so the prompt is
+  // not just generic seasonal boilerplate. Trim noisy URLs and clamp length.
+  const topicRaw = (ctx.topic || "").replace(/https?:\/\/\S+/g, "").trim();
+  const topic = topicRaw.length > 200 ? topicRaw.slice(0, 200) + "…" : topicRaw;
+  const topicLine = topic ? `- The user asked for: "${topic}". Treat this as the primary subject — visuals and copy must clearly address it.` : "";
 
   const lines: string[] = [];
+  if (topicLine) lines.push(topicLine);
 
   switch (categoryId) {
     case "holidays": {
@@ -800,8 +807,15 @@ function buildOfflineHeuristic(
       break;
     }
     case "entertainment": {
-      lines.push(`- ${monthName} entertainment cadence: pop-culture references work best when relatable and timely${audience}.`);
-      lines.push(`- Use playful, conversational tone — memes and humour outperform polished corporate copy in this category.`);
+      // M5: meme-format guidance when the topic clearly reads as a meme/POV/relatable post.
+      const memeSignal = /meme|pov|relatable|when you|that moment|me when|nobody:|tag a|caption this/i.test(topic);
+      if (memeSignal) {
+        lines.push(`- This reads as a MEME-FORMAT post — use the classic meme layout: a punchy top setup line + reveal/punchline, or a two-panel contrast (expectation vs reality, before vs after).`);
+        lines.push(`- Visuals should feel raw and immediate — flat colour blocks, bold condensed type, minimal decoration. Polish kills the joke.`);
+      } else {
+        lines.push(`- ${monthName} entertainment cadence: pop-culture references work best when relatable and timely${audience}.`);
+        lines.push(`- Use playful, conversational tone — memes and humour outperform polished corporate copy in this category.`);
+      }
       if (vibe) lines.push(`- Keep the brand vibe (${vibe}) recognisable even in a meme-format post.`);
       lines.push(`- Avoid copyrighted character likenesses; build on universal cultural moments instead.`);
       break;
