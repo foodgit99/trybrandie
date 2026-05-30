@@ -1686,6 +1686,7 @@ ${brand.special_instructions}
           audienceDescriptor: audienceProfile?.persona_summary,
           postType: recipe?.name || cat,
           platform: canvas.platform || "Instagram",
+          topic: userPrompt, // M5: ground offline heuristic in the user's actual ask
           override,
         }, FIRECRAWL_API_KEY, adminClient);
       })();
