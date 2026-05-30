@@ -2958,10 +2958,17 @@ serve(async (req) => {
 
   const jobId: string | undefined = parsed?.job_id;
 
+  // Snapshot headers/url/method NOW while the request is still open. Reading
+  // req.headers after the outer response is returned (background mode) throws
+  // "Cannot read headers: request closed" on Supabase Edge Runtime.
+  const headersSnapshot = new Headers(req.headers);
+  const reqUrl = req.url;
+  const reqMethod = req.method;
+
   // Rebuild a fresh Request the inner handler can consume (with the same body).
-  const cloneReq = () => new Request(req.url, {
-    method: req.method,
-    headers: req.headers,
+  const cloneReq = () => new Request(reqUrl, {
+    method: reqMethod,
+    headers: headersSnapshot,
     body: bodyText || undefined,
   });
 
