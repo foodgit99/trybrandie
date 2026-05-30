@@ -1814,6 +1814,22 @@ ${brand.special_instructions}
         const brandVibeLower = (brand?.vibe || "").toLowerCase();
         let basePresetId = vibePresetMap[brandVibeLower] || "bold-startup";
 
+        // H1: Category-driven base preset override — for expressive categories,
+        // force a preset that already carries the right DNA (broken grid, street typography, etc).
+        // This prevents brand vibe (e.g. "luxury") from dictating a meme/entertainment post.
+        const resolvedCategoryForPreset = await contentCategoryPromise;
+        const CATEGORY_PRESET_OVERRIDE: Record<string, string> = {
+          entertainment: "streetwear-alte",
+          trending: "bold-startup",
+          interactive: "bold-startup",
+        };
+        const categoryPresetOverride = CATEGORY_PRESET_OVERRIDE[resolvedCategoryForPreset];
+        if (categoryPresetOverride && categoryPresetOverride !== basePresetId) {
+          console.log(`Genome: category "${resolvedCategoryForPreset}" overrides base preset "${basePresetId}" → "${categoryPresetOverride}"`);
+          basePresetId = categoryPresetOverride;
+        }
+
+
         // --- INSPIRATION IMAGE INFLUENCE ON GENOME ---
         // If inspiration analysis ran, use tags to potentially override preset selection
         if (inspirationStyleTagsPromise) {
@@ -2002,23 +2018,40 @@ ${brand.special_instructions}
         genomeResult = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
         console.log(`Genome Composer (deterministic): base preset="${basePresetId}" for vibe="${brandVibeLower}"`);
 
-        // 4. Apply trend overrides if trend is selected, blended by intensity
+        // 4. Apply trend overrides if trend is selected — deterministic top-N blending.
+        // H2: Replaces per-gene Math.random() < intensity (which produced non-reproducible genomes
+        // and made the intensity slider only roughly meaningful) with a stable ranked application:
+        // we apply the top N trend genes where N = round(totalTrendGenes * intensity).
+        // Genes are ordered category-then-field so ordering is deterministic across runs.
+        const trendLockedGenes = new Set<string>(); // "category.field" tokens for H3 conflict resolution
         if (trend && trend !== "none" && TREND_OVERRIDES[trend]) {
           const overrides = TREND_OVERRIDES[trend];
-          const intensity = (trend_intensity ?? 40) / 100;
+          const intensity = Math.min(1, Math.max(0, (trend_intensity ?? 40) / 100));
+          // Flatten all trend gene targets into a deterministic list
+          const flatGenes: Array<{ category: string; field: string | null; value: any }> = [];
           for (const [category, values] of Object.entries(overrides)) {
             if (category === "emotion") {
-              if (intensity > 0.3) genomeResult.emotion = values;
+              flatGenes.push({ category: "emotion", field: null, value: values });
             } else if (typeof values === "object" && values !== null && genomeResult[category]) {
               for (const [field, val] of Object.entries(values as Record<string, string>)) {
-                if (Math.random() < intensity) {
-                  genomeResult[category][field] = val;
-                }
+                flatGenes.push({ category, field, value: val });
               }
             }
           }
-          console.log(`Genome: trend "${trend}" overrides applied at intensity ${trend_intensity ?? 40}%`);
+          const applyCount = Math.round(flatGenes.length * intensity);
+          for (let i = 0; i < applyCount; i++) {
+            const gene = flatGenes[i];
+            if (gene.category === "emotion") {
+              genomeResult.emotion = gene.value;
+              trendLockedGenes.add("emotion");
+            } else if (gene.field) {
+              genomeResult[gene.category][gene.field] = gene.value;
+              trendLockedGenes.add(`${gene.category}.${gene.field}`);
+            }
+          }
+          console.log(`Genome: trend "${trend}" applied ${applyCount}/${flatGenes.length} genes at intensity ${trend_intensity ?? 40}% (deterministic)`);
         }
+
 
         // --- GENOME MUTATION ENGINE (15%) ---
         const MUTATION_RATE = 0.15;
