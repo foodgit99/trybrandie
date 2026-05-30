@@ -2171,7 +2171,12 @@ ${brand.special_instructions}
           }
         }
 
+        // Surface trend-locked genes for downstream conflict-resolution (H3)
+        if (trendLockedGenes.size > 0) {
+          genomeResult._trend_locked_genes = Array.from(trendLockedGenes);
+        }
         console.log("Final genome:", JSON.stringify(genomeResult));
+
       } catch (e) {
         console.error("Genome Composer error, proceeding without:", e);
       }
