@@ -2447,8 +2447,9 @@ User request: "${userPrompt}"`;
             LOVABLE_API_KEY,
           );
 
-          const captionSpan = tracer.startSpan("caption");
           recordSuccess("ai-gateway");
+
+
 
 
           if (captionResponse.ok) {
