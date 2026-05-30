@@ -130,21 +130,20 @@ Before vibe lookup, force entertainment/trending/interactive into expressive pre
 
 ---
 
-## 5. Proposed Implementation Order
+## 5. Implementation Status
 
-If approved, I will execute in this sequence (each is a separate edit batch + verification):
+- **Batch A (H1, H3, H4, H5, H6)** — ✅ shipped.
+- **Batch B (H2, H7)** — ✅ shipped.
+- **Batch C (M1, M2, M3, M4, M5, M7, M8)** — ✅ shipped.
+  - M1: `audience_insight` added to `set_brief` tool schema + required field.
+  - M2: brand-alignment safety net runs a second refinement pass when `brand_alignment < 50`.
+  - M3: brands with `personality_traits` now lock `emotion` and `layout.balance`.
+  - M4: single-vote inspiration override allowed when the brand has only one reference image.
+  - M5: offline Firecrawl heuristic now grounds in the user's `topic` and emits meme-format guidance when the prompt reads like a meme.
+  - M7: Inngest retries set to 2 (default exponential backoff; design-studio dispatch is idempotent on `job_id`).
+  - M8: `MODEL_CHAINS.reasoning` pinned to `gemini-2.5-pro` (the 3.1-pro-preview id was 404-ing at the gateway and silently falling back).
+- **Deferred**
+  - **M6** (seeded RNG from `user.id + job_id`) — debugging-only nicety; requires threading the seed through the genome composer and mutation engine. Will pick up when we add full per-stage tracing.
+  - **Low-priority housekeeping** (dead `return` removal, per-stage gene-source logging) — defer to next cleanup pass.
 
-1. **Batch A (H1, H3, H6, H4, H5)** — small, surgical fixes inside `design-studio/index.ts` and `DesignStudio.tsx`. Test with the same Lagos-traffic prompt; confirm category `entertainment` now selects an expressive base preset and that caption mirrors the headline.
-2. **Batch B (H2, H7)** — deterministic trend blending + image-prompt reordering. Verify two consecutive renders with identical settings produce structurally identical genomes.
-3. **Pause for review.** Confirm before tackling Medium items M1–M8.
-
-No DB migrations, no new tables, no auth changes. All work is contained in 2 files plus possibly one small helper. Inngest behaviour, billing, and the frontend studio UI remain untouched.
-
----
-
-## Open Questions for You
-
-1. **Approve High-Priority batch (H1–H7)?** Or would you like to cherry-pick?
-2. For **H1**, do you want me to expose the category→preset map as an editable config (so you can tune entertainment → streetwear-alte vs. neo-brutalism later), or hardcode for v1?
-3. For **H7** (prompt reordering), are you OK if I also trim the philosophy block to ~300 chars — current ~1,500-char block dilutes signal?
 
