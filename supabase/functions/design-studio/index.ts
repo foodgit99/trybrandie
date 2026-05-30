@@ -1685,7 +1685,7 @@ ${brand.special_instructions}
           toneOfVoice: brand?.tone_of_voice,
           audienceDescriptor: audienceProfile?.persona_summary,
           postType: recipe?.name || cat,
-          platform: "Instagram",
+          platform: canvas.platform || "Instagram",
           override,
         }, FIRECRAWL_API_KEY, adminClient);
       })();
