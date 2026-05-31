@@ -2117,15 +2117,15 @@ ${brand.special_instructions}
           const prefKey = `_preferred_${field}`;
           const preferred = preferenceWeights[category]?.[prefKey] as unknown as string;
           if (preferred && preferred !== current && options.includes(preferred)) {
-            if (Math.random() < 0.6) return preferred;
+          if (rng() < 0.6) return preferred;
           }
           const alternatives = options.filter((o: string) => o !== current);
-          return alternatives.length > 0 ? alternatives[Math.floor(Math.random() * alternatives.length)] : current;
+          return alternatives.length > 0 ? rngPick(rng, alternatives) : current;
         };
 
         for (const [category, fields] of Object.entries(freeGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
-            if (Math.random() < MUTATION_RATE) {
+            if (rng() < MUTATION_RATE) {
               genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
@@ -2133,23 +2133,24 @@ ${brand.special_instructions}
         }
         for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
-            if (Math.random() < MUTATION_RATE / 2) {
+            if (rng() < MUTATION_RATE / 2) {
               genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
           }
         }
-        if (Math.random() < MUTATION_RATE / 2) {
+        if (rng() < MUTATION_RATE / 2) {
           const currentEmotion = genomeResult.emotion;
           const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
-          if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
+          if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && rng() < 0.6) {
             genomeResult.emotion = prefEmotion;
           } else {
             const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
-            genomeResult.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+            genomeResult.emotion = rngPick(rng, altEmotions);
           }
           mutationCount++;
         }
+
 
         if (mutationCount > 0) {
           console.log(`Genome Mutation: ${mutationCount} gene(s) mutated (preference-biased)`);
