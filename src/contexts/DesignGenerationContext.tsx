@@ -255,6 +255,8 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
                 ...(data.genome && { genome: data.genome }),
                 ...(data.caption && { caption: data.caption }),
                 ...(data.copy_structure && { copy_structure: data.copy_structure }),
+                ...(data.layout_schema && { layout_schema: data.layout_schema }),
+                ...(data.creative_director_version && { creative_director_version: data.creative_director_version }),
               } as any).select("id").single();
 
               if (!saveErr && designData?.id) {
