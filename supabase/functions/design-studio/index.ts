@@ -276,12 +276,12 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
   throw lastError || new Error("retryFetch: all attempts failed");
 }
 
-// --- GPT-IMAGE-2 RENDERER (reference-aware via /v1/images/edits) ---
-// We ALWAYS call /v1/images/edits with at least one reference image attached
-// so brand logos appear pixel-exact, inspiration images steer composition
-// visually, and user/product/previous-render images are real inputs (not
-// described text). If a brand has no usable refs, a blank transparent canvas
-// is attached as a placeholder so the endpoint accepts the request.
+// --- GPT-IMAGE-2 RENDERER (via /v1/images/generations) ---
+// The Lovable AI Gateway only exposes /v1/images/generations (JSON body).
+// /v1/images/edits is NOT proxied and returns 404, so we cannot attach
+// reference image blobs at the HTTP layer. Brand/logo/inspiration/product
+// references still influence the design because they're already injected
+// as descriptive text into the prompt earlier in the pipeline.
 //
 // Supported output sizes: 1024x1024 / 1024x1536 / 1536x1024.
 // enforceCanvasDimensions handles final crop/resize to exact platform dims.
@@ -302,77 +302,41 @@ async function renderWithGptImageEdits(
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
   const size = mapToGptImageSize(w, h);
 
-  // Build multipart form: model + prompt + size + quality + one image[] per ref.
-  // If no refs were collected, attach a blank 1x1 transparent canvas so the
-  // endpoint accepts the request.
-  const buildForm = (currentRefs: CollectedRef[]): FormData => {
-    const form = new FormData();
-    form.append("model", "openai/gpt-image-2");
-    form.append("prompt", prompt);
-    form.append("size", size);
-    form.append("quality", "low");
-    form.append("n", "1");
-    const attached = currentRefs.length > 0 ? currentRefs : null;
-    if (attached) {
-      for (const r of attached) {
-        const ext = r.contentType === "image/jpeg" ? "jpg" : r.contentType === "image/webp" ? "webp" : "png";
-        form.append("image[]", r.blob, `${r.role}.${ext}`);
-      }
-    } else {
-      form.append("image[]", buildBlankCanvasBlob(), "canvas.png");
-    }
-    return form;
-  };
+  const body = JSON.stringify({
+    model: "openai/gpt-image-2",
+    prompt,
+    size,
+    quality: "low",
+    n: 1,
+  });
 
-  const callOnce = (currentRefs: CollectedRef[]) =>
-    retryFetch("https://ai.gateway.lovable.dev/v1/images/edits", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` }, // browser sets Content-Type w/ boundary
-      body: buildForm(currentRefs),
-    });
+  const resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body,
+  });
 
-  // Attempt sequence: full refs → drop user/product → drop inspiration → blank.
-  // This guards against a single bad ref (e.g. content-policy violation,
-  // unreadable file) bringing down the whole render.
-  const refTiers: CollectedRef[][] = [refs];
-  if (refs.some((r) => r.role === "user" || r.role === "product")) {
-    refTiers.push(refs.filter((r) => r.role !== "user" && r.role !== "product"));
-  }
-  if (refs.some((r) => r.role === "inspiration")) {
-    refTiers.push(refs.filter((r) => r.role === "logo" || r.role === "previous"));
-  }
-  refTiers.push([]); // last resort: blank canvas only
-
-  let lastErr: string = "";
-  for (let tier = 0; tier < refTiers.length; tier++) {
-    const currentRefs = refTiers[tier];
-    const resp = await callOnce(currentRefs);
-    if (resp.ok) {
-      const data = await resp.json();
-      const b64: string | undefined = data?.data?.[0]?.b64_json;
-      if (b64) {
-        if (tier > 0) {
-          console.log(`[render] succeeded on tier ${tier} (dropped some refs)`);
-        }
-        return { b64, tier, refsUsed: currentRefs.length };
-      }
-      lastErr = "No image in response";
-      continue;
+  if (resp.ok) {
+    const data = await resp.json();
+    const b64: string | undefined = data?.data?.[0]?.b64_json;
+    if (b64) {
+      // refsUsed reflects refs available (described in prompt), even though
+      // none were attached at the HTTP layer.
+      return { b64, tier: 0, refsUsed: refs.length };
     }
-    if (resp.status === 429) throw new Error("RATE_LIMIT");
-    if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
-    lastErr = await resp.text().catch(() => `HTTP ${resp.status}`);
-    console.error(`[render] tier ${tier} failed (${resp.status}):`, lastErr.slice(0, 500));
-    // 4xx → try the next tier with fewer refs. 5xx already retried inside retryFetch.
-    if (resp.status >= 500) {
-      // 5xx already retried by retryFetch — don't keep cycling tiers needlessly.
-      // But still try the blank-canvas tier as a final attempt.
-      if (tier < refTiers.length - 1) continue;
-      break;
-    }
+    throw new Error("Failed to generate image: empty response");
   }
-  throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
+  if (resp.status === 429) throw new Error("RATE_LIMIT");
+  if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
+  const errText = await resp.text().catch(() => `HTTP ${resp.status}`);
+  console.error(`[render] failed (${resp.status}):`, errText.slice(0, 500));
+  throw new Error(`Failed to generate image: ${errText.slice(0, 200)}`);
 }
+
+
 
 
 
