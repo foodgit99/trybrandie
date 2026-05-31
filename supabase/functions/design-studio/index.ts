@@ -2109,7 +2109,9 @@ ${brand.special_instructions}
 
         // 3. Deep clone the base preset
         genomeResult = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
+        genomeResult.preset_id = basePresetId; // P6: tag for feedback loop
         console.log(`Genome Composer (deterministic): base preset="${basePresetId}" for vibe="${brandVibeLower}"`);
+
 
         // 4. Apply trend overrides if trend is selected — deterministic top-N blending.
         // H2: Replaces per-gene Math.random() < intensity (which produced non-reproducible genomes
