@@ -18,6 +18,8 @@ import {
   buildCopyForbiddenContext,
   enrichWithResearch,
 } from "../_shared/category-recipes.ts";
+import { createSeededRng, rngPick } from "../_shared/seeded-rng.ts";
+
 
 // --- PLATFORM CANVAS PRESETS ---
 // Strict pixel dimensions per social platform. The renderer is forced to
@@ -601,7 +603,13 @@ async function runFullHandler(req: Request): Promise<Response> {
     // Initialize tracer for this request
     const tracer = new Tracer(user.id);
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = (req as any)._parsedBody || await req.json();
+    const _parsedReqBody = (req as any)._parsedBody || await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
+    // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
+    // + category bias outcomes are reproducible per job — easier debugging + fair A/B.
+    const _rngSeed: string = _parsedReqBody?.job_id || `${user.id}:${Date.now()}`;
+    const rng = createSeededRng(_rngSeed);
+
 
     // Sanitise user-provided text inputs
     if (messages && Array.isArray(messages)) {
@@ -2109,15 +2117,15 @@ ${brand.special_instructions}
           const prefKey = `_preferred_${field}`;
           const preferred = preferenceWeights[category]?.[prefKey] as unknown as string;
           if (preferred && preferred !== current && options.includes(preferred)) {
-            if (Math.random() < 0.6) return preferred;
+          if (rng() < 0.6) return preferred;
           }
           const alternatives = options.filter((o: string) => o !== current);
-          return alternatives.length > 0 ? alternatives[Math.floor(Math.random() * alternatives.length)] : current;
+          return alternatives.length > 0 ? rngPick(rng, alternatives) : current;
         };
 
         for (const [category, fields] of Object.entries(freeGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
-            if (Math.random() < MUTATION_RATE) {
+            if (rng() < MUTATION_RATE) {
               genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
@@ -2125,23 +2133,24 @@ ${brand.special_instructions}
         }
         for (const [category, fields] of Object.entries(semiFlexGeneOptions)) {
           for (const [field, options] of Object.entries(fields)) {
-            if (Math.random() < MUTATION_RATE / 2) {
+            if (rng() < MUTATION_RATE / 2) {
               genomeResult[category][field] = pickMutationValue(category, field, options, genomeResult[category]?.[field]);
               mutationCount++;
             }
           }
         }
-        if (Math.random() < MUTATION_RATE / 2) {
+        if (rng() < MUTATION_RATE / 2) {
           const currentEmotion = genomeResult.emotion;
           const prefEmotion = preferenceWeights["_emotion"]?.["_preferred_value"] as unknown as string;
-          if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && Math.random() < 0.6) {
+          if (prefEmotion && prefEmotion !== currentEmotion && emotionOptions.includes(prefEmotion) && rng() < 0.6) {
             genomeResult.emotion = prefEmotion;
           } else {
             const altEmotions = emotionOptions.filter((e: string) => e !== currentEmotion);
-            genomeResult.emotion = altEmotions[Math.floor(Math.random() * altEmotions.length)];
+            genomeResult.emotion = rngPick(rng, altEmotions);
           }
           mutationCount++;
         }
+
 
         if (mutationCount > 0) {
           console.log(`Genome Mutation: ${mutationCount} gene(s) mutated (preference-biased)`);
@@ -2534,7 +2543,7 @@ User request: "${userPrompt}"`;
         const lockedGenesArr: string[] = Array.isArray(genomeData._trend_locked_genes) ? genomeData._trend_locked_genes : [];
         const protectTrend = trendIntensityPct >= 50 && lockedGenesArr.length > 0;
         const trendLockedSet = protectTrend ? new Set(lockedGenesArr) : null;
-        applyCategoryBias(genomeData, resolvedCategory, 0.7, false, trendLockedSet);
+        applyCategoryBias(genomeData, resolvedCategory, 0.7, false, trendLockedSet, rng);
         const fitScore = computeCategoryFit(genomeData, resolvedCategory);
         genomeData._category_fit = fitScore;
         console.log(`[category-bias] category=${resolvedCategory} fit_score=${fitScore} biases_applied=${genomeData._category_bias_applied || 0} skipped_for_trend=${genomeData._category_bias_skipped_for_trend || 0}`);
