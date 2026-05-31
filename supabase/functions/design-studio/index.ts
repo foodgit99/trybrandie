@@ -2793,7 +2793,13 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       if (genomeData) {
         const stabilized = applyStabilityGate(genomeData, brand, trend, trend_intensity, copyStructure);
         genomeScores = stabilized.scores;
+        tracer.setMetric("genome_overall_score", stabilized.scores?.overall ?? null);
+        tracer.setMetric("stability_gate_fired", genomeData._refined === true);
+        if (genomeData._refined_brand) tracer.setMetric("stability_gate_brand_pass", true);
       }
+      tracer.setMetric("content_category", resolvedCategory);
+      tracer.setMetric("category_confidence", (CATEGORY_RECIPES[resolvedCategory] ? 1.0 : 0.5));
+      tracer.setMetric("research_skipped", !CATEGORY_RECIPES[resolvedCategory]?.needs_fresh_info);
 
       const singleResult = await renderVariation(genomeData, genomeScores, "A");
 
@@ -2817,11 +2823,13 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           total_latency_ms: summary.total_latency_ms,
           total_input_tokens: summary.total_input_tokens,
           total_output_tokens: summary.total_output_tokens,
+          metrics: tracer.getMetrics(),
           error: summary.error_count > 0 ? JSON.stringify(tracer.getSpans().filter(s => s.status === "error").map(s => s.error)) : null,
         });
       } catch (traceErr) {
         console.error("Failed to persist trace:", traceErr);
       }
+
 
       if (updatesUsed.length > 0) {
         markUpdatesUsed(adminClient, updatesUsed.map((u: any) => u.id)).catch(() => {});
