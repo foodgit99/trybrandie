@@ -2706,8 +2706,13 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 - Buying trigger: ${(audienceProfile.buying_triggers || [])[0] || ""}`
           : "";
 
+        // P5.#2: CREATIVE DIRECTOR layout blueprint — concrete spatial schema before the renderer.
+        const blueprintBlock = layoutSchema
+          ? `\n\nLAYOUT BLUEPRINT (Creative Director schema — follow this spatial plan precisely):\n${JSON.stringify(layoutSchema).slice(0, 1400)}`
+          : "";
+
         // P1.#1: PRIMARY CREATIVE INTENT — lead with the verbatim user prompt.
-        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${varGenomeContext}${varCopyInjection}`;
+        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${blueprintBlock}${varGenomeContext}${varCopyInjection}`;
 
         // P1.#1: condensed polish block (~3 sentences, was ~2KB of boilerplate).
         const polishBlock = `Create a PHOTOREALISTIC, modern, studio-grade social graphic (${sizeLabel}, ${w}x${h}px). Use real photography, natural textures, balanced composition, generous breathing room, refined glassy finish, crisp edges, and tasteful glassmorphism on overlay panels — no muddy gradients or low-res artefacts. CRITICAL TEXT CONTRAST: every word must sit on a high-contrast background (use scrims/overlays when over photography); readability is non-negotiable.${copyStructure ? "" : " Only include text that directly serves the user's request — no filler text or random quotes."}`;
