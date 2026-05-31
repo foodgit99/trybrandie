@@ -603,7 +603,13 @@ async function runFullHandler(req: Request): Promise<Response> {
     // Initialize tracer for this request
     const tracer = new Tracer(user.id);
 
-    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = (req as any)._parsedBody || await req.json();
+    const _parsedReqBody = (req as any)._parsedBody || await req.json();
+    const { messages, brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
+    // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
+    // + category bias outcomes are reproducible per job — easier debugging + fair A/B.
+    const _rngSeed: string = _parsedReqBody?.job_id || `${user.id}:${Date.now()}`;
+    const rng = createSeededRng(_rngSeed);
+
 
     // Sanitise user-provided text inputs
     if (messages && Array.isArray(messages)) {
