@@ -1,76 +1,131 @@
 
-# Switch renderer to gpt-image-2 `/edits` (reference-aware) for ALL designs
+# Pipeline Optimization Plan — 15 Recommendations
 
-## Goal
-Remove the text-only `/v1/images/generations` path entirely. Every render goes through `/v1/images/edits` with real image references attached:
-- Brand **logo** (always, when `brand.logo_url` exists)
-- Brand **inspiration_examples** (up to 2)
-- **User-uploaded image** (when present in the job payload)
-- **Previous render** (on edits, to preserve layout)
+Goal: align generation output more tightly to user intent by promoting the prompt, introducing a Creative Director Agent with persisted layout schemas, making audience JTBD a first-class signal, tightening trend/inspiration handling, closing the feedback loop, and adding telemetry.
 
-Result: the logo appears pixel-exact (not redrawn), inspiration steers composition/palette visually, and user images are actually used instead of described.
+Rollout is phased so each phase is shippable independently and the pipeline stays green throughout.
 
-## Why this is safe
-- gpt-image-2 stays as the model — no model migration.
-- Same Lovable AI Gateway, same auth, same credit cost (1 credit).
-- Same SSE response shape (`image_generation.partial_image` / `image_generation.completed`) → no client changes.
-- If a brand has no logo and no inspiration, we synthesize a 1024×1024 transparent PNG as a "blank canvas" reference so `/edits` still accepts the request. This removes the need to keep two render paths.
+---
 
-## Scope of changes
+## Phase 1 — Quick wins (no schema changes)
 
-### 1. New shared helper — `supabase/functions/_shared/render-refs.ts`
-- `fetchAndNormalizeRef(url)` → downloads, validates content-type, resizes/pads to 1024×1024 PNG ≤4MB, returns `Blob`. 5s timeout per ref.
-- `buildBlankCanvas()` → returns a 1024×1024 transparent PNG `Blob` (fallback when no refs exist).
-- `collectRefs({ brand, userImage, previousRender })` → returns ordered array `[{ role, blob, label }]` capped at 4 entries (logo + 2 inspirations + 1 user/prior). Logo always first when present.
+**Scope:** prompt-level changes inside `design-studio/index.ts` only. Zero risk to current pipeline.
 
-### 2. Replace renderer in `supabase/functions/design-studio/index.ts`
-- Delete `renderWithGenerations()` (or rename + repurpose as the new edits caller).
-- New `renderWithEdits({ prompt, refs, size, stream })`:
-  - Build `multipart/form-data` with `model=openai/gpt-image-2`, `prompt`, `size=1024x1024`, `quality=low`, `stream=true`, `partial_images=1`, and one `image[]` field per ref blob.
-  - POST to `https://ai.gateway.lovable.dev/v1/images/edits` with `Authorization: Bearer ${LOVABLE_API_KEY}`.
-  - Stream SSE back to caller (unchanged downstream parsing).
-- Rewrite the prompt-builder block:
-  - Drop "place the logo in bottom-right at 12%..." textual logo instructions.
-  - Add explicit reference index legend: `"Reference 1 = brand logo (use EXACTLY as provided, do not redraw, place at <position>). Reference 2 = inspiration (style/composition only, do not copy content). Reference 3 = user image (use as hero subject)."`
-  - Keep all upstream agents (Brief, Copywriter, Genome, Category Bias, Stability Gate) untouched.
+1. **#1 Promote user prompt** — restructure prompt builder so the verbatim user prompt is the first and last block (repeated slot). Strip the ~2KB of styling boilerplate down to ≤3 sentences of polish guidance.
+2. **#10 Move `special_instructions`** to the top of the prompt, immediately after the user prompt slot.
+3. **#14 Per-brand prompt budget cap** — if assembled prompt > 3.5KB, progressively drop boilerplate (polish hints first, then research enrichment, then inspiration captions).
+4. **#13 Drop Firecrawl/research from hot path** for categories where it historically returns 0 results. Add an allowlist in `category-recipes.ts` (e.g. only run research for `educational`, `industry_news`).
 
-### 3. Job payload
-- `design-enqueue` already accepts `user_image_url` (if not, add optional pass-through). Forward to `design-studio` via `design_jobs.input`.
-- No new DB columns required for Phase 1. (Persisting `layout_schema` + `final_render_url` for edit-mode masking is a separate later phase.)
+**Files:** `supabase/functions/design-studio/index.ts`, `supabase/functions/_shared/category-recipes.ts`.
 
-### 4. Error handling & fallback
-- `/edits` 4xx (content policy, invalid mask, oversized ref): retry once **without** the offending ref (drop user image first, then inspiration, keep logo). If still failing, retry with only the blank canvas. Surface clear error if all attempts fail.
-- `/edits` 429/5xx: existing `retryFetch` semantics apply.
-- Ref download failure: skip that ref, continue with remaining + blank canvas if needed. Log to `design_traces`.
+---
 
-### 5. Telemetry
-- Add `render_mode: "edits"`, `refs_used: ["logo","inspiration","user"]`, `refs_skipped: [...]` to the trace payload so admin can see ref attachment rates.
+## Phase 2 — Telemetry + observability
 
-## What stays exactly the same
-- All agents upstream of the renderer.
-- Credit deduction, Inngest dispatch, job locking, seeded RNG, category recipes, trend presets.
-- Client UI, streaming preview, blur-on-partial, FloatingDesignStatus.
-- Watermarking on free tier.
+**Scope:** make Phase 1 results measurable before going further.
 
-## Out of scope (separate future phase)
-- Mask-based partial edits (preserve previous layout on copy-only tweaks) — requires persisting `layout_schema` + final render URL. Noted but not built here.
-- Carousel multi-slide ref strategy — current carousel orchestrator calls the renderer per slide; this change applies uniformly.
+5. **#15 Telemetry expansion** — add to `design_traces` payload:
+   - `prompt_length_chars`
+   - `refs_used_count`, `refs_skipped[]`
+   - `genome_overall_score`
+   - `stability_gate_fired` (bool) + `stability_gate_gene_patched`
+   - `tier_used` (which fallback tier rendered)
+   - `category_confidence` (for #11)
+   - `research_skipped` (for #13)
+6. Surface these in `AdminTracesTab.tsx` as sortable columns + 7-day averages.
 
-## Rollout
-- Single deploy. No feature flag (user wants to remove text-only entirely).
-- Smoke test path: generate a design for a brand with logo + 2 inspirations → verify logo pixel-match in output and inspiration influence in palette/composition.
-- Monitor `design_traces` for `refs_skipped` rate and `/edits` failure rate over first 50 jobs.
+**Files:** `supabase/functions/_shared/tracer.ts`, `supabase/functions/design-studio/index.ts`, `src/components/admin/AdminTracesTab.tsx`.
 
-## Files touched
-- `supabase/functions/_shared/render-refs.ts` — **new**
-- `supabase/functions/design-studio/index.ts` — replace renderer + prompt block
-- `supabase/functions/design-enqueue/index.ts` — pass through `user_image_url` if not already
-- `.lovable/plan.md` — update audit doc
+---
 
-## Risks
-- Inspiration images skew output too literally → mitigated by explicit "style/composition only, do not copy content" prompt language + capping at 2.
-- Logo placement still imperfect (gpt-image-2 may scale/recolor) → reinforced by "use EXACTLY as provided, do not redraw, do not recolor" + place-position hint in prompt.
-- Latency: +1-3s for ref downloads (parallelized, capped at 5s each).
+## Phase 3 — Audience & inspiration upgrades
 
-## Estimated effort
-~3-4 hours of edits + test. Single migration-free deploy.
+**Scope:** make existing inputs actually influence the output.
+
+7. **#4 Audience JTBD as first-class input** —
+   - Inject `core_job_statement`, top emotional drivers, and one buying trigger directly into the renderer prompt (new "Audience" block).
+   - Add audience-alignment score to the genome scorer (new metric weighted 15%).
+8. **#7 Tighten inspiration handling** —
+   - Lower preset-vote threshold from 2 → 1.
+   - Add `dominant_palette` (top-3 hex via image analysis) and `composition_vector` (rule-of-thirds / centered / asymmetric) extraction to `render-refs.ts`.
+   - Inject those as structured tokens into genome composer instead of free-text caption only.
+9. **#11 Category confidence** — replace binary category override with a 0-1 confidence score. If `< 0.7`, blend instead of overwrite category bias.
+
+**Files:** `supabase/functions/design-studio/index.ts`, `supabase/functions/_shared/render-refs.ts`, `supabase/functions/audience-intelligence/index.ts` (read path only).
+
+---
+
+## Phase 4 — Stability + per-brand policy
+
+10. **#5 Raise Stability Gate** floor from 55 → 65. Add second-pass refinement for paid-tier users (Entrepreneur+).
+11. **#6 Per-brand lock policy** — new `brand.gene_lock_policy` JSONB field with shape:
+    ```
+    { locked: ["color_primary"], semi_flexible: ["typography"], free: ["texture","layout"] }
+    ```
+    Genome composer respects per-brand locks during composition + mutation.
+12. **#9 Carousel coherence** — in `design-studio` carousel orchestrator, compute genome once for slide 1, deep-clone and lock all genes for slides 2-N. Only copy + image_instructions vary.
+
+**Schema change:** one migration adding `gene_lock_policy JSONB` to `brands` (nullable, default null → falls back to global defaults).
+
+---
+
+## Phase 5 — Creative Director Agent + persisted layout schema
+
+**Scope:** the biggest architectural change. Unlocks real edits and feedback loop.
+
+13. **#2 Creative Director Agent** —
+    - New stage between Genome Composer and Renderer.
+    - Calls `google/gemini-3.1-pro-preview` with brand + genome + copy + audience to emit a `layout_schema` JSON: `{ regions: [{role, bbox, z, content_ref}], typography_spec, color_tokens, focal_strategy }`.
+    - Schema is appended to renderer prompt as structured spec ("Render exactly this layout: …").
+14. **#3 Persist `layout_schema` + `final_render_url`** —
+    - New columns on `designs`: `layout_schema JSONB`, `creative_director_version TEXT`.
+    - Stored after every successful render.
+15. **#8 Mask-based edits** — when user requests a copy-only edit on an existing design:
+    - Pull persisted `layout_schema`.
+    - Build coarse text-region mask (PNG alpha from bbox of `role='headline'|'subheadline'|'cta'`).
+    - Call `/v1/images/edits` with mask + previous render → preserves layout pixel-for-pixel.
+
+**Schema changes:** migration adding two columns to `designs`.
+
+---
+
+## Phase 6 — Feedback loop
+
+16. **#12 Close feedback loop** —
+    - New table `genome_preset_weights (brand_id, category, preset_id, weight, updated_at)`.
+    - Upvote on a design: `weight += 0.1` for that `(category, genome_preset)` combo.
+    - Downvote: `weight -= 0.1`, floored at 0.
+    - Genome Composer's preset selection multiplies base score by `weight` (default 1.0).
+
+**Schema change:** one migration for the weights table + GRANTs + RLS (user can only read/write weights for brands they own).
+
+---
+
+## Out of plan / explicitly deferred
+
+- Replacing gpt-image-2 (user wants to keep it).
+- True regional inpainting beyond text-region masks.
+- Multi-modal feedback signals beyond upvote/downvote.
+
+---
+
+## Technical notes
+
+- All edge function changes ship via `supabase--deploy_edge_functions`; no client-side breaking changes.
+- SSE response shape (`image_generation.partial_image` / `image_generation.completed`) is preserved across every phase.
+- Credit deduction logic is untouched; Creative Director call is wrapped in `circuit-breaker.ts` and fails open (skips schema step) so a Gemini outage cannot block renders.
+- Each phase can be deployed and rolled back independently. Recommended cadence: P1+P2 together, then P3, then P4, then P5, then P6.
+
+---
+
+## Files touched (summary)
+
+```text
+Phase 1-2: design-studio/, _shared/category-recipes.ts, _shared/tracer.ts, admin/AdminTracesTab.tsx
+Phase 3:   design-studio/, _shared/render-refs.ts
+Phase 4:   design-studio/, brands migration
+Phase 5:   design-studio/, designs migration, new creative-director stage
+Phase 6:   genome_preset_weights migration, design-studio/ scoring path, vote handler
+```
+
+Total estimated effort: ~3-4 days across 6 deploys.
