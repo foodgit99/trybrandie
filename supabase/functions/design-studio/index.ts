@@ -276,11 +276,15 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
   throw lastError || new Error("retryFetch: all attempts failed");
 }
 
-// --- GPT-IMAGE-2 RENDERER ---
-// gpt-image-2 uses /v1/images/generations (NOT chat completions). Text-only prompt
-// (no reference images), supports sizes 1024x1024 / 1024x1536 / 1536x1024.
-// Returns raw base64 (no data: prefix). enforceCanvasDimensions handles final
-// crop/resize to exact target dims afterward.
+// --- GPT-IMAGE-2 RENDERER (reference-aware via /v1/images/edits) ---
+// We ALWAYS call /v1/images/edits with at least one reference image attached
+// so brand logos appear pixel-exact, inspiration images steer composition
+// visually, and user/product/previous-render images are real inputs (not
+// described text). If a brand has no usable refs, a blank transparent canvas
+// is attached as a placeholder so the endpoint accepts the request.
+//
+// Supported output sizes: 1024x1024 / 1024x1536 / 1536x1024.
+// enforceCanvasDimensions handles final crop/resize to exact platform dims.
 function mapToGptImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1536x1024" {
   const ratio = w / h;
   if (ratio > 1.15) return "1536x1024";
@@ -288,50 +292,89 @@ function mapToGptImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1
   return "1024x1024";
 }
 
-async function renderWithGptImage(prompt: string, w: number, h: number): Promise<string> {
+async function renderWithGptImageEdits(
+  prompt: string,
+  refs: CollectedRef[],
+  w: number,
+  h: number,
+): Promise<string> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
   const size = mapToGptImageSize(w, h);
-  // quality: "low" — keeps render well under the 150s edge function idle limit.
-  // "high" routinely exceeded 150s (especially for multi-slide carousels) and
-  // caused IDLE_TIMEOUT 504s. enforceCanvasDimensions still upscales/crops to
-  // the final target size afterward.
-  const body = JSON.stringify({
-    model: "openai/gpt-image-2",
-    prompt,
-    size,
-    quality: "low",
-    n: 1,
-  });
 
-  const callOnce = () => retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body,
-  });
+  // Build multipart form: model + prompt + size + quality + one image[] per ref.
+  // If no refs were collected, attach a blank 1x1 transparent canvas so the
+  // endpoint accepts the request.
+  const buildForm = (currentRefs: CollectedRef[]): FormData => {
+    const form = new FormData();
+    form.append("model", "openai/gpt-image-2");
+    form.append("prompt", prompt);
+    form.append("size", size);
+    form.append("quality", "low");
+    form.append("n", "1");
+    const attached = currentRefs.length > 0 ? currentRefs : null;
+    if (attached) {
+      for (const r of attached) {
+        const ext = r.contentType === "image/jpeg" ? "jpg" : r.contentType === "image/webp" ? "webp" : "png";
+        form.append("image[]", r.blob, `${r.role}.${ext}`);
+      }
+    } else {
+      form.append("image[]", buildBlankCanvasBlob(), "canvas.png");
+    }
+    return form;
+  };
 
-  let resp = await callOnce();
-  if (!resp.ok) {
+  const callOnce = (currentRefs: CollectedRef[]) =>
+    retryFetch("https://ai.gateway.lovable.dev/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` }, // browser sets Content-Type w/ boundary
+      body: buildForm(currentRefs),
+    });
+
+  // Attempt sequence: full refs → drop user/product → drop inspiration → blank.
+  // This guards against a single bad ref (e.g. content-policy violation,
+  // unreadable file) bringing down the whole render.
+  const refTiers: CollectedRef[][] = [refs];
+  if (refs.some((r) => r.role === "user" || r.role === "product")) {
+    refTiers.push(refs.filter((r) => r.role !== "user" && r.role !== "product"));
+  }
+  if (refs.some((r) => r.role === "inspiration")) {
+    refTiers.push(refs.filter((r) => r.role === "logo" || r.role === "previous"));
+  }
+  refTiers.push([]); // last resort: blank canvas only
+
+  let lastErr: string = "";
+  for (let tier = 0; tier < refTiers.length; tier++) {
+    const currentRefs = refTiers[tier];
+    const resp = await callOnce(currentRefs);
+    if (resp.ok) {
+      const data = await resp.json();
+      const b64: string | undefined = data?.data?.[0]?.b64_json;
+      if (b64) {
+        if (tier > 0) {
+          console.log(`[render] succeeded on tier ${tier} (dropped some refs)`);
+        }
+        return b64;
+      }
+      lastErr = "No image in response";
+      continue;
+    }
     if (resp.status === 429) throw new Error("RATE_LIMIT");
     if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
-    const errText = await resp.text();
-    console.error("gpt-image-2 error:", resp.status, errText);
-    throw new Error("Failed to generate image");
-  }
-  let data = await resp.json();
-  let b64: string | undefined = data?.data?.[0]?.b64_json;
-  if (!b64) {
-    console.log("gpt-image-2: no image in response, retrying once...");
-    await new Promise(r => setTimeout(r, 1500));
-    resp = await callOnce();
-    if (resp.ok) {
-      data = await resp.json();
-      b64 = data?.data?.[0]?.b64_json;
+    lastErr = await resp.text().catch(() => `HTTP ${resp.status}`);
+    console.error(`[render] tier ${tier} failed (${resp.status}):`, lastErr.slice(0, 500));
+    // 4xx → try the next tier with fewer refs. 5xx already retried inside retryFetch.
+    if (resp.status >= 500) {
+      // 5xx already retried by retryFetch — don't keep cycling tiers needlessly.
+      // But still try the blank-canvas tier as a final attempt.
+      if (tier < refTiers.length - 1) continue;
+      break;
     }
   }
-  if (!b64) throw new Error("No image generated");
-  return b64;
+  throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
 }
+
+
 
 // --- CONTENT CATEGORIES ---
 // CONTENT_CATEGORIES is now derived from the shared CATEGORY_RECIPES module.
