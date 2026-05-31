@@ -3008,6 +3008,20 @@ Return structured JSON.`;
 
       const slides: { image_url: string; slide_index: number; copy_structure: any; design_id: string }[] = [];
 
+      // Fetch reference image blobs ONCE for the whole carousel; reuse for every slide
+      // so the brand logo / inspiration / user image stays pixel-consistent across slides.
+      const { refs: carouselRefs, skipped: carouselSkippedRefs } = await collectRenderRefs({
+        logoUrl: brand?.logo_url,
+        inspirationUrls: inspirationUrls,
+        userImageUrl: user_image_url,
+        productImageUrls: productImageUrls,
+        previousImageUrl: null,
+      });
+      if (carouselSkippedRefs.length > 0) {
+        console.log(`[carousel] skipped ${carouselSkippedRefs.length} ref(s):`, carouselSkippedRefs.map((s) => s.role).join(","));
+      }
+      const carouselRefLegend = buildRefLegend(carouselRefs);
+
       // Render in batches of 2
       for (let batchStart = 0; batchStart < numSlides; batchStart += 2) {
         const batchEnd = Math.min(batchStart + 2, numSlides);
@@ -3017,14 +3031,14 @@ Return structured JSON.`;
           const slide = carouselPlan.slides[i];
           const copyInjection = `EXACT TEXT TO RENDER:\n- Headline: "${slide.headline}"${slide.subheadline ? `\n- Subheadline: "${slide.subheadline}"` : ""}${slide.cta ? `\n- CTA: "${slide.cta}"` : ""}\nRender ONLY the text listed above.`;
 
-          const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nMANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Studio-grade, sharp, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.logo_url ? " Include the brand logo." : ""}${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
+          const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nMANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Studio-grade, sharp, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
 
-          const slidePromptWithLogo = brand?.logo_url
-            ? `${slidePrompt}\n\nBrand logo image URL (described, not attached): ${brand.logo_url}`
+          const slidePromptWithRefs = carouselRefLegend
+            ? `${slidePrompt}\n\n${carouselRefLegend}`
             : slidePrompt;
 
           batchPromises.push((async () => {
-            const imageBase64 = await renderWithGptImage(slidePromptWithLogo, w, h);
+            const imageBase64 = await renderWithGptImageEdits(slidePromptWithRefs, carouselRefs, w, h);
             let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
             // Strict platform-aspect enforcement on each slide.
             binaryData = await enforceCanvasDimensions(binaryData, w, h);
