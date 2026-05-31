@@ -1941,6 +1941,10 @@ export type Database = {
       }
       lock_autopilot_idea: { Args: { p_idea_id: string }; Returns: string }
       process_referral: { Args: { p_user_id: string }; Returns: Json }
+      record_preset_feedback: {
+        Args: { p_design_id: string; p_vote: number }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
