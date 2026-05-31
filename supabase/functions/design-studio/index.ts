@@ -297,7 +297,7 @@ async function renderWithGptImageEdits(
   refs: CollectedRef[],
   w: number,
   h: number,
-): Promise<string> {
+): Promise<{ b64: string; tier: number; refsUsed: number }> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
   const size = mapToGptImageSize(w, h);
@@ -354,7 +354,7 @@ async function renderWithGptImageEdits(
         if (tier > 0) {
           console.log(`[render] succeeded on tier ${tier} (dropped some refs)`);
         }
-        return b64;
+        return { b64, tier, refsUsed: currentRefs.length };
       }
       lastErr = "No image in response";
       continue;
