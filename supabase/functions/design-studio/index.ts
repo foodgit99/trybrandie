@@ -2633,7 +2633,7 @@ User request: "${userPrompt}"`;
           }
         };
 
-        if (scores.overall < 55) {
+        if (scores.overall < 65) { // P4.#5: raise stability floor from 55 to 65
           console.log(`Stability Gate triggered: overall=${scores.overall}`);
           const dimensions = ["brand_alignment", "trend_balance", "visual_clarity", "conversion", "visual_balance"];
           const weakest = dimensions.reduce((a, b) => (scores[a] < scores[b] ? a : b));
