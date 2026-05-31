@@ -1942,7 +1942,35 @@ ${brand.special_instructions}
           }
         }
 
+        // P6: Genome preset feedback loop — bias selection toward presets the brand has upvoted.
+        // Weights default to 1.0; >=1.3 nudges toward, <=0.7 nudges away.
+        try {
+          const { data: weights } = await supabase
+            .from("genome_preset_weights")
+            .select("preset_id, weight")
+            .eq("brand_id", brandId)
+            .eq("category", "all");
+          if (weights && weights.length > 0) {
+            const wMap: Record<string, number> = {};
+            for (const w of weights) wMap[w.preset_id] = Number(w.weight) || 1.0;
+            const currentW = wMap[basePresetId] ?? 1.0;
+            // Find the strongest alternative
+            const sorted = Object.entries(wMap).sort((a, b) => b[1] - a[1]);
+            const top = sorted[0];
+            if (top && top[0] !== basePresetId && top[1] >= 1.3 && top[1] > currentW + 0.2) {
+              console.log(`P6 weights override: "${basePresetId}" (w=${currentW.toFixed(2)}) → "${top[0]}" (w=${top[1].toFixed(2)})`);
+              basePresetId = top[0];
+            } else if (currentW <= 0.7 && sorted[0] && sorted[0][1] > currentW) {
+              console.log(`P6 weights penalty: "${basePresetId}" (w=${currentW.toFixed(2)}) demoted → "${sorted[0][0]}" (w=${sorted[0][1].toFixed(2)})`);
+              basePresetId = sorted[0][0];
+            }
+          }
+        } catch (e) {
+          console.log("P6 weights lookup failed (non-blocking):", (e as Error).message);
+        }
+
         // Hardcoded genome presets
+
         const GENOME_PRESETS: Record<string, any> = {
           "minimalist-modern": {
             color: { palette_type: "monochrome", temperature: "neutral", contrast: "medium", saturation: "muted", gradient_logic: "flat" },
