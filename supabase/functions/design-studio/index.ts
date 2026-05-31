@@ -18,6 +18,8 @@ import {
   buildCopyForbiddenContext,
   enrichWithResearch,
 } from "../_shared/category-recipes.ts";
+import { createSeededRng, rngPick } from "../_shared/seeded-rng.ts";
+
 
 // --- PLATFORM CANVAS PRESETS ---
 // Strict pixel dimensions per social platform. The renderer is forced to
