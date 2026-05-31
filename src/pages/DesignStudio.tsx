@@ -855,12 +855,17 @@ const DesignStudio = () => {
     try {
       if (msg.designId) {
         await supabase.from("designs").update({ vote: newVote }).eq("id", msg.designId).eq("user_id", user!.id);
+        // P6: feed the genome preset weights loop (no-op if vote===0 or preset missing)
+        if (newVote !== 0) {
+          supabase.rpc("record_preset_feedback", { p_design_id: msg.designId, p_vote: newVote }).then(() => {});
+        }
       } else if (msg.imageUrl) {
         await supabase.from("designs").update({ vote: newVote }).eq("image_url", msg.imageUrl).eq("user_id", user!.id);
       }
     } catch {
       // best-effort; UI already reflects intent
     }
+
   };
 
   const addWatermark = async (ctx: CanvasRenderingContext2D, w: number, h: number) => {
