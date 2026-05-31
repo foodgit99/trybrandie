@@ -69,23 +69,24 @@ Rollout is phased so each phase is shippable independently and the pipeline stay
 
 ---
 
-## Phase 5 — Creative Director Agent + persisted layout schema
+## Phase 5 — Creative Director Agent + persisted layout schema  ✅ shipped (single-design path)
 
 **Scope:** the biggest architectural change. Unlocks real edits and feedback loop.
 
-13. **#2 Creative Director Agent** —
-    - New stage between Genome Composer and Renderer.
-    - Calls `google/gemini-3.1-pro-preview` with brand + genome + copy + audience to emit a `layout_schema` JSON: `{ regions: [{role, bbox, z, content_ref}], typography_spec, color_tokens, focal_strategy }`.
-    - Schema is appended to renderer prompt as structured spec ("Render exactly this layout: …").
-14. **#3 Persist `layout_schema` + `final_render_url`** —
-    - New columns on `designs`: `layout_schema JSONB`, `creative_director_version TEXT`.
-    - Stored after every successful render.
-15. **#8 Mask-based edits** — when user requests a copy-only edit on an existing design:
-    - Pull persisted `layout_schema`.
-    - Build coarse text-region mask (PNG alpha from bbox of `role='headline'|'subheadline'|'cta'`).
-    - Call `/v1/images/edits` with mask + previous render → preserves layout pixel-for-pixel.
+13. **#2 Creative Director Agent** — ✅
+    - New stage between Stability Gate and Renderer in `design-studio/index.ts`.
+    - Calls `MODEL_CHAINS.reasoning` (gemini-2.5-pro → 3.1-pro-preview fallback) via tool-call, emitting `layout_schema` JSON: `{ canvas_grid, regions[{role,position,size,treatment}], focal_point, hierarchy, palette_application, background_treatment, visual_motifs[] }`.
+    - Schema injected into renderer prompt as `LAYOUT BLUEPRINT` block (after audience, before genome).
+    - Best-effort: failure does NOT block render.
+    - Tracer metrics: `creative_director_fired`, `layout_schema_regions`.
+14. **#3 Persist `layout_schema`** — ✅
+    - Columns `layout_schema JSONB` + `creative_director_version TEXT` already on `designs` (Phase 4 migration).
+    - Returned in single-design response; persisted by `DesignGenerationContext.tsx` on design insert.
+    - Carousel persistence deferred (single CD call per carousel still TODO).
+15. **#8 Mask-based edits** — ⏭ deferred to a follow-up; requires `previous_image_url` + mask compositing.
 
-**Schema changes:** migration adding two columns to `designs`.
+**Schema changes:** none (used columns added in Phase 4 migration).
+
 
 ---
 
