@@ -2543,7 +2543,7 @@ User request: "${userPrompt}"`;
         const lockedGenesArr: string[] = Array.isArray(genomeData._trend_locked_genes) ? genomeData._trend_locked_genes : [];
         const protectTrend = trendIntensityPct >= 50 && lockedGenesArr.length > 0;
         const trendLockedSet = protectTrend ? new Set(lockedGenesArr) : null;
-        applyCategoryBias(genomeData, resolvedCategory, 0.7, false, trendLockedSet);
+        applyCategoryBias(genomeData, resolvedCategory, 0.7, false, trendLockedSet, rng);
         const fitScore = computeCategoryFit(genomeData, resolvedCategory);
         genomeData._category_fit = fitScore;
         console.log(`[category-bias] category=${resolvedCategory} fit_score=${fitScore} biases_applied=${genomeData._category_bias_applied || 0} skipped_for_trend=${genomeData._category_bias_skipped_for_trend || 0}`);
