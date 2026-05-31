@@ -2692,11 +2692,51 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
         const categoryRenderInjection = buildCategoryRenderInjection(resolvedCategory);
 
-        // H7: Lead with user intent + visual genome so they receive the highest text-encoder attention.
-        // The studio philosophy / polish / contrast rules follow as supporting context.
-        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${varGenomeContext}${varCopyInjection}`;
+        // P1.#10: SPECIAL INSTRUCTIONS — top of prompt, highest priority block.
+        const specialInstructionsBlock = brand?.special_instructions
+          ? `\n\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY):\n${brand.special_instructions}`
+          : "";
 
-        const imagePromptText = `${dimensionEnforcement}\n\n${intentHeader}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}.${userImageInstruction}${categoryRenderInjection}${!varGenomeContext && trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
+        // P3.#4: AUDIENCE block — make JTBD a first-class renderer input.
+        const audienceBlock = audienceProfile
+          ? `\n\nAUDIENCE PSYCHOLOGY (design must resonate with this audience):
+- Persona: ${(audienceProfile.persona_summary || "").slice(0, 200)}
+- Core job: ${(audienceProfile.core_job_statement || "").slice(0, 200)}
+- Emotional drivers: ${(audienceProfile.emotional_outcomes || []).slice(0, 3).join("; ")}
+- Buying trigger: ${(audienceProfile.buying_triggers || [])[0] || ""}`
+          : "";
+
+        // P1.#1: PRIMARY CREATIVE INTENT — lead with the verbatim user prompt.
+        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${varGenomeContext}${varCopyInjection}`;
+
+        // P1.#1: condensed polish block (~3 sentences, was ~2KB of boilerplate).
+        const polishBlock = `Create a PHOTOREALISTIC, modern, studio-grade social graphic (${sizeLabel}, ${w}x${h}px). Use real photography, natural textures, balanced composition, generous breathing room, refined glassy finish, crisp edges, and tasteful glassmorphism on overlay panels — no muddy gradients or low-res artefacts. CRITICAL TEXT CONTRAST: every word must sit on a high-contrast background (use scrims/overlays when over photography); readability is non-negotiable.${copyStructure ? "" : " Only include text that directly serves the user's request — no filler text or random quotes."}`;
+
+        // Brand factual block (colours, fonts, tone) — must be kept.
+        const brandFacts = `Brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}.`;
+
+        // Stylistic context — trimmed; first to be dropped under budget pressure.
+        const stylisticContext = `${userImageInstruction}${categoryRenderInjection}${!varGenomeContext && trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt} [VARIATION ${label}]`;
+
+        // P1.#1: echo the user prompt at the very end too — text encoders weight first+last slots highest.
+        const echoBlock = `\n\nREMEMBER — the design must be specifically about: "${userPrompt}".`;
+
+        // Assemble. P1.#14: per-brand prompt budget cap at 3500 chars.
+        // Drop order (lowest impact first): stylisticContext → polishBlock → categoryRenderInjection inside stylistic.
+        const assemble = (includeStyle: boolean, includePolish: boolean) =>
+          [dimensionEnforcement, intentHeader, includePolish ? polishBlock : "", brandFacts, includeStyle ? stylisticContext : "", echoBlock]
+            .filter(Boolean)
+            .join("\n\n");
+
+        let imagePromptText = assemble(true, true);
+        let droppedForBudget: string[] = [];
+        const BUDGET = 3500;
+        if (imagePromptText.length > BUDGET) {
+          imagePromptText = assemble(true, false); droppedForBudget.push("polish");
+        }
+        if (imagePromptText.length > BUDGET) {
+          imagePromptText = assemble(false, false); droppedForBudget.push("stylistic");
+        }
 
 
         // Collect real reference image blobs for /v1/images/edits.
@@ -2720,9 +2760,17 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 
         const finalPrompt = imagePromptText + editHint + (refLegend ? `\n\n${refLegend}` : "");
 
+        // P2.#15: telemetry — capture prompt length, refs, tier, stability, score.
+        tracer.setMetric("prompt_length_chars", finalPrompt.length);
+        tracer.setMetric("refs_used_count", collectedRefs.length);
+        tracer.setMetric("refs_attached", collectedRefs.map((r) => r.role));
+        tracer.setMetric("refs_skipped", skippedRefs.map((s) => s.role));
+        if (droppedForBudget.length > 0) tracer.setMetric("prompt_budget_dropped", droppedForBudget);
+
         // Render via gpt-image-2 (/v1/images/edits) with real reference image blobs attached.
-        const imageBase64 = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h);
-        let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
+        const renderResult = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h);
+        tracer.setMetric("render_tier_used", renderResult.tier);
+        let binaryData = Uint8Array.from(atob(renderResult.b64), (c) => c.charCodeAt(0));
 
         // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
         binaryData = await enforceCanvasDimensions(binaryData, w, h);
