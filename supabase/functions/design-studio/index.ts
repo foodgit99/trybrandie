@@ -19,6 +19,12 @@ import {
   enrichWithResearch,
 } from "../_shared/category-recipes.ts";
 import { createSeededRng, rngPick } from "../_shared/seeded-rng.ts";
+import {
+  collectRenderRefs,
+  buildRefLegend,
+  buildBlankCanvasBlob,
+  type CollectedRef,
+} from "../_shared/render-refs.ts";
 
 
 // --- PLATFORM CANVAS PRESETS ---
@@ -270,11 +276,15 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
   throw lastError || new Error("retryFetch: all attempts failed");
 }
 
-// --- GPT-IMAGE-2 RENDERER ---
-// gpt-image-2 uses /v1/images/generations (NOT chat completions). Text-only prompt
-// (no reference images), supports sizes 1024x1024 / 1024x1536 / 1536x1024.
-// Returns raw base64 (no data: prefix). enforceCanvasDimensions handles final
-// crop/resize to exact target dims afterward.
+// --- GPT-IMAGE-2 RENDERER (reference-aware via /v1/images/edits) ---
+// We ALWAYS call /v1/images/edits with at least one reference image attached
+// so brand logos appear pixel-exact, inspiration images steer composition
+// visually, and user/product/previous-render images are real inputs (not
+// described text). If a brand has no usable refs, a blank transparent canvas
+// is attached as a placeholder so the endpoint accepts the request.
+//
+// Supported output sizes: 1024x1024 / 1024x1536 / 1536x1024.
+// enforceCanvasDimensions handles final crop/resize to exact platform dims.
 function mapToGptImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1536x1024" {
   const ratio = w / h;
   if (ratio > 1.15) return "1536x1024";
@@ -282,50 +292,89 @@ function mapToGptImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1
   return "1024x1024";
 }
 
-async function renderWithGptImage(prompt: string, w: number, h: number): Promise<string> {
+async function renderWithGptImageEdits(
+  prompt: string,
+  refs: CollectedRef[],
+  w: number,
+  h: number,
+): Promise<string> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
   const size = mapToGptImageSize(w, h);
-  // quality: "low" — keeps render well under the 150s edge function idle limit.
-  // "high" routinely exceeded 150s (especially for multi-slide carousels) and
-  // caused IDLE_TIMEOUT 504s. enforceCanvasDimensions still upscales/crops to
-  // the final target size afterward.
-  const body = JSON.stringify({
-    model: "openai/gpt-image-2",
-    prompt,
-    size,
-    quality: "low",
-    n: 1,
-  });
 
-  const callOnce = () => retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body,
-  });
+  // Build multipart form: model + prompt + size + quality + one image[] per ref.
+  // If no refs were collected, attach a blank 1x1 transparent canvas so the
+  // endpoint accepts the request.
+  const buildForm = (currentRefs: CollectedRef[]): FormData => {
+    const form = new FormData();
+    form.append("model", "openai/gpt-image-2");
+    form.append("prompt", prompt);
+    form.append("size", size);
+    form.append("quality", "low");
+    form.append("n", "1");
+    const attached = currentRefs.length > 0 ? currentRefs : null;
+    if (attached) {
+      for (const r of attached) {
+        const ext = r.contentType === "image/jpeg" ? "jpg" : r.contentType === "image/webp" ? "webp" : "png";
+        form.append("image[]", r.blob, `${r.role}.${ext}`);
+      }
+    } else {
+      form.append("image[]", buildBlankCanvasBlob(), "canvas.png");
+    }
+    return form;
+  };
 
-  let resp = await callOnce();
-  if (!resp.ok) {
+  const callOnce = (currentRefs: CollectedRef[]) =>
+    retryFetch("https://ai.gateway.lovable.dev/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` }, // browser sets Content-Type w/ boundary
+      body: buildForm(currentRefs),
+    });
+
+  // Attempt sequence: full refs → drop user/product → drop inspiration → blank.
+  // This guards against a single bad ref (e.g. content-policy violation,
+  // unreadable file) bringing down the whole render.
+  const refTiers: CollectedRef[][] = [refs];
+  if (refs.some((r) => r.role === "user" || r.role === "product")) {
+    refTiers.push(refs.filter((r) => r.role !== "user" && r.role !== "product"));
+  }
+  if (refs.some((r) => r.role === "inspiration")) {
+    refTiers.push(refs.filter((r) => r.role === "logo" || r.role === "previous"));
+  }
+  refTiers.push([]); // last resort: blank canvas only
+
+  let lastErr: string = "";
+  for (let tier = 0; tier < refTiers.length; tier++) {
+    const currentRefs = refTiers[tier];
+    const resp = await callOnce(currentRefs);
+    if (resp.ok) {
+      const data = await resp.json();
+      const b64: string | undefined = data?.data?.[0]?.b64_json;
+      if (b64) {
+        if (tier > 0) {
+          console.log(`[render] succeeded on tier ${tier} (dropped some refs)`);
+        }
+        return b64;
+      }
+      lastErr = "No image in response";
+      continue;
+    }
     if (resp.status === 429) throw new Error("RATE_LIMIT");
     if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
-    const errText = await resp.text();
-    console.error("gpt-image-2 error:", resp.status, errText);
-    throw new Error("Failed to generate image");
-  }
-  let data = await resp.json();
-  let b64: string | undefined = data?.data?.[0]?.b64_json;
-  if (!b64) {
-    console.log("gpt-image-2: no image in response, retrying once...");
-    await new Promise(r => setTimeout(r, 1500));
-    resp = await callOnce();
-    if (resp.ok) {
-      data = await resp.json();
-      b64 = data?.data?.[0]?.b64_json;
+    lastErr = await resp.text().catch(() => `HTTP ${resp.status}`);
+    console.error(`[render] tier ${tier} failed (${resp.status}):`, lastErr.slice(0, 500));
+    // 4xx → try the next tier with fewer refs. 5xx already retried inside retryFetch.
+    if (resp.status >= 500) {
+      // 5xx already retried by retryFetch — don't keep cycling tiers needlessly.
+      // But still try the blank-canvas tier as a final attempt.
+      if (tier < refTiers.length - 1) continue;
+      break;
     }
   }
-  if (!b64) throw new Error("No image generated");
-  return b64;
+  throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
 }
+
+
 
 // --- CONTENT CATEGORIES ---
 // CONTENT_CATEGORIES is now derived from the shared CATEGORY_RECIPES module.
@@ -2647,28 +2696,32 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         // The studio philosophy / polish / contrast rules follow as supporting context.
         const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${varGenomeContext}${varCopyInjection}`;
 
-        const imagePromptText = `${dimensionEnforcement}\n\n${intentHeader}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${categoryRenderInjection}${!varGenomeContext && trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
+        const imagePromptText = `${dimensionEnforcement}\n\n${intentHeader}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}.${userImageInstruction}${categoryRenderInjection}${!varGenomeContext && trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
 
 
-        // gpt-image-2 is text-only (no reference image inputs). Reference URLs
-        // are described in the prompt as descriptive hints.
-        const refHints: string[] = [];
-        if (brand?.logo_url) refHints.push(`Brand logo image URL: ${brand.logo_url}`);
-        if (user_image_url) refHints.push(`User-provided reference image URL: ${user_image_url}`);
-        if (action === "edit" && previous_image_url) refHints.push(`Previous design URL (preserve overall layout): ${previous_image_url}`);
-        for (const inspUrl of inspirationUrls.slice(0, 2)) refHints.push(`Inspiration reference: ${inspUrl}`);
+        // Collect real reference image blobs for /v1/images/edits.
+        // Logo (if present) is always Reference 1 and must appear pixel-exact.
         const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
         const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
-        if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
-          for (const prodUrl of productImageUrls.slice(0, 2)) refHints.push(`Product image reference: ${prodUrl}`);
+        const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
+          logoUrl: brand?.logo_url,
+          inspirationUrls: inspirationUrls,
+          userImageUrl: user_image_url,
+          productImageUrls: isProductRelevant ? productImageUrls : [],
+          previousImageUrl: action === "edit" ? previous_image_url : null,
+        });
+        if (skippedRefs.length > 0) {
+          console.log(`[render] skipped ${skippedRefs.length} ref(s):`, skippedRefs.map((s) => s.role).join(","));
         }
-        const refHintsText = refHints.length > 0 ? `\n\nREFERENCE IMAGE HINTS (described, not attached):\n- ${refHints.join("\n- ")}` : "";
-        const editHint = action === "edit" && previous_image_url ? " EDIT: Keep the overall layout similar to the previous design but apply the user's changes." : "";
+        const refLegend = buildRefLegend(collectedRefs);
+        const editHint = action === "edit" && previous_image_url
+          ? " EDIT MODE: Preserve the overall layout of the previous-design reference; apply only the user's requested change."
+          : "";
 
-        const finalPrompt = imagePromptText + editHint + refHintsText;
+        const finalPrompt = imagePromptText + editHint + (refLegend ? `\n\n${refLegend}` : "");
 
-        // Render via gpt-image-2 (/v1/images/generations).
-        const imageBase64 = await renderWithGptImage(finalPrompt, w, h);
+        // Render via gpt-image-2 (/v1/images/edits) with real reference image blobs attached.
+        const imageBase64 = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h);
         let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
 
         // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
@@ -2955,6 +3008,20 @@ Return structured JSON.`;
 
       const slides: { image_url: string; slide_index: number; copy_structure: any; design_id: string }[] = [];
 
+      // Fetch reference image blobs ONCE for the whole carousel; reuse for every slide
+      // so the brand logo / inspiration / user image stays pixel-consistent across slides.
+      const { refs: carouselRefs, skipped: carouselSkippedRefs } = await collectRenderRefs({
+        logoUrl: brand?.logo_url,
+        inspirationUrls: inspirationUrls,
+        userImageUrl: user_image_url,
+        productImageUrls: productImageUrls,
+        previousImageUrl: null,
+      });
+      if (carouselSkippedRefs.length > 0) {
+        console.log(`[carousel] skipped ${carouselSkippedRefs.length} ref(s):`, carouselSkippedRefs.map((s) => s.role).join(","));
+      }
+      const carouselRefLegend = buildRefLegend(carouselRefs);
+
       // Render in batches of 2
       for (let batchStart = 0; batchStart < numSlides; batchStart += 2) {
         const batchEnd = Math.min(batchStart + 2, numSlides);
@@ -2964,14 +3031,14 @@ Return structured JSON.`;
           const slide = carouselPlan.slides[i];
           const copyInjection = `EXACT TEXT TO RENDER:\n- Headline: "${slide.headline}"${slide.subheadline ? `\n- Subheadline: "${slide.subheadline}"` : ""}${slide.cta ? `\n- CTA: "${slide.cta}"` : ""}\nRender ONLY the text listed above.`;
 
-          const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nMANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Studio-grade, sharp, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.logo_url ? " Include the brand logo." : ""}${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
+          const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nMANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Studio-grade, sharp, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
 
-          const slidePromptWithLogo = brand?.logo_url
-            ? `${slidePrompt}\n\nBrand logo image URL (described, not attached): ${brand.logo_url}`
+          const slidePromptWithRefs = carouselRefLegend
+            ? `${slidePrompt}\n\n${carouselRefLegend}`
             : slidePrompt;
 
           batchPromises.push((async () => {
-            const imageBase64 = await renderWithGptImage(slidePromptWithLogo, w, h);
+            const imageBase64 = await renderWithGptImageEdits(slidePromptWithRefs, carouselRefs, w, h);
             let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
             // Strict platform-aspect enforcement on each slide.
             binaryData = await enforceCanvasDimensions(binaryData, w, h);
