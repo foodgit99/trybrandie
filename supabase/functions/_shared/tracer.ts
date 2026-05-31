@@ -18,11 +18,27 @@ export class Tracer {
   public readonly userId: string;
   public readonly startedAt: number;
   private spans: Span[] = [];
+  private metrics: Record<string, unknown> = {};
 
   constructor(userId: string) {
     this.runId = crypto.randomUUID();
     this.userId = userId;
     this.startedAt = Date.now();
+  }
+
+  /** Record a pipeline-level metric (persisted to design_traces.metrics). */
+  setMetric(key: string, value: unknown): void {
+    this.metrics[key] = value;
+  }
+
+  /** Bulk-merge metrics. */
+  setMetrics(values: Record<string, unknown>): void {
+    Object.assign(this.metrics, values);
+  }
+
+  /** Get current metrics snapshot. */
+  getMetrics(): Record<string, unknown> {
+    return { ...this.metrics };
   }
 
   /** Start a new span, returns a finish function */
