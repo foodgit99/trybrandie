@@ -2706,8 +2706,13 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
 - Buying trigger: ${(audienceProfile.buying_triggers || [])[0] || ""}`
           : "";
 
+        // P5.#2: CREATIVE DIRECTOR layout blueprint — concrete spatial schema before the renderer.
+        const blueprintBlock = layoutSchema
+          ? `\n\nLAYOUT BLUEPRINT (Creative Director schema — follow this spatial plan precisely):\n${JSON.stringify(layoutSchema).slice(0, 1400)}`
+          : "";
+
         // P1.#1: PRIMARY CREATIVE INTENT — lead with the verbatim user prompt.
-        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${varGenomeContext}${varCopyInjection}`;
+        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${blueprintBlock}${varGenomeContext}${varCopyInjection}`;
 
         // P1.#1: condensed polish block (~3 sentences, was ~2KB of boilerplate).
         const polishBlock = `Create a PHOTOREALISTIC, modern, studio-grade social graphic (${sizeLabel}, ${w}x${h}px). Use real photography, natural textures, balanced composition, generous breathing room, refined glassy finish, crisp edges, and tasteful glassmorphism on overlay panels — no muddy gradients or low-res artefacts. CRITICAL TEXT CONTRAST: every word must sit on a high-contrast background (use scrims/overlays when over photography); readability is non-negotiable.${copyStructure ? "" : " Only include text that directly serves the user's request — no filler text or random quotes."}`;
@@ -2801,7 +2806,88 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       tracer.setMetric("category_confidence", (CATEGORY_RECIPES[resolvedCategory] ? 1.0 : 0.5));
       tracer.setMetric("research_skipped", !CATEGORY_RECIPES[resolvedCategory]?.needs_fresh_info);
 
+      // --- P5.#2: CREATIVE DIRECTOR AGENT ---
+      // Emits a concrete layout_schema JSON the renderer follows. Best-effort: failures don't block render.
+      let layoutSchema: any = null;
+      const CD_VERSION = "cd-v1-gemini-2.5-pro";
+      try {
+        const cdSpan = tracer.startSpan("creative_director");
+        const cdSystem = `You are Brandie's Creative Director. Emit a concrete spatial layout schema (JSON) for a ${w}x${h}px social graphic. Honour brand identity, genome styling, audience psychology, and category conventions. Be specific about regions, type sizes, focal hierarchy. Do NOT write copy — copy is fixed.`;
+        const cdUser = `User intent: "${userPrompt}"
+Category: ${resolvedCategory}
+Brand: ${brand?.name || "?"} — vibe ${brand?.vibe || "?"}, tone ${brand?.tone_of_voice || "?"}, primary ${(brand?.primary_colors || []).slice(0,2).join("/")}
+${copyStructure ? `Copy to place — headline:"${copyStructure.headline}"${copyStructure.subheadline ? `, sub:"${copyStructure.subheadline}"` : ""}${copyStructure.cta ? `, cta:"${copyStructure.cta}"` : ""}` : "No fixed copy."}
+${genomeData ? `Genome: color=${genomeData.color?.contrast}/${genomeData.color?.saturation}, layout=${genomeData.layout?.grid_type}/${genomeData.layout?.balance}, density=${genomeData.layout?.spacing_density}, focal=${genomeData.composition?.focal_strategy}, emotion=${genomeData.emotion}` : ""}
+${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0,140)}` : ""}`;
+        const cdTools = [{
+          type: "function",
+          function: {
+            name: "set_layout_schema",
+            description: "Concrete spatial blueprint the renderer must follow",
+            parameters: {
+              type: "object",
+              properties: {
+                canvas_grid: { type: "string", description: "e.g. '12-col modular' or '3-row stack'" },
+                regions: {
+                  type: "array",
+                  description: "Ordered spatial regions",
+                  items: {
+                    type: "object",
+                    properties: {
+                      role: { type: "string", description: "headline|subheadline|cta|logo|focal_image|background|supporting|negative_space" },
+                      position: { type: "string", description: "e.g. 'top-left', 'centered', 'lower-third', 'right-40%'" },
+                      size: { type: "string", description: "approx % of canvas e.g. '60% width x 25% height'" },
+                      treatment: { type: "string", description: "visual treatment notes (type weight, scrim, photo crop, etc.)" },
+                    },
+                    required: ["role", "position"],
+                  },
+                },
+                focal_point: { type: "string" },
+                hierarchy: { type: "string", description: "ordered visual priority e.g. 'headline > focal_image > cta > subheadline'" },
+                palette_application: { type: "string", description: "where primary/accent/neutral colors land" },
+                background_treatment: { type: "string" },
+                visual_motifs: { type: "array", items: { type: "string" } },
+              },
+              required: ["canvas_grid", "regions", "focal_point", "hierarchy"],
+              additionalProperties: false,
+            },
+          },
+        }];
+        const { response: cdRes, modelUsed: cdModel } = await callWithFallback(
+          MODEL_CHAINS.reasoning,
+          (model) => ({
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: "system", content: cdSystem },
+                { role: "user", content: cdUser },
+              ],
+              tools: cdTools,
+              tool_choice: { type: "function", function: { name: "set_layout_schema" } },
+            }),
+          }),
+          "https://ai.gateway.lovable.dev/v1/chat/completions",
+          LOVABLE_API_KEY,
+        );
+        if (cdRes.ok) {
+          const cdData = await cdRes.json();
+          const tc = cdData.choices?.[0]?.message?.tool_calls?.[0];
+          if (tc?.function?.arguments) {
+            layoutSchema = JSON.parse(tc.function.arguments);
+            console.log(`[creative-director] schema generated (model: ${cdModel}, regions: ${layoutSchema?.regions?.length ?? 0})`);
+          }
+          cdSpan.finish({ metadata: { model: cdModel } });
+        } else {
+          cdSpan.finish({ status: "error" });
+        }
+      } catch (e) {
+        console.error("Creative Director agent failed, proceeding without layout schema:", e);
+      }
+      tracer.setMetric("creative_director_fired", layoutSchema !== null);
+      if (layoutSchema?.regions) tracer.setMetric("layout_schema_regions", layoutSchema.regions.length);
+
       const singleResult = await renderVariation(genomeData, genomeScores, "A");
+
 
       // Render succeeded — now deduct credits.
       if (pendingDeduction) {
@@ -2848,6 +2934,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           ...(captionText ? { caption: captionText } : {}),
           run_id: tracer.runId,
           content_category: resolvedCategory,
+          ...(layoutSchema ? { layout_schema: layoutSchema, creative_director_version: CD_VERSION } : {}),
           ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
           ...(updatesUsed.length ? { updates_used: summariseForClient(updatesUsed) } : {}),
         }),
