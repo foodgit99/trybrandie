@@ -1932,7 +1932,7 @@ ${brand.special_instructions}
             // image (otherwise a 1-reference brand can never trigger an override). Multi-reference
             // brands still need 2+ votes to avoid noise.
             const topInspirationPreset = Object.entries(presetVotes).sort((a, b) => b[1] - a[1])[0];
-            const requiredVotes = inspirationUrls.length <= 1 ? 1 : 2;
+            const requiredVotes = 1; // P3.#7: lower threshold unconditionally so inspiration influences more designs
             if (topInspirationPreset && topInspirationPreset[1] >= requiredVotes && topInspirationPreset[0] !== basePresetId) {
               console.log(`Inspiration override (threshold=${requiredVotes}): "${basePresetId}" → "${topInspirationPreset[0]}" (${topInspirationPreset[1]} tag votes from: ${inspirationTags.join(", ")})`);
               basePresetId = topInspirationPreset[0];
