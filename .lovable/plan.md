@@ -90,15 +90,15 @@ Rollout is phased so each phase is shippable independently and the pipeline stay
 
 ---
 
-## Phase 6 — Feedback loop
+## Phase 6 — Feedback loop  ✅ shipped
 
 16. **#12 Close feedback loop** —
-    - New table `genome_preset_weights (brand_id, category, preset_id, weight, updated_at)`.
-    - Upvote on a design: `weight += 0.1` for that `(category, genome_preset)` combo.
-    - Downvote: `weight -= 0.1`, floored at 0.
-    - Genome Composer's preset selection multiplies base score by `weight` (default 1.0).
+    - Table `genome_preset_weights (brand_id, category, preset_id, weight, updated_at)` already in place from Phase 1 groundwork; added unique constraint `(brand_id, preset_id, category)` for upserts.
+    - New SECURITY DEFINER RPC `record_preset_feedback(p_design_id, p_vote)`: reads `designs.genome->>'preset_id'`, verifies brand ownership against `auth.uid()`, then upserts the weight with ±0.1 delta clamped to `[0.1, 3.0]`. Category defaults to `'all'` (per-category weights deferred until designs persist category alongside genome).
+    - Genome Composer (`design-studio/index.ts`) now fetches the brand's weights right after vibe/category/inspiration resolution. A different preset overrides when its weight ≥1.3 AND beats the incumbent by ≥0.2; the incumbent is demoted when its weight ≤0.7. Override is logged.
+    - Composer stamps `genome.preset_id = basePresetId` before mutation so feedback always credits the right preset.
+    - Client `handleVote` in `DesignStudio.tsx` fires `supabase.rpc("record_preset_feedback", ...)` after the `designs.vote` update (fire-and-forget, never blocks UI).
 
-**Schema change:** one migration for the weights table + GRANTs + RLS (user can only read/write weights for brands they own).
 
 ---
 
