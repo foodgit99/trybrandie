@@ -489,7 +489,7 @@ export function applyCategoryBias(
       if (typeof fields === "string") {
         if (trendLockedGenes?.has("emotion")) {
           skippedForTrend++;
-        } else if (Math.random() < applyChance) {
+        } else if (rng() < applyChance) {
           genome.emotion = fields;
           appliedCount++;
         }
@@ -508,11 +508,12 @@ export function applyCategoryBias(
         skippedForTrend++;
         continue;
       }
-      if (Math.random() < applyChance) {
+      if (rng() < applyChance) {
         genome[section][field] = value;
         appliedCount++;
       }
     }
+
   }
 
   if (appliedCount > 0) {
