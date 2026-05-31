@@ -1,0 +1,2 @@
+ALTER TABLE public.design_traces ADD COLUMN IF NOT EXISTS metrics JSONB NOT NULL DEFAULT '{}'::jsonb;
+CREATE INDEX IF NOT EXISTS idx_design_traces_metrics_gin ON public.design_traces USING gin (metrics);

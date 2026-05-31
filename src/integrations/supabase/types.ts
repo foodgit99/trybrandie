@@ -1064,6 +1064,7 @@ export type Database = {
           created_at: string | null
           error: string | null
           id: string
+          metrics: Json
           run_id: string
           spans: Json | null
           total_input_tokens: number | null
@@ -1075,6 +1076,7 @@ export type Database = {
           created_at?: string | null
           error?: string | null
           id?: string
+          metrics?: Json
           run_id: string
           spans?: Json | null
           total_input_tokens?: number | null
@@ -1086,6 +1088,7 @@ export type Database = {
           created_at?: string | null
           error?: string | null
           id?: string
+          metrics?: Json
           run_id?: string
           spans?: Json | null
           total_input_tokens?: number | null
