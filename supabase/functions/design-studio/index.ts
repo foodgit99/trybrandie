@@ -19,6 +19,12 @@ import {
   enrichWithResearch,
 } from "../_shared/category-recipes.ts";
 import { createSeededRng, rngPick } from "../_shared/seeded-rng.ts";
+import {
+  collectRenderRefs,
+  buildRefLegend,
+  buildBlankCanvasBlob,
+  type CollectedRef,
+} from "../_shared/render-refs.ts";
 
 
 // --- PLATFORM CANVAS PRESETS ---
