@@ -472,8 +472,11 @@ export function applyCategoryBias(
   // When trend intensity is meaningful, skip category mutation for those genes so the two layers
   // don't fight (e.g. technical-mono → strict_grid being undone by entertainment → broken_grid).
   trendLockedGenes?: Set<string> | null,
+  // M6: Optional seeded PRNG for deterministic outputs per job. Falls back to Math.random.
+  rng: () => number = Math.random,
   // deno-lint-ignore no-explicit-any
 ): any {
+
   const recipe = CATEGORY_RECIPES[categoryId];
   if (!recipe || !genome || !recipe.genome_bias) return genome;
 
