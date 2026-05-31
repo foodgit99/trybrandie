@@ -2696,28 +2696,32 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         // The studio philosophy / polish / contrast rules follow as supporting context.
         const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${varGenomeContext}${varCopyInjection}`;
 
-        const imagePromptText = `${dimensionEnforcement}\n\n${intentHeader}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}. ${brand?.logo_url ? "CRITICAL: Include the company logo (provided as attached image) prominently in the design, typically in the bottom or top corner." : ""}${userImageInstruction}${categoryRenderInjection}${!varGenomeContext && trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
+        const imagePromptText = `${dimensionEnforcement}\n\n${intentHeader}\n\nCreate a PHOTOREALISTIC, clean, modern, visually stunning professional social media graphic (${sizeLabel} format, ${w}x${h} pixels). Use REAL PHOTOGRAPHY, natural textures, and lifelike imagery — NOT cartoons, clip art, or flat illustrations — unless the user specifically requests otherwise. The design must be professionally composed with balanced layout, clear visual hierarchy, generous breathing room, and a polished 2026 aesthetic. MANDATORY POLISH & FINISH: Render the entire composition with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen on key surfaces, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Output must look studio-grade: sharp, high-fidelity, magazine-quality. Avoid muddy gradients, blurry textures, jagged edges, low-resolution artefacts, or amateur compositing. CRITICAL TEXT CONTRAST RULE: ALL text MUST have excellent colour contrast against its background. When placing text over photographic or busy backgrounds, ALWAYS use a semi-transparent overlay, gradient scrim, or solid colour block behind the text. Light text on dark backgrounds, dark text on light backgrounds — never low-contrast combinations. Readability is non-negotiable. ${copyStructure ? "" : `CRITICAL TEXT RULES: Only include text that directly serves the user's request and aligns with the brand's value proposition. Do NOT add filler text, random quotes, unnecessary taglines, or decorative text that wasn't asked for. Every word on the design must be intentional and relevant. If the design only needs a headline, do not add extra text elements just to fill space.`} Use these exact brand colours: primary ${(brand?.primary_colors || []).join(", ")}, secondary ${(brand?.secondary_colors || []).join(", ")}, accent ${(brand?.accent_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"} and ${brand?.typography_secondary || "serif"}. Tone: ${brand?.tone_of_voice || "Professional"}.${userImageInstruction}${categoryRenderInjection}${!varGenomeContext && trendContext ? ` TREND STYLING OVERLAY: Apply the following trend aesthetic as a styling layer on top of the base brand design.${trendContext}` : ""} ${designPrompt}${brand?.special_instructions ? ` SPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY): ${brand.special_instructions}` : ""} [VARIATION ${label}]`;
 
 
-        // gpt-image-2 is text-only (no reference image inputs). Reference URLs
-        // are described in the prompt as descriptive hints.
-        const refHints: string[] = [];
-        if (brand?.logo_url) refHints.push(`Brand logo image URL: ${brand.logo_url}`);
-        if (user_image_url) refHints.push(`User-provided reference image URL: ${user_image_url}`);
-        if (action === "edit" && previous_image_url) refHints.push(`Previous design URL (preserve overall layout): ${previous_image_url}`);
-        for (const inspUrl of inspirationUrls.slice(0, 2)) refHints.push(`Inspiration reference: ${inspUrl}`);
+        // Collect real reference image blobs for /v1/images/edits.
+        // Logo (if present) is always Reference 1 and must appear pixel-exact.
         const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
         const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
-        if (isProductRelevant && productImageUrls.length > 0 && !user_image_url) {
-          for (const prodUrl of productImageUrls.slice(0, 2)) refHints.push(`Product image reference: ${prodUrl}`);
+        const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
+          logoUrl: brand?.logo_url,
+          inspirationUrls: inspirationUrls,
+          userImageUrl: user_image_url,
+          productImageUrls: isProductRelevant ? productImageUrls : [],
+          previousImageUrl: action === "edit" ? previous_image_url : null,
+        });
+        if (skippedRefs.length > 0) {
+          console.log(`[render] skipped ${skippedRefs.length} ref(s):`, skippedRefs.map((s) => s.role).join(","));
         }
-        const refHintsText = refHints.length > 0 ? `\n\nREFERENCE IMAGE HINTS (described, not attached):\n- ${refHints.join("\n- ")}` : "";
-        const editHint = action === "edit" && previous_image_url ? " EDIT: Keep the overall layout similar to the previous design but apply the user's changes." : "";
+        const refLegend = buildRefLegend(collectedRefs);
+        const editHint = action === "edit" && previous_image_url
+          ? " EDIT MODE: Preserve the overall layout of the previous-design reference; apply only the user's requested change."
+          : "";
 
-        const finalPrompt = imagePromptText + editHint + refHintsText;
+        const finalPrompt = imagePromptText + editHint + (refLegend ? `\n\n${refLegend}` : "");
 
-        // Render via gpt-image-2 (/v1/images/generations).
-        const imageBase64 = await renderWithGptImage(finalPrompt, w, h);
+        // Render via gpt-image-2 (/v1/images/edits) with real reference image blobs attached.
+        const imageBase64 = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h);
         let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
 
         // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
