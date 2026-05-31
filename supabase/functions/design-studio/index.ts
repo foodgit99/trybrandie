@@ -3094,7 +3094,7 @@ Return structured JSON.`;
             : slidePrompt;
 
           batchPromises.push((async () => {
-            const imageBase64 = await renderWithGptImageEdits(slidePromptWithRefs, carouselRefs, w, h);
+            const { b64: imageBase64 } = await renderWithGptImageEdits(slidePromptWithRefs, carouselRefs, w, h);
             let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
             // Strict platform-aspect enforcement on each slide.
             binaryData = await enforceCanvasDimensions(binaryData, w, h);
