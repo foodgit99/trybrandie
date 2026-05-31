@@ -276,20 +276,32 @@ async function retryFetch(url: string, options: RequestInit, maxRetries = 2): Pr
   throw lastError || new Error("retryFetch: all attempts failed");
 }
 
-// --- GPT-IMAGE-2 RENDERER (via /v1/images/generations) ---
-// The Lovable AI Gateway only exposes /v1/images/generations (JSON body).
-// /v1/images/edits is NOT proxied and returns 404, so we cannot attach
-// reference image blobs at the HTTP layer. Brand/logo/inspiration/product
-// references still influence the design because they're already injected
-// as descriptive text into the prompt earlier in the pipeline.
+// --- IMAGE RENDERER (Gemini image models via /v1/images/generations) ---
+// We use Gemini image models because they accept reference image attachments
+// inline via messages[].content[] image_url parts. This lets us pass the
+// brand logo, inspiration, product, user, and previous-design references as
+// ACTUAL PIXEL DATA — not just text descriptions — so the model preserves
+// the brand logo EXACTLY instead of inventing a new one.
 //
-// Supported output sizes: 1024x1024 / 1024x1536 / 1536x1024.
-// enforceCanvasDimensions handles final crop/resize to exact platform dims.
-function mapToGptImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1536x1024" {
+// OpenAI's /v1/images/generations endpoint accepts only `prompt` with no
+// image inputs, which is why the previous gpt-image-2 implementation kept
+// fabricating logos. Gemini's image models (Nano Banana family) are the
+// supported way to do image-conditioned generation through this gateway.
+function mapToImageSize(w: number, h: number): "1024x1024" | "1024x1536" | "1536x1024" {
   const ratio = w / h;
   if (ratio > 1.15) return "1536x1024";
   if (ratio < 0.87) return "1024x1536";
   return "1024x1024";
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) {
+    binary += String.fromCharCode(...Array.from(buf.subarray(i, i + chunk)));
+  }
+  return `data:${blob.type || "image/png"};base64,${btoa(binary)}`;
 }
 
 async function renderWithGptImageEdits(
@@ -300,40 +312,63 @@ async function renderWithGptImageEdits(
 ): Promise<{ b64: string; tier: number; refsUsed: number }> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
-  const size = mapToGptImageSize(w, h);
+  const size = mapToImageSize(w, h);
 
-  const body = JSON.stringify({
-    model: "openai/gpt-image-2",
-    prompt,
-    size,
-    quality: "low",
-    n: 1,
-  });
-
-  const resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body,
-  });
-
-  if (resp.ok) {
-    const data = await resp.json();
-    const b64: string | undefined = data?.data?.[0]?.b64_json;
-    if (b64) {
-      // refsUsed reflects refs available (described in prompt), even though
-      // none were attached at the HTTP layer.
-      return { b64, tier: 0, refsUsed: refs.length };
+  // Multimodal content: text prompt followed by each reference as image_url.
+  // Order matters — the "Reference N = ..." legend in the prompt references
+  // these in the same order they're attached here. Logo is always first.
+  const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
+  let attached = 0;
+  for (const r of refs) {
+    try {
+      const dataUrl = await blobToDataUrl(r.blob);
+      content.push({ type: "image_url", image_url: { url: dataUrl } });
+      attached++;
+    } catch (e) {
+      console.log(`[render] failed to encode ref ${r.role}:`, e instanceof Error ? e.message : e);
     }
-    throw new Error("Failed to generate image: empty response");
   }
-  if (resp.status === 429) throw new Error("RATE_LIMIT");
-  if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
-  const errText = await resp.text().catch(() => `HTTP ${resp.status}`);
-  console.error(`[render] failed (${resp.status}):`, errText.slice(0, 500));
-  throw new Error(`Failed to generate image: ${errText.slice(0, 200)}`);
+
+  // Fallback chain — Pro first for quality, then Flash variants for speed/cost.
+  const models = [
+    "google/gemini-3-pro-image-preview",
+    "google/gemini-3.1-flash-image-preview",
+    "google/gemini-2.5-flash-image",
+  ];
+
+  let lastErr = "";
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    const body = JSON.stringify({
+      model,
+      messages: [{ role: "user", content }],
+      modalities: ["image", "text"],
+      size,
+      n: 1,
+    });
+
+    const resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body,
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const b64: string | undefined = data?.data?.[0]?.b64_json;
+      if (b64) {
+        console.log(`[render] ${model} ok — ${attached} ref(s) attached`);
+        return { b64, tier: i, refsUsed: attached };
+      }
+      lastErr = "empty response";
+      continue;
+    }
+    if (resp.status === 429) throw new Error("RATE_LIMIT");
+    if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
+    lastErr = await resp.text().catch(() => `HTTP ${resp.status}`);
+    console.error(`[render] ${model} failed (${resp.status}):`, lastErr.slice(0, 300));
+  }
+  throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
 }
 
 
