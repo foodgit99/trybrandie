@@ -565,6 +565,7 @@ export type Database = {
           accent_colors: string[] | null
           created_at: string
           description: string | null
+          gene_lock_policy: Json | null
           id: string
           logo_url: string | null
           name: string
@@ -588,6 +589,7 @@ export type Database = {
           accent_colors?: string[] | null
           created_at?: string
           description?: string | null
+          gene_lock_policy?: Json | null
           id?: string
           logo_url?: string | null
           name: string
@@ -611,6 +613,7 @@ export type Database = {
           accent_colors?: string[] | null
           created_at?: string
           description?: string | null
+          gene_lock_policy?: Json | null
           id?: string
           logo_url?: string | null
           name?: string
@@ -1106,9 +1109,11 @@ export type Database = {
           carousel_id: string | null
           copy_structure: Json | null
           created_at: string
+          creative_director_version: string | null
           genome: Json | null
           id: string
           image_url: string
+          layout_schema: Json | null
           prompt: string
           slide_index: number | null
           title: string | null
@@ -1125,9 +1130,11 @@ export type Database = {
           carousel_id?: string | null
           copy_structure?: Json | null
           created_at?: string
+          creative_director_version?: string | null
           genome?: Json | null
           id?: string
           image_url: string
+          layout_schema?: Json | null
           prompt: string
           slide_index?: number | null
           title?: string | null
@@ -1144,9 +1151,11 @@ export type Database = {
           carousel_id?: string | null
           copy_structure?: Json | null
           created_at?: string
+          creative_director_version?: string | null
           genome?: Json | null
           id?: string
           image_url?: string
+          layout_schema?: Json | null
           prompt?: string
           slide_index?: number | null
           title?: string | null
@@ -1267,6 +1276,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      genome_preset_weights: {
+        Row: {
+          brand_id: string
+          category: string
+          id: string
+          preset_id: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          brand_id: string
+          category: string
+          id?: string
+          preset_id: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          brand_id?: string
+          category?: string
+          id?: string
+          preset_id?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genome_preset_weights_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_transactions: {
         Row: {
