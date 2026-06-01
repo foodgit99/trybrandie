@@ -91,8 +91,20 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 function LandingOrDashboard() {
   const { user, loading } = useAuth();
   const { brand, isLoading: brandLoading } = useBrand(user);
+  const [v2Enabled, setV2Enabled] = (require("react") as typeof import("react")).useState<boolean | null>(null);
 
-  if (loading || brandLoading) {
+  (require("react") as typeof import("react")).useEffect(() => {
+    if (!user) { setV2Enabled(false); return; }
+    let alive = true;
+    (async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase.from("profiles").select("v2_enabled").eq("user_id", user.id).maybeSingle();
+      if (alive) setV2Enabled(!!(data as any)?.v2_enabled);
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  if (loading || brandLoading || (user && v2Enabled === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading…</div>
@@ -100,6 +112,7 @@ function LandingOrDashboard() {
     );
   }
   if (!user) return <Landing />;
+  if (v2Enabled) return <Navigate to="/v2/cockpit" replace />;
   if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
   return <Index />;
 }
