@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { ThemeProvider } from "next-themes";
 import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
@@ -91,14 +93,17 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 function LandingOrDashboard() {
   const { user, loading } = useAuth();
   const { brand, isLoading: brandLoading } = useBrand(user);
-  const [v2Enabled, setV2Enabled] = (require("react") as typeof import("react")).useState<boolean | null>(null);
+  const [v2Enabled, setV2Enabled] = useState<boolean | null>(null);
 
-  (require("react") as typeof import("react")).useEffect(() => {
+  useEffect(() => {
     if (!user) { setV2Enabled(false); return; }
     let alive = true;
     (async () => {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { data } = await supabase.from("profiles").select("v2_enabled").eq("user_id", user.id).maybeSingle();
+      const { data } = await supabase
+        .from("profiles")
+        .select("v2_enabled")
+        .eq("user_id", user.id)
+        .maybeSingle();
       if (alive) setV2Enabled(!!(data as any)?.v2_enabled);
     })();
     return () => { alive = false; };
