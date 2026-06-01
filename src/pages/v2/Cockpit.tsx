@@ -145,7 +145,7 @@ const Cockpit = () => {
 
   if (authLoading || brandLoading) {
     return (
-      <div className="min-h-screen grid place-items-center text-muted-foreground">
+      <div className="min-h-dvh grid place-items-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -160,7 +160,7 @@ const Cockpit = () => {
   const todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1;
 
   return (
-    <div className="min-h-screen bg-background lg:pl-20">
+    <div className="min-h-dvh bg-background lg:pl-20">
       <SEO title="Cockpit — Brandie" description="Your Monday briefing." path="/v2/cockpit" noindex />
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-24 space-y-12">
@@ -195,7 +195,7 @@ const Cockpit = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-1.5" aria-busy={ideasLoading}>
             {DAY_LABELS.map((label, idx) => {
               const dayIdeas = byDay.get(idx) ?? [];
               const isToday = idx === todayIdx;
@@ -217,11 +217,17 @@ const Cockpit = () => {
                   >
                     {label}
                   </p>
-                  {dayIdeas.length === 0 ? (
+                  {ideasLoading ? (
+                    <div className="mt-auto space-y-1" aria-hidden>
+                      <div className="h-1.5 w-3/4 rounded-full bg-muted animate-pulse" />
+                      <div className="h-1.5 w-1/2 rounded-full bg-muted animate-pulse" />
+                    </div>
+                  ) : dayIdeas.length === 0 ? (
                     <span
                       className={`text-[10px] mt-auto ${
                         isToday ? "text-background/40" : "text-muted-foreground/40"
                       }`}
+                      aria-label="No posts"
                     >
                       —
                     </span>

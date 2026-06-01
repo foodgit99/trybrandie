@@ -226,7 +226,7 @@ const DailyPost = () => {
 
   if (authLoading || brandLoading || ideaLoading) {
     return (
-      <div className="min-h-screen grid place-items-center text-muted-foreground">
+      <div className="min-h-dvh grid place-items-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -235,7 +235,7 @@ const DailyPost = () => {
   if (!brand || !brand.onboarding_complete) return <Navigate to="/v2/onboarding" replace />;
   if (!idea) {
     return (
-      <div className="min-h-screen bg-background lg:pl-20 grid place-items-center px-6">
+      <div className="min-h-dvh bg-background lg:pl-20 grid place-items-center px-6">
         <div className="text-center space-y-3 max-w-sm">
           <p className="text-muted-foreground">We couldn't find that post.</p>
           <Link to="/v2/blueprint" className="underline text-sm">
@@ -249,7 +249,7 @@ const DailyPost = () => {
   const isPosted = idea.status === "posted";
 
   return (
-    <div className="min-h-screen bg-background lg:pl-20 pb-24">
+    <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Today's post — Brandie" description="Execute the day." path={`/v2/post/${dayId}`} noindex />
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 pt-10 sm:pt-14 space-y-8">

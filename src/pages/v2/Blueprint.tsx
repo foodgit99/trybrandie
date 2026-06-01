@@ -168,7 +168,7 @@ const Blueprint = () => {
 
   if (authLoading || brandLoading) {
     return (
-      <div className="min-h-screen grid place-items-center text-muted-foreground">
+      <div className="min-h-dvh grid place-items-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -195,7 +195,7 @@ const Blueprint = () => {
     ideas.every((i) => i.approval_status === "approved" || i.status === "scheduled");
 
   return (
-    <div className="min-h-screen bg-background lg:pl-20 pb-40">
+    <div className="min-h-dvh bg-background lg:pl-20 pb-40">
       <SEO title="Weekly Blueprint — Brandie" description="Your week, as a story." path="/v2/blueprint" noindex />
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
