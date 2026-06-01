@@ -10,6 +10,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import FloatingNavBar from "@/components/FloatingNavBar";
 import LowCreditsBanner from "@/components/LowCreditsBanner";
 import AudiencePromptManager from "@/components/audience/AudiencePromptManager";
+import NewFloatingNav from "@/components/v2/NewFloatingNav";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -30,6 +31,16 @@ import Admin from "./pages/Admin";
 import ContentHub from "./pages/ContentHub";
 import Cockpit from "./pages/Cockpit";
 import NotFound from "./pages/NotFound";
+
+// v2 scaffolds
+import V2Landing from "./pages/v2/Landing";
+import V2Onboarding from "./pages/v2/Onboarding";
+import V2Cockpit from "./pages/v2/Cockpit";
+import V2Blueprint from "./pages/v2/Blueprint";
+import V2DailyPost from "./pages/v2/DailyPost";
+import V2Report from "./pages/v2/Report";
+import V2BrandCentre from "./pages/v2/BrandCentre";
+import V2Settings from "./pages/v2/Settings";
 
 const queryClient = new QueryClient();
 
@@ -119,6 +130,7 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <Routes>
+          {/* ============ LEGACY (current) — kept fully intact ============ */}
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />
@@ -136,10 +148,35 @@ const App = () => (
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+
+          {/* ============ LEGACY mirror under /legacy/* (same components) ============ */}
+          <Route path="/legacy" element={<LandingOrDashboard />} />
+          <Route path="/legacy/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/legacy/brand" element={<ProtectedRoute><BrandCentre /></ProtectedRoute>} />
+          <Route path="/legacy/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
+          <Route path="/legacy/history" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
+          <Route path="/legacy/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
+          <Route path="/legacy/cockpit" element={<ProtectedRoute><Cockpit /></ProtectedRoute>} />
+          <Route path="/legacy/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/legacy/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+          <Route path="/legacy/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
+          <Route path="/legacy/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+
+          {/* ============ NEW v2 experience (Phase A scaffolds) ============ */}
+          <Route path="/v2" element={<V2Landing />} />
+          <Route path="/v2/onboarding" element={<V2Onboarding />} />
+          <Route path="/v2/cockpit" element={<V2Cockpit />} />
+          <Route path="/v2/blueprint" element={<V2Blueprint />} />
+          <Route path="/v2/post/:dayId" element={<V2DailyPost />} />
+          <Route path="/v2/report" element={<V2Report />} />
+          <Route path="/v2/brand" element={<V2BrandCentre />} />
+          <Route path="/v2/settings" element={<V2Settings />} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
         <FloatingDesignStatus />
         <FloatingNavBar />
+        <NewFloatingNav />
         <LowCreditsBanner />
         <AudiencePromptManager />
       </BrowserRouter>
