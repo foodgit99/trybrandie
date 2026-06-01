@@ -453,3 +453,63 @@ const DailyPost = () => {
 };
 
 export default DailyPost;
+
+function prettifyToken(v: any): string {
+  if (v == null) return "";
+  return String(v).replace(/[_-]/g, " ");
+}
+
+function GenomeSummary({ genome }: { genome: any }) {
+  const rows: Array<{ label: string; value: string }> = [];
+  const preset = genome?.preset_id ? prettifyToken(genome.preset_id) : null;
+  const emotion = genome?.emotion ? prettifyToken(genome.emotion) : null;
+  if (genome?.color) {
+    const c = genome.color;
+    const parts = [c.contrast && `${prettifyToken(c.contrast)} contrast`, c.saturation && `${prettifyToken(c.saturation)} saturation`, c.temperature && prettifyToken(c.temperature)].filter(Boolean);
+    if (parts.length) rows.push({ label: "Colour", value: parts.join(" · ") });
+  }
+  if (genome?.typography) {
+    const t = genome.typography;
+    const parts = [t.font_personality && prettifyToken(t.font_personality), t.weight_system && prettifyToken(t.weight_system)].filter(Boolean);
+    if (parts.length) rows.push({ label: "Type", value: parts.join(" · ") });
+  }
+  if (genome?.layout) {
+    const l = genome.layout;
+    const parts = [l.grid_type && prettifyToken(l.grid_type), l.spacing_density && `${prettifyToken(l.spacing_density)} spacing`, l.balance && prettifyToken(l.balance)].filter(Boolean);
+    if (parts.length) rows.push({ label: "Layout", value: parts.join(" · ") });
+  }
+  if (genome?.texture?.texture_type && genome.texture.texture_type !== "none") {
+    rows.push({ label: "Texture", value: `${prettifyToken(genome.texture.texture_type)}${genome.texture.intensity ? ` · ${prettifyToken(genome.texture.intensity)}` : ""}` });
+  }
+  if (genome?.image_style) {
+    const i = genome.image_style;
+    const parts = [i.lighting && `${prettifyToken(i.lighting)} light`, i.color_grading && prettifyToken(i.color_grading)].filter(Boolean);
+    if (parts.length) rows.push({ label: "Imagery", value: parts.join(" · ") });
+  }
+  return (
+    <div className="space-y-2">
+      {(preset || emotion) && (
+        <p className="text-foreground">
+          {preset && <span className="capitalize">{preset}</span>}
+          {preset && emotion && <span className="text-muted-foreground"> · </span>}
+          {emotion && <span className="text-muted-foreground capitalize">{emotion}</span>}
+        </p>
+      )}
+      {rows.length === 0 ? (
+        <p className="text-muted-foreground">No genome metadata for this render.</p>
+      ) : (
+        <ul className="space-y-1">
+          {rows.map((r) => (
+            <li key={r.label} className="flex gap-2">
+              <span className="text-muted-foreground w-16 shrink-0 capitalize">{r.label}</span>
+              <span className="capitalize">{r.value}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="pt-1 text-[10px] text-muted-foreground">
+        Brandie picks these genes from your brand vibe, the week's trend, and how you've voted before.
+      </p>
+    </div>
+  );
+}
