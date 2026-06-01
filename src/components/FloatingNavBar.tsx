@@ -16,7 +16,7 @@ const FloatingNavBar = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  const hiddenRoutes = ["/studio", "/auth", "/onboarding", "/reset-password"];
+  const hiddenRoutes = ["/studio", "/auth", "/onboarding", "/reset-password", "/v2"];
   const visible = !!user && !hiddenRoutes.some((r) => location.pathname.startsWith(r));
 
   // Toggle the body padding class strictly based on nav visibility.
