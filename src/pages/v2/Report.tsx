@@ -194,6 +194,70 @@ const Report = () => {
           </Card>
         </section>
 
+        {/* Genome drift */}
+        <section>
+          <h2 className="font-serif text-2xl mb-4">Genome drift</h2>
+          <Card className="p-6">
+            {driftWeeks.allPresets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Not enough renders yet. Once Brandie ships a few weeks of posts, you'll see how your visual genome shifts here.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 gap-3">
+                  {driftWeeks.weeks.map((w) => (
+                    <div key={w.label} className="space-y-2">
+                      <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">
+                        Wk · {w.label}
+                      </p>
+                      <div className="flex h-24 w-full overflow-hidden rounded-md bg-muted">
+                        {w.total === 0 ? (
+                          <div className="w-full grid place-items-center text-[10px] text-muted-foreground">
+                            —
+                          </div>
+                        ) : (
+                          <div className="flex flex-col w-full">
+                            {driftWeeks.allPresets.map((p, idx) => {
+                              const n = w.counts[p] ?? 0;
+                              if (n === 0) return null;
+                              const pct = (n / w.total) * 100;
+                              return (
+                                <div
+                                  key={p}
+                                  className="w-full"
+                                  style={{
+                                    height: `${pct}%`,
+                                    background: `hsl(var(--foreground) / ${0.25 + (idx % 5) * 0.15})`,
+                                  }}
+                                  title={`${p.replace(/-/g, " ")} · ${n}`}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{w.total} renders</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  {driftWeeks.allPresets.map((p, idx) => (
+                    <div key={p} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span
+                        className="h-2 w-2 rounded-sm"
+                        style={{ background: `hsl(var(--foreground) / ${0.25 + (idx % 5) * 0.15})` }}
+                      />
+                      <span className="capitalize">{p.replace(/-/g, " ")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </section>
+
+
+
         {/* Best of */}
         <section>
           <h2 className="font-serif text-2xl mb-4">This week's drops</h2>
