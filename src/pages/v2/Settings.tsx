@@ -68,6 +68,8 @@ const SettingsV2 = () => {
   const [whatsapp, setWhatsapp] = useState("");
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
   const [v2Default, setV2Default] = useState<boolean>(true);
+  const [briefingHour, setBriefingHour] = useState<number>(7);
+  const [savingBriefing, setSavingBriefing] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -75,11 +77,12 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("whatsapp_number, v2_enabled")
+        .select("whatsapp_number, v2_enabled, monday_briefing_hour")
         .eq("user_id", user.id)
         .maybeSingle();
       setWhatsapp((data?.whatsapp_number as string) ?? "");
       setV2Default(!!(data as any)?.v2_enabled);
+      setBriefingHour(((data as any)?.monday_briefing_hour as number) ?? 7);
     })();
   }, [user]);
 
