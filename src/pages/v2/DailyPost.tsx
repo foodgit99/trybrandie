@@ -42,6 +42,7 @@ type Design = {
   image_url: string;
   caption: string | null;
   title: string | null;
+  genome: any | null;
 };
 
 const DailyPost = () => {
