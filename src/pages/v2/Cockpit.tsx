@@ -195,7 +195,7 @@ const Cockpit = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-1.5" aria-busy={ideasLoading}>
             {DAY_LABELS.map((label, idx) => {
               const dayIdeas = byDay.get(idx) ?? [];
               const isToday = idx === todayIdx;
@@ -217,11 +217,17 @@ const Cockpit = () => {
                   >
                     {label}
                   </p>
-                  {dayIdeas.length === 0 ? (
+                  {ideasLoading ? (
+                    <div className="mt-auto space-y-1" aria-hidden>
+                      <div className="h-1.5 w-3/4 rounded-full bg-muted animate-pulse" />
+                      <div className="h-1.5 w-1/2 rounded-full bg-muted animate-pulse" />
+                    </div>
+                  ) : dayIdeas.length === 0 ? (
                     <span
                       className={`text-[10px] mt-auto ${
                         isToday ? "text-background/40" : "text-muted-foreground/40"
                       }`}
+                      aria-label="No posts"
                     >
                       —
                     </span>
