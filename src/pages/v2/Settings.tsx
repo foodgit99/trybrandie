@@ -93,7 +93,7 @@ const SettingsV2 = () => {
       else
         setAutopilot({
           brand_id: brand.id,
-          enabled: true,
+          enabled: false,
           delivery_time: "morning",
           timezone:
             Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos",
@@ -119,12 +119,12 @@ const SettingsV2 = () => {
   };
 
   const saveAutopilot = async (next: Partial<AutopilotSettings>) => {
-    if (!autopilot) return;
+    if (!autopilot || !user) return;
     const merged = { ...autopilot, ...next };
     setAutopilot(merged);
     const { error } = await supabase
       .from("autopilot_settings")
-      .upsert(merged as any, { onConflict: "brand_id" });
+      .upsert({ ...merged, user_id: user.id } as any, { onConflict: "brand_id" });
     if (error) {
       toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
       return;

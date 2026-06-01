@@ -176,25 +176,38 @@ const BrandCentre = () => {
         </Block>
 
         <Block label="Audience (JTBD)" href="/brand">
-          {!audience ? (
-            <p className="text-sm text-muted-foreground">No audience profile yet.</p>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-              {[
-                ["Who", (audience as any).who],
-                ["Struggle", (audience as any).struggle],
-                ["Outcome", (audience as any).desired_outcome],
-                ["Trigger", (audience as any).buying_trigger],
-              ].map(([label, value]) => (
-                <div key={label as string}>
-                  <p className="text-[11px] tracking-wider uppercase text-muted-foreground mb-1">
-                    {label}
-                  </p>
-                  <p className="leading-relaxed">{(value as string) || "—"}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const raw = ((audience as any)?.raw_inputs ?? {}) as Record<string, any>;
+            const jtbd = ((audience as any)?.jtbd_profile ?? {}) as Record<string, any>;
+            const pick = (...keys: string[]) => {
+              for (const k of keys) {
+                const v = raw[k] ?? jtbd[k];
+                if (typeof v === "string" && v.trim()) return v;
+              }
+              return null;
+            };
+            const rows = [
+              ["Who", pick("who", "persona", "audience")],
+              ["Struggle", pick("struggle", "pain", "problem")],
+              ["Outcome", pick("desired_outcome", "outcome", "goal")],
+              ["Trigger", pick("buying_trigger", "trigger", "moment")],
+            ];
+            if (!audience || rows.every(([, v]) => !v)) {
+              return <p className="text-sm text-muted-foreground">No audience profile yet.</p>;
+            }
+            return (
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                {rows.map(([label, value]) => (
+                  <div key={label as string}>
+                    <p className="text-[11px] tracking-wider uppercase text-muted-foreground mb-1">
+                      {label}
+                    </p>
+                    <p className="leading-relaxed">{(value as string) || "—"}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </Block>
 
         <Block label="Offer" href="/brand">

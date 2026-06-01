@@ -314,6 +314,14 @@ const Blueprint = () => {
                                   </Button>
                                 )}
                                 <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full h-8 px-3 gap-1.5"
+                                >
+                                  <Link to={`/v2/post/${it.id}`}>Open</Link>
+                                </Button>
+                                <Button
                                   size="sm"
                                   variant="ghost"
                                   className="rounded-full h-8 px-3 gap-1.5 text-muted-foreground"
