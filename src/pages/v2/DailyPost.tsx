@@ -323,9 +323,30 @@ const DailyPost = () => {
           {/* TRAIN BRANDIE */}
           {design && (
             <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5">
-              <span className="text-xs tracking-wider uppercase text-muted-foreground">
-                Train Brandie
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs tracking-wider uppercase text-muted-foreground">
+                  Train Brandie
+                </span>
+                {design.genome && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Why this design?"
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-72 text-xs space-y-2">
+                      <p className="text-[11px] tracking-[0.2em] uppercase text-muted-foreground">
+                        Why this design
+                      </p>
+                      <GenomeSummary genome={design.genome} />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
