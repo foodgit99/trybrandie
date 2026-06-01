@@ -725,6 +725,7 @@ export type Database = {
           series_id: string | null
           slide_count: number | null
           status: string
+          strategic_arc: string | null
           title: string
           user_id: string
           whatsapp_dm: string | null
@@ -750,6 +751,7 @@ export type Database = {
           series_id?: string | null
           slide_count?: number | null
           status?: string
+          strategic_arc?: string | null
           title: string
           user_id: string
           whatsapp_dm?: string | null
@@ -775,6 +777,7 @@ export type Database = {
           series_id?: string | null
           slide_count?: number | null
           status?: string
+          strategic_arc?: string | null
           title?: string
           user_id?: string
           whatsapp_dm?: string | null
@@ -1471,6 +1474,7 @@ export type Database = {
           trend_intel_gen_reset_at: string
           updated_at: string
           user_id: string
+          v2_enabled: boolean
           whatsapp_number: string | null
         }
         Insert: {
@@ -1502,6 +1506,7 @@ export type Database = {
           trend_intel_gen_reset_at?: string
           updated_at?: string
           user_id: string
+          v2_enabled?: boolean
           whatsapp_number?: string | null
         }
         Update: {
@@ -1533,6 +1538,7 @@ export type Database = {
           trend_intel_gen_reset_at?: string
           updated_at?: string
           user_id?: string
+          v2_enabled?: boolean
           whatsapp_number?: string | null
         }
         Relationships: []
