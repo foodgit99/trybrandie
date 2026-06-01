@@ -92,7 +92,7 @@ const Report = () => {
         <header className="space-y-3">
           <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground">CEO Briefing</p>
           <h1 className="font-serif text-4xl sm:text-5xl leading-tight">Last week, in numbers.</h1>
-          <p className="text-muted-foreground">{range.label} · {brand?.brand_name ?? "Your brand"}</p>
+          <p className="text-muted-foreground">{range.label} · {brand?.name ?? "Your brand"}</p>
         </header>
 
         {/* Headline stats */}
