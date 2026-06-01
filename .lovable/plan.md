@@ -1,132 +1,189 @@
+# Brandie V1.0 — Complete UX Overhaul
 
-# Pipeline Optimization Plan — 15 Recommendations
+A clean-sheet rebuild of the user experience around the PRD's "10-Minute Marketing Week" ritual. Nothing on the current app is deleted — every existing page is moved behind `/legacy/*` and remains fully functional. The new experience lives at the root routes.
 
-Goal: align generation output more tightly to user intent by promoting the prompt, introducing a Creative Director Agent with persisted layout schemas, making audience JTBD a first-class signal, tightening trend/inspiration handling, closing the feedback loop, and adding telemetry.
+## Guiding principles
 
-Rollout is phased so each phase is shippable independently and the pipeline stays green throughout.
-
----
-
-## Phase 1 — Quick wins (no schema changes)
-
-**Scope:** prompt-level changes inside `design-studio/index.ts` only. Zero risk to current pipeline.
-
-1. **#1 Promote user prompt** — restructure prompt builder so the verbatim user prompt is the first and last block (repeated slot). Strip the ~2KB of styling boilerplate down to ≤3 sentences of polish guidance.
-2. **#10 Move `special_instructions`** to the top of the prompt, immediately after the user prompt slot.
-3. **#14 Per-brand prompt budget cap** — if assembled prompt > 3.5KB, progressively drop boilerplate (polish hints first, then research enrichment, then inspiration captions).
-4. **#13 Drop Firecrawl/research from hot path** for categories where it historically returns 0 results. Add an allowlist in `category-recipes.ts` (e.g. only run research for `educational`, `industry_news`).
-
-**Files:** `supabase/functions/design-studio/index.ts`, `supabase/functions/_shared/category-recipes.ts`.
+- **Cockpit, not canvas.** Every screen answers one question and offers one primary action.
+- **The Ritual is the product.** Monday = Approve. Tue–Sat = Post. Sunday = Reflect. The UI literally reflects this rhythm.
+- **Defer to action.** No empty states without a CTA. No decisions without a default. No prompt without a pre-fill.
+- **Editorial minimalism.** Warm-neutral palette (Beige `#FAF8F5`, Charcoal `#2B2D33`, Gold `#C4993B`) already in memory. Serif display + clean sans body. Generous whitespace. High-contrast cards. No gradients-for-the-sake-of-it.
 
 ---
 
-## Phase 2 — Telemetry + observability
+## 1. Retire current UX as Legacy (zero deletion)
 
-**Scope:** make Phase 1 results measurable before going further.
-
-5. **#15 Telemetry expansion** — add to `design_traces` payload:
-   - `prompt_length_chars`
-   - `refs_used_count`, `refs_skipped[]`
-   - `genome_overall_score`
-   - `stability_gate_fired` (bool) + `stability_gate_gene_patched`
-   - `tier_used` (which fallback tier rendered)
-   - `category_confidence` (for #11)
-   - `research_skipped` (for #13)
-6. Surface these in `AdminTracesTab.tsx` as sortable columns + 7-day averages.
-
-**Files:** `supabase/functions/_shared/tracer.ts`, `supabase/functions/design-studio/index.ts`, `src/components/admin/AdminTracesTab.tsx`.
-
----
-
-## Phase 3 — Audience & inspiration upgrades
-
-**Scope:** make existing inputs actually influence the output.
-
-7. **#4 Audience JTBD as first-class input** —
-   - Inject `core_job_statement`, top emotional drivers, and one buying trigger directly into the renderer prompt (new "Audience" block).
-   - Add audience-alignment score to the genome scorer (new metric weighted 15%).
-8. **#7 Tighten inspiration handling** —
-   - Lower preset-vote threshold from 2 → 1.
-   - Add `dominant_palette` (top-3 hex via image analysis) and `composition_vector` (rule-of-thirds / centered / asymmetric) extraction to `render-refs.ts`.
-   - Inject those as structured tokens into genome composer instead of free-text caption only.
-9. **#11 Category confidence** — replace binary category override with a 0-1 confidence score. If `< 0.7`, blend instead of overwrite category bias.
-
-**Files:** `supabase/functions/design-studio/index.ts`, `supabase/functions/_shared/render-refs.ts`, `supabase/functions/audience-intelligence/index.ts` (read path only).
-
----
-
-## Phase 4 — Stability + per-brand policy
-
-10. **#5 Raise Stability Gate** floor from 55 → 65. Add second-pass refinement for paid-tier users (Entrepreneur+).
-11. **#6 Per-brand lock policy** — new `brand.gene_lock_policy` JSONB field with shape:
-    ```
-    { locked: ["color_primary"], semi_flexible: ["typography"], free: ["texture","layout"] }
-    ```
-    Genome composer respects per-brand locks during composition + mutation.
-12. **#9 Carousel coherence** — in `design-studio` carousel orchestrator, compute genome once for slide 1, deep-clone and lock all genes for slides 2-N. Only copy + image_instructions vary.
-
-**Schema change:** one migration adding `gene_lock_policy JSONB` to `brands` (nullable, default null → falls back to global defaults).
-
----
-
-## Phase 5 — Creative Director Agent + persisted layout schema  ✅ shipped (single-design path)
-
-**Scope:** the biggest architectural change. Unlocks real edits and feedback loop.
-
-13. **#2 Creative Director Agent** — ✅
-    - New stage between Stability Gate and Renderer in `design-studio/index.ts`.
-    - Calls `MODEL_CHAINS.reasoning` (gemini-2.5-pro → 3.1-pro-preview fallback) via tool-call, emitting `layout_schema` JSON: `{ canvas_grid, regions[{role,position,size,treatment}], focal_point, hierarchy, palette_application, background_treatment, visual_motifs[] }`.
-    - Schema injected into renderer prompt as `LAYOUT BLUEPRINT` block (after audience, before genome).
-    - Best-effort: failure does NOT block render.
-    - Tracer metrics: `creative_director_fired`, `layout_schema_regions`.
-14. **#3 Persist `layout_schema`** — ✅
-    - Columns `layout_schema JSONB` + `creative_director_version TEXT` already on `designs` (Phase 4 migration).
-    - Returned in single-design response; persisted by `DesignGenerationContext.tsx` on design insert.
-    - Carousel persistence deferred (single CD call per carousel still TODO).
-15. **#8 Mask-based edits** — ⏭ deferred to a follow-up; requires `previous_image_url` + mask compositing.
-
-**Schema changes:** none (used columns added in Phase 4 migration).
-
-
----
-
-## Phase 6 — Feedback loop  ✅ shipped
-
-16. **#12 Close feedback loop** —
-    - Table `genome_preset_weights (brand_id, category, preset_id, weight, updated_at)` already in place from Phase 1 groundwork; added unique constraint `(brand_id, preset_id, category)` for upserts.
-    - New SECURITY DEFINER RPC `record_preset_feedback(p_design_id, p_vote)`: reads `designs.genome->>'preset_id'`, verifies brand ownership against `auth.uid()`, then upserts the weight with ±0.1 delta clamped to `[0.1, 3.0]`. Category defaults to `'all'` (per-category weights deferred until designs persist category alongside genome).
-    - Genome Composer (`design-studio/index.ts`) now fetches the brand's weights right after vibe/category/inspiration resolution. A different preset overrides when its weight ≥1.3 AND beats the incumbent by ≥0.2; the incumbent is demoted when its weight ≤0.7. Override is logged.
-    - Composer stamps `genome.preset_id = basePresetId` before mutation so feedback always credits the right preset.
-    - Client `handleVote` in `DesignStudio.tsx` fires `supabase.rpc("record_preset_feedback", ...)` after the `designs.vote` update (fire-and-forget, never blocks UI).
-
-
----
-
-## Out of plan / explicitly deferred
-
-- Replacing gpt-image-2 (user wants to keep it).
-- True regional inpainting beyond text-region masks.
-- Multi-modal feedback signals beyond upvote/downvote.
-
----
-
-## Technical notes
-
-- All edge function changes ship via `supabase--deploy_edge_functions`; no client-side breaking changes.
-- SSE response shape (`image_generation.partial_image` / `image_generation.completed`) is preserved across every phase.
-- Credit deduction logic is untouched; Creative Director call is wrapped in `circuit-breaker.ts` and fails open (skips schema step) so a Gemini outage cannot block renders.
-- Each phase can be deployed and rolled back independently. Recommended cadence: P1+P2 together, then P3, then P4, then P5, then P6.
-
----
-
-## Files touched (summary)
+Move every existing top-level route under `/legacy/*`. The pages, components, hooks, contexts, and edge functions are untouched — only the route paths change.
 
 ```text
-Phase 1-2: design-studio/, _shared/category-recipes.ts, _shared/tracer.ts, admin/AdminTracesTab.tsx
-Phase 3:   design-studio/, _shared/render-refs.ts
-Phase 4:   design-studio/, brands migration
-Phase 5:   design-studio/, designs migration, new creative-director stage
-Phase 6:   genome_preset_weights migration, design-studio/ scoring path, vote handler
+/                    → NEW Landing (Amina-focused)
+/auth                → NEW auth (kept visually fresh, same backend)
+/onboarding          → NEW 4-step onboarding
+/cockpit             → NEW Monday Briefing / home
+/blueprint           → NEW Weekly Blueprint
+/post/:dayId         → NEW Daily Execution screen
+/report              → NEW CEO Briefing
+/brand               → NEW Brand Centre (read-mostly)
+/legacy/*            → All previous pages (Index, ContentHub, DesignStudio,
+                       BrandCentre, Cockpit, DesignHistory, Plans, Settings,
+                       Admin, Affiliate*, AudiencePromptManager, etc.)
 ```
 
-Total estimated effort: ~3-4 days across 6 deploys.
+A small "Open Legacy App" link sits in the new Settings page for power users and admins. No legacy code is removed; routes are simply re-mounted.
+
+## 2. Landing page (new)
+
+Single goal: convert Amina in under 30 seconds.
+
+Sections, in order:
+
+1. **Hero** — Serif headline: *"Your marketing department, on autopilot."* Sub: *"Brandie writes, designs, and schedules a full week of on-brand content every Monday. You approve in 10 minutes."* Primary CTA: *Start my engine — free*. Visual: a stylised "Monday Briefing" card mock (not a screenshot — a designed artifact).
+2. **The Ritual** — three big numbered cards: Monday Approve → Daily Post → Sunday Reflect.
+3. **What you stop doing** — split list: *No more blank canvas. No more freelancer chasing. No more silent status days.*
+4. **The 8 Pillars** — quiet grid of the content pillars with one-line definitions.
+5. **Proof / Sample Week** — a horizontally scrolling 5-day blueprint preview (real layout, fake brand).
+6. **Pricing** — single card: **18,500 NGN/month**, framed as *"600 NGN/day — cheaper than a plate of rice."* Bullet inclusions per PRD.
+7. **FAQ** — 5 questions: how autonomous is it, can I edit, what about my brand, WhatsApp posting, cancel anytime.
+8. **Final CTA** — *Switch on your engine*.
+
+Sticky top nav: Logo · Ritual · Pricing · FAQ · Sign in · Start free.
+
+## 3. Onboarding (new — under 5 minutes)
+
+A guided 4-step flow with a persistent left rail showing progress. Each step has a "Skip — Brandie will guess" option so Amina never gets stuck.
+
+1. **Brand basics** — business name, one-line description, website URL (optional, triggers existing `brand-scraper`), logo upload (optional — falls back to existing `logo-designer`).
+2. **Look & feel** — pick 1 of 6 curated palettes + 1 of 4 type pairings + tone-of-voice slider (Street-smart ↔ Polished). Live preview card updates in real time.
+3. **Audience (JTBD)** — 3 questions only (not the legacy 5-section form): *Who buys from you? What problem are they escaping? What outcome do they brag about?* Each with example chips.
+4. **Products & promise** — add up to 3 hero products/services + one signature offer/CTA + WhatsApp number for posting handoff.
+
+Finish screen: *"Building your first Weekly Blueprint…"* animated. Behind the scenes calls existing `autopilot-planner` + `brand-engine`. Lands on Cockpit when ready.
+
+## 4. Cockpit (new home — Monday Briefing)
+
+The single most important screen. Replaces current `Index` + `ContentHub` + old `Cockpit`.
+
+Layout (desktop: centred 960px column; mobile: full-width):
+
+- **Header strip** — "Good morning, Amina. It's Monday." + week range. Right-aligned: streak, credits.
+- **Brand Pulse pill** — reuses logic from `BrandPulse` component (composite health score) but redesigned as a single horizontal bar with one sentence: *"Your engine is humming."* / *"Engine needs attention."*
+- **The Weekly Blueprint card** (hero) — visual preview of the 5-day Strategic Arc. Each day is a row: Day · Pillar badge · Caption preview · Thumbnail. Status: *Awaiting approval* / *Approved* / *Live*. Primary button: **Approve the week** (one tap). Secondary: **Open Blueprint** (full editor).
+- **Next Best Action card** — reuses `NextBestActionCard` logic, restyled to match.
+- **Daily Execution strip** — a horizontal 7-day rail. Today's card is enlarged with **Post now** CTA.
+- **This week's brief** — collapsible: trends pulled, holiday hooks, audience focus. Editorial typography.
+
+No tabs. No sidebar. One column, one scroll, one ritual.
+
+## 5. Weekly Blueprint (`/blueprint`)
+
+Full-screen review and edit surface.
+
+- Vertical timeline, Mon→Fri (Sat/Sun optional toggle).
+- Each day card: large pillar badge, day name, generated caption, design thumbnail, schedule time. Inline actions: *Regenerate*, *Edit caption*, *Swap pillar*, *Remove*.
+- **Conversational edit bar** pinned to the bottom: *"Swap Thursday's post for a restock announcement…"*. Routes through the Edit Decision Tree (text → copywriter, visual → creative director, structural → full cascade). Reuses `design-studio` and `brand-strategist` edge functions.
+- Top-right: **Approve the week** button (sticky). On approve: confirmation sheet shows posting schedule + WhatsApp/email handoff opt-in. Writes to existing autopilot tables; triggers `campaign-scheduler`.
+
+## 6. Daily Execution (`/post/:dayId`)
+
+The screen Amina opens from her daily push notification.
+
+- Big 1080×1080 design preview, swipeable for carousels.
+- Caption block with copy button, edit button, regenerate button.
+- **Post to WhatsApp** primary CTA (deeplink with pre-filled caption + image).
+- Secondary: Download image, Mark as posted, Snooze 1 hour.
+- Below the fold: *Why this post?* — a 2-sentence rationale (pillar, audience trigger, trend reference) generated at blueprint time and stored.
+- Vote thumbs (existing `record_preset_feedback` RPC) — explicit "Train Brandie" framing.
+
+## 7. CEO Briefing (`/report`)
+
+Weekly reflective surface — opens Sunday.
+
+- Headline number: conversion-weighted score (link clicks + DMs initiated). No vanity metrics on top.
+- Per-day grid showing post + outcome.
+- "What Brandie learned this week" — 3 bullets sourced from preset feedback + engagement.
+- CTA: **Lock next week** (triggers next blueprint generation early) or **Adjust the system** (opens a guided refinement modal — tone, posting times, pillar mix).
+
+## 8. Brand Centre (`/brand`, slim)
+
+Read-mostly. Three tabs only: **Identity** (logo, colours, type, tone), **Audience** (JTBD card), **Catalogue** (products/services). Each tab has one *Edit* button that opens a focused sheet — never an inline form sea. Genome and trend internals are hidden from Amina (still available in `/legacy/brand`).
+
+## 9. Settings (`/settings`, slim)
+
+Account · Billing (Paystack) · Notifications (WhatsApp + email times) · Posting handoff · **Open Legacy App** · Sign out.
+
+## 10. Navigation
+
+A new floating bottom bar (mobile) / left rail (desktop) with 4 items only: **Cockpit · Blueprint · Brand · Report**. The old `FloatingNavBar` stays mounted only on `/legacy/*` routes.
+
+---
+
+## Technical details
+
+### Routing
+
+- `src/App.tsx`: add new routes at root, wrap existing routes with `/legacy` prefix. Replace `LandingOrDashboard` → new `Cockpit`. New `ProtectedRoute` reused unchanged.
+- New `NewFloatingNav.tsx`; gate old `FloatingNavBar` to `/legacy/*` via a path check.
+
+### New files (high-level)
+
+```text
+src/pages/v2/Landing.tsx
+src/pages/v2/Onboarding.tsx                 (4-step wizard)
+src/pages/v2/Cockpit.tsx                    (Monday Briefing home)
+src/pages/v2/Blueprint.tsx
+src/pages/v2/DailyPost.tsx                  (route /post/:dayId)
+src/pages/v2/Report.tsx
+src/pages/v2/BrandCentre.tsx
+src/pages/v2/Settings.tsx
+src/components/v2/NewFloatingNav.tsx
+src/components/v2/cockpit/BlueprintHeroCard.tsx
+src/components/v2/cockpit/BrandPulseBar.tsx
+src/components/v2/cockpit/DayRail.tsx
+src/components/v2/blueprint/DayRow.tsx
+src/components/v2/blueprint/ConversationalEditBar.tsx
+src/components/v2/daily/PostPreview.tsx
+src/components/v2/onboarding/* (Step1..Step4 + ProgressRail)
+src/components/v2/landing/* (Hero, Ritual, Pillars, SampleWeek, Pricing, FAQ, CTA)
+```
+
+### Backend reuse (no schema changes in this phase)
+
+- Onboarding scrape → existing `brand-scraper`.
+- Logo fallback → existing `logo-designer`.
+- Blueprint generation → existing `autopilot-planner` + `brand-engine`.
+- Conversational edits → `brand-strategist` (text), `design-studio` (visual).
+- Scheduling → `campaign-scheduler` + existing pg_cron jobs.
+- Daily reminder → existing `content-daily-reminder` and `daily-execution-push`.
+- Feedback votes → existing `record_preset_feedback` RPC (Phase 6 from prior plan).
+- Health/NBA → existing `BrandPulse` and `NextBestActionCard` logic, restyled.
+
+### Design tokens
+
+- Keep current HSL tokens in `index.css`. Add a small `v2-` namespace where needed (only for new components that need tighter editorial typography scale and a serif display rhythm). No global token rewrites.
+
+### What stays in legacy (untouched)
+
+Every page currently under `src/pages/*` and every component currently used only by them. They continue to render exactly as today under `/legacy/*`. Edge functions, migrations, types, and contexts are not modified.
+
+---
+
+## Build order (proposed phases — each shippable on its own)
+
+1. **Phase A — Legacy preservation + scaffolding.** Re-mount old routes under `/legacy`, add new empty v2 routes + nav, no behaviour change for existing users yet (root still serves legacy until Phase B flips).
+2. **Phase B — Landing + Onboarding.** New marketing landing + 4-step onboarding wired to existing backends.
+3. **Phase C — Cockpit + Blueprint.** Monday Briefing home and full Blueprint review/edit with conversational bar.
+4. **Phase D — Daily Execution + Brand Centre + Settings.** WhatsApp handoff, vote-to-train, slim brand centre.
+5. **Phase E — CEO Briefing + polish.** Sunday report, refinement modal, motion pass, accessibility audit.
+
+Each phase ends with a working surface the user can click through end-to-end.
+
+---
+
+## Open questions before I start building
+
+1. **Default landing for existing logged-in users on Phase B launch** — should they land on the new Cockpit immediately, or see a one-time "Try the new Brandie" banner with a toggle back to legacy for a week? They should see a one-time "Try the new Brandie" banner with a toggle back to legacy for a week
+2. **WhatsApp posting handoff** — confirm we should use a `wa.me` deeplink with pre-filled caption + image (Amina downloads and attaches), versus integrating WhatsApp Business API later. We are integrating WhatsApp Business API later 
+3. **Sat/Sun posts** — default OFF (5-day Strategic Arc per PRD) with opt-in, or default ON? default ON.
+4. **Brand Pulse copy tone** — keep existing composite score, or simplify to a 3-state pill (Humming / Steady / Needs attention)? simplify to a 3-state pill
+
+Once you answer these (or say "you pick"), I'll switch to build mode and start with Phase A.

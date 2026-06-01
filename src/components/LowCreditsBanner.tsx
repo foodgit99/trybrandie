@@ -51,7 +51,8 @@ const LowCreditsBanner = () => {
     !user ||
     credits === undefined ||
     credits >= THRESHOLD ||
-    HIDDEN_ROUTES.includes(location.pathname)
+    HIDDEN_ROUTES.includes(location.pathname) ||
+    location.pathname.startsWith("/v2")
   ) {
     return null;
   }
