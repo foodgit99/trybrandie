@@ -97,7 +97,7 @@ const Blueprint = () => {
     if (!text || !ideas.length) return;
     setEditing(true);
     try {
-      // Try to detect a day keyword
+      // Detect a day keyword to pick the target idea.
       const dayIdx = WEEKDAY_NAMES.findIndex((d) => text.toLowerCase().includes(d.toLowerCase()));
       let target: Idea | undefined;
       if (dayIdx >= 0) {
@@ -117,29 +117,23 @@ const Blueprint = () => {
         return;
       }
 
-      // Lightweight Copywriter-style update: rewrite the prompt with the user's instruction.
-      // The Creative Director / agent cascade lands in Phase D; this keeps the loop tight.
-      const cleanedDirection = text.replace(/^(swap|change|replace|make|update|set)/i, "").trim();
-      const newTitle = cleanedDirection
-        .replace(/^[^a-z0-9]+/i, "")
-        .split(/[.!?\n]/)[0]
-        .trim()
-        .slice(0, 80);
-
-      const { error } = await supabase
-        .from("content_ideas")
-        .update({
-          title: newTitle || target.title,
-          prompt: cleanedDirection || target.prompt,
-          approval_status: "pending",
-          status: "draft",
-          design_id: null,
-        })
-        .eq("id", target.id);
+      // Hand off to the v2 edit router. It classifies the instruction
+      // (text vs visual vs strategy) with Flash-Lite, rewrites title + prompt,
+      // and only clears the rendered design when a regen is actually required.
+      const { data, error } = await supabase.functions.invoke("v2-edit-router", {
+        body: { idea_id: target.id, instruction: text },
+      });
       if (error) throw error;
+      const kind = (data as any)?.kind ?? "text";
+
       toast({
         title: `${WEEKDAY_NAMES[dayIdx]} updated`,
-        description: "Brandie rewrote that day. Approve when you're happy.",
+        description:
+          kind === "visual"
+            ? "Brandie will re-render the visual."
+            : kind === "strategy"
+              ? "Brandie reshaped the strategy."
+              : "Brandie rewrote the caption.",
       });
       setEditText("");
       invalidate();

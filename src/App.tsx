@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { ThemeProvider } from "next-themes";
 import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
@@ -91,8 +93,23 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 function LandingOrDashboard() {
   const { user, loading } = useAuth();
   const { brand, isLoading: brandLoading } = useBrand(user);
+  const [v2Enabled, setV2Enabled] = useState<boolean | null>(null);
 
-  if (loading || brandLoading) {
+  useEffect(() => {
+    if (!user) { setV2Enabled(false); return; }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("v2_enabled")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (alive) setV2Enabled(!!(data as any)?.v2_enabled);
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  if (loading || brandLoading || (user && v2Enabled === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading…</div>
@@ -100,6 +117,7 @@ function LandingOrDashboard() {
     );
   }
   if (!user) return <Landing />;
+  if (v2Enabled) return <Navigate to="/v2/cockpit" replace />;
   if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
   return <Index />;
 }

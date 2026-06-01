@@ -67,6 +67,7 @@ const SettingsV2 = () => {
 
   const [whatsapp, setWhatsapp] = useState("");
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
+  const [v2Default, setV2Default] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -74,10 +75,11 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("whatsapp_number")
+        .select("whatsapp_number, v2_enabled")
         .eq("user_id", user.id)
         .maybeSingle();
       setWhatsapp((data?.whatsapp_number as string) ?? "");
+      setV2Default(!!(data as any)?.v2_enabled);
     })();
   }, [user]);
 
@@ -233,7 +235,29 @@ const SettingsV2 = () => {
 
         <Section label="Experience">
           <Row
-            title="Back to legacy Brandie"
+            title="Use new Brandie by default"
+            subtitle="When on, signing in lands you on the Cockpit. Off sends you to the legacy chat-canvas."
+          >
+            <Switch
+              checked={v2Default}
+              onCheckedChange={async (v) => {
+                setV2Default(v);
+                if (!user) return;
+                const { error } = await supabase
+                  .from("profiles")
+                  .update({ v2_enabled: v })
+                  .eq("user_id", user.id);
+                if (error) {
+                  toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+                  setV2Default(!v);
+                } else {
+                  toast({ title: v ? "New Brandie is your default." : "Legacy is your default." });
+                }
+              }}
+            />
+          </Row>
+          <Row
+            title="Open legacy Brandie now"
             subtitle="The original chat-canvas experience is still available."
           >
             <Button asChild size="sm" variant="ghost" className="rounded-full gap-1.5">

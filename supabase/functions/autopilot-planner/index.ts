@@ -9,7 +9,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type Seed = { title: string; prompt: string; category: string; idea_type?: string; content_format?: "graphic" | "carousel"; slide_count?: number };
+type Seed = { title: string; prompt: string; category: string; idea_type?: string; content_format?: "graphic" | "carousel"; slide_count?: number; arc?: string };
+
+// Strategic Arc — Hook → Proof → CTA narrative across the week.
+// Each weekday gets a role; the seed at index i is annotated with WEEK_ARC[i].
+// Ordering ensures a multi-day story instead of random posts (PRD §3 "Strategic Arc").
+const WEEK_ARC = [
+  "Hook",      // Mon — grab attention, set the theme
+  "Educate",   // Tue — teach, build authority
+  "Proof",     // Wed — testimonial, case, before/after
+  "Offer",     // Thu — promotional, the ask
+  "Urgency",   // Fri — scarcity / deadline CTA
+  "Lifestyle", // Sat — entertainment, mood, BTS
+  "Community", // Sun — gratitude, UGC, interactive
+];
 
 const PLAYBOOK_SEEDS: Record<string, Array<Seed>> = {
   restaurants: [
@@ -113,7 +126,32 @@ Deno.serve(async (req) => {
         }
 
         const today = new Date();
-        const rows = seeds.map((s, i) => {
+        // Re-order seeds to fit the Hook → Proof → CTA arc by mapping each
+        // weekday role to the best-matching seed category.
+        const ROLE_PREF: Record<string, string[]> = {
+          Hook: ["entertainment", "informational", "announcement"],
+          Educate: ["educational"],
+          Proof: ["social_proof"],
+          Offer: ["promotional"],
+          Urgency: ["promotional", "announcement"],
+          Lifestyle: ["bts", "entertainment"],
+          Community: ["interactive", "social_proof"],
+        };
+        const pool = [...seeds];
+        const ordered: Seed[] = [];
+        for (const role of WEEK_ARC) {
+          const prefs = ROLE_PREF[role] || [];
+          let pick = -1;
+          for (const p of prefs) {
+            pick = pool.findIndex((s) => s.category === p);
+            if (pick >= 0) break;
+          }
+          if (pick < 0) pick = 0;
+          ordered.push({ ...pool[pick], arc: role });
+          pool.splice(pick, 1);
+          if (!pool.length) break;
+        }
+        const rows = ordered.map((s, i) => {
           const d = new Date(today);
           d.setDate(d.getDate() + i);
           const format: "graphic" | "carousel" = s.content_format === "carousel" ? "carousel" : "graphic";
@@ -123,6 +161,7 @@ Deno.serve(async (req) => {
             title: s.title,
             prompt: s.prompt,
             content_category: s.category,
+            strategic_arc: s.arc ?? null,
             idea_type: s.idea_type || "single",
             content_format: format,
             slide_count: format === "carousel" ? (s.slide_count ?? 5) : null,

@@ -224,6 +224,12 @@ const Onboarding = () => {
         );
       }
 
+      // Opt this user into the v2 experience so '/' lands them on the cockpit.
+      await supabase
+        .from("profiles")
+        .update({ v2_enabled: true })
+        .eq("user_id", user.id);
+
       // Fire-and-forget: seed the engine
       supabase.functions
         .invoke("autopilot-planner", {
