@@ -67,6 +67,23 @@ const Report = () => {
     },
   });
 
+  // Genome drift: last 4 weeks of designs for this brand, grouped by preset_id per week
+  const { data: drift } = useQuery({
+    queryKey: ["v2-report-drift", brand?.id],
+    enabled: !!brand?.id,
+    queryFn: async () => {
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+      const { data } = await supabase
+        .from("designs")
+        .select("id, created_at, genome")
+        .eq("brand_id", brand!.id)
+        .gte("created_at", fourWeeksAgo.toISOString())
+        .order("created_at", { ascending: true });
+      return data ?? [];
+    },
+  });
+
   const stats = useMemo(() => {
     const list = data ?? [];
     const planned = list.length;
@@ -82,6 +99,40 @@ const Report = () => {
     });
     return { planned, shipped, ready, approved, ups, downs, byCat };
   }, [data]);
+
+  // Build weekly preset distribution for drift chart
+  const driftWeeks = useMemo(() => {
+    const list = drift ?? [];
+    const weeks: Array<{ label: string; start: Date; counts: Record<string, number>; total: number }> = [];
+    const thisMonday = startOfWeek();
+    for (let i = 3; i >= 0; i--) {
+      const start = new Date(thisMonday);
+      start.setDate(thisMonday.getDate() - i * 7);
+      weeks.push({
+        label: start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        start,
+        counts: {},
+        total: 0,
+      });
+    }
+    list.forEach((d: any) => {
+      const preset = (d.genome as any)?.preset_id;
+      if (!preset) return;
+      const dt = new Date(d.created_at);
+      for (let i = weeks.length - 1; i >= 0; i--) {
+        if (dt >= weeks[i].start) {
+          weeks[i].counts[preset] = (weeks[i].counts[preset] ?? 0) + 1;
+          weeks[i].total += 1;
+          break;
+        }
+      }
+    });
+    const allPresets = Array.from(
+      new Set(weeks.flatMap((w) => Object.keys(w.counts))),
+    );
+    return { weeks, allPresets };
+  }, [drift]);
+
 
   const approvalRate = stats.planned ? Math.round((stats.approved / stats.planned) * 100) : 0;
   const shipRate = stats.planned ? Math.round((stats.shipped / stats.planned) * 100) : 0;
