@@ -139,7 +139,7 @@ const SettingsV2 = () => {
 
   if (authLoading || brandLoading) {
     return (
-      <div className="min-h-screen grid place-items-center text-muted-foreground">
+      <div className="min-h-dvh grid place-items-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -148,7 +148,7 @@ const SettingsV2 = () => {
   if (!brand || !brand.onboarding_complete) return <Navigate to="/v2/onboarding" replace />;
 
   return (
-    <div className="min-h-screen bg-background lg:pl-20 pb-24">
+    <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Settings — Brandie" description="Tune the system." path="/v2/settings" noindex />
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">

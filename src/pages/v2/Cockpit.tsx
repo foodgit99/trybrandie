@@ -145,7 +145,7 @@ const Cockpit = () => {
 
   if (authLoading || brandLoading) {
     return (
-      <div className="min-h-screen grid place-items-center text-muted-foreground">
+      <div className="min-h-dvh grid place-items-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -160,7 +160,7 @@ const Cockpit = () => {
   const todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1;
 
   return (
-    <div className="min-h-screen bg-background lg:pl-20">
+    <div className="min-h-dvh bg-background lg:pl-20">
       <SEO title="Cockpit — Brandie" description="Your Monday briefing." path="/v2/cockpit" noindex />
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-24 space-y-12">

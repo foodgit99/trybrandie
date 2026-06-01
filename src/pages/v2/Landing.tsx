@@ -13,7 +13,7 @@ const pillars = [
 ];
 
 const Landing = () => (
-  <div className="min-h-screen bg-background text-foreground">
+  <div className="min-h-dvh bg-background text-foreground">
     <SEO
       title="Brandie — your marketing department, on autopilot"
       description="Pick your playbook. Brandie generates a strategic 5-day campaign every week. You approve in ten minutes. Done."

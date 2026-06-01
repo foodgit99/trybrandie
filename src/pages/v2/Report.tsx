@@ -138,7 +138,7 @@ const Report = () => {
   const shipRate = stats.planned ? Math.round((stats.shipped / stats.planned) * 100) : 0;
 
   return (
-    <main className="min-h-screen bg-background text-foreground lg:pl-20 pb-28 lg:pb-12">
+    <main className="min-h-dvh bg-background text-foreground lg:pl-20 pb-28 lg:pb-12">
       <div className="max-w-5xl mx-auto px-6 py-12 space-y-10">
         <header className="space-y-3">
           <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground">CEO Briefing</p>

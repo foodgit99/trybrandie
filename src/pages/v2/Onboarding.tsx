@@ -263,7 +263,7 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-dvh bg-background flex flex-col">
       <SEO title="Set up — Brandie" description="Four steps to your autonomous engine." path="/v2/onboarding" noindex />
 
       {/* Header + step indicator */}

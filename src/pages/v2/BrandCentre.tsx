@@ -75,7 +75,7 @@ const BrandCentre = () => {
 
   if (authLoading || brandLoading) {
     return (
-      <div className="min-h-screen grid place-items-center text-muted-foreground">
+      <div className="min-h-dvh grid place-items-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -90,7 +90,7 @@ const BrandCentre = () => {
   ].filter(Boolean).slice(0, 8);
 
   return (
-    <div className="min-h-screen bg-background lg:pl-20 pb-24">
+    <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Brand Centre — Brandie" description="Your brand memory." path="/v2/brand" noindex />
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
