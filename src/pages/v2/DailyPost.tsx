@@ -79,7 +79,7 @@ const DailyPost = () => {
       if (!idea?.design_id) return null;
       const { data, error } = await supabase
         .from("designs")
-        .select("id, image_url, caption, title")
+        .select("id, image_url, caption, title, genome")
         .eq("id", idea.design_id)
         .maybeSingle();
       if (error) throw error;
