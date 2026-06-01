@@ -8,11 +8,13 @@ import { useBrand } from "@/hooks/useBrand";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ArrowLeft,
   Check,
   Copy,
   Download,
+  Info,
   Loader2,
   MessageCircle,
   Sparkles,
