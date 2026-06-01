@@ -45,7 +45,7 @@ const Report = () => {
     queryFn: async () => {
       const { data: ideas } = await supabase
         .from("content_ideas")
-        .select("id, title, status, approval_status, content_category, scheduled_for, design_id, designs:design_id(image_url, caption, user_vote)")
+        .select("id, title, status, approval_status, content_category, scheduled_for, design_id, designs:design_id(image_url, caption, vote)")
         .eq("brand_id", brand!.id)
         .gte("scheduled_for", range.lastMondayISO)
         .lte("scheduled_for", range.lastSundayISO)
@@ -73,8 +73,8 @@ const Report = () => {
     const shipped = list.filter((i: any) => i.status === "published" || i.status === "posted").length;
     const ready = list.filter((i: any) => i.design_id).length;
     const approved = list.filter((i: any) => i.approval_status === "approved").length;
-    const ups = list.filter((i: any) => i.designs?.user_vote === 1).length;
-    const downs = list.filter((i: any) => i.designs?.user_vote === -1).length;
+    const ups = list.filter((i: any) => i.designs?.vote === 1).length;
+    const downs = list.filter((i: any) => i.designs?.vote === -1).length;
     const byCat: Record<string, number> = {};
     list.forEach((i: any) => {
       const k = i.content_category || "uncategorised";
@@ -177,8 +177,8 @@ const Report = () => {
                         ) : (
                           <Badge variant="outline" className="text-[10px]">Pending</Badge>
                         )}
-                        {i.designs?.user_vote === 1 && <ThumbsUp className="h-3 w-3 text-emerald-600" />}
-                        {i.designs?.user_vote === -1 && <ThumbsDown className="h-3 w-3 text-rose-600" />}
+                        {i.designs?.vote === 1 && <ThumbsUp className="h-3 w-3 text-emerald-600" />}
+                        {i.designs?.vote === -1 && <ThumbsDown className="h-3 w-3 text-rose-600" />}
                       </div>
                     </div>
                   </Card>
