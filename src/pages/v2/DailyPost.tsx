@@ -53,11 +53,12 @@ const DailyPost = () => {
   const { brand, isLoading: brandLoading } = useBrand(user);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [generating, setGenerating] = useState(false);
+  const generation = useDesignGeneration();
   const [voting, setVoting] = useState(false);
   const [marking, setMarking] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const linkedJobRef = useState<{ current: string | null }>({ current: null })[0];
+  const generating = generation.status === "generating";
 
   const { data: idea, isLoading: ideaLoading, refetch: refetchIdea } = useQuery({
     queryKey: ["v2-daily-idea", dayId],
