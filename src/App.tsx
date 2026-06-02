@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
@@ -18,23 +16,23 @@ import { useBrand } from "@/hooks/useBrand";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
-import Onboarding from "./pages/Onboarding";
-import Landing from "./pages/Landing";
-import Index from "./pages/Index";
-import BrandCentre from "./pages/BrandCentre";
+import LegacyOnboarding from "./pages/Onboarding";
+import LegacyLanding from "./pages/Landing";
+import LegacyIndex from "./pages/Index";
+import LegacyBrandCentre from "./pages/BrandCentre";
 import DesignStudio from "./pages/DesignStudio";
 import DesignHistory from "./pages/DesignHistory";
-import Settings from "./pages/Settings";
+import LegacySettings from "./pages/Settings";
 import Plans from "./pages/Plans";
 import AffiliateSignup from "./pages/AffiliateSignup";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import AffiliateMarketing from "./pages/AffiliateMarketing";
 import Admin from "./pages/Admin";
 import ContentHub from "./pages/ContentHub";
-import Cockpit from "./pages/Cockpit";
+import LegacyCockpit from "./pages/Cockpit";
 import NotFound from "./pages/NotFound";
 
-// v2 scaffolds
+// v2 (now primary) experience
 import V2Landing from "./pages/v2/Landing";
 import V2Onboarding from "./pages/v2/Onboarding";
 import V2Cockpit from "./pages/v2/Cockpit";
@@ -90,36 +88,21 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   if (user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
-function LandingOrDashboard() {
+
+function LandingOrCockpit() {
   const { user, loading } = useAuth();
   const { brand, isLoading: brandLoading } = useBrand(user);
-  const [v2Enabled, setV2Enabled] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    if (!user) { setV2Enabled(false); return; }
-    let alive = true;
-    (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("v2_enabled")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (alive) setV2Enabled(!!(data as any)?.v2_enabled);
-    })();
-    return () => { alive = false; };
-  }, [user?.id]);
-
-  if (loading || brandLoading || (user && v2Enabled === null)) {
+  if (loading || brandLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading…</div>
       </div>
     );
   }
-  if (!user) return <Landing />;
-  if (v2Enabled) return <Navigate to="/v2/cockpit" replace />;
+  if (!user) return <V2Landing />;
   if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
-  return <Index />;
+  return <Navigate to="/cockpit" replace />;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -138,6 +121,12 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Preserve old /v2/post/:dayId bookmarks
+function PostRedirect() {
+  const { dayId } = useParams();
+  return <Navigate to={`/post/${dayId}`} replace />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -148,47 +137,54 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <Routes>
-          {/* ============ LEGACY (current) — kept fully intact ============ */}
+          {/* ============ PRIMARY (v2) experience ============ */}
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />
-          <Route path="/" element={<LandingOrDashboard />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-          <Route path="/brand" element={<ProtectedRoute><BrandCentre /></ProtectedRoute>} />
+          <Route path="/" element={<LandingOrCockpit />} />
+          <Route path="/onboarding" element={<OnboardingRoute><V2Onboarding /></OnboardingRoute>} />
+          <Route path="/cockpit" element={<ProtectedRoute><V2Cockpit /></ProtectedRoute>} />
+          <Route path="/blueprint" element={<ProtectedRoute><V2Blueprint /></ProtectedRoute>} />
+          <Route path="/post/:dayId" element={<ProtectedRoute><V2DailyPost /></ProtectedRoute>} />
+          <Route path="/report" element={<ProtectedRoute><V2Report /></ProtectedRoute>} />
+          <Route path="/brand" element={<ProtectedRoute><V2BrandCentre /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><V2Settings /></ProtectedRoute>} />
+
+          {/* Shared / utility surfaces (no v2 equivalent yet) */}
           <Route path="/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
           <Route path="/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
-          <Route path="/cockpit" element={<ProtectedRoute><Cockpit /></ProtectedRoute>} />
-          <Route path="/briefing" element={<Navigate to="/cockpit#week-blueprint" replace />} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
           <Route path="/affiliates" element={<AffiliateMarketing />} />
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
 
-          {/* ============ LEGACY mirror under /legacy/* (same components) ============ */}
-          <Route path="/legacy" element={<LandingOrDashboard />} />
-          <Route path="/legacy/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-          <Route path="/legacy/brand" element={<ProtectedRoute><BrandCentre /></ProtectedRoute>} />
+          {/* Bookmark shims */}
+          <Route path="/dashboard" element={<Navigate to="/cockpit" replace />} />
+          <Route path="/briefing" element={<Navigate to="/cockpit#week-blueprint" replace />} />
+          <Route path="/v2" element={<Navigate to="/" replace />} />
+          <Route path="/v2/onboarding" element={<Navigate to="/onboarding" replace />} />
+          <Route path="/v2/cockpit" element={<Navigate to="/cockpit" replace />} />
+          <Route path="/v2/blueprint" element={<Navigate to="/blueprint" replace />} />
+          <Route path="/v2/report" element={<Navigate to="/report" replace />} />
+          <Route path="/v2/brand" element={<Navigate to="/brand" replace />} />
+          <Route path="/v2/settings" element={<Navigate to="/settings" replace />} />
+          <Route path="/v2/post/:dayId" element={<PostRedirect />} />
+
+          {/* ============ LEGACY mirror under /legacy/* ============ */}
+          <Route path="/legacy" element={<ProtectedRoute><LegacyIndex /></ProtectedRoute>} />
+          <Route path="/legacy/dashboard" element={<ProtectedRoute><LegacyIndex /></ProtectedRoute>} />
+          <Route path="/legacy/onboarding" element={<OnboardingRoute><LegacyOnboarding /></OnboardingRoute>} />
+          <Route path="/legacy/landing" element={<LegacyLanding />} />
+          <Route path="/legacy/brand" element={<ProtectedRoute><LegacyBrandCentre /></ProtectedRoute>} />
           <Route path="/legacy/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
           <Route path="/legacy/history" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
           <Route path="/legacy/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
-          <Route path="/legacy/cockpit" element={<ProtectedRoute><Cockpit /></ProtectedRoute>} />
-          <Route path="/legacy/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/legacy/cockpit" element={<ProtectedRoute><LegacyCockpit /></ProtectedRoute>} />
+          <Route path="/legacy/settings" element={<ProtectedRoute><LegacySettings /></ProtectedRoute>} />
           <Route path="/legacy/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
           <Route path="/legacy/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
           <Route path="/legacy/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-
-          {/* ============ NEW v2 experience (Phase A scaffolds) ============ */}
-          <Route path="/v2" element={<V2Landing />} />
-          <Route path="/v2/onboarding" element={<V2Onboarding />} />
-          <Route path="/v2/cockpit" element={<V2Cockpit />} />
-          <Route path="/v2/blueprint" element={<V2Blueprint />} />
-          <Route path="/v2/post/:dayId" element={<V2DailyPost />} />
-          <Route path="/v2/report" element={<V2Report />} />
-          <Route path="/v2/brand" element={<V2BrandCentre />} />
-          <Route path="/v2/settings" element={<V2Settings />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
