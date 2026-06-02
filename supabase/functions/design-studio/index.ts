@@ -652,13 +652,8 @@ async function runFullHandler(req: Request): Promise<Response> {
     const tracer = new Tracer(user.id);
 
     const _parsedReqBody = (req as any)._parsedBody || await req.json();
-    let { messages } = _parsedReqBody;
+    const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
-    // Synthesize a messages array when callers (e.g. DailyPost Generate, autopilot)
-    // only pass a top-level `prompt`. Downstream code assumes messages[messages.length-1].
-    if ((!messages || !Array.isArray(messages) || messages.length === 0) && typeof _parsedReqBody?.prompt === "string" && _parsedReqBody.prompt.trim()) {
-      messages = [{ role: "user", content: _parsedReqBody.prompt }];
-    }
     // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
     // + category bias outcomes are reproducible per job — easier debugging + fair A/B.
     const _rngSeed: string = _parsedReqBody?.job_id || `${user.id}:${Date.now()}`;
