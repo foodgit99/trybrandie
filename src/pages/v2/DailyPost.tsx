@@ -55,6 +55,7 @@ const DailyPost = () => {
   const [voting, setVoting] = useState(false);
   const [marking, setMarking] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const { data: idea, isLoading: ideaLoading, refetch: refetchIdea } = useQuery({
     queryKey: ["v2-daily-idea", dayId],
