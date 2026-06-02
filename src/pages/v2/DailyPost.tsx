@@ -22,6 +22,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import GenerationLoader from "@/components/GenerationLoader";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 type Idea = {
@@ -343,24 +344,19 @@ const DailyPost = () => {
                 className="w-full aspect-square object-cover"
               />
             </motion.div>
+          ) : generating ? (
+            <GenerationLoader />
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-card aspect-square grid place-items-center p-8 text-center">
-              {generating ? (
-                <div className="space-y-3 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                  <p className="text-sm">Rendering your post…</p>
-                </div>
-              ) : (
-                <div className="space-y-4 max-w-xs">
-                  <Sparkles className="h-5 w-5 mx-auto text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    No render yet. Tap below and Brandie will draft this post now.
-                  </p>
-                  <Button onClick={handleGenerate} className="rounded-full" size="sm">
-                    Generate now
-                  </Button>
-                </div>
-              )}
+              <div className="space-y-4 max-w-xs">
+                <Sparkles className="h-5 w-5 mx-auto text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  No render yet. Tap below and Brandie will draft this post now.
+                </p>
+                <Button onClick={handleGenerate} className="rounded-full" size="sm">
+                  Generate now
+                </Button>
+              </div>
             </div>
           )}
 
