@@ -652,13 +652,8 @@ async function runFullHandler(req: Request): Promise<Response> {
     const tracer = new Tracer(user.id);
 
     const _parsedReqBody = (req as any)._parsedBody || await req.json();
-    let { messages } = _parsedReqBody;
+    const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
-    // Synthesize a messages array when callers (e.g. DailyPost Generate, autopilot)
-    // only pass a top-level `prompt`. Downstream code assumes messages[messages.length-1].
-    if ((!messages || !Array.isArray(messages) || messages.length === 0) && typeof _parsedReqBody?.prompt === "string" && _parsedReqBody.prompt.trim()) {
-      messages = [{ role: "user", content: _parsedReqBody.prompt }];
-    }
     // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
     // + category bias outcomes are reproducible per job — easier debugging + fair A/B.
     const _rngSeed: string = _parsedReqBody?.job_id || `${user.id}:${Date.now()}`;
@@ -3418,46 +3413,9 @@ serve(async (req) => {
           finished_at: new Date().toISOString(),
         }).eq("id", jobId);
       } else {
-        // If this job was kicked off for a content_ideas row (v2 DailyPost),
-        // persist a `designs` row and link it back so the post page can render it.
-        const ideaId: string | undefined = parsed?.idea_id;
-        const userIdForLink: string | undefined = parsed?.user_id;
-        const brandIdForLink: string | undefined = parsed?.brand?.id;
-        let linkedDesignId: string | null = null;
-        if (ideaId && userIdForLink && data?.image_url && !data?.carousel_id) {
-          try {
-            const { data: designRow, error: designErr } = await admin
-              .from("designs")
-              .insert({
-                user_id: userIdForLink,
-                brand_id: brandIdForLink || null,
-                title: (parsed?.title || "").toString().slice(0, 100) || null,
-                prompt: parsed?.prompt || null,
-                image_url: data.image_url,
-                caption: data.caption || null,
-                genome: data.genome || null,
-                copy_structure: data.copy_structure || null,
-                vote: 0,
-              } as any)
-              .select("id")
-              .single();
-            if (!designErr && designRow?.id) {
-              linkedDesignId = designRow.id;
-              await admin
-                .from("content_ideas")
-                .update({ design_id: designRow.id, status: "scheduled", approval_status: "approved" })
-                .eq("id", ideaId);
-            } else if (designErr) {
-              console.error("Failed to persist linked design row:", designErr);
-            }
-          } catch (linkErr) {
-            console.error("Linked-design write failed:", linkErr);
-          }
-        }
-
         await admin.from("design_jobs").update({
           status: "succeeded",
-          result: linkedDesignId ? { ...data, design_id: linkedDesignId } : data,
+          result: data,
           progress: 100,
           stage: "done",
           finished_at: new Date().toISOString(),

@@ -1,80 +1,45 @@
-# Make v2 the main flow
+## Goal
 
-Promote the `/v2/*` experience to the primary routes so every user lands in the new cockpit by default. Legacy stays reachable at `/legacy/*` as a safety net during rollout.
+Make `/post/:dayId` use the **exact same generation pipeline as /studio** — `DesignGenerationContext.startGeneration()` — and delete the parallel path that DailyPost currently uses.
 
-## Routing changes (`src/App.tsx`)
+## What both paths do today
 
-Rewire the router so the primary paths render v2 components, and drop the `v2_enabled` profile gate.
+Both /studio and /post already call the same edge function chain: `design-enqueue` → `design-studio` (background worker). The divergence is on top of that:
 
-```text
-Primary routes (NEW default = v2)
-  /                  → V2Landing if signed-out, else V2Cockpit (or V2Onboarding if !onboarding_complete)
-  /onboarding        → V2Onboarding
-  /cockpit           → V2Cockpit
-  /blueprint         → V2Blueprint
-  /post/:dayId       → V2DailyPost
-  /report            → V2Report
-  /brand             → V2BrandCentre
-  /settings          → V2Settings
-  /studio            → DesignStudio          (kept — no v2 equivalent yet)
-  /history           → DesignHistory         (kept)
-  /content           → ContentHub            (kept)
-  /plans             → Plans                 (kept)
-  /affiliate, /affiliates, /affiliate/signup, /admin, /auth, /reset-password  (unchanged)
+- **/studio (canonical)**: uses `useDesignGeneration().startGeneration(params)` from `src/contexts/DesignGenerationContext.tsx`. The context sends a full `{ messages, brand, audience, trend, canvas_size, ... }` payload, subscribes via Realtime to `design_jobs`, drives a progress timer, auto-inserts a `designs` row on success, writes `design_messages`, and processes referrals.
+- **/post (bespoke)**: `DailyPost.handleGenerate` calls `supabase.functions.invoke("design-enqueue", { body: { prompt, title, idea_id, ... } })` directly, then runs its own `setInterval` poll of `design_jobs`. To make this work, a side branch was added to `design-studio` (lines ~3421-3456) that detects `idea_id` and writes the `designs` row + sets `content_ideas.design_id` server-side. There's also a `messages` synthesis guard (~line 654) added because /post wasn't sending `messages`.
 
-Legacy mirror (escape hatch)
-  /legacy            → legacy Index/Landing
-  /legacy/dashboard  → legacy Index
-  /legacy/onboarding → legacy Onboarding   (ADD)
-  /legacy/brand      → legacy BrandCentre
-  /legacy/cockpit    → legacy Cockpit
-  /legacy/settings   → legacy Settings
-  /legacy/content, /legacy/studio, /legacy/history, /legacy/plans, /legacy/affiliate, /legacy/admin (already present)
+## Changes
 
-Redirects (preserve old bookmarks)
-  /dashboard         → /cockpit
-  /v2                → /                   (and /v2/* → matching primary path, 301-style Navigate)
-  /briefing          → /cockpit#week-blueprint  (unchanged)
-```
+### 1. `src/pages/v2/DailyPost.tsx` — use the context
 
-Implementation notes:
-- Collapse `LandingOrDashboard` to: signed-out → `<V2Landing/>`; signed-in + onboarding incomplete → `Navigate /onboarding`; else → `Navigate /cockpit`. Remove the `profiles.v2_enabled` lookup entirely (no DB read on home).
-- `ProtectedRoute` / `OnboardingRoute` / `AuthRoute` stay as-is (they only check auth + onboarding_complete).
-- Add small `<Navigate>` shims for each old `/v2/*` path so existing links keep working.
-- `NewFloatingNav` becomes the only nav for v2 routes; confirm `FloatingNavBar` still hides itself on the new primary paths (it currently keys off path prefixes — verify and update its allow/deny list to match the new primary routes).
+- Import and call `useDesignGeneration()`.
+- Replace `handleGenerate` so it calls `startGeneration({...})` with the same shape /studio uses:
+  - `action: "generate"`, `canvas_size: "1080x1080"`
+  - `messages: [{ role: "user", content: idea.prompt || idea.title }]`
+  - `full_messages: [{ role: "user", content: idea.prompt || idea.title }]`
+  - `brand`, `user_id`, `brand_id: brand.id`, `title: idea.title`
+  - `audience_id` / `trend` left undefined (same defaults as a fresh studio session)
+- Delete:
+  - local `activeJobId` state + the `useEffect` that polls `design_jobs` every 4s
+  - the manual `await supabase.functions.invoke("design-enqueue", ...)`
+- Drive UI state from the context: `status === "generating"` shows `GenerationLoader`; on `status === "complete"` consume `result.design_id`, run a single client-side update to `content_ideas` setting `design_id`, `status="scheduled"`, `approval_status="approved"`, then `refetchIdea()` and `clearResult()`.
+- Keep the "Generate now" button + loader visuals unchanged.
 
-## Nav visibility (`src/components/FloatingNavBar.tsx` + `src/components/v2/NewFloatingNav.tsx`)
+### 2. `supabase/functions/design-studio/index.ts` — delete the /post-only branch
 
-- `FloatingNavBar`: restrict to `/legacy/*`, `/studio`, `/history`, `/content`, `/plans`, `/affiliate*`, `/admin` (i.e. routes that still render legacy chrome).
-- `NewFloatingNav`: render on `/`, `/onboarding`, `/cockpit`, `/blueprint`, `/post/*`, `/report`, `/brand`, `/settings`. Update its internal route table from `/v2/...` to the new primary paths.
+- Remove the `idea_id` link-back block (≈lines 3421-3456) that inserts a `designs` row and updates `content_ideas.design_id` from the worker. With the context flow, the client owns that write (the same way /studio does via `DesignGenerationContext`).
+- Remove the `messages`-from-`prompt` synthesis guard I added earlier (≈line 654). The context always sends `messages`, so the guard is no longer needed and was only there to prop up the bespoke /post call shape.
+- The `design_jobs.result` payload reverts to whatever `runFullHandler` returned (no `design_id` injection from the worker).
 
-## Internal links audit
+### 3. No changes to
 
-Search and replace v2 deep links so they point at the new primary paths:
-- `/v2/cockpit` → `/cockpit`
-- `/v2/blueprint` → `/blueprint`
-- `/v2/post/` → `/post/`
-- `/v2/report` → `/report`
-- `/v2/brand` → `/brand`
-- `/v2/settings` → `/settings`
-- `/v2/onboarding` → `/onboarding`
-- `/v2` (landing) → `/`
+- `design-enqueue` (already shared).
+- `DesignGenerationProvider` (already wraps `/post` in `App.tsx` line 136).
+- `GenerationLoader` (already used by both pages).
 
-Scope of grep: `src/pages/v2/**`, `src/components/v2/**`, plus any edge function that builds user-facing URLs (`monday-briefing`, `daily-execution-push`, `content-daily-reminder`, `send-email`). Update those edge functions to emit the new paths so emails/WhatsApp links land on v2.
+## Risk / verification
 
-## What does NOT change
-
-- Database, RLS, edge function logic — untouched.
-- The `profiles.v2_enabled` column stays in the schema (no migration); we just stop reading it. Can be dropped in a later cleanup pass.
-- Studio, History, Content Hub, Plans, Affiliate, Admin keep their current implementations and URLs.
-- Legacy components remain in `src/pages/*` so `/legacy/*` keeps working.
-
-## Verification
-
-1. Signed-out visit to `/` shows V2 Landing.
-2. New signup → `/onboarding` renders V2Onboarding; completing it lands on `/cockpit`.
-3. Existing user with `onboarding_complete=true` hitting `/` redirects to `/cockpit`.
-4. `/v2/cockpit`, `/v2/blueprint`, etc. still resolve (via Navigate shims).
-5. `/legacy/dashboard` still renders the old `Index` page.
-6. `NewFloatingNav` appears on primary routes; `FloatingNavBar` only on legacy/utility routes (no double nav).
-7. Monday briefing email + daily push links open the new primary URLs.
+- /studio behaviour is untouched — same context, same edge function, same payload shape.
+- /post becomes a thin caller of the context with one extra post-success DB write to link `content_ideas.design_id`. That mirrors how /studio's auto-save links `designs` → `design_messages`.
+- Autopilot path is unaffected (it calls `design-studio` directly with its own body and doesn't rely on the `idea_id` branch).
