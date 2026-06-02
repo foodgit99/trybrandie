@@ -55,6 +55,7 @@ const DailyPost = () => {
   const [voting, setVoting] = useState(false);
   const [marking, setMarking] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const { data: idea, isLoading: ideaLoading, refetch: refetchIdea } = useQuery({
     queryKey: ["v2-daily-idea", dayId],
@@ -123,7 +124,7 @@ const DailyPost = () => {
     if (!idea || !brand) return;
     setGenerating(true);
     try {
-      const { error } = await supabase.functions.invoke("design-enqueue", {
+      const { data, error } = await supabase.functions.invoke("design-enqueue", {
         body: {
           action: "generate",
           brand: { id: brand.id },
@@ -134,26 +135,69 @@ const DailyPost = () => {
         },
       });
       if (error) throw error;
+      const jobId = (data as any)?.job_id || null;
+      if (jobId) setActiveJobId(jobId);
       toast({
         title: "On it.",
         description: "Brandie is rendering your post. It usually takes about a minute.",
       });
-      // Mark approved/scheduled so background pipeline will pick it up too
       await supabase
         .from("content_ideas")
         .update({ approval_status: "approved", status: "scheduled" })
         .eq("id", idea.id);
       refetchIdea();
     } catch (err: any) {
+      setGenerating(false);
       toast({
         title: "Couldn't start rendering",
         description: err.message,
         variant: "destructive",
       });
-    } finally {
-      setGenerating(false);
     }
   };
+
+  // Watch the in-flight design job for failure / completion so the user isn't
+  // staring at an empty card forever when the worker errors out.
+  useEffect(() => {
+    if (!activeJobId) return;
+    let cancelled = false;
+    const poll = async () => {
+      const { data: job } = await supabase
+        .from("design_jobs")
+        .select("status, error")
+        .eq("id", activeJobId)
+        .maybeSingle();
+      if (cancelled || !job) return;
+      if (job.status === "failed") {
+        setGenerating(false);
+        setActiveJobId(null);
+        const msg =
+          (job.error as any)?.message ||
+          "Rendering failed. Please try again in a moment.";
+        toast({
+          title: "Render failed",
+          description: msg,
+          variant: "destructive",
+        });
+      } else if (job.status === "succeeded") {
+        setActiveJobId(null);
+        setGenerating(false);
+        refetchIdea();
+      }
+    };
+    poll();
+    const t = setInterval(poll, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [activeJobId]); // eslint-disable-line
+
+  // Stop the inline spinner once a design appears.
+  useEffect(() => {
+    if (idea?.design_id) setGenerating(false);
+  }, [idea?.design_id]);
+
 
   const handleCopyCaption = async () => {
     if (!captionDraft) return;
