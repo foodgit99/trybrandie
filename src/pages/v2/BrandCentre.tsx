@@ -80,8 +80,8 @@ const BrandCentre = () => {
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth?next=/v2/brand" replace />;
-  if (!brand || !brand.onboarding_complete) return <Navigate to="/v2/onboarding" replace />;
+  if (!user) return <Navigate to="/auth?next=/brand" replace />;
+  if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
 
   const palette = [
     ...(brand.primary_colors ?? []),
@@ -91,7 +91,7 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="Brand Centre — Brandie" description="Your brand memory." path="/v2/brand" noindex />
+      <SEO title="Brand Centre — Brandie" description="Your brand memory." path="/brand" noindex />
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
         <header className="flex items-start justify-between gap-4">

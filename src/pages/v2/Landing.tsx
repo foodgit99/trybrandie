@@ -31,7 +31,7 @@ const Landing = () => (
         <div className="flex items-center gap-1 sm:gap-3">
           <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground hidden sm:inline-block px-3 py-2">Sign in</Link>
           <Button asChild size="sm" className="rounded-full px-4 h-9">
-            <Link to="/v2/onboarding">Start free <ArrowRight className="h-3.5 w-3.5" /></Link>
+            <Link to="/onboarding">Start free <ArrowRight className="h-3.5 w-3.5" /></Link>
           </Button>
         </div>
       </div>
@@ -55,7 +55,7 @@ const Landing = () => (
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-3">
             <Button asChild size="lg" className="rounded-full h-12 px-7 text-base">
-              <Link to="/v2/onboarding">Start my engine <ArrowRight className="h-4 w-4" /></Link>
+              <Link to="/onboarding">Start my engine <ArrowRight className="h-4 w-4" /></Link>
             </Button>
             <Button asChild size="lg" variant="ghost" className="rounded-full h-12 px-6 text-base text-muted-foreground">
               <a href="#how">How it works</a>
@@ -95,7 +95,7 @@ const Landing = () => (
           <div className="bg-foreground text-background p-7 sm:p-9 flex flex-col justify-between gap-6">
             <h3 className="font-serif text-2xl tracking-tight">Ready to stop posting like it's your second job?</h3>
             <Button asChild variant="secondary" className="rounded-full self-start h-10 px-5">
-              <Link to="/v2/onboarding">Start free <ArrowRight className="h-4 w-4" /></Link>
+              <Link to="/onboarding">Start free <ArrowRight className="h-4 w-4" /></Link>
             </Button>
           </div>
         </div>
@@ -131,7 +131,7 @@ const Landing = () => (
         <h2 className="mt-3 font-serif text-5xl sm:text-6xl tracking-tight">₦18,500 / month</h2>
         <p className="mt-4 text-muted-foreground">That's ₦600 a day. Cheaper than a plate of rice — runs your entire marketing department.</p>
         <Button asChild size="lg" className="rounded-full mt-10 h-12 px-7 text-base">
-          <Link to="/v2/onboarding">Start free <ArrowRight className="h-4 w-4" /></Link>
+          <Link to="/onboarding">Start free <ArrowRight className="h-4 w-4" /></Link>
         </Button>
         <p className="mt-4 text-xs text-muted-foreground">First week on us. Cancel in one click.</p>
       </section>

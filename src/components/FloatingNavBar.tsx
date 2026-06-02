@@ -5,19 +5,22 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/", label: "Home", icon: Home, end: true },
-  { to: "/cockpit", label: "Cockpit", icon: Gauge },
+  { to: "/legacy/dashboard", label: "Home", icon: Home, end: true },
+  { to: "/legacy/cockpit", label: "Cockpit", icon: Gauge },
   { to: "/studio", label: "New Design", icon: Plus, primary: true },
   { to: "/content", label: "Content", icon: LayoutGrid },
-  { to: "/brand", label: "Brand", icon: Palette },
+  { to: "/legacy/brand", label: "Brand", icon: Palette },
 ];
 
 const FloatingNavBar = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  const hiddenRoutes = ["/studio", "/auth", "/onboarding", "/reset-password", "/v2"];
-  const visible = !!user && !hiddenRoutes.some((r) => location.pathname.startsWith(r));
+  // Only render on legacy + shared utility surfaces. The primary v2 experience
+  // uses NewFloatingNav. Studio is excluded because it has its own chrome.
+  const allowedPrefixes = ["/legacy", "/content", "/history", "/plans", "/affiliate", "/admin"];
+  const visible =
+    !!user && allowedPrefixes.some((p) => location.pathname.startsWith(p));
 
   // Toggle the body padding class strictly based on nav visibility.
   // Re-runs on every route change (location.pathname) so navigating into a

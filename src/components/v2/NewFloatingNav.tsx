@@ -5,20 +5,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { to: "/v2/cockpit", label: "Cockpit", icon: Gauge },
-  { to: "/v2/blueprint", label: "Blueprint", icon: Calendar },
-  { to: "/v2/brand", label: "Brand", icon: Palette },
-  { to: "/v2/report", label: "Report", icon: BarChart3 },
+  { to: "/cockpit", label: "Cockpit", icon: Gauge },
+  { to: "/blueprint", label: "Blueprint", icon: Calendar },
+  { to: "/brand", label: "Brand", icon: Palette },
+  { to: "/report", label: "Report", icon: BarChart3 },
 ];
+
+// Primary v2 surfaces where this nav should render
+const primaryPrefixes = ["/cockpit", "/blueprint", "/brand", "/report", "/post/", "/settings"];
 
 const NewFloatingNav = () => {
   const { user } = useAuth();
   const { pathname } = useLocation();
 
-  // Only render on the v2 surface, and only for authed users on app pages
-  const onV2 = pathname.startsWith("/v2");
-  const hidden = ["/v2", "/v2/onboarding"].includes(pathname);
-  const visible = !!user && onV2 && !hidden;
+  const onPrimary = primaryPrefixes.some((p) =>
+    p.endsWith("/") ? pathname.startsWith(p) : pathname === p || pathname.startsWith(p + "/")
+  );
+  const visible = !!user && onPrimary;
 
   useEffect(() => {
     if (visible) document.body.classList.add("has-floating-nav");
