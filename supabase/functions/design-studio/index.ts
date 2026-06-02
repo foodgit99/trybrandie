@@ -3180,6 +3180,40 @@ Return structured JSON.`;
 
       const slides: { image_url: string; slide_index: number; copy_structure: any; design_id: string }[] = [];
 
+      // Load inspiration + product references for the carousel.
+      let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
+        try {
+          const { data: inspirationData } = await adminClient
+            .from("brand_inspiration")
+            .select("image_url")
+            .eq("brand_id", brand.id)
+            .limit(10);
+          if (inspirationData && inspirationData.length > 0) {
+            inspirationUrls = inspirationData.map((i: any) => i.image_url);
+          }
+        } catch (e) {
+          console.log("[carousel] inspiration fetch failed:", e);
+        }
+      }
+
+      let productImageUrls: string[] = [];
+      if (brand?.id) {
+        try {
+          const { data: productData } = await adminClient
+            .from("brand_products")
+            .select("image_url, gallery_images")
+            .eq("brand_id", brand.id)
+            .order("created_at", { ascending: true })
+            .limit(6);
+          if (productData && productData.length > 0) {
+            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
+          }
+        } catch (e) {
+          console.log("[carousel] product fetch failed:", e);
+        }
+      }
+
       // Fetch reference image blobs ONCE for the whole carousel; reuse for every slide
       // so the brand logo / inspiration / user image stays pixel-consistent across slides.
       const { refs: carouselRefs, skipped: carouselSkippedRefs } = await collectRenderRefs({
@@ -3189,6 +3223,7 @@ Return structured JSON.`;
         productImageUrls: productImageUrls,
         previousImageUrl: null,
       });
+
       if (carouselSkippedRefs.length > 0) {
         console.log(`[carousel] skipped ${carouselSkippedRefs.length} ref(s):`, carouselSkippedRefs.map((s) => s.role).join(","));
       }
