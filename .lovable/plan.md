@@ -1,68 +1,80 @@
-# Finalizing the v2 Flow — Remaining Work
+# Make v2 the main flow
 
-Phases A–E shipped the new surfaces (Landing, Onboarding, Cockpit, Blueprint, DailyPost, BrandCentre, Settings, Report) behind `/v2/*` while leaving legacy intact. To call v2 done against the PRD, the following gaps remain.
+Promote the `/v2/*` experience to the primary routes so every user lands in the new cockpit by default. Legacy stays reachable at `/legacy/*` as a safety net during rollout.
 
-## Phase F — Orchestrator wiring (backend truth)
+## Routing changes (`src/App.tsx`)
 
-1. **Strategic Arc planner**
-  - Today `autopilot-planner` seeds ideas but doesn't guarantee a 5–7 day narrative across the 8 pillars (Announcement, Educational, Informational, Entertainment, Promotional, Trending, Holiday, UGC).
-  - Add an "arc mode" branch that, on Monday seeding, enforces pillar diversity + a Hook → Proof → CTA sequence and writes a `strategic_arc` label per idea.
-2. **Conversational edit router**
-  - Blueprint's edit bar currently rewrites title/prompt only. PRD requires the Edit Decision Tree: text → Copywriter, color/layout → Creative Director (regen one VSGS gene), strategy → full cascade.
-  - New edge function `v2-edit-router` that classifies the instruction (Flash-Lite) and dispatches to the right agent without full regen.
-3. **Daily push channel parity**
-  - `daily-execution-push` emails only. PRD calls for WhatsApp + email at the user's scheduled hour. Add WhatsApp send (uses existing `whatsapp_number`) and respect the Morning/Afternoon/Evening window from `autopilot_settings`.
+Rewire the router so the primary paths render v2 components, and drop the `v2_enabled` profile gate.
 
-## Phase G — Feedback loop closing
+```text
+Primary routes (NEW default = v2)
+  /                  → V2Landing if signed-out, else V2Cockpit (or V2Onboarding if !onboarding_complete)
+  /onboarding        → V2Onboarding
+  /cockpit           → V2Cockpit
+  /blueprint         → V2Blueprint
+  /post/:dayId       → V2DailyPost
+  /report            → V2Report
+  /brand             → V2BrandCentre
+  /settings          → V2Settings
+  /studio            → DesignStudio          (kept — no v2 equivalent yet)
+  /history           → DesignHistory         (kept)
+  /content           → ContentHub            (kept)
+  /plans             → Plans                 (kept)
+  /affiliate, /affiliates, /affiliate/signup, /admin, /auth, /reset-password  (unchanged)
 
-1. Wire DailyPost up/down votes into `genome_preset_weights` mutation visible on next Monday's seed (planner should read weights and bias preset selection).
-2. Surface a "Why this design?" tooltip on DailyPost reading from `designs.genome` so users see the loop is learning.
-3. Report page: add a "Genome drift" mini-chart (top 3 presets gaining/losing weight this week).
+Legacy mirror (escape hatch)
+  /legacy            → legacy Index/Landing
+  /legacy/dashboard  → legacy Index
+  /legacy/onboarding → legacy Onboarding   (ADD)
+  /legacy/brand      → legacy BrandCentre
+  /legacy/cockpit    → legacy Cockpit
+  /legacy/settings   → legacy Settings
+  /legacy/content, /legacy/studio, /legacy/history, /legacy/plans, /legacy/affiliate, /legacy/admin (already present)
 
-## Phase H — Onboarding completeness
+Redirects (preserve old bookmarks)
+  /dashboard         → /cockpit
+  /v2                → /                   (and /v2/* → matching primary path, 301-style Navigate)
+  /briefing          → /cockpit#week-blueprint  (unchanged)
+```
 
-The v2 Onboarding currently captures the essentials but skips:
+Implementation notes:
+- Collapse `LandingOrDashboard` to: signed-out → `<V2Landing/>`; signed-in + onboarding incomplete → `Navigate /onboarding`; else → `Navigate /cockpit`. Remove the `profiles.v2_enabled` lookup entirely (no DB read on home).
+- `ProtectedRoute` / `OnboardingRoute` / `AuthRoute` stay as-is (they only check auth + onboarding_complete).
+- Add small `<Navigate>` shims for each old `/v2/*` path so existing links keep working.
+- `NewFloatingNav` becomes the only nav for v2 routes; confirm `FloatingNavBar` still hides itself on the new primary paths (it currently keys off path prefixes — verify and update its allow/deny list to match the new primary routes).
 
-- JTBD deep questions (struggle, desired outcome, emotional driver, buying trigger) — needed for Copywriter prompts.
-- Products/services upload (DailyPost renders use these refs).
-- Logo + inspiration upload to `brand-logos` / `brand-inspiration` buckets.
-Add these as steps 6–9 (kept under the 5-minute target via the website scan shortcut already in place).
+## Nav visibility (`src/components/FloatingNavBar.tsx` + `src/components/v2/NewFloatingNav.tsx`)
 
-## Phase I — Notifications & ritual
+- `FloatingNavBar`: restrict to `/legacy/*`, `/studio`, `/history`, `/content`, `/plans`, `/affiliate*`, `/admin` (i.e. routes that still render legacy chrome).
+- `NewFloatingNav`: render on `/`, `/onboarding`, `/cockpit`, `/blueprint`, `/post/*`, `/report`, `/brand`, `/settings`. Update its internal route table from `/v2/...` to the new primary paths.
 
-1. `monday-briefing` edge function should also send the "Your Weekly Strategy is ready" push on Monday 07:00 local with deep link to `/v2/cockpit`.
-2. Add in-app toast/banner on Cockpit when a fresh week is unseeded.
-3. Email + WhatsApp templates for: weekly_strategy_ready, daily_drop_ready, weekly_report_ready.
+## Internal links audit
 
-## Phase J — Promotion of v2 to default
+Search and replace v2 deep links so they point at the new primary paths:
+- `/v2/cockpit` → `/cockpit`
+- `/v2/blueprint` → `/blueprint`
+- `/v2/post/` → `/post/`
+- `/v2/report` → `/report`
+- `/v2/brand` → `/brand`
+- `/v2/settings` → `/settings`
+- `/v2/onboarding` → `/onboarding`
+- `/v2` (landing) → `/`
 
-1. Feature flag `v2_enabled` on profiles (default false now).
-2. Add a "Try the new Brandie" switch in legacy Settings; flipping it routes `/dashboard` → `/v2/cockpit`.
-3. After internal QA, flip default to true and mark legacy routes `/legacy/*`.
-4. Update `LandingNav` and auth redirect to `/v2/cockpit` for flagged users.
+Scope of grep: `src/pages/v2/**`, `src/components/v2/**`, plus any edge function that builds user-facing URLs (`monday-briefing`, `daily-execution-push`, `content-daily-reminder`, `send-email`). Update those edge functions to emit the new paths so emails/WhatsApp links land on v2.
 
-## Phase K — QA & polish
+## What does NOT change
 
-- Empty states on Cockpit/Blueprint/Report when no brand or no ideas.
-- Mobile pass at 375px on all v2 pages (current viewport is 900 — Blueprint timeline and Report grid need check).
-- Loading skeletons (currently spinners only).
-- SEO: titles, descriptions, canonical for `/v2/*` public pages (Landing only — others should be `noindex`).
-- Accessibility: focus traps in conversational edit bar, aria-labels on vote buttons, color contrast on category badges.
+- Database, RLS, edge function logic — untouched.
+- The `profiles.v2_enabled` column stays in the schema (no migration); we just stop reading it. Can be dropped in a later cleanup pass.
+- Studio, History, Content Hub, Plans, Affiliate, Admin keep their current implementations and URLs.
+- Legacy components remain in `src/pages/*` so `/legacy/*` keeps working.
 
-## Technical notes
+## Verification
 
-- No schema migrations required for F1, F2, G1–G3, I — all reuse existing tables (`content_ideas.strategic_arc` is the one new column, nullable text).
-- New edge functions: `v2-edit-router`, extension to `daily-execution-push` for WhatsApp via existing provider (confirm which — currently email-only via Resend; WhatsApp channel needs the provider decision before I build it).
-- Feature flag: one boolean column on `profiles` + RLS unchanged.
-
-## Open question before I build
-
-WhatsApp delivery in Phase F3 / Phase I needs a provider. Options:
-
-- Twilio WhatsApp Business API (needs secret + sender)
-- Meta Cloud API (needs token + phone number id)
-- Stick with `wa.me` click-to-send only (no true push, but zero infra)
-
-Tell me which and I'll roll Phase F next.
-
-Use Twilio WhatsApp Business API
+1. Signed-out visit to `/` shows V2 Landing.
+2. New signup → `/onboarding` renders V2Onboarding; completing it lands on `/cockpit`.
+3. Existing user with `onboarding_complete=true` hitting `/` redirects to `/cockpit`.
+4. `/v2/cockpit`, `/v2/blueprint`, etc. still resolve (via Navigate shims).
+5. `/legacy/dashboard` still renders the old `Index` page.
+6. `NewFloatingNav` appears on primary routes; `FloatingNavBar` only on legacy/utility routes (no double nav).
+7. Monday briefing email + daily push links open the new primary URLs.
