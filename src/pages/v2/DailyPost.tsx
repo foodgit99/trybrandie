@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import GenerationLoader from "@/components/GenerationLoader";
+import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 type Idea = {
