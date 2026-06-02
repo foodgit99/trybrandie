@@ -22,6 +22,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import GenerationLoader from "@/components/GenerationLoader";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 type Idea = {
