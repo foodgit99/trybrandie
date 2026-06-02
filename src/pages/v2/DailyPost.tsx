@@ -123,83 +123,64 @@ const DailyPost = () => {
     return id ? getCategoryMeta(id) : undefined;
   }, [idea?.content_category]);
 
-  const handleGenerate = async () => {
-    if (!idea || !brand) return;
-    setGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("design-enqueue", {
-        body: {
-          action: "generate",
-          brand: { id: brand.id },
-          prompt: idea.prompt || idea.title,
-          title: idea.title,
-          content_category: idea.content_category,
-          idea_id: idea.id,
-        },
-      });
-      if (error) throw error;
-      const jobId = (data as any)?.job_id || null;
-      if (jobId) setActiveJobId(jobId);
-      toast({
-        title: "On it.",
-        description: "Brandie is rendering your post. It usually takes about a minute.",
-      });
-      await supabase
-        .from("content_ideas")
-        .update({ approval_status: "approved", status: "scheduled" })
-        .eq("id", idea.id);
-      refetchIdea();
-    } catch (err: any) {
-      setGenerating(false);
-      toast({
-        title: "Couldn't start rendering",
-        description: err.message,
-        variant: "destructive",
-      });
-    }
+  const handleGenerate = () => {
+    if (!idea || !brand || !user) return;
+    const msg = { role: "user", content: idea.prompt || idea.title };
+    generation.startGeneration({
+      action: "generate",
+      canvas_size: "1080x1080",
+      messages: [msg],
+      full_messages: [msg],
+      brand,
+      user_id: user.id,
+      brand_id: brand.id,
+      title: idea.title,
+      user_email: user.email || undefined,
+    });
+    toast({
+      title: "On it.",
+      description: "Brandie is rendering your post. It usually takes about a minute.",
+    });
   };
 
-  // Watch the in-flight design job for failure / completion so the user isn't
-  // staring at an empty card forever when the worker errors out.
+  // When the shared generation pipeline finishes, link the new design back to
+  // this content idea (same write the worker used to do for the bespoke /post flow).
   useEffect(() => {
-    if (!activeJobId) return;
-    let cancelled = false;
-    const poll = async () => {
-      const { data: job } = await supabase
-        .from("design_jobs")
-        .select("status, error")
-        .eq("id", activeJobId)
-        .maybeSingle();
-      if (cancelled || !job) return;
-      if (job.status === "failed") {
-        setGenerating(false);
-        setActiveJobId(null);
-        const msg =
-          (job.error as any)?.message ||
-          "Rendering failed. Please try again in a moment.";
-        toast({
-          title: "Render failed",
-          description: msg,
-          variant: "destructive",
-        });
-      } else if (job.status === "succeeded") {
-        setActiveJobId(null);
-        setGenerating(false);
-        refetchIdea();
+    if (generation.status !== "complete" || !idea) return;
+    const result = generation.result;
+    if (!result?.design_id) return;
+    if (linkedJobRef.current === result.design_id) return;
+    linkedJobRef.current = result.design_id;
+    (async () => {
+      try {
+        await supabase
+          .from("content_ideas")
+          .update({
+            design_id: result.design_id,
+            status: "scheduled",
+            approval_status: "approved",
+          })
+          .eq("id", idea.id);
+        await refetchIdea();
+      } finally {
+        generation.clearResult();
       }
-    };
-    poll();
-    const t = setInterval(poll, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [activeJobId]); // eslint-disable-line
+    })();
+  }, [generation.status, generation.result, idea?.id]); // eslint-disable-line
 
-  // Stop the inline spinner once a design appears.
+  // Surface generation errors to the user.
   useEffect(() => {
-    if (idea?.design_id) setGenerating(false);
-  }, [idea?.design_id]);
+    if (generation.status === "error" && generation.error) {
+      toast({
+        title: "Render failed",
+        description: generation.error,
+        variant: "destructive",
+      });
+      generation.clearResult();
+    }
+  }, [generation.status, generation.error]); // eslint-disable-line
+
+
 
 
   const handleCopyCaption = async () => {
