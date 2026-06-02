@@ -3430,7 +3430,7 @@ serve(async (req) => {
                 image_url: data.image_url,
                 caption: data.caption || null,
                 genome: data.genome || null,
-                content_category: data.content_category || parsed?.content_category || null,
+                copy_structure: data.copy_structure || null,
                 vote: 0,
               } as any)
               .select("id")
