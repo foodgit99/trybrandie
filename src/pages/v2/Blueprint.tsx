@@ -173,8 +173,8 @@ const Blueprint = () => {
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth?next=/v2/blueprint" replace />;
-  if (!brand || !brand.onboarding_complete) return <Navigate to="/v2/onboarding" replace />;
+  if (!user) return <Navigate to="/auth?next=/blueprint" replace />;
+  if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
 
   const grouped = WEEKDAY_NAMES.map((name, idx) => {
     const dayIdeas = ideas.filter((it) => {
@@ -196,12 +196,12 @@ const Blueprint = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-40">
-      <SEO title="Weekly Blueprint — Brandie" description="Your week, as a story." path="/v2/blueprint" noindex />
+      <SEO title="Weekly Blueprint — Brandie" description="Your week, as a story." path="/blueprint" noindex />
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
         <header className="space-y-3">
           <Link
-            to="/v2/cockpit"
+            to="/cockpit"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" /> Cockpit
@@ -313,7 +313,7 @@ const Blueprint = () => {
                                   variant="outline"
                                   className="rounded-full h-8 px-3 gap-1.5"
                                 >
-                                  <Link to={`/v2/post/${it.id}`}>Open</Link>
+                                  <Link to={`/post/${it.id}`}>Open</Link>
                                 </Button>
                                 <Button
                                   size="sm"

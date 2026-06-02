@@ -75,7 +75,7 @@ const Onboarding = () => {
   // Auth gate
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/auth?next=/v2/onboarding", { replace: true });
+      navigate("/auth?next=/onboarding", { replace: true });
     }
   }, [authLoading, user, navigate]);
 
@@ -245,7 +245,7 @@ const Onboarding = () => {
         .catch(() => {});
 
       toast({ title: "Your engine is starting." });
-      navigate("/v2/cockpit");
+      navigate("/cockpit");
     } catch (err: any) {
       toast({ title: "Couldn't finish", description: err?.message || "Try again.", variant: "destructive" });
     } finally {
@@ -264,7 +264,7 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      <SEO title="Set up — Brandie" description="Four steps to your autonomous engine." path="/v2/onboarding" noindex />
+      <SEO title="Set up — Brandie" description="Four steps to your autonomous engine." path="/onboarding" noindex />
 
       {/* Header + step indicator */}
       <header className="border-b border-border">

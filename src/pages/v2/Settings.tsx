@@ -144,12 +144,12 @@ const SettingsV2 = () => {
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth?next=/v2/settings" replace />;
-  if (!brand || !brand.onboarding_complete) return <Navigate to="/v2/onboarding" replace />;
+  if (!user) return <Navigate to="/auth?next=/settings" replace />;
+  if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="Settings — Brandie" description="Tune the system." path="/v2/settings" noindex />
+      <SEO title="Settings — Brandie" description="Tune the system." path="/settings" noindex />
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
         <header className="space-y-2">
@@ -332,7 +332,7 @@ const SettingsV2 = () => {
             </p>
           </div>
           <Button asChild variant="secondary" size="lg" className="rounded-full h-12 gap-2 shrink-0">
-            <Link to="/v2/brand">
+            <Link to="/brand">
               Brand Centre <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>

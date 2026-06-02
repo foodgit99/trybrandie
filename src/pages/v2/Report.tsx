@@ -140,7 +140,7 @@ const Report = () => {
 
   return (
     <main className="min-h-dvh bg-background text-foreground lg:pl-20 pb-28 lg:pb-12">
-      <SEO title="CEO Briefing — Brandie" description="Last week, in numbers." path="/v2/report" noindex />
+      <SEO title="CEO Briefing — Brandie" description="Last week, in numbers." path="/report" noindex />
       <div className="max-w-5xl mx-auto px-6 py-12 space-y-10">
         <header className="space-y-3">
           <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground">CEO Briefing</p>
@@ -272,7 +272,7 @@ const Report = () => {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(data ?? []).map((i: any) => (
-                <Link key={i.id} to={`/v2/post/${i.id}`} className="group">
+                <Link key={i.id} to={`/post/${i.id}`} className="group">
                   <Card className="overflow-hidden hover:border-foreground/30 transition-colors">
                     <div className="aspect-square bg-muted">
                       {i.designs?.image_url ? (
@@ -331,7 +331,7 @@ const Report = () => {
             </div>
             <div className="pt-2">
               <Button asChild variant="outline" size="sm">
-                <Link to="/v2/settings">
+                <Link to="/settings">
                   Adjust delivery <ArrowUpRight className="h-3 w-3 ml-1" />
                 </Link>
               </Button>
@@ -341,10 +341,10 @@ const Report = () => {
 
         <div className="pt-4 flex flex-wrap gap-3">
           <Button asChild>
-            <Link to="/v2/cockpit">Plan this week →</Link>
+            <Link to="/cockpit">Plan this week →</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link to="/v2/blueprint">Open blueprint</Link>
+            <Link to="/blueprint">Open blueprint</Link>
           </Button>
         </div>
       </div>

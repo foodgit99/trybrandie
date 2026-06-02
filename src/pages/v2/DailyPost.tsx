@@ -231,14 +231,14 @@ const DailyPost = () => {
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth?next=/v2/cockpit" replace />;
-  if (!brand || !brand.onboarding_complete) return <Navigate to="/v2/onboarding" replace />;
+  if (!user) return <Navigate to="/auth?next=/cockpit" replace />;
+  if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
   if (!idea) {
     return (
       <div className="min-h-dvh bg-background lg:pl-20 grid place-items-center px-6">
         <div className="text-center space-y-3 max-w-sm">
           <p className="text-muted-foreground">We couldn't find that post.</p>
-          <Link to="/v2/blueprint" className="underline text-sm">
+          <Link to="/blueprint" className="underline text-sm">
             Back to the Blueprint
           </Link>
         </div>
@@ -250,12 +250,12 @@ const DailyPost = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="Today's post — Brandie" description="Execute the day." path={`/v2/post/${dayId}`} noindex />
+      <SEO title="Today's post — Brandie" description="Execute the day." path={`/post/${dayId}`} noindex />
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 pt-10 sm:pt-14 space-y-8">
         <header className="space-y-3">
           <Link
-            to="/v2/blueprint"
+            to="/blueprint"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" /> Blueprint

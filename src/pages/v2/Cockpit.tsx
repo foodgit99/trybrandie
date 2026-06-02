@@ -150,8 +150,8 @@ const Cockpit = () => {
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth?next=/v2/cockpit" replace />;
-  if (!brand || !brand.onboarding_complete) return <Navigate to="/v2/onboarding" replace />;
+  if (!user) return <Navigate to="/auth?next=/cockpit" replace />;
+  if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
 
   const firstName =
     (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] || "there";
@@ -161,7 +161,7 @@ const Cockpit = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20">
-      <SEO title="Cockpit — Brandie" description="Your Monday briefing." path="/v2/cockpit" noindex />
+      <SEO title="Cockpit — Brandie" description="Your Monday briefing." path="/cockpit" noindex />
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-24 space-y-12">
         {/* HERO BRIEFING */}
@@ -188,7 +188,7 @@ const Cockpit = () => {
               The week ahead
             </h2>
             <Link
-              to="/v2/blueprint"
+              to="/blueprint"
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
             >
               Review in detail <ArrowRight className="h-3 w-3" />
@@ -203,7 +203,7 @@ const Cockpit = () => {
               return (
                 <Link
                   key={label}
-                  to="/v2/blueprint"
+                  to="/blueprint"
                   className={`relative rounded-xl border p-2.5 sm:p-3 min-h-[100px] flex flex-col gap-1.5 transition-all hover:border-foreground/40 ${
                     isToday
                       ? "border-foreground bg-foreground text-background"
@@ -358,7 +358,7 @@ const Cockpit = () => {
                 The system has the wheel. You'll get a push when each post is ready to publish.
               </p>
               <Button
-                onClick={() => navigate("/v2/blueprint")}
+                onClick={() => navigate("/blueprint")}
                 size="lg"
                 variant="secondary"
                 className="rounded-full h-12 px-6 gap-2 text-base"
@@ -395,7 +395,7 @@ const Cockpit = () => {
                   )}
                 </Button>
                 <Button
-                  onClick={() => navigate("/v2/blueprint")}
+                  onClick={() => navigate("/blueprint")}
                   size="lg"
                   variant="ghost"
                   className="rounded-full h-12 px-5 gap-2 text-base text-background hover:bg-background/10 hover:text-background"
