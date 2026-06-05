@@ -46,6 +46,8 @@ type Idea = {
   day_of_week: number | null;
   status: string;
   approval_status: string;
+  design_id?: string | null;
+  design?: { image_url: string | null; caption: string | null } | null;
 };
 
 const Cockpit = () => {
