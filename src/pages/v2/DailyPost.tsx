@@ -63,6 +63,9 @@ const DailyPost = () => {
   const [voting, setVoting] = useState(false);
   const [marking, setMarking] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
+  const [briefDraft, setBriefDraft] = useState("");
+  const [briefSaving, setBriefSaving] = useState(false);
+  const [briefSavedAt, setBriefSavedAt] = useState<number | null>(null);
   const linkedJobRef = useState<{ current: string | null }>({ current: null })[0];
   const generating = generation.status === "generating";
 
@@ -138,6 +141,31 @@ const DailyPost = () => {
     const initial = design?.caption ?? idea?.whatsapp_dm ?? "";
     if (initial && !captionDraft) setCaptionDraft(initial);
   }, [design?.caption, idea?.whatsapp_dm]); // eslint-disable-line
+
+  // Seed brief draft from idea prompt
+  useEffect(() => {
+    if (idea?.prompt != null) setBriefDraft(idea.prompt);
+  }, [idea?.id]); // eslint-disable-line
+
+  const saveBrief = async () => {
+    if (!idea) return;
+    const next = briefDraft.trim();
+    if (next === (idea.prompt ?? "").trim()) return;
+    setBriefSaving(true);
+    try {
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ prompt: next })
+        .eq("id", idea.id);
+      if (error) throw error;
+      setBriefSavedAt(Date.now());
+      refetchIdea();
+    } catch (err: any) {
+      toast({ title: "Couldn't save brief", description: err.message, variant: "destructive" });
+    } finally {
+      setBriefSaving(false);
+    }
+  };
 
   // Soft poll while a generation is in-flight (no design yet but approved)
   useEffect(() => {
@@ -523,21 +551,45 @@ const DailyPost = () => {
           )}
         </section>
 
-        {/* CAPTION */}
+        {/* BRIEF */}
         <section className="space-y-3">
-          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            Caption
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
+              The brief
+            </h2>
+            <span className="text-[11px] text-muted-foreground">
+              {briefSaving ? "Saving…" : briefSavedAt ? "Saved" : "Edits save on blur"}
+            </span>
+          </div>
           <Textarea
-            value={captionDraft}
-            onChange={(e) => setCaptionDraft(e.target.value)}
-            placeholder="Brandie will draft your caption here."
+            value={briefDraft}
+            onChange={(e) => setBriefDraft(e.target.value)}
+            onBlur={saveBrief}
+            placeholder="What should this post say or do?"
             className="min-h-[120px] text-[15px] leading-relaxed bg-card"
           />
           <p className="text-[11px] text-muted-foreground">
-            Tweak in place — what you send is what you copy.
+            Brandie uses this brief when rendering the design.
           </p>
         </section>
+
+        {/* CAPTION — only after a render exists */}
+        {design?.image_url && (
+          <section className="space-y-3">
+            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
+              Caption
+            </h2>
+            <Textarea
+              value={captionDraft}
+              onChange={(e) => setCaptionDraft(e.target.value)}
+              placeholder="Brandie will draft your caption here."
+              className="min-h-[120px] text-[15px] leading-relaxed bg-card"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Tweak in place — what you send is what you copy.
+            </p>
+          </section>
+        )}
 
         {/* HANDOFF */}
         <section className="rounded-3xl border border-border bg-foreground text-background p-6 sm:p-8 space-y-5">
@@ -602,13 +654,6 @@ const DailyPost = () => {
           )}
         </section>
 
-        {/* BRIEF */}
-        <section className="space-y-2">
-          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            The brief
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">{idea.prompt}</p>
-        </section>
       </main>
     </div>
   );
