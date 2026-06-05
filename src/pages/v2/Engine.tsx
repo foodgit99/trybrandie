@@ -766,7 +766,7 @@ const Engine = () => {
               variant="ghost"
               className="rounded-full h-11 px-5 gap-2 text-background hover:bg-background/10 hover:text-background"
             >
-              <Link to="/brand">
+              <Link to="/brand/editor">
                 <RefreshCw className="h-4 w-4" />
                 Retune brand inputs
               </Link>
