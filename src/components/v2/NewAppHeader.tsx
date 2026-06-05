@@ -24,6 +24,7 @@ import {
   LogOut,
   Shield,
   Cpu,
+  Wand2,
 } from "lucide-react";
 
 const FREE_MONTHLY = 5;
@@ -112,6 +113,10 @@ const NewAppHeader = () => {
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/engine")}>
               <Cpu className="h-4 w-4" />
               Engine
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/studio")}>
+              <Wand2 className="h-4 w-4" />
+              Studio (Manual)
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brand")}>
               <Palette className="h-4 w-4" />
