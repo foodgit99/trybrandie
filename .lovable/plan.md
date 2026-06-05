@@ -1,65 +1,38 @@
-## Goal
+## Findings
 
-Make the V2 experience the single destination for all Brandie notifications: emails land users on the right V2 surfaces, the V2 Settings page is the one knob for delivery timing, and a few new V2-specific moments get their own notifications.
+I traced the caption pipeline end-to-end and confirmed there is a real bug for **carousels** produced by the autonomous engine. Single-graphic autopilot posts are fine.
 
-## 1. Repoint existing emails to V2 routes
+**Evidence (live DB):**
+- Last 20 autopilot-completed ideas: every single post (`carousel_id = null`) has a caption persisted. Every carousel cover (`slide_index = 0`) has `caption = NULL`.
+- `content_ideas.whatsapp_dm` is `NULL` for all of them, so the UI fallback in `DailyPost.tsx` also produces nothing.
+- The idea you're currently viewing (`8d947b3d…`) is one of these carousels — that's why the caption box is empty.
 
-**Daily drop email (`daily-execution-push` → `send-email` `daily_drop_ready`)**
-- Change the CTA URL from `/cockpit?drop=<id>` to `/post/<idea_id>` (V2 DailyPost).
-- Rename the payload field `design_id` → `idea_id` for clarity (the value is already the content_ideas row id). Keep `design_id` as a fallback for one release.
+**Root cause:**
+1. `supabase/functions/design-studio/index.ts` carousel branch generates a caption (line ~3290) and returns it in the response, but **never writes it onto any slide row** in `designs`. The per-slide `insert` (line ~3260) has no `caption` field.
+2. `supabase/functions/content-autopilot/index.ts` only persists `designData.caption` in the **single-post** branch (line ~386). The carousel branch (line ~350) just reads the cover `design_id` and never updates `designs.caption`.
+3. `src/pages/v2/DailyPost.tsx` reads caption only from the cover `design` row (line ~141), so a missing caption shows the empty placeholder.
 
-**Monday briefing email (`monday-briefing` → `send-email` `monday_briefing`)**
-- Change the CTA URL from `/cockpit#week-blueprint` to `/blueprint` (V2 Blueprint).
+## Plan
 
-**App.tsx redirects**
-- Update the `/briefing → /cockpit#week-blueprint` redirect to `/briefing → /blueprint` so any pre-existing email links keep working.
-- Add a redirect `/cockpit?drop=<id> → /post/<id>` (small effect in V2 Cockpit that reads `?drop=` on mount and `navigate("/post/" + id, { replace: true })`).
+### 1. Persist carousel caption at generation time
+In `supabase/functions/design-studio/index.ts`, after `captionText` is generated for the carousel (right before the response is returned), update the cover slide row:
+- `UPDATE designs SET caption = captionText WHERE carousel_id = carouselId AND slide_index = 0` (only when `captionText` is non-empty).
+- This fixes manual carousel renders too.
 
-## 2. Expose missing delivery prefs in V2 Settings
+### 2. Defense-in-depth in autopilot
+In `supabase/functions/content-autopilot/index.ts` carousel branch, after resolving `coverDesignId`, if `designData.caption` is present run an `update designs set caption=... where id = coverDesignId`. This guarantees the autopilot-produced cover always carries the caption even if design-studio's write fails.
 
-Today, V2 `Settings.tsx` only edits `monday_briefing_hour`. Both `daily-execution-push` and `monday-briefing` also read `daily_push_hour` and `posting_timezone` from `profiles`, but those are not editable in V2.
+### 3. UI fallback hardening (small)
+In `src/pages/v2/DailyPost.tsx`, when the active design is a carousel and the cover has no caption, also look at sibling slides for the first non-null caption before falling back to the placeholder. Cheap safety net for any historical rows.
 
-Add to the existing "Notifications" card in `src/pages/v2/Settings.tsx`:
-- **Daily drop time** — number picker (0-23), saves to `profiles.daily_push_hour` (default 8).
-- **Posting timezone** — select with the common IANA zones, saves to `profiles.posting_timezone` (default `Africa/Lagos`).
-- A small "Send me a test drop now" button that invokes `daily-execution-push` for the current user only (admin-style trigger guarded server-side by `user_id` in the body).
+### 4. No schema or RLS changes
+`designs.caption` already exists and is writable by the service role; no migration needed.
 
-## 3. Retire `content-daily-reminder`
+### 5. Out of scope
+- Backfilling captions on the ~3 historical autopilot carousels already in the DB (they were generated before the fix; regenerating would cost credits). I'll note this to you instead of silently doing it.
+- The brief/lock change from the previous turn stays as-is.
 
-- Run a `supabase--insert` SQL change to `cron.unschedule(...)` the legacy job.
-- Delete the `supabase/functions/content-daily-reminder` directory and remove the `daily_content_reminder` case from `send-email/index.ts`.
-- Keep `daily-execution-push` as the single daily notifier.
-
-## 4. New V2-specific notification triggers
-
-Add three new templates in `send-email/index.ts` and wire the triggers:
-
-**a. `studio_generation_ready`** — fired when a Design Studio background job completes (the existing 50s background-generation pill flow). CTA → `/studio/g/<generation_id>` (or current studio result route). Only sent when the user closed the tab / the run took longer than ~45s, so we don't spam fast jobs. Wired from the studio completion handler (client) by calling `send-email` with the user's email.
-
-**b. `weekly_recap`** — Sunday evening email summarising the past week's generations and approved drops, with a CTA → `/history`. New cron `weekly-recap` (Sun 18:00 local per profile, same time-zone logic as `monday-briefing`). Queries `designs` + `content_ideas` joined for the last 7 days.
-
-**c. `brand_centre_incomplete`** — sent once if a user finishes onboarding but `brands.completeness_score < 60` after 48h. CTA → `/brand/editor`. Triggered by a small once-per-user check inside the existing `monday-briefing` sweep (set `profiles.brand_nudge_sent_at` after sending).
-
-All three reuse the same Lovable Emails pipeline (`send-email` Edge Function, Resend). No new infra.
-
-## 5. Verification
-
-- Use `supabase--curl_edge_functions` to invoke `daily-execution-push` and `monday-briefing` for a test user and confirm the email links point at `/post/<id>` and `/blueprint`.
-- Manually visit `/cockpit?drop=<id>` to confirm it forwards to `/post/<id>`.
-- Save a new daily push hour in V2 Settings, re-invoke the cron, confirm the new hour is honored.
-
-## Technical Notes
-
-- Files touched:
-  - `supabase/functions/send-email/index.ts` — update `daily_drop_ready` URL, update `monday_briefing` URL, add 3 new cases, remove `daily_content_reminder` case.
-  - `supabase/functions/daily-execution-push/index.ts` — payload field rename only.
-  - `supabase/functions/monday-briefing/index.ts` — add brand-incomplete nudge.
-  - New `supabase/functions/weekly-recap/index.ts`.
-  - Delete `supabase/functions/content-daily-reminder/`.
-  - `src/App.tsx` — update `/briefing` redirect, mount drop-forward effect (or add inside `V2Cockpit`).
-  - `src/pages/v2/Cockpit.tsx` — `?drop=` forwarder.
-  - `src/pages/v2/Settings.tsx` — add daily-push-hour, timezone, test-send.
-  - Studio completion handler — call `send-email` with `studio_generation_ready` on long runs.
-- DB: one column on `profiles` (`brand_nudge_sent_at TIMESTAMPTZ`). Migration uses the standard `update_updated_at_column` trigger; no new tables, so no GRANT block needed.
-- Cron: `supabase--insert` to schedule `weekly-recap` hourly and to `cron.unschedule('content-daily-reminder')`.
-- Out of scope: in-app push/web-push, WhatsApp delivery, SMS — emails only.
+### Verification
+After deploying the edge functions:
+- Trigger one autopilot carousel (or wait for the next cron tick) and confirm via `select id, slide_index, caption is not null from designs where carousel_id = …` that the cover row has a caption.
+- Open `/post/<idea_id>` for that idea and confirm the Caption box is pre-filled.

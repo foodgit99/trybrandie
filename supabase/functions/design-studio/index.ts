@@ -3306,6 +3306,19 @@ Return structured JSON.`;
         }
       } catch {}
 
+      // Persist caption onto the cover slide so the post page can render it.
+      if (captionText) {
+        try {
+          await supabase
+            .from("designs")
+            .update({ caption: captionText })
+            .eq("carousel_id", carouselId)
+            .eq("slide_index", 0);
+        } catch (e) {
+          console.error("Failed to persist carousel caption to cover slide:", e);
+        }
+      }
+
       console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}`);
 
       // All slides rendered successfully — deduct credits now.

@@ -136,11 +136,12 @@ const DailyPost = () => {
   }, [carouselApi]);
   const activeSlide = allSlides[activeIdx] ?? design ?? null;
 
-  // Seed caption draft from design caption or whatsapp_dm
+  // Seed caption draft from design caption, any sibling slide caption, or whatsapp_dm
   useEffect(() => {
-    const initial = design?.caption ?? idea?.whatsapp_dm ?? "";
+    const siblingCaption = (slides ?? []).find((s) => s.caption)?.caption ?? null;
+    const initial = design?.caption ?? siblingCaption ?? idea?.whatsapp_dm ?? "";
     if (initial && !captionDraft) setCaptionDraft(initial);
-  }, [design?.caption, idea?.whatsapp_dm]); // eslint-disable-line
+  }, [design?.caption, slides, idea?.whatsapp_dm]); // eslint-disable-line
 
   // Seed brief draft from idea prompt
   useEffect(() => {
