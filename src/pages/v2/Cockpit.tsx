@@ -352,56 +352,80 @@ const Cockpit = () => {
         {/* THE ARC */}
         {totalThisWeek > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-              This week's arc
-            </h2>
-            <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
-              {ideas.slice(0, 5).map((it, i) => {
-                const catId = parseCategoryIds(it.content_category)[0];
-                const meta = catId ? getCategoryMeta(catId) : undefined;
-                const dayLabel = it.scheduled_for
-                  ? new Date(it.scheduled_for).toLocaleDateString(undefined, {
-                      weekday: "long",
-                    })
-                  : "Unscheduled";
-                return (
-                  <motion.div
-                    key={it.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="px-5 py-4 flex items-start gap-4 hover:bg-secondary/30 transition-colors"
-                  >
-                    <span className="font-serif text-2xl text-muted-foreground w-10 shrink-0">
-                      0{i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 text-[11px] tracking-wider uppercase text-muted-foreground">
-                        <span>{dayLabel}</span>
-                        {meta && (
-                          <>
-                            <span>·</span>
-                            <span className="flex items-center gap-1">
-                              <span className={`h-1.5 w-1.5 rounded-full ${meta.dotClass}`} />
-                              {meta.short}
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
+                This week's arc
+              </h2>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                Swipe →
+              </span>
+            </div>
+            <div
+              className="-mx-5 sm:-mx-8 px-5 sm:px-8 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              <ol className="flex gap-3 sm:gap-4 pb-2">
+                {ideas.slice(0, 7).map((it, i) => {
+                  const catId = parseCategoryIds(it.content_category)[0];
+                  const meta = catId ? getCategoryMeta(catId) : undefined;
+                  const dayLabel = it.scheduled_for
+                    ? new Date(it.scheduled_for).toLocaleDateString(undefined, {
+                        weekday: "long",
+                      })
+                    : "Unscheduled";
+                  const isApproved =
+                    it.approval_status === "approved" || it.status === "scheduled";
+                  return (
+                    <motion.li
+                      key={it.id}
+                      initial={{ opacity: 0, x: 12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="snap-start shrink-0 w-[78%] sm:w-[300px]"
+                    >
+                      <Link
+                        to={`/post/${it.id}`}
+                        className="group h-full flex flex-col rounded-2xl border border-border bg-card p-5 transition-all hover:border-foreground/40 hover:shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <span className="font-serif text-3xl text-muted-foreground leading-none">
+                            0{i + 1}
+                          </span>
+                          {isApproved && (
+                            <span className="inline-flex items-center gap-1 text-[10px] tracking-wider uppercase text-foreground/60">
+                              <Check className="h-3 w-3" /> Approved
                             </span>
-                          </>
-                        )}
-                      </div>
-                      <p className="font-medium leading-snug">{it.title}</p>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {it.prompt}
-                      </p>
-                    </div>
-                    {(it.approval_status === "approved" || it.status === "scheduled") && (
-                      <Check className="h-4 w-4 text-foreground/50 shrink-0 mt-1" />
-                    )}
-                  </motion.div>
-                );
-              })}
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mb-2 text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+                          <span>{dayLabel}</span>
+                          {meta && (
+                            <>
+                              <span>·</span>
+                              <span className="flex items-center gap-1">
+                                <span className={`h-1.5 w-1.5 rounded-full ${meta.dotClass}`} />
+                                {meta.short}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <p className="font-medium leading-snug line-clamp-2">
+                          {it.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2 line-clamp-3 flex-1">
+                          {it.prompt}
+                        </p>
+                        <span className="mt-4 inline-flex items-center gap-1 text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
+                          Open <ArrowRight className="h-3 w-3" />
+                        </span>
+                      </Link>
+                    </motion.li>
+                  );
+                })}
+              </ol>
             </div>
           </section>
         )}
+
 
         {/* APPROVAL ACTION */}
         <section className="rounded-3xl border border-border bg-foreground text-background p-7 sm:p-10 space-y-5">
