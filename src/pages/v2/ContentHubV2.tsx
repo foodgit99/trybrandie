@@ -271,7 +271,7 @@ const ContentHubV2 = () => {
 
   return (
     <div className="min-h-screen bg-background pb-32 lg:pl-20">
-      <SEO title="Content Hub — Brandie" description="Strategic command surface for your funnels, strategy, campaigns and content. Work hand-in-hand with the brand agents." />
+      <SEO title="Content Hub — Brandie" description="Strategic command surface for your funnels, strategy, campaigns and content. Work hand-in-hand with the brand agents." path="/content-hub" />
       <NewAppHeader />
 
       <main className="px-4 sm:px-8 py-6 sm:py-10 max-w-6xl mx-auto space-y-8">
