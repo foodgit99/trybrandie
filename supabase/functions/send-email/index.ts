@@ -946,10 +946,7 @@ Deno.serve(async (req) => {
           data?.cta_url || ""
         );
         break;
-      case "daily_content_reminder":
-        subject = `Your content plan for today — ${data?.date || "today"} 📅`;
-        html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
-        break;
+      // Retired: "daily_content_reminder" — superseded by daily-execution-push / daily_drop_ready.
       case "autopilot_design_ready":
         subject = `Your design is ready! ✨ — ${data?.idea_title || "New design"}`;
         html = `
@@ -1034,7 +1031,7 @@ Deno.serve(async (req) => {
         const name = data?.name || "";
         const weekLabel = data?.week_label || "this week";
         const ideas: Array<{ day: string; title: string; role?: string }> = data?.ideas || [];
-        const briefingUrl = `${APP_URL}/cockpit#week-blueprint`;
+        const briefingUrl = `${APP_URL}/blueprint`;
         subject = `Your weekly strategy is ready · ${weekLabel} 📅`;
         const ideaRows = ideas
           .map(
@@ -1073,8 +1070,9 @@ Deno.serve(async (req) => {
         const ideaTitle = data?.idea_title || "Today's drop";
         const hook = data?.hook || data?.caption || "";
         const imageUrl = data?.image_url;
-        const dropUrl = data?.design_id
-          ? `${APP_URL}/cockpit?drop=${data.design_id}`
+        const dropTargetId = data?.idea_id || data?.design_id;
+        const dropUrl = dropTargetId
+          ? `${APP_URL}/post/${dropTargetId}`
           : `${APP_URL}/cockpit`;
         const dayLabel = data?.day_label || "Today";
         subject = `${dayLabel}'s drop is ready 📲`;
@@ -1097,6 +1095,73 @@ Deno.serve(async (req) => {
   </td></tr>
   <tr><td style="padding:8px 40px 28px;text-align:center;">
     <p style="font-size:12px;color:#9ca3af;margin:0;">One tap. One share. Done.</p>
+  </td></tr>
+</table></td></tr></table></body></html>`;
+        break;
+      }
+      case "weekly_recap": {
+        const name = data?.name || "";
+        const designsCount = data?.designs_count ?? 0;
+        const approvedCount = data?.approved_count ?? 0;
+        const weekLabel = data?.week_label || "this week";
+        const previews: string[] = (data?.preview_images || []).slice(0, 4);
+        const recapUrl = `${APP_URL}/history`;
+        subject = `Your week in designs · ${weekLabel} 🎨`;
+        const thumbs = previews
+          .map(
+            (src) =>
+              `<td style="padding:4px;width:25%;"><img src="${src}" alt="" style="display:block;width:100%;height:auto;border-radius:8px;" /></td>`
+          )
+          .join("");
+        html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:28px 40px;text-align:center;">
+    <p style="color:#c4a265;font-size:11px;letter-spacing:0.2em;margin:0 0 6px;text-transform:uppercase;">Weekly Recap</p>
+    <h1 style="color:#fff;font-size:24px;margin:0;font-weight:700;">Nice work, ${name || "there"}</h1>
+  </td></tr>
+  <tr><td style="padding:28px 40px 8px;">
+    <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 18px;">
+      You created <strong>${designsCount}</strong> design${designsCount === 1 ? "" : "s"} and approved <strong>${approvedCount}</strong> drop${approvedCount === 1 ? "" : "s"} ${weekLabel}.
+    </p>
+    ${thumbs ? `<table cellpadding="0" cellspacing="0" width="100%"><tr>${thumbs}</tr></table>` : ""}
+  </td></tr>
+  <tr><td style="padding:24px 40px 32px;text-align:center;">
+    <a href="${recapUrl}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+      Open History
+    </a>
+  </td></tr>
+</table></td></tr></table></body></html>`;
+        break;
+      }
+      case "brand_centre_incomplete": {
+        const name = data?.name || "";
+        const missing: string[] = data?.missing || [];
+        const editorUrl = `${APP_URL}/brand/editor`;
+        subject = `Finish your Brand Centre to unlock sharper designs ✍️`;
+        const list = missing
+          .map((m) => `<li style="margin:6px 0;color:#1a1a2e;">${m}</li>`)
+          .join("");
+        html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:28px 40px;text-align:center;">
+    <p style="color:#c4a265;font-size:11px;letter-spacing:0.2em;margin:0 0 6px;text-transform:uppercase;">Brand Centre</p>
+    <h1 style="color:#fff;font-size:22px;margin:0;font-weight:700;">A few details would help, ${name || "there"}</h1>
+  </td></tr>
+  <tr><td style="padding:28px 40px 8px;">
+    <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 12px;">
+      Brandie generates sharper, more on-brand designs when your Brand Centre is filled in. Right now we're missing:
+    </p>
+    ${list ? `<ul style="margin:0 0 8px;padding-left:18px;">${list}</ul>` : ""}
+  </td></tr>
+  <tr><td style="padding:24px 40px 32px;text-align:center;">
+    <a href="${editorUrl}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+      Open Brand Centre
+    </a>
+    <p style="font-size:12px;color:#9ca3af;margin:18px 0 0;">Takes 2 minutes.</p>
   </td></tr>
 </table></td></tr></table></body></html>`;
         break;

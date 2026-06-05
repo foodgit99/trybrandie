@@ -34,10 +34,21 @@ Deno.serve(async (req) => {
   const now = new Date();
   console.log("[daily-push] sweep at", now.toISOString());
 
+  // Optional: targeted test send from Settings "Send test" button
+  let testUserId: string | null = null;
   try {
-    const { data: profiles } = await supabase
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      if (body && typeof body.test_user_id === "string") testUserId = body.test_user_id;
+    }
+  } catch (_) {}
+
+  try {
+    let query = supabase
       .from("profiles")
       .select("user_id, full_name, posting_timezone, daily_push_hour, last_daily_push_at");
+    if (testUserId) query = query.eq("user_id", testUserId);
+    const { data: profiles } = await query;
 
     if (!profiles?.length) return json({ sent: 0 });
 
@@ -49,14 +60,14 @@ Deno.serve(async (req) => {
       try {
         const tz = p.posting_timezone || "Africa/Lagos";
         const target = p.daily_push_hour ?? 8;
-        if (localHour(now, tz) !== target) {
+        if (!testUserId && localHour(now, tz) !== target) {
           skipped++;
           continue;
         }
         const todayISO = localISODate(now, tz);
 
-        // Skip if already pushed today
-        if (p.last_daily_push_at) {
+        // Skip if already pushed today (bypass for explicit test sends)
+        if (!testUserId && p.last_daily_push_at) {
           const lastISO = localISODate(new Date(p.last_daily_push_at), tz);
           if (lastISO === todayISO) {
             skipped++;
@@ -118,7 +129,8 @@ Deno.serve(async (req) => {
               idea_title: idea.title,
               hook: (idea as any).designs?.caption,
               image_url: (idea as any).designs?.image_url,
-              design_id: idea.id,
+              idea_id: idea.id,
+              design_id: idea.id, // back-compat
               day_label: dayLabel,
             },
           }),

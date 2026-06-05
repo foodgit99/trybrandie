@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
   try {
     const { data: profiles, error } = await supabase
       .from("profiles")
-      .select("user_id, full_name, posting_timezone, monday_briefing_hour, last_monday_briefing_at");
+      .select("user_id, full_name, posting_timezone, monday_briefing_hour, last_monday_briefing_at, brand_nudge_sent_at");
+
 
     if (error) throw error;
     if (!profiles?.length) return json({ checked: 0, sent: 0 });
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
         // Fetch user's primary brand
         const { data: brand } = await supabase
           .from("brands")
-          .select("id, name")
+          .select("id, name, logo_url")
           .eq("user_id", p.user_id)
           .eq("onboarding_complete", true)
           .order("created_at", { ascending: true })
@@ -99,6 +100,44 @@ Deno.serve(async (req) => {
           skipped++;
           continue;
         }
+
+        // Once-only nudge: if the Brand Centre looks incomplete, send a
+        // brand_centre_incomplete email instead of the regular briefing.
+        if (!(p as any).brand_nudge_sent_at) {
+          const missing: string[] = [];
+          if (!brand.logo_url) missing.push("Logo");
+          const { count: productCount } = await supabase
+            .from("brand_products")
+            .select("id", { count: "exact", head: true })
+            .eq("brand_id", brand.id);
+          if (!productCount || productCount === 0) missing.push("Products or services");
+          if (missing.length >= 2) {
+            const { data: authUser } = await supabase.auth.admin.getUserById(p.user_id);
+            const email = authUser?.user?.email;
+            if (email) {
+              await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                },
+                body: JSON.stringify({
+                  type: "brand_centre_incomplete",
+                  to: email,
+                  data: {
+                    name: (p.full_name || "").split(" ")[0],
+                    missing,
+                  },
+                }),
+              });
+              await supabase
+                .from("profiles")
+                .update({ brand_nudge_sent_at: now.toISOString() } as any)
+                .eq("user_id", p.user_id);
+            }
+          }
+        }
+
 
         // Ensure blueprint row exists for this week
         const { data: existingBp } = await supabase

@@ -70,7 +70,11 @@ const SettingsV2 = () => {
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
   const [v2Default, setV2Default] = useState<boolean>(true);
   const [briefingHour, setBriefingHour] = useState<number>(7);
+  const [pushHour, setPushHour] = useState<number>(8);
+  const [pushTz, setPushTz] = useState<string>("Africa/Lagos");
   const [savingBriefing, setSavingBriefing] = useState(false);
+  const [savingPush, setSavingPush] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -78,12 +82,14 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("whatsapp_number, v2_enabled, monday_briefing_hour")
+        .select("whatsapp_number, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone")
         .eq("user_id", user.id)
         .maybeSingle();
       setWhatsapp((data?.whatsapp_number as string) ?? "");
       setV2Default(!!(data as any)?.v2_enabled);
       setBriefingHour(((data as any)?.monday_briefing_hour as number) ?? 7);
+      setPushHour(((data as any)?.daily_push_hour as number) ?? 8);
+      setPushTz(((data as any)?.posting_timezone as string) ?? "Africa/Lagos");
     })();
   }, [user]);
 
@@ -260,6 +266,102 @@ const SettingsV2 = () => {
                 ))}
               </select>
             </div>
+          </Row>
+          <Row
+            title="Daily drop time"
+            subtitle="Each day's post lands in your inbox at this hour."
+          >
+            <div className="flex items-center gap-2">
+              <select
+                value={pushHour}
+                onChange={async (e) => {
+                  if (!user) return;
+                  const hr = parseInt(e.target.value, 10);
+                  setPushHour(hr);
+                  setSavingPush(true);
+                  const { error } = await supabase
+                    .from("profiles")
+                    .update({ daily_push_hour: hr } as any)
+                    .eq("user_id", user.id);
+                  setSavingPush(false);
+                  if (error) {
+                    toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+                  } else {
+                    toast({ title: "Daily drop time saved." });
+                  }
+                }}
+                disabled={savingPush}
+                className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>
+                    {h.toString().padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+            </div>
+          </Row>
+          <Row title="Posting timezone" subtitle="Used for all scheduled notifications.">
+            <select
+              value={pushTz}
+              onChange={async (e) => {
+                if (!user) return;
+                const tz = e.target.value;
+                setPushTz(tz);
+                const { error } = await supabase
+                  .from("profiles")
+                  .update({ posting_timezone: tz } as any)
+                  .eq("user_id", user.id);
+                if (error) {
+                  toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+                } else {
+                  toast({ title: "Timezone saved." });
+                }
+              }}
+              className="h-9 rounded-md border border-border bg-background px-2 text-sm max-w-[14rem]"
+            >
+              {[
+                "Africa/Lagos",
+                "Africa/Accra",
+                "Africa/Nairobi",
+                "Africa/Johannesburg",
+                "Africa/Cairo",
+                "Europe/London",
+                "Europe/Berlin",
+                "America/New_York",
+                "America/Chicago",
+                "America/Los_Angeles",
+                "Asia/Dubai",
+                "Asia/Kolkata",
+                "Asia/Singapore",
+              ].map((tz) => (
+                <option key={tz} value={tz}>{tz}</option>
+              ))}
+            </select>
+          </Row>
+          <Row title="Send a test drop" subtitle="Triggers today's drop email if one is ready for you.">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full"
+              disabled={sendingTest}
+              onClick={async () => {
+                setSendingTest(true);
+                try {
+                  const { error } = await supabase.functions.invoke("daily-execution-push", {
+                    body: { test_user_id: user?.id },
+                  });
+                  if (error) throw error;
+                  toast({ title: "Test triggered.", description: "Check your inbox in a minute." });
+                } catch (e: any) {
+                  toast({ title: "Couldn't send test", description: e.message, variant: "destructive" });
+                } finally {
+                  setSendingTest(false);
+                }
+              }}
+            >
+              {sendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send test"}
+            </Button>
           </Row>
         </Section>
 
