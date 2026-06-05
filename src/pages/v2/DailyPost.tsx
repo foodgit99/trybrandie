@@ -142,6 +142,31 @@ const DailyPost = () => {
     if (initial && !captionDraft) setCaptionDraft(initial);
   }, [design?.caption, idea?.whatsapp_dm]); // eslint-disable-line
 
+  // Seed brief draft from idea prompt
+  useEffect(() => {
+    if (idea?.prompt != null) setBriefDraft(idea.prompt);
+  }, [idea?.id]); // eslint-disable-line
+
+  const saveBrief = async () => {
+    if (!idea) return;
+    const next = briefDraft.trim();
+    if (next === (idea.prompt ?? "").trim()) return;
+    setBriefSaving(true);
+    try {
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ prompt: next })
+        .eq("id", idea.id);
+      if (error) throw error;
+      setBriefSavedAt(Date.now());
+      refetchIdea();
+    } catch (err: any) {
+      toast({ title: "Couldn't save brief", description: err.message, variant: "destructive" });
+    } finally {
+      setBriefSaving(false);
+    }
+  };
+
   // Soft poll while a generation is in-flight (no design yet but approved)
   useEffect(() => {
     if (!idea) return;
