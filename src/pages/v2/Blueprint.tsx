@@ -18,6 +18,7 @@ import {
   Wand2,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 const WEEKDAY_NAMES = [
@@ -197,6 +198,8 @@ const Blueprint = () => {
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-40">
       <SEO title="Weekly Blueprint — Brandie" description="Your week, as a story." path="/blueprint" noindex />
+      <NewAppHeader />
+
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
         <header className="space-y-3">

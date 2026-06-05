@@ -16,6 +16,7 @@ import {
   Calendar as CalendarIcon,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -162,6 +163,8 @@ const Cockpit = () => {
   return (
     <div className="min-h-dvh bg-background lg:pl-20">
       <SEO title="Cockpit — Brandie" description="Your Monday briefing." path="/cockpit" noindex />
+      <NewAppHeader />
+
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-24 space-y-12">
         {/* HERO BRIEFING */}

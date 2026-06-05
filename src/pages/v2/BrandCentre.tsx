@@ -6,6 +6,7 @@ import { useBrand } from "@/hooks/useBrand";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, Pencil } from "lucide-react";
 import SEO from "@/components/SEO";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 
 const Swatch = ({ hex }: { hex: string }) => (
   <div className="flex flex-col items-center gap-1.5">
@@ -92,6 +93,8 @@ const BrandCentre = () => {
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Brand Centre — Brandie" description="Your brand memory." path="/brand" noindex />
+      <NewAppHeader />
+
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
         <header className="flex items-start justify-between gap-4">

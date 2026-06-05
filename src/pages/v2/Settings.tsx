@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 
 type AutopilotSettings = {
   brand_id: string;
@@ -150,6 +151,8 @@ const SettingsV2 = () => {
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Settings — Brandie" description="Tune the system." path="/settings" noindex />
+      <NewAppHeader />
+
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
         <header className="space-y-2">

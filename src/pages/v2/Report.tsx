@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, CheckCircle2, ThumbsUp, ThumbsDown, Clock, Send } from "lucide-react";
 import SEO from "@/components/SEO";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 
 function startOfWeek(d = new Date()) {
   const x = new Date(d);
@@ -141,7 +142,9 @@ const Report = () => {
   return (
     <main className="min-h-dvh bg-background text-foreground lg:pl-20 pb-28 lg:pb-12">
       <SEO title="CEO Briefing — Brandie" description="Last week, in numbers." path="/report" noindex />
+      <NewAppHeader />
       <div className="max-w-5xl mx-auto px-6 py-12 space-y-10">
+
         <header className="space-y-3">
           <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground">CEO Briefing</p>
           <h1 className="font-serif text-4xl sm:text-5xl leading-tight">Last week, in numbers.</h1>
