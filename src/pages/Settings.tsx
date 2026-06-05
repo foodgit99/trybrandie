@@ -21,6 +21,7 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const smartBack = useSmartBack("/");
   const [copied, setCopied] = useState(false);
 
   const { data: profile } = useQuery({
