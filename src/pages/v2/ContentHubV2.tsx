@@ -534,12 +534,17 @@ function StrategyTab({
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-background"
                 >
                   <span className="text-[10px] tabular-nums text-muted-foreground w-5">{String(idx + 1).padStart(2, "0")}</span>
-                  <span className="text-base">{cat?.emoji ?? "•"}</span>
+                  <IdeaThumb design={i.design} emoji={cat?.emoji} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm truncate">{i.title}</span>
                     <span className="block text-[11px] text-muted-foreground">
                       {i.scheduled_for ? new Date(i.scheduled_for).toLocaleDateString(undefined, { weekday: "short" }) : "Unscheduled"} · {cat?.label ?? "—"}
                     </span>
+                    {i.design?.caption && (
+                      <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">
+                        "{i.design.caption}"
+                      </span>
+                    )}
                   </span>
                   <Badge variant="secondary" className="rounded-full text-[10px]">{i.status}</Badge>
                 </li>
