@@ -1450,6 +1450,7 @@ export type Database = {
           bonus_credits: number
           bonus_earned_count: number
           bonus_earned_reset_at: string
+          brand_nudge_sent_at: string | null
           content_hub_gen_count: number
           content_hub_gen_reset_at: string
           created_at: string
@@ -1463,6 +1464,7 @@ export type Database = {
           last_category_series: string | null
           last_daily_push_at: string | null
           last_monday_briefing_at: string | null
+          last_weekly_recap_at: string | null
           logo_generations_used: number
           monday_briefing_hour: number
           paid_credits: number
@@ -1482,6 +1484,7 @@ export type Database = {
           bonus_credits?: number
           bonus_earned_count?: number
           bonus_earned_reset_at?: string
+          brand_nudge_sent_at?: string | null
           content_hub_gen_count?: number
           content_hub_gen_reset_at?: string
           created_at?: string
@@ -1495,6 +1498,7 @@ export type Database = {
           last_category_series?: string | null
           last_daily_push_at?: string | null
           last_monday_briefing_at?: string | null
+          last_weekly_recap_at?: string | null
           logo_generations_used?: number
           monday_briefing_hour?: number
           paid_credits?: number
@@ -1514,6 +1518,7 @@ export type Database = {
           bonus_credits?: number
           bonus_earned_count?: number
           bonus_earned_reset_at?: string
+          brand_nudge_sent_at?: string | null
           content_hub_gen_count?: number
           content_hub_gen_reset_at?: string
           created_at?: string
@@ -1527,6 +1532,7 @@ export type Database = {
           last_category_series?: string | null
           last_daily_push_at?: string | null
           last_monday_briefing_at?: string | null
+          last_weekly_recap_at?: string | null
           logo_generations_used?: number
           monday_briefing_hour?: number
           paid_credits?: number
