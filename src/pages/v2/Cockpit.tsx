@@ -71,7 +71,7 @@ const Cockpit = () => {
       if (!brand?.id) return [];
       const { data, error } = await supabase
         .from("content_ideas")
-        .select("id, title, prompt, content_category, scheduled_for, day_of_week, status, approval_status")
+        .select("id, title, prompt, content_category, scheduled_for, day_of_week, status, approval_status, design_id, design:design_id(image_url, caption)")
         .eq("brand_id", brand.id)
         .gte("scheduled_for", weekStart.toISOString())
         .lt("scheduled_for", weekEnd.toISOString())
