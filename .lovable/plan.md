@@ -1,57 +1,65 @@
-# New Content Hub (clean v2 flow)
+## Goal
 
-## Root cause of the current pain
-- `FloatingNavBar` (legacy pill) uses `allowedPrefixes = ["/legacy", "/content", …]`. Because `"/content-hub".startsWith("/content")` is true, the legacy pill renders on top of `NewFloatingNav` on the current ContentHubV2 page.
-- ContentHubV2 itself is mostly fine, but its top-bar "Studio / Engine / Calendar" buttons and its sub-tab navigation will be re-checked so the new page hits **only** v2 routes (`/cockpit`, `/blueprint`, `/engine`, `/studio`, `/post/:id`, `/brand`, `/report`, `/hub`).
+Make the V2 experience the single destination for all Brandie notifications: emails land users on the right V2 surfaces, the V2 Settings page is the one knob for delivery timing, and a few new V2-specific moments get their own notifications.
 
-## 1. Create the new hub
+## 1. Repoint existing emails to V2 routes
 
-**File:** `src/pages/v2/Hub.tsx` (new) — route `/hub`.
+**Daily drop email (`daily-execution-push` → `send-email` `daily_drop_ready`)**
+- Change the CTA URL from `/cockpit?drop=<id>` to `/post/<idea_id>` (V2 DailyPost).
+- Rename the payload field `design_id` → `idea_id` for clarity (the value is already the content_ideas row id). Keep `design_id` as a fallback for one release.
 
-Same data model as ContentHubV2 (`content_ideas`, `campaigns`, `weekly_blueprints`, `autopilot_settings`) — that data **is** the new flow's output. What changes:
+**Monday briefing email (`monday-briefing` → `send-email` `monday_briefing`)**
+- Change the CTA URL from `/cockpit#week-blueprint` to `/blueprint` (V2 Blueprint).
 
-- Wrapper uses `NewAppHeader` + `AgentChatDock` (no legacy chrome).
-- Top action strip → `Cockpit`, `Blueprint`, `Engine`, `Studio` (all v2 routes, no `/content`, no `/history`, no `/legacy/*`).
-- Tabs: **Today · This Week · Funnels · Campaigns** — rebuilt around the V2 cockpit/blueprint vocabulary:
-  - **Today** — items where `scheduled_for = today`, deep-link to `/post/:id`, plus a "View today in Cockpit" link to `/cockpit`.
-  - **This Week** — pulls the most recent `weekly_blueprints` row + its scheduled ideas (the StrategyTab logic, cleaned up); "Open Blueprint" → `/blueprint`.
-  - **Funnels** — same 4-stage bucketing as today's V2 hub, but each row opens `/post/:id` directly (no in-page `?item=` focus mode tied to legacy edit affordances).
-  - **Campaigns** — campaign cards; click → opens the campaign's first idea via `/post/:id` (no `/content` fallback).
-- Empty states route to `/studio` or open the agent dock — never `/content`.
-- `SEO` `path="/hub"`.
+**App.tsx redirects**
+- Update the `/briefing → /cockpit#week-blueprint` redirect to `/briefing → /blueprint` so any pre-existing email links keep working.
+- Add a redirect `/cockpit?drop=<id> → /post/<id>` (small effect in V2 Cockpit that reads `?drop=` on mount and `navigate("/post/" + id, { replace: true })`).
 
-## 2. Wire it into the new-flow nav
+## 2. Expose missing delivery prefs in V2 Settings
 
-**`src/components/v2/NewFloatingNav.tsx`**
-- Change Content item: `{ to: "/hub", label: "Content", icon: LayoutGrid }`.
-- Replace `"/content-hub"` in `primaryPrefixes` with `"/hub"`.
+Today, V2 `Settings.tsx` only edits `monday_briefing_hour`. Both `daily-execution-push` and `monday-briefing` also read `daily_push_hour` and `posting_timezone` from `profiles`, but those are not editable in V2.
 
-**`src/components/v2/NewAppHeader.tsx`** — change the Content Hub dropdown entry from `navigate("/content-hub")` to `navigate("/hub")`.
+Add to the existing "Notifications" card in `src/pages/v2/Settings.tsx`:
+- **Daily drop time** — number picker (0-23), saves to `profiles.daily_push_hour` (default 8).
+- **Posting timezone** — select with the common IANA zones, saves to `profiles.posting_timezone` (default `Africa/Lagos`).
+- A small "Send me a test drop now" button that invokes `daily-execution-push` for the current user only (admin-style trigger guarded server-side by `user_id` in the body).
 
-**`src/components/v2/StageLogsSheet.tsx`** — repoint the four `"/content-hub*"` actions to `"/hub*"` (preserving `?tab=…` params, mapped to the new tab ids).
+## 3. Retire `content-daily-reminder`
 
-**`src/pages/v2/Cockpit.tsx`** — the two `/content-hub` links become `/hub` (and `/hub?tab=content&item=…` → `/post/:id` directly so the new hub stays clean).
+- Run a `supabase--insert` SQL change to `cron.unschedule(...)` the legacy job.
+- Delete the `supabase/functions/content-daily-reminder` directory and remove the `daily_content_reminder` case from `send-email/index.ts`.
+- Keep `daily-execution-push` as the single daily notifier.
 
-## 3. Unhook legacy from the v2 surface
+## 4. New V2-specific notification triggers
 
-**`src/App.tsx`**
-- Add `<Route path="/hub" element={<ProtectedRoute><V2Hub /></ProtectedRoute>} />`.
-- Keep `/content-hub` route mounted (ContentHubV2 stays reachable as requested).
-- Keep `/content` and `/legacy/content` both pointing at legacy `ContentHub` (unchanged).
+Add three new templates in `send-email/index.ts` and wire the triggers:
 
-**`src/components/FloatingNavBar.tsx` (legacy pill)** — tighten so it never bleeds onto v2:
-- Replace the `startsWith("/content")` match with an exact-prefix test that excludes `/content-hub` and `/hub`. Concretely: drop `"/content"` from `allowedPrefixes` (the legacy pill only needs to appear on legacy + utility routes; `/content` is reached from legacy nav and already has the legacy chrome via its own page). If we want it on `/content` specifically, special-case it: `pathname === "/content" || pathname.startsWith("/content/")`.
+**a. `studio_generation_ready`** — fired when a Design Studio background job completes (the existing 50s background-generation pill flow). CTA → `/studio/g/<generation_id>` (or current studio result route). Only sent when the user closed the tab / the run took longer than ~45s, so we don't spam fast jobs. Wired from the studio completion handler (client) by calling `send-email` with the user's email.
 
-**Confirm `src/pages/ContentHub.tsx` is untouched** — no edits in this loop. ("Revert to original" = leave it as-is; this loop only removes new-flow code paths that point at it.)
+**b. `weekly_recap`** — Sunday evening email summarising the past week's generations and approved drops, with a CTA → `/history`. New cron `weekly-recap` (Sun 18:00 local per profile, same time-zone logic as `monday-briefing`). Queries `designs` + `content_ideas` joined for the last 7 days.
 
-## 4. QA checklist
-- Visit `/hub` on mobile: only the new bottom-tab nav renders (no legacy pill).
-- Visit `/content-hub`: NewFloatingNav still renders; legacy pill no longer overlays.
-- Visit `/content` (legacy): legacy pill renders, NewFloatingNav does not.
-- Cockpit "Open Content Hub" → `/hub`; StageLogsSheet CTAs → `/hub?tab=…`.
-- No button on `/hub`, `NewAppHeader`, `NewFloatingNav`, `Cockpit`, `Blueprint`, `Engine`, `Studio` resolves to `/content`, `/history`, or `/legacy/*`.
+**c. `brand_centre_incomplete`** — sent once if a user finishes onboarding but `brands.completeness_score < 60` after 48h. CTA → `/brand/editor`. Triggered by a small once-per-user check inside the existing `monday-briefing` sweep (set `profiles.brand_nudge_sent_at` after sending).
 
-## Files
-- **Create:** `src/pages/v2/Hub.tsx`
-- **Edit:** `src/App.tsx`, `src/components/v2/NewFloatingNav.tsx`, `src/components/v2/NewAppHeader.tsx`, `src/components/v2/StageLogsSheet.tsx`, `src/pages/v2/Cockpit.tsx`, `src/components/FloatingNavBar.tsx`
-- **Untouched:** `src/pages/ContentHub.tsx`, `src/pages/v2/ContentHubV2.tsx`
+All three reuse the same Lovable Emails pipeline (`send-email` Edge Function, Resend). No new infra.
+
+## 5. Verification
+
+- Use `supabase--curl_edge_functions` to invoke `daily-execution-push` and `monday-briefing` for a test user and confirm the email links point at `/post/<id>` and `/blueprint`.
+- Manually visit `/cockpit?drop=<id>` to confirm it forwards to `/post/<id>`.
+- Save a new daily push hour in V2 Settings, re-invoke the cron, confirm the new hour is honored.
+
+## Technical Notes
+
+- Files touched:
+  - `supabase/functions/send-email/index.ts` — update `daily_drop_ready` URL, update `monday_briefing` URL, add 3 new cases, remove `daily_content_reminder` case.
+  - `supabase/functions/daily-execution-push/index.ts` — payload field rename only.
+  - `supabase/functions/monday-briefing/index.ts` — add brand-incomplete nudge.
+  - New `supabase/functions/weekly-recap/index.ts`.
+  - Delete `supabase/functions/content-daily-reminder/`.
+  - `src/App.tsx` — update `/briefing` redirect, mount drop-forward effect (or add inside `V2Cockpit`).
+  - `src/pages/v2/Cockpit.tsx` — `?drop=` forwarder.
+  - `src/pages/v2/Settings.tsx` — add daily-push-hour, timezone, test-send.
+  - Studio completion handler — call `send-email` with `studio_generation_ready` on long runs.
+- DB: one column on `profiles` (`brand_nudge_sent_at TIMESTAMPTZ`). Migration uses the standard `update_updated_at_column` trigger; no new tables, so no GRANT block needed.
+- Cron: `supabase--insert` to schedule `weekly-recap` hourly and to `cron.unschedule('content-daily-reminder')`.
+- Out of scope: in-app push/web-push, WhatsApp delivery, SMS — emails only.
