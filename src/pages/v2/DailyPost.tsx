@@ -279,6 +279,8 @@ const DailyPost = () => {
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Today's post — Brandie" description="Execute the day." path={`/post/${dayId}`} noindex />
+      <NewAppHeader />
+
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 pt-10 sm:pt-14 space-y-8">
         <header className="space-y-3">
