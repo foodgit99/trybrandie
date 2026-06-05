@@ -69,10 +69,10 @@ const STAGE_COPY: Record<string, { title: string; body: string }> = {
 
 const FOOTER_LINK: Record<string, { label: string; to: string }> = {
   research: { label: "Open Trend Lab", to: "/trend-lab" },
-  ideation: { label: "Open Content Hub", to: "/content-hub" },
-  strategy: { label: "Open Content Hub", to: "/content-hub?tab=strategy" },
-  planning: { label: "Open Content Hub", to: "/content-hub?tab=strategy" },
-  execution: { label: "Open Content Hub", to: "/content-hub?tab=content" },
+  ideation: { label: "Open Content Hub", to: "/hub" },
+  strategy: { label: "Open Content Hub", to: "/hub?tab=week" },
+  planning: { label: "Open Content Hub", to: "/hub?tab=week" },
+  execution: { label: "Open Content Hub", to: "/hub?tab=today" },
   reporting: { label: "Open Report", to: "/report" },
 };
 

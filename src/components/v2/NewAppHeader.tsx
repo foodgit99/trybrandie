@@ -106,7 +106,7 @@ const NewAppHeader = () => {
               <Gauge className="h-4 w-4" />
               Cockpit
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/content-hub")}>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/hub")}>
               <Calendar className="h-4 w-4" />
               Content Hub
             </DropdownMenuItem>

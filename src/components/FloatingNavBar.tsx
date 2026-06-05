@@ -18,9 +18,10 @@ const FloatingNavBar = () => {
 
   // Only render on legacy + shared utility surfaces. The primary v2 experience
   // uses NewFloatingNav. Studio is excluded because it has its own chrome.
-  const allowedPrefixes = ["/legacy", "/content", "/history", "/plans", "/affiliate", "/admin"];
+  const allowedPrefixes = ["/legacy", "/history", "/plans", "/affiliate", "/admin"];
+  const isLegacyContent = location.pathname === "/content" || location.pathname.startsWith("/content/");
   const visible =
-    !!user && allowedPrefixes.some((p) => location.pathname.startsWith(p));
+    !!user && (isLegacyContent || allowedPrefixes.some((p) => location.pathname.startsWith(p)));
 
   // Toggle the body padding class strictly based on nav visibility.
   // Re-runs on every route change (location.pathname) so navigating into a

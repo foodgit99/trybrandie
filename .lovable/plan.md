@@ -1,54 +1,57 @@
-# Make the End-to-end pipeline live
+# New Content Hub (clean v2 flow)
 
-Right now the pipeline on `/engine` is a static map of six stages with status inferred only from the on/off toggle. I'll replace that with a real telemetry-driven component that breathes with the actual autonomous engine.
+## Root cause of the current pain
+- `FloatingNavBar` (legacy pill) uses `allowedPrefixes = ["/legacy", "/content", …]`. Because `"/content-hub".startsWith("/content")` is true, the legacy pill renders on top of `NewFloatingNav` on the current ContentHubV2 page.
+- ContentHubV2 itself is mostly fine, but its top-bar "Studio / Engine / Calendar" buttons and its sub-tab navigation will be re-checked so the new page hits **only** v2 routes (`/cockpit`, `/blueprint`, `/engine`, `/studio`, `/post/:id`, `/brand`, `/report`, `/hub`).
 
-## What changes for the user
+## 1. Create the new hub
 
-- Each of the 6 stages (Research → Ideation → Strategy → Planning → Execution → Reporting) shows a **live relative timestamp** ("just now", "2m ago", "yesterday") sourced from the last real event for the current brand.
-- Each stage shows a **status pill**: `Running`, `Healthy`, `Idle`, `Error`, or `Waiting`, derived from telemetry rather than the toggle.
-- Tapping a stage opens a **Stage Logs sheet** listing the last ~20 telemetry events for that stage with timestamp, idea title, status, and any error message. A "View full run" link jumps to `/admin/autopilot` (admins only) or the relevant Blueprint/Content Hub row.
-- A subtle dot pulses on the currently-running stage; completed earlier stages keep a check; later ones stay muted — but now driven by actual events, not the toggle.
-- The component **auto-refreshes** every 20s and subscribes to `autopilot_run_events` realtime so a run in progress visibly walks across the pipeline.
+**File:** `src/pages/v2/Hub.tsx` (new) — route `/hub`.
 
-## Telemetry mapping (real signals → stages)
+Same data model as ContentHubV2 (`content_ideas`, `campaigns`, `weekly_blueprints`, `autopilot_settings`) — that data **is** the new flow's output. What changes:
 
-| Stage      | Source of truth                                                                                          |
-| ---------- | -------------------------------------------------------------------------------------------------------- |
-| Research   | `brand_trend_intel.generated_at` (latest row for brand)                                                  |
-| Ideation   | `content_ideas.created_at` where `autopilot = true` (latest)                                             |
-| Strategy   | `content_ideas.strategic_arc IS NOT NULL` (latest `created_at`)                                          |
-| Planning   | `autopilot_settings.weekly_plan_last_run` + latest `content_ideas.blueprint_id`                          |
-| Execution  | `autopilot_run_events` joined to `content_ideas` for this brand (latest, plus any with status=processing)|
-| Reporting  | `autopilot_runs.completed_at` (latest)                                                                   |
+- Wrapper uses `NewAppHeader` + `AgentChatDock` (no legacy chrome).
+- Top action strip → `Cockpit`, `Blueprint`, `Engine`, `Studio` (all v2 routes, no `/content`, no `/history`, no `/legacy/*`).
+- Tabs: **Today · This Week · Funnels · Campaigns** — rebuilt around the V2 cockpit/blueprint vocabulary:
+  - **Today** — items where `scheduled_for = today`, deep-link to `/post/:id`, plus a "View today in Cockpit" link to `/cockpit`.
+  - **This Week** — pulls the most recent `weekly_blueprints` row + its scheduled ideas (the StrategyTab logic, cleaned up); "Open Blueprint" → `/blueprint`.
+  - **Funnels** — same 4-stage bucketing as today's V2 hub, but each row opens `/post/:id` directly (no in-page `?item=` focus mode tied to legacy edit affordances).
+  - **Campaigns** — campaign cards; click → opens the campaign's first idea via `/post/:id` (no `/content` fallback).
+- Empty states route to `/studio` or open the agent dock — never `/content`.
+- `SEO` `path="/hub"`.
 
-Status rules per stage:
-- `Running` — event within last 90s OR an `autopilot_run_events.status = 'processing'` row exists for the stage.
-- `Error`   — latest event for the stage has `status` containing `failed` or non-null `error_message`.
-- `Healthy` — latest event succeeded within the last 7 days.
-- `Idle`    — no events in the last 7 days but engine is enabled.
-- `Waiting` — engine disabled.
+## 2. Wire it into the new-flow nav
 
-## Implementation
+**`src/components/v2/NewFloatingNav.tsx`**
+- Change Content item: `{ to: "/hub", label: "Content", icon: LayoutGrid }`.
+- Replace `"/content-hub"` in `primaryPrefixes` with `"/hub"`.
 
-1. **New component** `src/components/v2/PipelineTelemetry.tsx`
-   - Takes `brandId`, `enabled`.
-   - One `useQuery` (`v2-pipeline-telemetry`) that runs 5 small parallel selects (trend intel, ideas, settings, runs, events) and folds them into a `StageState[]`.
-   - `refetchInterval: 20_000` + a `supabase.channel('pipeline-events')` postgres_changes subscription on `autopilot_run_events` filtered by `brand_id` to invalidate the query on insert.
-   - Renders the existing pipeline visual (lifted from `Engine.tsx` lines ~360–410) but each `<li>` becomes a `<button>` that opens the stage sheet.
-   - Relative time helper (local, no dayjs dep) updates via a 30s interval state tick.
+**`src/components/v2/NewAppHeader.tsx`** — change the Content Hub dropdown entry from `navigate("/content-hub")` to `navigate("/hub")`.
 
-2. **New component** `src/components/v2/StageLogsSheet.tsx`
-   - Uses existing `@/components/ui/sheet`.
-   - Lists the last 20 `autopilot_run_events` relevant to that stage (or the fallback signal rows for Research/Reporting which don't emit events) with: timestamp, idea title, status badge, error text if present.
-   - Footer button "Open full run logs" → `/admin/autopilot` when `has_role('admin')`, otherwise "Open Blueprint" → `/blueprint` for planning/strategy or "Open Content Hub" for execution.
+**`src/components/v2/StageLogsSheet.tsx`** — repoint the four `"/content-hub*"` actions to `"/hub*"` (preserving `?tab=…` params, mapped to the new tab ids).
 
-3. **Edit** `src/pages/v2/Engine.tsx`
-   - Replace the static pipeline block (lines ~360–410) with `<PipelineTelemetry brandId={brand.id} enabled={merged.enabled} />`.
-   - Remove the now-unused `activeStageIdx`, keep `PIPELINE` constant by moving it into the new component.
+**`src/pages/v2/Cockpit.tsx`** — the two `/content-hub` links become `/hub` (and `/hub?tab=content&item=…` → `/post/:id` directly so the new hub stays clean).
 
-4. **No schema changes.** All required tables (`autopilot_runs`, `autopilot_run_events`, `brand_trend_intel`, `content_ideas`, `autopilot_settings`) already exist with RLS that lets the owner read their own rows.
+## 3. Unhook legacy from the v2 surface
 
-## Out of scope
+**`src/App.tsx`**
+- Add `<Route path="/hub" element={<ProtectedRoute><V2Hub /></ProtectedRoute>} />`.
+- Keep `/content-hub` route mounted (ContentHubV2 stays reachable as requested).
+- Keep `/content` and `/legacy/content` both pointing at legacy `ContentHub` (unchanged).
 
-- Emitting *new* telemetry events for Research/Strategy/Reporting from edge functions. For V1 we infer those stages from existing row timestamps; we can layer in dedicated events later without changing the UI contract.
-- Admin-only deep traces beyond the existing `/admin/autopilot` route.
+**`src/components/FloatingNavBar.tsx` (legacy pill)** — tighten so it never bleeds onto v2:
+- Replace the `startsWith("/content")` match with an exact-prefix test that excludes `/content-hub` and `/hub`. Concretely: drop `"/content"` from `allowedPrefixes` (the legacy pill only needs to appear on legacy + utility routes; `/content` is reached from legacy nav and already has the legacy chrome via its own page). If we want it on `/content` specifically, special-case it: `pathname === "/content" || pathname.startsWith("/content/")`.
+
+**Confirm `src/pages/ContentHub.tsx` is untouched** — no edits in this loop. ("Revert to original" = leave it as-is; this loop only removes new-flow code paths that point at it.)
+
+## 4. QA checklist
+- Visit `/hub` on mobile: only the new bottom-tab nav renders (no legacy pill).
+- Visit `/content-hub`: NewFloatingNav still renders; legacy pill no longer overlays.
+- Visit `/content` (legacy): legacy pill renders, NewFloatingNav does not.
+- Cockpit "Open Content Hub" → `/hub`; StageLogsSheet CTAs → `/hub?tab=…`.
+- No button on `/hub`, `NewAppHeader`, `NewFloatingNav`, `Cockpit`, `Blueprint`, `Engine`, `Studio` resolves to `/content`, `/history`, or `/legacy/*`.
+
+## Files
+- **Create:** `src/pages/v2/Hub.tsx`
+- **Edit:** `src/App.tsx`, `src/components/v2/NewFloatingNav.tsx`, `src/components/v2/NewAppHeader.tsx`, `src/components/v2/StageLogsSheet.tsx`, `src/pages/v2/Cockpit.tsx`, `src/components/FloatingNavBar.tsx`
+- **Untouched:** `src/pages/ContentHub.tsx`, `src/pages/v2/ContentHubV2.tsx`

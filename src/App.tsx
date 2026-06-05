@@ -44,6 +44,7 @@ import V2Settings from "./pages/v2/Settings";
 import V2Engine from "./pages/v2/Engine";
 import V2ContentHub from "./pages/v2/ContentHubV2";
 import V2Studio from "./pages/v2/Studio";
+import V2Hub from "./pages/v2/Hub";
 
 const queryClient = new QueryClient();
 
@@ -153,6 +154,7 @@ const App = () => (
           <Route path="/settings" element={<ProtectedRoute><V2Settings /></ProtectedRoute>} />
           <Route path="/engine" element={<ProtectedRoute><V2Engine /></ProtectedRoute>} />
           <Route path="/content-hub" element={<ProtectedRoute><V2ContentHub /></ProtectedRoute>} />
+          <Route path="/hub" element={<ProtectedRoute><V2Hub /></ProtectedRoute>} />
 
           {/* Shared / utility surfaces (no v2 equivalent yet) */}
           <Route path="/studio" element={<ProtectedRoute><V2Studio /></ProtectedRoute>} />

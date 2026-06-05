@@ -6,13 +6,13 @@ import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/cockpit", label: "Cockpit", icon: Gauge },
-  { to: "/content-hub", label: "Content", icon: LayoutGrid },
+  { to: "/hub", label: "Content", icon: LayoutGrid },
   { to: "/brand", label: "Brand", icon: Palette },
   { to: "/report", label: "Report", icon: BarChart3 },
 ];
 
 // Primary v2 surfaces where this nav should render
-const primaryPrefixes = ["/cockpit", "/blueprint", "/brand", "/report", "/post/", "/settings", "/engine", "/content-hub"];
+const primaryPrefixes = ["/cockpit", "/blueprint", "/brand", "/report", "/post/", "/settings", "/engine", "/hub", "/content-hub", "/studio"];
 
 const NewFloatingNav = () => {
   const { user } = useAuth();
