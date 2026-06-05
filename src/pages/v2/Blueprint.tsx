@@ -75,7 +75,7 @@ const Blueprint = () => {
       const { data, error } = await supabase
         .from("content_ideas")
         .select(
-          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id",
+          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id, design:design_id(image_url, caption)",
         )
         .eq("brand_id", brand.id)
         .gte("scheduled_for", weekStart.toISOString())
