@@ -357,58 +357,8 @@ const Engine = () => {
           ))}
         </section>
 
-        {/* PIPELINE VISUAL */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-              End-to-end pipeline
-            </h2>
-            <span className="text-[11px] text-muted-foreground">
-              {merged.enabled ? "Loop active" : "Loop paused"}
-            </span>
-          </div>
-
-          <div className="relative rounded-3xl border border-border bg-card p-5 sm:p-6">
-            <div
-              className="hidden sm:block absolute left-8 right-8 top-[58px] h-px bg-border"
-              aria-hidden
-            />
-            <ol className="grid grid-cols-2 sm:grid-cols-6 gap-4 relative">
-              {PIPELINE.map((stage, i) => {
-                const Icon = stage.icon;
-                const isActive = i === activeStageIdx;
-                const isDone = i < activeStageIdx;
-                return (
-                  <li key={stage.id} className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2">
-                    <motion.div
-                      animate={isActive ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-                      transition={{ duration: 1.6, repeat: isActive ? Infinity : 0 }}
-                      className={`relative z-10 h-10 w-10 rounded-full grid place-items-center border-2 shrink-0 ${
-                        isActive
-                          ? "bg-foreground text-background border-foreground"
-                          : isDone
-                          ? "bg-background border-foreground text-foreground"
-                          : "bg-background border-border text-muted-foreground"
-                      }`}
-                    >
-                      {isDone ? (
-                        <CheckCircle2 className="h-4 w-4" />
-                      ) : (
-                        <Icon className="h-4 w-4" />
-                      )}
-                    </motion.div>
-                    <div>
-                      <p className="text-[12px] font-medium leading-tight">{stage.label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">
-                        {stage.sub}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        </section>
+        {/* PIPELINE — live telemetry */}
+        <PipelineTelemetry brandId={brand!.id} enabled={merged.enabled} />
 
         {/* MODE — segmented throttle */}
         <section className="space-y-5">
