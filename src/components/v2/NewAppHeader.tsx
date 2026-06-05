@@ -23,6 +23,7 @@ import {
   CreditCard,
   LogOut,
   Shield,
+  Cpu,
 } from "lucide-react";
 
 const FREE_MONTHLY = 5;
@@ -107,6 +108,10 @@ const NewAppHeader = () => {
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/blueprint")}>
               <Calendar className="h-4 w-4" />
               Blueprint
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/engine")}>
+              <Cpu className="h-4 w-4" />
+              Engine
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brand")}>
               <Palette className="h-4 w-4" />
