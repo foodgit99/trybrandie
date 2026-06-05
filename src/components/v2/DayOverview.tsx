@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, Loader2, Sparkles, X } from "lucide-react";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
+import IdeaThumb from "@/components/v2/IdeaThumb";
 
 type Idea = {
   id: string;
@@ -13,6 +14,8 @@ type Idea = {
   day_of_week: number | null;
   status: string;
   approval_status: string;
+  design_id?: string | null;
+  design?: { image_url: string | null; caption: string | null } | null;
 };
 
 interface DayOverviewProps {
