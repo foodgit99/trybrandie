@@ -50,6 +50,7 @@ const FOLDER_COLORS = [
 const DesignHistory = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const smartBack = useSmartBack("/");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
