@@ -65,6 +65,7 @@ type Idea = {
   content_category: string | null;
   campaign_id: string | null;
   design_id: string | null;
+  design?: { image_url: string | null; caption: string | null } | null;
   created_at: string;
 };
 
