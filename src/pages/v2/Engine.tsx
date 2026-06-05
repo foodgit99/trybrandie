@@ -501,6 +501,36 @@ const Engine = () => {
           })()}
         </section>
 
+        {/* MANUAL MODE STUDIO CTA */}
+        {merged.mode === "manual" && (
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-foreground/20 bg-foreground text-background p-5 sm:p-6 flex flex-wrap items-center gap-4"
+          >
+            <span className="h-11 w-11 rounded-xl bg-background/10 grid place-items-center shrink-0">
+              <Wand2 className="h-5 w-5" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs tracking-[0.22em] uppercase text-background/60">
+                Manual mode active
+              </p>
+              <p className="font-serif text-xl tracking-tight mt-1">
+                Open the Studio to design on demand
+              </p>
+              <p className="text-sm text-background/70 mt-0.5">
+                Same agents, same brand memory — you in the driver's seat.
+              </p>
+            </div>
+            <Button asChild size="lg" variant="secondary" className="rounded-xl">
+              <Link to="/studio">
+                Open Studio <ArrowRight className="h-4 w-4 ml-2" />
+              </Link>
+            </Button>
+          </motion.section>
+        )}
+
+
 
         {/* DELIVERY + QUEUE */}
         <section className="grid md:grid-cols-2 gap-4">
