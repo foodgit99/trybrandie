@@ -79,10 +79,10 @@ const DELIVERY_OPTIONS: { id: Delivery; label: string; sub: string }[] = [
   { id: "evening", label: "Evening", sub: "18:00" },
 ];
 
-const AUTOFILL_OPTIONS: { id: AutoFill; label: string; description: string }[] = [
-  { id: "never", label: "Never", description: "Pause when credits run out." },
-  { id: "free_only", label: "Free credits only", description: "Use free monthly allowance, then pause." },
-  { id: "always", label: "Always", description: "Use any credits available — never stops." },
+const AUTOFILL_OPTIONS: { id: AutoFill; label: string; description: string; icon: any }[] = [
+  { id: "never", label: "Never", description: "Pause when credits run out.", icon: Ban },
+  { id: "free_only", label: "Free credits only", description: "Use free monthly allowance, then pause.", icon: Gift },
+  { id: "always", label: "Always", description: "Use any credits available — never stops.", icon: InfinityIcon },
 ];
 
 const PIPELINE = [
