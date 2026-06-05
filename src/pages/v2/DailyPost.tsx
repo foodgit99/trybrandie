@@ -620,18 +620,29 @@ const DailyPost = () => {
               The brief
             </h2>
             <span className="text-[11px] text-muted-foreground">
-              {briefSaving ? "Saving…" : briefSavedAt ? "Saved" : "Edits save on blur"}
+              {design?.image_url
+                ? "Locked after generation"
+                : briefSaving
+                ? "Saving…"
+                : briefSavedAt
+                ? "Saved"
+                : "Edits save on blur"}
             </span>
           </div>
           <Textarea
             value={briefDraft}
             onChange={(e) => setBriefDraft(e.target.value)}
             onBlur={saveBrief}
+            readOnly={!!design?.image_url}
             placeholder="What should this post say or do?"
-            className="min-h-[120px] text-[15px] leading-relaxed bg-card"
+            className={`min-h-[120px] text-[15px] leading-relaxed bg-card ${
+              design?.image_url ? "opacity-80 cursor-not-allowed" : ""
+            }`}
           />
           <p className="text-[11px] text-muted-foreground">
-            Brandie uses this brief when rendering the design.
+            {design?.image_url
+              ? "This brief is locked because the design is already generated."
+              : "Edit the brief now, then generate or save it — the autonomous engine will render it when scheduled."}
           </p>
         </section>
 
