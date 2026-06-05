@@ -18,6 +18,7 @@ import {
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import DayOverview from "@/components/v2/DayOverview";
+import CEOBriefingPreview from "@/components/v2/CEOBriefingPreview";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -434,6 +435,9 @@ const Cockpit = () => {
           </section>
         )}
 
+
+        {/* CEO BRIEFING PREVIEW */}
+        <CEOBriefingPreview brandId={brand?.id} brandName={brand?.name} />
 
         {/* APPROVAL ACTION */}
         <section className="rounded-3xl border border-border bg-foreground text-background p-7 sm:p-10 space-y-5">
