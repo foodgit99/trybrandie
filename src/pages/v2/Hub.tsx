@@ -231,34 +231,71 @@ const Hub = () => {
           </p>
         </header>
 
-        {/* Engine status strip */}
-        <section className="rounded-2xl border border-border bg-card/50 p-4 sm:p-5 flex flex-wrap items-center gap-3 sm:gap-5">
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <span className={cn("absolute inset-0 rounded-full animate-ping", engine?.enabled ? "bg-emerald-500/40" : "bg-muted-foreground/30")} />
-              <span className={cn("relative block h-2.5 w-2.5 rounded-full", engine?.enabled ? "bg-emerald-500" : "bg-muted-foreground/60")} />
-            </div>
-            <span className="text-sm font-medium">Engine {engine?.enabled ? "running" : "idle"}</span>
-            {engine?.delivery_time && (
-              <span className="text-xs text-muted-foreground">· delivers {engine.delivery_time}</span>
+        {/* Engine status — mirrors /engine live card */}
+        <section className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-stretch">
+          <div
+            className={cn(
+              "relative overflow-hidden rounded-3xl border p-5 transition-colors",
+              engine?.enabled
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-card"
             )}
+          >
+            {/* Ambient "engine working" pulse — sweeps left → right */}
+            {engine?.enabled && (
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 w-1/2 rounded-3xl"
+                style={{
+                  background:
+                    "linear-gradient(90deg, transparent 0%, hsl(152 85% 55% / 0.35) 45%, hsl(152 95% 70% / 0.6) 50%, hsl(152 85% 55% / 0.35) 55%, transparent 100%)",
+                  filter: "blur(8px)",
+                }}
+                initial={{ left: "-50%" }}
+                animate={{ left: ["-50%", "100%"] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.3 }}
+              />
+            )}
+
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p
+                  className={cn(
+                    "text-[10px] tracking-[0.22em] uppercase",
+                    engine?.enabled ? "text-background/60" : "text-muted-foreground"
+                  )}
+                >
+                  {engine?.enabled ? "Running" : "Standby"}
+                </p>
+                <p className="font-serif text-2xl tracking-tight mt-1">
+                  {engine?.enabled ? "Engine live" : "Engine off"}
+                </p>
+              </div>
+            </div>
+            <div
+              className={cn(
+                "relative mt-3 flex items-center gap-1.5 text-[11px]",
+                engine?.enabled ? "text-background/70" : "text-muted-foreground"
+              )}
+            >
+              {engine?.enabled ? (
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                </span>
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+              )}
+              {ideas.length} ideas · {campaigns.length} campaigns · {blueprints.length} blueprints
+            </div>
           </div>
-          <div className="h-4 w-px bg-border hidden sm:block" />
-          <div className="text-xs text-muted-foreground">
-            {ideas.length} ideas · {campaigns.length} campaigns · {blueprints.length} blueprints
-          </div>
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <Button size="sm" variant="outline" className="rounded-xl" onClick={() => navigate("/cockpit")}>
-              <Gauge className="h-3.5 w-3.5 mr-1.5" /> Cockpit
+
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:justify-center">
+            <Button variant="outline" className="rounded-2xl h-auto py-3 justify-start gap-2" onClick={() => navigate("/engine")}>
+              <Power className="h-4 w-4" /> Engine
             </Button>
-            <Button size="sm" variant="outline" className="rounded-xl" onClick={() => navigate("/blueprint")}>
-              <Calendar className="h-3.5 w-3.5 mr-1.5" /> Blueprint
-            </Button>
-            <Button size="sm" variant="outline" className="rounded-xl" onClick={() => navigate("/engine")}>
-              <Power className="h-3.5 w-3.5 mr-1.5" /> Engine
-            </Button>
-            <Button size="sm" variant="outline" className="rounded-xl" onClick={() => navigate("/studio")}>
-              <Wand2 className="h-3.5 w-3.5 mr-1.5" /> Studio
+            <Button variant="outline" className="rounded-2xl h-auto py-3 justify-start gap-2" onClick={() => navigate("/studio")}>
+              <Wand2 className="h-4 w-4" /> Studio
             </Button>
           </div>
         </section>
