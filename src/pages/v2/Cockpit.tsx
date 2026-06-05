@@ -383,7 +383,7 @@ const Cockpit = () => {
                       className="snap-start shrink-0 w-[78%] sm:w-[300px]"
                     >
                       <Link
-                        to={`/post/${it.id}`}
+                        to={`/content-hub?tab=content&item=${it.id}`}
                         className="group h-full flex flex-col rounded-2xl border border-border bg-card p-5 transition-all hover:border-foreground/40 hover:shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-3 mb-4">
