@@ -654,13 +654,6 @@ const DailyPost = () => {
           )}
         </section>
 
-        {/* BRIEF */}
-        <section className="space-y-2">
-          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            The brief
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">{idea.prompt}</p>
-        </section>
       </main>
     </div>
   );
