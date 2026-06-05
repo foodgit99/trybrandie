@@ -151,6 +151,7 @@ const App = () => (
           <Route path="/brand" element={<ProtectedRoute><V2BrandCentre /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><V2Settings /></ProtectedRoute>} />
           <Route path="/engine" element={<ProtectedRoute><V2Engine /></ProtectedRoute>} />
+          <Route path="/content-hub" element={<ProtectedRoute><V2ContentHub /></ProtectedRoute>} />
 
           {/* Shared / utility surfaces (no v2 equivalent yet) */}
           <Route path="/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
