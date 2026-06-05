@@ -298,13 +298,39 @@ const Engine = () => {
             </div>
 
             <div
-              className={`rounded-3xl border p-5 min-w-[260px] transition-colors ${
+              className={`relative overflow-hidden rounded-3xl border p-5 min-w-[260px] transition-colors ${
                 merged.enabled
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-card"
               }`}
             >
-              <div className="flex items-center justify-between gap-4">
+              {/* Ambient "engine working" animation */}
+              {merged.enabled && (
+                <>
+                  <motion.div
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-px rounded-3xl"
+                    style={{
+                      background:
+                        "radial-gradient(120% 60% at 0% 50%, hsl(152 76% 60% / 0.18), transparent 60%)",
+                    }}
+                    animate={{ x: ["-30%", "30%", "-30%"] }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <motion.div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.5), transparent)",
+                    }}
+                    animate={{ x: ["-100%", "100%"] }}
+                    transition={{ duration: 3.2, repeat: Infinity, ease: "linear" }}
+                  />
+                </>
+              )}
+
+              <div className="relative flex items-center justify-between gap-4">
                 <div>
                   <p
                     className={`text-[10px] tracking-[0.22em] uppercase ${
@@ -325,15 +351,18 @@ const Engine = () => {
                 />
               </div>
               <div
-                className={`mt-3 flex items-center gap-1.5 text-[11px] ${
+                className={`relative mt-3 flex items-center gap-1.5 text-[11px] ${
                   merged.enabled ? "text-background/70" : "text-muted-foreground"
                 }`}
               >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    merged.enabled ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/40"
-                  }`}
-                />
+                {merged.enabled ? (
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                ) : (
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                )}
                 Last plan: {lastRunLabel}
               </div>
             </div>
