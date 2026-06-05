@@ -364,6 +364,18 @@ async function processIdea(
       await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
       return { success: false, status: "failed_error", error: "no_cover_design_id" };
     }
+
+    // Defense-in-depth: ensure caption is persisted on cover slide for the post page.
+    if (designData?.caption) {
+      try {
+        await supabase
+          .from("designs")
+          .update({ caption: designData.caption })
+          .eq("id", coverDesignId);
+      } catch (e) {
+        console.error(`[autopilot] Failed to persist caption on cover ${coverDesignId}:`, e);
+      }
+    }
   } else {
     if (!designData?.image_url) {
       console.error(`[autopilot] No image_url returned for idea ${idea.id}`);
