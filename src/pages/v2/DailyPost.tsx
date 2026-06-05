@@ -258,10 +258,72 @@ const DailyPost = () => {
     toast({ title: "Caption copied." });
   };
 
-  const handleWhatsApp = () => {
-    const text = encodeURIComponent(captionDraft || idea?.title || "");
-    window.open(`https://wa.me/?text=${text}`, "_blank", "noopener");
+  const handleWhatsApp = async () => {
+    const caption = captionDraft || idea?.title || "";
+    const slidesToShare = isCarousel
+      ? allSlides.filter((s) => s?.image_url)
+      : activeSlide?.image_url
+      ? [activeSlide]
+      : [];
+
+    // Try native share with image(s) + caption — opens the OS share sheet
+    // (WhatsApp shows up there on iOS/Android) so the post and the caption
+    // travel together in a single share.
+    if (slidesToShare.length > 0 && typeof navigator !== "undefined" && (navigator as any).canShare) {
+      try {
+        const files: File[] = [];
+        for (let i = 0; i < slidesToShare.length; i++) {
+          const s = slidesToShare[i];
+          const res = await fetch(s.image_url);
+          const blob = await res.blob();
+          files.push(
+            new File([blob], `${baseName}${isCarousel ? `-slide-${i + 1}` : ""}.png`, {
+              type: blob.type || "image/png",
+            }),
+          );
+        }
+        const sharePayload: ShareData = { text: caption, files };
+        if ((navigator as any).canShare(sharePayload)) {
+          await (navigator as any).share(sharePayload);
+          // Caption is shared along with the image — also drop it on the
+          // clipboard so the user can paste it again if needed.
+          try {
+            await navigator.clipboard.writeText(caption);
+          } catch {
+            /* clipboard optional */
+          }
+          return;
+        }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return; // user cancelled
+        // fall through to wa.me fallback
+      }
+    }
+
+    // Fallback: copy caption + open WhatsApp with the caption prefilled.
+    // (wa.me cannot attach images; user pastes the downloaded image.)
+    try {
+      if (caption) await navigator.clipboard.writeText(caption);
+    } catch {
+      /* clipboard optional */
+    }
+    if (slidesToShare[0]?.image_url) {
+      await downloadOne(
+        slidesToShare[0].image_url,
+        `${baseName}${isCarousel ? "-slide-1" : ""}.png`,
+      );
+    }
+    toast({
+      title: "Caption copied",
+      description: "Image saved. Attach it in WhatsApp and paste the caption.",
+    });
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(caption)}`,
+      "_blank",
+      "noopener",
+    );
   };
+
 
   const downloadOne = async (url: string, filename: string) => {
     try {
