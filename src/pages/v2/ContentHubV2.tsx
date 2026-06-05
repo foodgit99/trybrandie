@@ -448,7 +448,7 @@ function FunnelsTab({
             ) : (
               <ul className="divide-y divide-border">
                 {items.map((i) => {
-                  const cat = getCategoryMeta(i.content_category as ContentCategoryId | undefined);
+                  const cat = getCategoryMeta(i.content_category ?? "");
                   return (
                     <li key={i.id}>
                       <button
@@ -517,7 +517,7 @@ function StrategyTab({
         {currentIdeas.length > 0 && (
           <ol className="mt-5 space-y-2">
             {currentIdeas.slice(0, 7).map((i, idx) => {
-              const cat = getCategoryMeta(i.content_category as ContentCategoryId | undefined);
+              const cat = getCategoryMeta(i.content_category ?? "");
               return (
                 <li
                   key={i.id}
@@ -591,7 +591,7 @@ function CampaignsTab({ campaigns, ideas }: { campaigns: Campaign[]; ideas: Idea
   return (
     <section className="grid sm:grid-cols-2 gap-3">
       {campaigns.map((c) => {
-        const cat = getCategoryMeta(c.content_category as ContentCategoryId | undefined);
+        const cat = getCategoryMeta(c.content_category ?? "");
         const linkedIdeas = ideas.filter((i) => i.campaign_id === c.id);
         const done = linkedIdeas.filter((i) => i.status === "completed" || i.status === "posted").length;
         const pct = linkedIdeas.length ? Math.round((done / linkedIdeas.length) * 100) : 0;
@@ -667,7 +667,7 @@ function ContentTab({
       ) : (
         <ul className="divide-y divide-border rounded-2xl border border-border overflow-hidden">
           {filtered.slice(0, 60).map((i) => {
-            const cat = getCategoryMeta(i.content_category as ContentCategoryId | undefined);
+            const cat = getCategoryMeta(i.content_category ?? "");
             const active = i.id === focusedId;
             return (
               <li
