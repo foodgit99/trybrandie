@@ -23,6 +23,7 @@ import {
   CreditCard,
   LogOut,
   Shield,
+  Cpu,
 } from "lucide-react";
 
 const FREE_MONTHLY = 5;
