@@ -20,6 +20,7 @@ import {
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
+import IdeaThumb from "@/components/v2/IdeaThumb";
 
 const WEEKDAY_NAMES = [
   "Monday",
