@@ -1,6 +1,7 @@
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useSmartBack } from "@/hooks/useSmartBack";
 import { useBrand } from "@/hooks/useBrand";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
