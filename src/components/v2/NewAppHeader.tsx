@@ -24,6 +24,7 @@ import {
   LogOut,
   Shield,
   Cpu,
+  Wand2,
 } from "lucide-react";
 
 const FREE_MONTHLY = 5;
