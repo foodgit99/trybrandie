@@ -148,6 +148,42 @@ const Cockpit = () => {
     }
   };
 
+  const handleApproveOne = async (id: string) => {
+    setApprovingId(id);
+    try {
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ approval_status: "approved", status: "scheduled" })
+        .eq("id", id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["v2-cockpit-ideas"] });
+    } catch (err: any) {
+      toast({ title: "Couldn't approve", description: err.message, variant: "destructive" });
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleApproveDay = async (dayIdeas: Idea[]) => {
+    if (!dayIdeas.length) return;
+    setApprovingDay(true);
+    try {
+      const ids = dayIdeas.map((i) => i.id);
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ approval_status: "approved", status: "scheduled" })
+        .in("id", ids);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["v2-cockpit-ideas"] });
+      toast({ title: "Day approved." });
+    } catch (err: any) {
+      toast({ title: "Couldn't approve", description: err.message, variant: "destructive" });
+    } finally {
+      setApprovingDay(false);
+    }
+  };
+
+
   if (authLoading || brandLoading) {
     return (
       <div className="min-h-dvh grid place-items-center text-muted-foreground">
