@@ -13,10 +13,13 @@ import { Label } from "@/components/ui/label";
 import {
   Activity,
   ArrowRight,
+  Ban,
   Brain,
   Calendar,
   CheckCircle2,
   Cpu,
+  Gift,
+  Infinity as InfinityIcon,
   Loader2,
   PauseCircle,
   PlayCircle,
