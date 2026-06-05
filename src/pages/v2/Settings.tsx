@@ -335,7 +335,7 @@ const SettingsV2 = () => {
             </p>
           </div>
           <Button asChild variant="secondary" size="lg" className="rounded-full h-12 gap-2 shrink-0">
-            <Link to="/brand">
+            <Link to="/brand/editor">
               Brand Centre <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
