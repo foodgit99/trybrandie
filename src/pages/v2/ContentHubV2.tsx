@@ -690,12 +690,17 @@ function ContentTab({
                 className={cn("group flex items-center gap-3 px-4 py-3 transition-colors", active ? "bg-secondary/60" : "hover:bg-secondary/40")}
               >
                 <button onClick={() => onFocus(active ? null : i.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                  <span className="text-base">{cat?.emoji ?? "•"}</span>
+                  <IdeaThumb design={i.design} emoji={cat?.emoji} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm truncate">{i.title}</span>
                     <span className="block text-[11px] text-muted-foreground truncate">
                       {i.scheduled_for ?? "Unscheduled"} · {cat?.label ?? "—"} · {i.status}
                     </span>
+                    {i.design?.caption && (
+                      <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">
+                        "{i.design.caption}"
+                      </span>
+                    )}
                   </span>
                 </button>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity">
