@@ -304,28 +304,32 @@ const Engine = () => {
                   : "border-border bg-card"
               }`}
             >
-              {/* Ambient "engine working" pulse — sweeps + breathing glow */}
+              {/* Ambient "engine working" pulse — concentric emerald rings */}
               {merged.enabled && (
                 <>
                   <motion.div
                     aria-hidden
-                    className="pointer-events-none absolute -inset-px rounded-3xl"
-                    style={{
-                      background:
-                        "radial-gradient(70% 90% at 0% 50%, hsl(152 80% 55% / 0.55), transparent 65%)",
+                    className="pointer-events-none absolute inset-0 rounded-3xl"
+                    style={{ boxShadow: "0 0 0 0 hsl(152 80% 55% / 0.55)" }}
+                    animate={{
+                      boxShadow: [
+                        "0 0 0 0 hsl(152 80% 55% / 0.55)",
+                        "0 0 0 14px hsl(152 80% 55% / 0)",
+                      ],
                     }}
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
                   />
                   <motion.div
                     aria-hidden
-                    className="pointer-events-none absolute -inset-px rounded-3xl"
-                    style={{
-                      background:
-                        "radial-gradient(45% 120% at 50% 50%, hsl(152 90% 60% / 0.45), transparent 70%)",
+                    className="pointer-events-none absolute inset-0 rounded-3xl"
+                    style={{ boxShadow: "0 0 0 0 hsl(152 80% 55% / 0.4)" }}
+                    animate={{
+                      boxShadow: [
+                        "0 0 0 0 hsl(152 80% 55% / 0.4)",
+                        "0 0 0 22px hsl(152 80% 55% / 0)",
+                      ],
                     }}
-                    animate={{ x: ["-40%", "40%", "-40%"], opacity: [0.5, 0.9, 0.5] }}
-                    transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 1 }}
                   />
                 </>
               )}
