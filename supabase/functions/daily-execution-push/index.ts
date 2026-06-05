@@ -118,7 +118,8 @@ Deno.serve(async (req) => {
               idea_title: idea.title,
               hook: (idea as any).designs?.caption,
               image_url: (idea as any).designs?.image_url,
-              design_id: idea.id,
+              idea_id: idea.id,
+              design_id: idea.id, // back-compat
               day_label: dayLabel,
             },
           }),

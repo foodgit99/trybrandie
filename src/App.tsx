@@ -171,7 +171,7 @@ const App = () => (
 
           {/* Bookmark shims */}
           <Route path="/dashboard" element={<Navigate to="/cockpit" replace />} />
-          <Route path="/briefing" element={<Navigate to="/cockpit#week-blueprint" replace />} />
+          <Route path="/briefing" element={<Navigate to="/blueprint" replace />} />
           <Route path="/v2" element={<Navigate to="/" replace />} />
           <Route path="/v2/onboarding" element={<Navigate to="/onboarding" replace />} />
           <Route path="/v2/cockpit" element={<Navigate to="/cockpit" replace />} />

@@ -1034,7 +1034,7 @@ Deno.serve(async (req) => {
         const name = data?.name || "";
         const weekLabel = data?.week_label || "this week";
         const ideas: Array<{ day: string; title: string; role?: string }> = data?.ideas || [];
-        const briefingUrl = `${APP_URL}/cockpit#week-blueprint`;
+        const briefingUrl = `${APP_URL}/blueprint`;
         subject = `Your weekly strategy is ready · ${weekLabel} 📅`;
         const ideaRows = ideas
           .map(
@@ -1073,8 +1073,9 @@ Deno.serve(async (req) => {
         const ideaTitle = data?.idea_title || "Today's drop";
         const hook = data?.hook || data?.caption || "";
         const imageUrl = data?.image_url;
-        const dropUrl = data?.design_id
-          ? `${APP_URL}/cockpit?drop=${data.design_id}`
+        const dropTargetId = data?.idea_id || data?.design_id;
+        const dropUrl = dropTargetId
+          ? `${APP_URL}/post/${dropTargetId}`
           : `${APP_URL}/cockpit`;
         const dayLabel = data?.day_label || "Today";
         subject = `${dayLabel}'s drop is ready 📲`;
