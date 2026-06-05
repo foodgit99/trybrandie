@@ -154,7 +154,7 @@ const App = () => (
           <Route path="/content-hub" element={<ProtectedRoute><V2ContentHub /></ProtectedRoute>} />
 
           {/* Shared / utility surfaces (no v2 equivalent yet) */}
-          <Route path="/studio" element={<ProtectedRoute><DesignStudio /></ProtectedRoute>} />
+          <Route path="/studio" element={<ProtectedRoute><V2Studio /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
           <Route path="/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
           <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
