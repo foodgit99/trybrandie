@@ -158,6 +158,7 @@ const DesignStudio = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const smartBack = useSmartBack("/dashboard");
   const [searchParams] = useSearchParams();
   const generation = useDesignGeneration();
   const [messages, setMessages] = useState<Message[]>([]);
