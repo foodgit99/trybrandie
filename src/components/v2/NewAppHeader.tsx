@@ -118,7 +118,7 @@ const NewAppHeader = () => {
               <Wand2 className="h-4 w-4" />
               Studio (Manual)
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brand")}>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brand/editor")}>
               <Palette className="h-4 w-4" />
               Brand Centre
             </DropdownMenuItem>
