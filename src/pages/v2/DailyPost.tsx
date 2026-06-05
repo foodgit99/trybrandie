@@ -63,6 +63,9 @@ const DailyPost = () => {
   const [voting, setVoting] = useState(false);
   const [marking, setMarking] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
+  const [briefDraft, setBriefDraft] = useState("");
+  const [briefSaving, setBriefSaving] = useState(false);
+  const [briefSavedAt, setBriefSavedAt] = useState<number | null>(null);
   const linkedJobRef = useState<{ current: string | null }>({ current: null })[0];
   const generating = generation.status === "generating";
 
