@@ -946,10 +946,7 @@ Deno.serve(async (req) => {
           data?.cta_url || ""
         );
         break;
-      case "daily_content_reminder":
-        subject = `Your content plan for today — ${data?.date || "today"} 📅`;
-        html = dailyContentReminderHtml(data?.name || "", data?.date || "today", data?.ideas || []);
-        break;
+      // Retired: "daily_content_reminder" — superseded by daily-execution-push / daily_drop_ready.
       case "autopilot_design_ready":
         subject = `Your design is ready! ✨ — ${data?.idea_title || "New design"}`;
         html = `
