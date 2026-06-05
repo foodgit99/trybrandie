@@ -244,10 +244,18 @@ const Cockpit = () => {
               const isToday = idx === todayIdx;
               const isPast = idx < todayIdx;
               return (
-                <Link
+                <button
                   key={label}
-                  to="/blueprint"
-                  className={`relative rounded-xl border p-2.5 sm:p-3 min-h-[100px] flex flex-col gap-1.5 transition-all hover:border-foreground/40 ${
+                  type="button"
+                  onClick={() =>
+                    setSelectedDayIdx((cur) => (cur === idx ? null : idx))
+                  }
+                  aria-pressed={selectedDayIdx === idx}
+                  className={`relative text-left rounded-xl border p-2.5 sm:p-3 min-h-[100px] flex flex-col gap-1.5 transition-all hover:border-foreground/40 ${
+                    selectedDayIdx === idx
+                      ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+                      : ""
+                  } ${
                     isToday
                       ? "border-foreground bg-foreground text-background"
                       : "border-border bg-card"
@@ -307,10 +315,32 @@ const Cockpit = () => {
                       )}
                     </div>
                   )}
-                </Link>
+                </button>
               );
             })}
           </div>
+
+          {selectedDayIdx !== null && (() => {
+            const dayIdeas = byDay.get(selectedDayIdx) ?? [];
+            const dayDate = new Date(weekStart);
+            dayDate.setDate(weekStart.getDate() + selectedDayIdx);
+            return (
+              <DayOverview
+                dayLabel={DAY_LABELS[selectedDayIdx]}
+                date={dayDate}
+                isToday={selectedDayIdx === todayIdx}
+                ideas={dayIdeas}
+                onClose={() => setSelectedDayIdx(null)}
+                onApprove={handleApproveOne}
+                onApproveAll={() => handleApproveDay(dayIdeas)}
+                onSeed={handleSeed}
+                approvingId={approvingId}
+                approvingAll={approvingDay}
+                seeding={seeding}
+                weekIsEmpty={totalThisWeek === 0}
+              />
+            );
+          })()}
         </section>
 
         {/* THE ARC */}
