@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import PipelineTelemetry from "@/components/v2/PipelineTelemetry";
 
 type Mode = "manual" | "assisted" | "autonomous";
 type Delivery = "morning" | "afternoon" | "evening";
