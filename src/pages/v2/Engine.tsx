@@ -137,7 +137,7 @@ const Engine = () => {
         delivery_time: "morning",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos",
         min_queue_threshold: 5,
-        auto_fill_mode: "free_only",
+        auto_fill_mode: "always",
         weekly_plan_last_run: null,
       };
     return { ...base, ...draft } as AutopilotRow;
