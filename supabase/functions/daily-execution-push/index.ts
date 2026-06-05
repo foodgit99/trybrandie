@@ -60,14 +60,14 @@ Deno.serve(async (req) => {
       try {
         const tz = p.posting_timezone || "Africa/Lagos";
         const target = p.daily_push_hour ?? 8;
-        if (localHour(now, tz) !== target) {
+        if (!testUserId && localHour(now, tz) !== target) {
           skipped++;
           continue;
         }
         const todayISO = localISODate(now, tz);
 
-        // Skip if already pushed today
-        if (p.last_daily_push_at) {
+        // Skip if already pushed today (bypass for explicit test sends)
+        if (!testUserId && p.last_daily_push_at) {
           const lastISO = localISODate(new Date(p.last_daily_push_at), tz);
           if (lastISO === todayISO) {
             skipped++;
