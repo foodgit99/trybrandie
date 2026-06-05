@@ -304,7 +304,7 @@ const Hub = () => {
 
         {/* Tabs */}
         <nav aria-label="Content sections" className="relative">
-          <div className="flex items-center gap-1 p-1 rounded-2xl border border-border bg-card/40 overflow-x-auto">
+          <div className="inline-flex w-full sm:w-auto items-center gap-1.5 p-1.5 rounded-2xl border border-border bg-muted/60 shadow-inner overflow-x-auto">
             {TABS.map((t) => {
               const active = tab === t.id;
               const Icon = t.icon;
@@ -312,25 +312,29 @@ const Hub = () => {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
+                  aria-pressed={active}
                   className={cn(
-                    "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap transition-colors",
-                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                    "relative flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-colors",
+                    active
+                      ? "text-background"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {active && (
                     <motion.div
                       layoutId="hub-tab-pill"
-                      className="absolute inset-0 rounded-xl bg-background border border-border shadow-sm"
+                      className="absolute inset-0 rounded-xl bg-foreground shadow-md ring-1 ring-foreground/10"
                       transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     />
                   )}
                   <Icon className="relative h-4 w-4" />
-                  <span className="relative">{t.label}</span>
+                  <span className="relative tracking-tight">{t.label}</span>
                 </button>
               );
             })}
           </div>
         </nav>
+
 
         <AnimatePresence mode="wait">
           <motion.div
