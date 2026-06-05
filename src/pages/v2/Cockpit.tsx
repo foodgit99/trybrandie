@@ -236,10 +236,10 @@ const Cockpit = () => {
               </Link>
               <span className="text-muted-foreground/40">·</span>
               <Link
-                to="/blueprint"
+                to="/content-hub"
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1"
               >
-                Review in detail <ArrowRight className="h-3 w-3" />
+                Open Content Hub <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
           </div>
