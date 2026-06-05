@@ -1,0 +1,1 @@
+ALTER TABLE public.autopilot_settings ALTER COLUMN auto_fill_mode SET DEFAULT 'always';
