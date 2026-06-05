@@ -18,6 +18,7 @@ import {
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import DayOverview from "@/components/v2/DayOverview";
+import CEOBriefingPreview from "@/components/v2/CEOBriefingPreview";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
