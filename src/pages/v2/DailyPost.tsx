@@ -12,6 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   ArrowLeft,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Download,
   Info,
@@ -26,6 +28,7 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import GenerationLoader from "@/components/GenerationLoader";
 import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
+import { Carousel, CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 
 type Idea = {
   id: string;
@@ -46,6 +49,8 @@ type Design = {
   caption: string | null;
   title: string | null;
   genome: any | null;
+  carousel_id?: string | null;
+  slide_index?: number | null;
 };
 
 const DailyPost = () => {
@@ -84,7 +89,7 @@ const DailyPost = () => {
       if (!idea?.design_id) return null;
       const { data, error } = await supabase
         .from("designs")
-        .select("id, image_url, caption, title, genome")
+        .select("id, image_url, caption, title, genome, carousel_id, slide_index")
         .eq("id", idea.design_id)
         .maybeSingle();
       if (error) throw error;
@@ -92,6 +97,41 @@ const DailyPost = () => {
     },
     enabled: !!idea?.design_id,
   });
+
+  // If this design is part of a carousel, fetch all sibling slides ordered.
+  const { data: slides } = useQuery({
+    queryKey: ["v2-daily-slides", design?.carousel_id, design?.id],
+    queryFn: async (): Promise<Design[]> => {
+      if (!design) return [];
+      if (!design.carousel_id) return [design];
+      const { data, error } = await supabase
+        .from("designs")
+        .select("id, image_url, caption, title, genome, carousel_id, slide_index")
+        .eq("carousel_id", design.carousel_id)
+        .order("slide_index", { ascending: true });
+      if (error) throw error;
+      const rows = (data as Design[] | null) ?? [];
+      return rows.length > 0 ? rows : [design];
+    },
+    enabled: !!design,
+  });
+
+  const allSlides = slides ?? (design ? [design] : []);
+  const isCarousel = allSlides.length > 1;
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => setActiveIdx(carouselApi.selectedScrollSnap());
+    onSelect();
+    carouselApi.on("select", onSelect);
+    carouselApi.on("reInit", onSelect);
+    return () => {
+      carouselApi.off("select", onSelect);
+      carouselApi.off("reInit", onSelect);
+    };
+  }, [carouselApi]);
+  const activeSlide = allSlides[activeIdx] ?? design ?? null;
 
   // Seed caption draft from design caption or whatsapp_dm
   useEffect(() => {
@@ -195,35 +235,55 @@ const DailyPost = () => {
     window.open(`https://wa.me/?text=${text}`, "_blank", "noopener");
   };
 
-  const handleDownload = async () => {
-    if (!design?.image_url) return;
+  const downloadOne = async (url: string, filename: string) => {
     try {
-      const res = await fetch(design.image_url);
+      const res = await fetch(url);
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(idea?.title || "post").slice(0, 40).replace(/\s+/g, "-")}.png`;
+      a.href = objUrl;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objUrl);
     } catch {
-      window.open(design.image_url, "_blank", "noopener");
+      window.open(url, "_blank", "noopener");
+    }
+  };
+
+  const baseName = (idea?.title || "post").slice(0, 40).replace(/\s+/g, "-");
+
+  const handleDownload = async () => {
+    if (!activeSlide?.image_url) return;
+    const suffix = isCarousel ? `-slide-${activeIdx + 1}` : "";
+    await downloadOne(activeSlide.image_url, `${baseName}${suffix}.png`);
+  };
+
+  const handleDownloadAll = async () => {
+    for (let i = 0; i < allSlides.length; i++) {
+      const s = allSlides[i];
+      if (!s?.image_url) continue;
+      // Small delay so browsers don't block consecutive downloads.
+      // eslint-disable-next-line no-await-in-loop
+      await downloadOne(s.image_url, `${baseName}-slide-${i + 1}.png`);
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 250));
     }
   };
 
   const handleVote = async (vote: 1 | -1) => {
-    if (!design?.id) return;
+    if (!activeSlide?.id) return;
     setVoting(true);
     try {
       const { error: rpcErr } = await supabase.rpc("record_preset_feedback", {
-        p_design_id: design.id,
+        p_design_id: activeSlide.id,
         p_vote: vote,
       });
       if (rpcErr) throw rpcErr;
-      await supabase.from("designs").update({ vote }).eq("id", design.id);
+      await supabase.from("designs").update({ vote }).eq("id", activeSlide.id);
       queryClient.invalidateQueries({ queryKey: ["v2-daily-design"] });
+      queryClient.invalidateQueries({ queryKey: ["v2-daily-slides"] });
       toast({
         title: vote === 1 ? "Trained: more like this." : "Trained: less like this.",
         description: "Brandie will favour this signal next week.",
@@ -322,13 +382,79 @@ const DailyPost = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl overflow-hidden border border-border bg-card"
+              className="relative"
             >
-              <img
-                src={design.image_url}
-                alt={idea.title}
-                className="w-full aspect-square object-cover"
-              />
+              {isCarousel ? (
+                <>
+                  <Carousel
+                    setApi={setCarouselApi}
+                    opts={{ loop: false, align: "start" }}
+                    className="rounded-2xl overflow-hidden border border-border bg-card"
+                  >
+                    <CarouselContent className="ml-0">
+                      {allSlides.map((s, i) => (
+                        <CarouselItem key={s.id} className="pl-0 basis-full">
+                          <img
+                            src={s.image_url}
+                            alt={`${idea.title} — slide ${i + 1}`}
+                            className="w-full aspect-square object-cover"
+                          />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                  </Carousel>
+
+                  {/* Counter pill */}
+                  <div className="absolute top-3 right-3 rounded-full bg-foreground/80 text-background text-[11px] tracking-wider px-2.5 py-1 backdrop-blur">
+                    {activeIdx + 1} / {allSlides.length}
+                  </div>
+
+                  {/* Nav buttons */}
+                  <button
+                    type="button"
+                    onClick={() => carouselApi?.scrollPrev()}
+                    disabled={activeIdx === 0}
+                    aria-label="Previous slide"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/85 border border-border grid place-items-center backdrop-blur disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => carouselApi?.scrollNext()}
+                    disabled={activeIdx >= allSlides.length - 1}
+                    aria-label="Next slide"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/85 border border-border grid place-items-center backdrop-blur disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+
+                  {/* Dots */}
+                  <div className="mt-3 flex items-center justify-center gap-1.5">
+                    {allSlides.map((s, i) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => carouselApi?.scrollTo(i)}
+                        aria-label={`Go to slide ${i + 1}`}
+                        className={`h-1.5 rounded-full transition-all ${
+                          i === activeIdx
+                            ? "w-6 bg-foreground"
+                            : "w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground/70"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl overflow-hidden border border-border bg-card">
+                  <img
+                    src={design.image_url}
+                    alt={idea.title}
+                    className="w-full aspect-square object-cover"
+                  />
+                </div>
+              )}
             </motion.div>
           ) : generating ? (
             <GenerationLoader />
@@ -351,9 +477,9 @@ const DailyPost = () => {
             <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="text-xs tracking-wider uppercase text-muted-foreground">
-                  Train Brandie
+                  {isCarousel ? `Train Brandie · slide ${activeIdx + 1}` : "Train Brandie"}
                 </span>
-                {design.genome && (
+                {activeSlide?.genome && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
@@ -368,7 +494,7 @@ const DailyPost = () => {
                       <p className="text-[11px] tracking-[0.2em] uppercase text-muted-foreground">
                         Why this design
                       </p>
-                      <GenomeSummary genome={design.genome} />
+                      <GenomeSummary genome={activeSlide.genome} />
                     </PopoverContent>
                   </Popover>
                 )}
@@ -433,12 +559,13 @@ const DailyPost = () => {
             </Button>
             <Button
               onClick={handleDownload}
-              disabled={!design?.image_url}
+              disabled={!activeSlide?.image_url}
               variant="secondary"
               size="lg"
               className="rounded-full h-12 gap-2"
             >
-              <Download className="h-4 w-4" /> Download image
+              <Download className="h-4 w-4" />
+              {isCarousel ? `Download slide ${activeIdx + 1}` : "Download image"}
             </Button>
             <Button
               onClick={handleCopyCaption}
@@ -464,6 +591,15 @@ const DailyPost = () => {
               {isPosted ? "Posted" : "Mark posted"}
             </Button>
           </div>
+          {isCarousel && (
+            <button
+              type="button"
+              onClick={handleDownloadAll}
+              className="text-xs text-background/70 hover:text-background underline underline-offset-4"
+            >
+              Download all {allSlides.length} slides
+            </button>
+          )}
         </section>
 
         {/* BRIEF */}
