@@ -128,10 +128,20 @@ const DayOverview = ({
                         )}
                       </div>
                     </div>
-                    <p className="font-medium leading-snug">{it.title}</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                      {it.prompt}
-                    </p>
+                    <div className="flex gap-3">
+                      <IdeaThumb design={it.design} emoji={meta?.short?.[0]} size="md" />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="font-medium leading-snug">{it.title}</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                          {it.prompt}
+                        </p>
+                        {it.design?.caption && (
+                          <p className="text-xs text-muted-foreground/80 italic line-clamp-2">
+                            "{it.design.caption}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       {!isApproved && (
                         <Button
