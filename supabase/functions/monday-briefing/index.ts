@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
   try {
     const { data: profiles, error } = await supabase
       .from("profiles")
-      .select("user_id, full_name, posting_timezone, monday_briefing_hour, last_monday_briefing_at");
+      .select("user_id, full_name, posting_timezone, monday_briefing_hour, last_monday_briefing_at, brand_nudge_sent_at");
+
 
     if (error) throw error;
     if (!profiles?.length) return json({ checked: 0, sent: 0 });
