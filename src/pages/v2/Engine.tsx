@@ -304,18 +304,30 @@ const Engine = () => {
                   : "border-border bg-card"
               }`}
             >
-              {/* Ambient "engine working" pulse */}
+              {/* Ambient "engine working" pulse — sweeps + breathing glow */}
               {merged.enabled && (
-                <motion.div
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-px rounded-3xl"
-                  style={{
-                    background:
-                      "radial-gradient(80% 60% at 20% 50%, hsl(152 76% 60% / 0.22), transparent 70%)",
-                  }}
-                  animate={{ opacity: [0.35, 0.9, 0.35] }}
-                  transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-                />
+                <>
+                  <motion.div
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-px rounded-3xl"
+                    style={{
+                      background:
+                        "radial-gradient(70% 90% at 0% 50%, hsl(152 80% 55% / 0.55), transparent 65%)",
+                    }}
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <motion.div
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-px rounded-3xl"
+                    style={{
+                      background:
+                        "radial-gradient(45% 120% at 50% 50%, hsl(152 90% 60% / 0.45), transparent 70%)",
+                    }}
+                    animate={{ x: ["-40%", "40%", "-40%"], opacity: [0.5, 0.9, 0.5] }}
+                    transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                </>
               )}
 
               <div className="relative flex items-center justify-between gap-4">
