@@ -41,6 +41,7 @@ import V2DailyPost from "./pages/v2/DailyPost";
 import V2Report from "./pages/v2/Report";
 import V2BrandCentre from "./pages/v2/BrandCentre";
 import V2Settings from "./pages/v2/Settings";
+import V2Engine from "./pages/v2/Engine";
 
 const queryClient = new QueryClient();
 
