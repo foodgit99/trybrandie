@@ -235,35 +235,55 @@ const DailyPost = () => {
     window.open(`https://wa.me/?text=${text}`, "_blank", "noopener");
   };
 
-  const handleDownload = async () => {
-    if (!design?.image_url) return;
+  const downloadOne = async (url: string, filename: string) => {
     try {
-      const res = await fetch(design.image_url);
+      const res = await fetch(url);
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(idea?.title || "post").slice(0, 40).replace(/\s+/g, "-")}.png`;
+      a.href = objUrl;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objUrl);
     } catch {
-      window.open(design.image_url, "_blank", "noopener");
+      window.open(url, "_blank", "noopener");
+    }
+  };
+
+  const baseName = (idea?.title || "post").slice(0, 40).replace(/\s+/g, "-");
+
+  const handleDownload = async () => {
+    if (!activeSlide?.image_url) return;
+    const suffix = isCarousel ? `-slide-${activeIdx + 1}` : "";
+    await downloadOne(activeSlide.image_url, `${baseName}${suffix}.png`);
+  };
+
+  const handleDownloadAll = async () => {
+    for (let i = 0; i < allSlides.length; i++) {
+      const s = allSlides[i];
+      if (!s?.image_url) continue;
+      // Small delay so browsers don't block consecutive downloads.
+      // eslint-disable-next-line no-await-in-loop
+      await downloadOne(s.image_url, `${baseName}-slide-${i + 1}.png`);
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 250));
     }
   };
 
   const handleVote = async (vote: 1 | -1) => {
-    if (!design?.id) return;
+    if (!activeSlide?.id) return;
     setVoting(true);
     try {
       const { error: rpcErr } = await supabase.rpc("record_preset_feedback", {
-        p_design_id: design.id,
+        p_design_id: activeSlide.id,
         p_vote: vote,
       });
       if (rpcErr) throw rpcErr;
-      await supabase.from("designs").update({ vote }).eq("id", design.id);
+      await supabase.from("designs").update({ vote }).eq("id", activeSlide.id);
       queryClient.invalidateQueries({ queryKey: ["v2-daily-design"] });
+      queryClient.invalidateQueries({ queryKey: ["v2-daily-slides"] });
       toast({
         title: vote === 1 ? "Trained: more like this." : "Trained: less like this.",
         description: "Brandie will favour this signal next week.",
