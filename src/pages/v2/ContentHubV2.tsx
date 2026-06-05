@@ -315,6 +315,9 @@ const ContentHubV2 = () => {
             {ideas.length} ideas · {campaigns.length} campaigns · {blueprints.length} blueprints
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="outline" className="rounded-xl" onClick={() => navigate("/studio")}>
+              <Wand2 className="h-3.5 w-3.5 mr-1.5" /> Studio
+            </Button>
             <Button size="sm" variant="outline" className="rounded-xl" onClick={() => navigate("/engine")}>
               <Power className="h-3.5 w-3.5 mr-1.5" /> Engine
             </Button>
