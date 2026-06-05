@@ -324,17 +324,18 @@ const Cockpit = () => {
             })}
           </div>
 
-          {selectedDayIdx !== null && (() => {
-            const dayIdeas = byDay.get(selectedDayIdx) ?? [];
+          {(() => {
+            const activeDayIdx = selectedDayIdx ?? todayIdx;
+            const dayIdeas = byDay.get(activeDayIdx) ?? [];
             const dayDate = new Date(weekStart);
-            dayDate.setDate(weekStart.getDate() + selectedDayIdx);
+            dayDate.setDate(weekStart.getDate() + activeDayIdx);
             return (
               <DayOverview
-                dayLabel={DAY_LABELS[selectedDayIdx]}
+                dayLabel={DAY_LABELS[activeDayIdx]}
                 date={dayDate}
-                isToday={selectedDayIdx === todayIdx}
+                isToday={activeDayIdx === todayIdx}
                 ideas={dayIdeas}
-                onClose={() => setSelectedDayIdx(null)}
+                onClose={() => setSelectedDayIdx(todayIdx)}
                 onApprove={handleApproveOne}
                 onApproveAll={() => handleApproveDay(dayIdeas)}
                 onSeed={handleSeed}
