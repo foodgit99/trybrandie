@@ -436,6 +436,9 @@ const Cockpit = () => {
         )}
 
 
+        {/* CEO BRIEFING PREVIEW */}
+        <CEOBriefingPreview brandId={brand?.id} brandName={brand?.name} />
+
         {/* APPROVAL ACTION */}
         <section className="rounded-3xl border border-border bg-foreground text-background p-7 sm:p-10 space-y-5">
           {totalThisWeek === 0 ? (
