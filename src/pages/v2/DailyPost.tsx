@@ -49,6 +49,8 @@ type Design = {
   caption: string | null;
   title: string | null;
   genome: any | null;
+  carousel_id?: string | null;
+  slide_index?: number | null;
 };
 
 const DailyPost = () => {
