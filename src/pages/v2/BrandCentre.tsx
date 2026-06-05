@@ -118,7 +118,7 @@ const BrandCentre = () => {
           )}
         </header>
 
-        <Block label="Identity" href="/brand">
+        <Block label="Identity" href="/brand/editor">
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground">
@@ -139,7 +139,7 @@ const BrandCentre = () => {
           </div>
         </Block>
 
-        <Block label="Palette" href="/brand">
+        <Block label="Palette" href="/brand/editor">
           {palette.length === 0 ? (
             <p className="text-sm text-muted-foreground">No colors set.</p>
           ) : (
@@ -151,7 +151,7 @@ const BrandCentre = () => {
           )}
         </Block>
 
-        <Block label="Typography" href="/brand">
+        <Block label="Typography" href="/brand/editor">
           <div className="grid sm:grid-cols-2 gap-5">
             <div>
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground mb-1">
@@ -178,7 +178,7 @@ const BrandCentre = () => {
           </div>
         </Block>
 
-        <Block label="Audience (JTBD)" href="/brand">
+        <Block label="Audience (JTBD)" href="/brand/editor">
           {(() => {
             const raw = ((audience as any)?.raw_inputs ?? {}) as Record<string, any>;
             const jtbd = ((audience as any)?.jtbd_profile ?? {}) as Record<string, any>;
@@ -213,7 +213,7 @@ const BrandCentre = () => {
           })()}
         </Block>
 
-        <Block label="Offer" href="/brand">
+        <Block label="Offer" href="/brand/editor">
           {products.length === 0 ? (
             <p className="text-sm text-muted-foreground">No products or services yet.</p>
           ) : (
@@ -256,7 +256,7 @@ const BrandCentre = () => {
             </p>
           </div>
           <Button asChild variant="secondary" size="lg" className="rounded-full h-12 gap-2 shrink-0">
-            <Link to="/brand">
+            <Link to="/brand/editor">
               Open editor <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
