@@ -1,6 +1,7 @@
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useSmartBack } from "@/hooks/useSmartBack";
 import { useBrand } from "@/hooks/useBrand";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
@@ -20,6 +21,7 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const smartBack = useSmartBack("/");
   const [copied, setCopied] = useState(false);
 
   const { data: profile } = useQuery({
@@ -73,7 +75,7 @@ const Settings = () => {
           className="space-y-8"
         >
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
+            <Button variant="ghost" size="icon" onClick={smartBack} className="rounded-xl">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Settings</h2>

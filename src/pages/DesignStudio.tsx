@@ -17,6 +17,7 @@ const loadWatermarkLogo = () => {
 import SEO from "@/components/SEO";
 // Guard ref to prevent stale generation results from previous sessions
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useSmartBack } from "@/hooks/useSmartBack";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
 import { useAuth } from "@/hooks/useAuth";
@@ -158,6 +159,7 @@ const DesignStudio = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const smartBack = useSmartBack("/dashboard");
   const [searchParams] = useSearchParams();
   const generation = useDesignGeneration();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1204,7 +1206,7 @@ const DesignStudio = () => {
       {/* Top bar — fixed */}
       <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+          <Button variant="ghost" size="icon" onClick={smartBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="hidden sm:block text-lg font-serif tracking-tight">
