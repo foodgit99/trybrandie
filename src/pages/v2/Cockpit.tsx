@@ -256,7 +256,7 @@ const Cockpit = () => {
                   onClick={() => setSelectedDayIdx(idx)}
                   aria-pressed={(selectedDayIdx ?? todayIdx) === idx}
                   className={`relative text-left rounded-xl border p-2.5 sm:p-3 min-h-[100px] flex flex-col gap-1.5 transition-all hover:border-foreground/40 ${
-                    selectedDayIdx === idx
+                    (selectedDayIdx ?? todayIdx) === idx
                       ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
                       : ""
                   } ${
