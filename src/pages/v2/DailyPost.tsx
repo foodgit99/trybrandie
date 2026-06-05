@@ -28,6 +28,7 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import GenerationLoader from "@/components/GenerationLoader";
 import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
+import { Carousel, CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 
 type Idea = {
   id: string;
