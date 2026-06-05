@@ -89,7 +89,7 @@ const DailyPost = () => {
       if (!idea?.design_id) return null;
       const { data, error } = await supabase
         .from("designs")
-        .select("id, image_url, caption, title, genome")
+        .select("id, image_url, caption, title, genome, carousel_id, slide_index")
         .eq("id", idea.design_id)
         .maybeSingle();
       if (error) throw error;
@@ -97,6 +97,41 @@ const DailyPost = () => {
     },
     enabled: !!idea?.design_id,
   });
+
+  // If this design is part of a carousel, fetch all sibling slides ordered.
+  const { data: slides } = useQuery({
+    queryKey: ["v2-daily-slides", design?.carousel_id, design?.id],
+    queryFn: async (): Promise<Design[]> => {
+      if (!design) return [];
+      if (!design.carousel_id) return [design];
+      const { data, error } = await supabase
+        .from("designs")
+        .select("id, image_url, caption, title, genome, carousel_id, slide_index")
+        .eq("carousel_id", design.carousel_id)
+        .order("slide_index", { ascending: true });
+      if (error) throw error;
+      const rows = (data as Design[] | null) ?? [];
+      return rows.length > 0 ? rows : [design];
+    },
+    enabled: !!design,
+  });
+
+  const allSlides = slides ?? (design ? [design] : []);
+  const isCarousel = allSlides.length > 1;
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => setActiveIdx(carouselApi.selectedScrollSnap());
+    onSelect();
+    carouselApi.on("select", onSelect);
+    carouselApi.on("reInit", onSelect);
+    return () => {
+      carouselApi.off("select", onSelect);
+      carouselApi.off("reInit", onSelect);
+    };
+  }, [carouselApi]);
+  const activeSlide = allSlides[activeIdx] ?? design ?? null;
 
   // Seed caption draft from design caption or whatsapp_dm
   useEffect(() => {
