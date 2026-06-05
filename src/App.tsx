@@ -43,6 +43,7 @@ import V2BrandCentre from "./pages/v2/BrandCentre";
 import V2Settings from "./pages/v2/Settings";
 import V2Engine from "./pages/v2/Engine";
 import V2ContentHub from "./pages/v2/ContentHubV2";
+import V2Studio from "./pages/v2/Studio";
 
 const queryClient = new QueryClient();
 
