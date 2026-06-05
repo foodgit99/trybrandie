@@ -75,7 +75,7 @@ const Settings = () => {
           className="space-y-8"
         >
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
+            <Button variant="ghost" size="icon" onClick={smartBack} className="rounded-xl">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Settings</h2>
