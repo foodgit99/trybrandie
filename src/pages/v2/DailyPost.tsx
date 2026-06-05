@@ -382,13 +382,79 @@ const DailyPost = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl overflow-hidden border border-border bg-card"
+              className="relative"
             >
-              <img
-                src={design.image_url}
-                alt={idea.title}
-                className="w-full aspect-square object-cover"
-              />
+              {isCarousel ? (
+                <>
+                  <Carousel
+                    setApi={setCarouselApi}
+                    opts={{ loop: false, align: "start" }}
+                    className="rounded-2xl overflow-hidden border border-border bg-card"
+                  >
+                    <CarouselContent className="ml-0">
+                      {allSlides.map((s, i) => (
+                        <CarouselItem key={s.id} className="pl-0 basis-full">
+                          <img
+                            src={s.image_url}
+                            alt={`${idea.title} — slide ${i + 1}`}
+                            className="w-full aspect-square object-cover"
+                          />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                  </Carousel>
+
+                  {/* Counter pill */}
+                  <div className="absolute top-3 right-3 rounded-full bg-foreground/80 text-background text-[11px] tracking-wider px-2.5 py-1 backdrop-blur">
+                    {activeIdx + 1} / {allSlides.length}
+                  </div>
+
+                  {/* Nav buttons */}
+                  <button
+                    type="button"
+                    onClick={() => carouselApi?.scrollPrev()}
+                    disabled={activeIdx === 0}
+                    aria-label="Previous slide"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/85 border border-border grid place-items-center backdrop-blur disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => carouselApi?.scrollNext()}
+                    disabled={activeIdx >= allSlides.length - 1}
+                    aria-label="Next slide"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/85 border border-border grid place-items-center backdrop-blur disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+
+                  {/* Dots */}
+                  <div className="mt-3 flex items-center justify-center gap-1.5">
+                    {allSlides.map((s, i) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => carouselApi?.scrollTo(i)}
+                        aria-label={`Go to slide ${i + 1}`}
+                        className={`h-1.5 rounded-full transition-all ${
+                          i === activeIdx
+                            ? "w-6 bg-foreground"
+                            : "w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground/70"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl overflow-hidden border border-border bg-card">
+                  <img
+                    src={design.image_url}
+                    alt={idea.title}
+                    className="w-full aspect-square object-cover"
+                  />
+                </div>
+              )}
             </motion.div>
           ) : generating ? (
             <GenerationLoader />
@@ -411,9 +477,9 @@ const DailyPost = () => {
             <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="text-xs tracking-wider uppercase text-muted-foreground">
-                  Train Brandie
+                  {isCarousel ? `Train Brandie · slide ${activeIdx + 1}` : "Train Brandie"}
                 </span>
-                {design.genome && (
+                {activeSlide?.genome && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
@@ -428,7 +494,7 @@ const DailyPost = () => {
                       <p className="text-[11px] tracking-[0.2em] uppercase text-muted-foreground">
                         Why this design
                       </p>
-                      <GenomeSummary genome={design.genome} />
+                      <GenomeSummary genome={activeSlide.genome} />
                     </PopoverContent>
                   </Popover>
                 )}
