@@ -410,40 +410,114 @@ const Engine = () => {
           </div>
         </section>
 
-        {/* MODE */}
-        <section className="space-y-4">
-          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            Engine mode
-          </h2>
-          <div className="grid sm:grid-cols-3 gap-3">
-            {MODE_OPTIONS.map(({ id, label, description, icon: Icon }) => {
-              const active = merged.mode === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => upsert({ mode: id })}
-                  disabled={saving}
-                  className={`text-left rounded-2xl border p-4 transition-all ${
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-card hover:border-foreground/40"
-                  }`}
-                >
-                  <Icon className="h-5 w-5 mb-3" />
-                  <p className="font-medium">{label}</p>
-                  <p
-                    className={`text-xs mt-1 leading-snug ${
-                      active ? "text-background/70" : "text-muted-foreground"
-                    }`}
-                  >
-                    {description}
-                  </p>
-                </button>
-              );
-            })}
+        {/* MODE — segmented throttle */}
+        <section className="space-y-5">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
+              Engine mode
+            </h2>
+            <span className="text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
+              Throttle
+            </span>
           </div>
+
+          {(() => {
+            const activeIdx = MODE_OPTIONS.findIndex((m) => m.id === merged.mode);
+            const safeIdx = activeIdx === -1 ? 1 : activeIdx;
+            const active = MODE_OPTIONS[safeIdx];
+            const ActiveIcon = active.icon;
+            return (
+              <div className="rounded-3xl border border-border bg-card p-3 sm:p-4 space-y-4">
+                {/* Track */}
+                <div
+                  role="radiogroup"
+                  aria-label="Engine mode"
+                  className="relative grid grid-cols-3 rounded-2xl bg-secondary/70 p-1.5"
+                >
+                  {/* Sliding indicator */}
+                  <motion.div
+                    aria-hidden
+                    layout
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    className="absolute top-1.5 bottom-1.5 rounded-xl bg-foreground shadow-[0_8px_24px_-12px_hsl(var(--foreground)/0.45)]"
+                    style={{
+                      width: `calc((100% - 0.75rem) / 3)`,
+                      left: `calc(0.375rem + ${safeIdx} * ((100% - 0.75rem) / 3))`,
+                    }}
+                  />
+                  {MODE_OPTIONS.map(({ id, label, icon: Icon }, i) => {
+                    const isActive = i === safeIdx;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        onClick={() => upsert({ mode: id })}
+                        disabled={saving}
+                        className={`relative z-10 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-3.5 rounded-xl text-[12px] sm:text-sm font-medium tracking-wide transition-colors ${
+                          isActive
+                            ? "text-background"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Tick gauge */}
+                <div className="relative px-1.5">
+                  <div className="grid grid-cols-3">
+                    {MODE_OPTIONS.map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col items-center gap-1"
+                      >
+                        <span
+                          className={`h-2 w-px transition-colors ${
+                            i === safeIdx ? "bg-foreground" : "bg-border"
+                          }`}
+                        />
+                        <span
+                          className={`text-[9px] tracking-[0.22em] uppercase transition-colors ${
+                            i === safeIdx ? "text-foreground" : "text-muted-foreground/60"
+                          }`}
+                        >
+                          0{i + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Active description */}
+                <motion.div
+                  key={active.id}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-start gap-3 pt-1 px-1"
+                >
+                  <span className="h-9 w-9 rounded-xl bg-foreground/5 grid place-items-center shrink-0">
+                    <ActiveIcon className="h-4 w-4" />
+                  </span>
+                  <div className="space-y-0.5">
+                    <p className="font-serif text-xl tracking-tight leading-none">
+                      {active.label}
+                    </p>
+                    <p className="text-sm text-muted-foreground leading-snug">
+                      {active.description}
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })()}
         </section>
+
 
         {/* DELIVERY + QUEUE */}
         <section className="grid md:grid-cols-2 gap-4">
