@@ -253,12 +253,10 @@ const Cockpit = () => {
                 <button
                   key={label}
                   type="button"
-                  onClick={() =>
-                    setSelectedDayIdx((cur) => (cur === idx ? null : idx))
-                  }
-                  aria-pressed={selectedDayIdx === idx}
+                  onClick={() => setSelectedDayIdx(idx)}
+                  aria-pressed={(selectedDayIdx ?? todayIdx) === idx}
                   className={`relative text-left rounded-xl border p-2.5 sm:p-3 min-h-[100px] flex flex-col gap-1.5 transition-all hover:border-foreground/40 ${
-                    selectedDayIdx === idx
+                    (selectedDayIdx ?? todayIdx) === idx
                       ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
                       : ""
                   } ${
@@ -326,17 +324,18 @@ const Cockpit = () => {
             })}
           </div>
 
-          {selectedDayIdx !== null && (() => {
-            const dayIdeas = byDay.get(selectedDayIdx) ?? [];
+          {(() => {
+            const activeDayIdx = selectedDayIdx ?? todayIdx;
+            const dayIdeas = byDay.get(activeDayIdx) ?? [];
             const dayDate = new Date(weekStart);
-            dayDate.setDate(weekStart.getDate() + selectedDayIdx);
+            dayDate.setDate(weekStart.getDate() + activeDayIdx);
             return (
               <DayOverview
-                dayLabel={DAY_LABELS[selectedDayIdx]}
+                dayLabel={DAY_LABELS[activeDayIdx]}
                 date={dayDate}
-                isToday={selectedDayIdx === todayIdx}
+                isToday={activeDayIdx === todayIdx}
                 ideas={dayIdeas}
-                onClose={() => setSelectedDayIdx(null)}
+                onClose={() => setSelectedDayIdx(todayIdx)}
                 onApprove={handleApproveOne}
                 onApproveAll={() => handleApproveDay(dayIdeas)}
                 onSeed={handleSeed}
