@@ -29,6 +29,7 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import AgentChatDock, { AgentContext } from "@/components/v2/AgentChatDock";
 import { CONTENT_CATEGORIES, type ContentCategoryId, getCategoryMeta } from "@/lib/contentCategories";
 import { cn } from "@/lib/utils";
+import IdeaThumb from "@/components/v2/IdeaThumb";
 
 /* ------------------------------ Funnel model ------------------------------ */
 
@@ -94,6 +95,7 @@ type Idea = {
   content_category: string | null;
   campaign_id: string | null;
   design_id: string | null;
+  design?: { image_url: string | null; caption: string | null } | null;
   created_at: string;
 };
 
@@ -153,7 +155,7 @@ const ContentHubV2 = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("content_ideas")
-        .select("id,title,prompt,status,approval_status,scheduled_for,content_category,campaign_id,design_id,created_at")
+        .select("id,title,prompt,status,approval_status,scheduled_for,content_category,campaign_id,design_id,created_at,design:design_id(image_url,caption)")
         .eq("brand_id", brand!.id)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -458,12 +460,17 @@ function FunnelsTab({
                         onClick={() => onOpenIdea(i.id)}
                         className="w-full flex items-center gap-3 p-3 text-left hover:bg-secondary/50 transition-colors"
                       >
-                        <span className="text-base">{cat?.emoji ?? "•"}</span>
+                        <IdeaThumb design={i.design} emoji={cat?.emoji} />
                         <span className="flex-1 min-w-0">
                           <span className="block text-sm truncate">{i.title}</span>
                           <span className="block text-[11px] text-muted-foreground truncate">
                             {i.scheduled_for ?? "Unscheduled"} · {i.status}
                           </span>
+                          {i.design?.caption && (
+                            <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">
+                              "{i.design.caption}"
+                            </span>
+                          )}
                         </span>
                         <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
@@ -527,12 +534,17 @@ function StrategyTab({
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-background"
                 >
                   <span className="text-[10px] tabular-nums text-muted-foreground w-5">{String(idx + 1).padStart(2, "0")}</span>
-                  <span className="text-base">{cat?.emoji ?? "•"}</span>
+                  <IdeaThumb design={i.design} emoji={cat?.emoji} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm truncate">{i.title}</span>
                     <span className="block text-[11px] text-muted-foreground">
                       {i.scheduled_for ? new Date(i.scheduled_for).toLocaleDateString(undefined, { weekday: "short" }) : "Unscheduled"} · {cat?.label ?? "—"}
                     </span>
+                    {i.design?.caption && (
+                      <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">
+                        "{i.design.caption}"
+                      </span>
+                    )}
                   </span>
                   <Badge variant="secondary" className="rounded-full text-[10px]">{i.status}</Badge>
                 </li>
@@ -678,12 +690,17 @@ function ContentTab({
                 className={cn("group flex items-center gap-3 px-4 py-3 transition-colors", active ? "bg-secondary/60" : "hover:bg-secondary/40")}
               >
                 <button onClick={() => onFocus(active ? null : i.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                  <span className="text-base">{cat?.emoji ?? "•"}</span>
+                  <IdeaThumb design={i.design} emoji={cat?.emoji} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm truncate">{i.title}</span>
                     <span className="block text-[11px] text-muted-foreground truncate">
                       {i.scheduled_for ?? "Unscheduled"} · {cat?.label ?? "—"} · {i.status}
                     </span>
+                    {i.design?.caption && (
+                      <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">
+                        "{i.design.caption}"
+                      </span>
+                    )}
                   </span>
                 </button>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity">

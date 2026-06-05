@@ -20,6 +20,7 @@ import {
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
+import IdeaThumb from "@/components/v2/IdeaThumb";
 
 const WEEKDAY_NAMES = [
   "Monday",
@@ -55,6 +56,7 @@ type Idea = {
   status: string;
   approval_status: string;
   design_id: string | null;
+  design?: { image_url: string | null; caption: string | null } | null;
 };
 
 const Blueprint = () => {
@@ -73,7 +75,7 @@ const Blueprint = () => {
       const { data, error } = await supabase
         .from("content_ideas")
         .select(
-          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id",
+          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id, design:design_id(image_url, caption)",
         )
         .eq("brand_id", brand.id)
         .gte("scheduled_for", weekStart.toISOString())
@@ -296,10 +298,20 @@ const Blueprint = () => {
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </div>
-                              <p className="font-medium leading-snug">{it.title}</p>
-                              <p className="text-sm text-muted-foreground leading-relaxed">
-                                {it.prompt}
-                              </p>
+                              <div className="flex gap-3">
+                                <IdeaThumb design={it.design} emoji={meta?.short?.[0]} size="md" />
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <p className="font-medium leading-snug">{it.title}</p>
+                                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                                    {it.prompt}
+                                  </p>
+                                  {it.design?.caption && (
+                                    <p className="text-xs text-muted-foreground/80 italic line-clamp-2">
+                                      "{it.design.caption}"
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
                               <div className="flex items-center gap-2 pt-1">
                                 {!isApproved && (
                                   <Button
