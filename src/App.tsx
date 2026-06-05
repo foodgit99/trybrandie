@@ -152,6 +152,7 @@ const App = () => (
           <Route path="/post/:dayId" element={<ProtectedRoute><V2DailyPost /></ProtectedRoute>} />
           <Route path="/report" element={<ProtectedRoute><V2Report /></ProtectedRoute>} />
           <Route path="/brand" element={<ProtectedRoute><V2BrandCentre /></ProtectedRoute>} />
+          <Route path="/brand/editor" element={<ProtectedRoute><LegacyBrandCentre /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><V2Settings /></ProtectedRoute>} />
           <Route path="/engine" element={<ProtectedRoute><V2Engine /></ProtectedRoute>} />
           <Route path="/content-hub" element={<ProtectedRoute><V2ContentHub /></ProtectedRoute>} />
