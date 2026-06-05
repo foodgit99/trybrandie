@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import DayOverview from "@/components/v2/DayOverview";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
