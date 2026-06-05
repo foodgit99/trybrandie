@@ -12,7 +12,7 @@ const items = [
 ];
 
 // Primary v2 surfaces where this nav should render
-const primaryPrefixes = ["/cockpit", "/blueprint", "/brand", "/report", "/post/", "/settings", "/engine", "/hub", "/content-hub", "/studio"];
+const primaryPrefixes = ["/cockpit", "/blueprint", "/brand", "/report", "/post/", "/settings", "/engine", "/hub", "/content-hub"];
 
 const NewFloatingNav = () => {
   const { user } = useAuth();
