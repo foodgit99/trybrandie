@@ -1,18 +1,19 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { Gauge, LayoutGrid, Palette, BarChart3 } from "lucide-react";
+import { Gauge, LayoutGrid, Palette, BarChart3, Images } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/cockpit", label: "Cockpit", icon: Gauge },
   { to: "/hub", label: "Content", icon: LayoutGrid },
+  { to: "/history", label: "History", icon: Images },
   { to: "/brand", label: "Brand", icon: Palette },
   { to: "/report", label: "Report", icon: BarChart3 },
 ];
 
 // Primary v2 surfaces where this nav should render
-const primaryPrefixes = ["/cockpit", "/blueprint", "/brand", "/report", "/post/", "/settings", "/engine", "/hub", "/content-hub"];
+const primaryPrefixes = ["/cockpit", "/blueprint", "/brand", "/report", "/post/", "/settings", "/engine", "/hub", "/content-hub", "/history"];
 
 const NewFloatingNav = () => {
   const { user } = useAuth();
