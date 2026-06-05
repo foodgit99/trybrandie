@@ -56,6 +56,9 @@ const Cockpit = () => {
   const queryClient = useQueryClient();
   const [approving, setApproving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approvingDay, setApprovingDay] = useState(false);
+  const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(), []);
   const weekEnd = useMemo(() => endOfWeek(), []);
