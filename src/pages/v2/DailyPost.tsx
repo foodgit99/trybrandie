@@ -591,6 +591,15 @@ const DailyPost = () => {
               {isPosted ? "Posted" : "Mark posted"}
             </Button>
           </div>
+          {isCarousel && (
+            <button
+              type="button"
+              onClick={handleDownloadAll}
+              className="text-xs text-background/70 hover:text-background underline underline-offset-4"
+            >
+              Download all {allSlides.length} slides
+            </button>
+          )}
         </section>
 
         {/* BRIEF */}
