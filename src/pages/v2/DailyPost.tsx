@@ -559,12 +559,13 @@ const DailyPost = () => {
             </Button>
             <Button
               onClick={handleDownload}
-              disabled={!design?.image_url}
+              disabled={!activeSlide?.image_url}
               variant="secondary"
               size="lg"
               className="rounded-full h-12 gap-2"
             >
-              <Download className="h-4 w-4" /> Download image
+              <Download className="h-4 w-4" />
+              {isCarousel ? `Download slide ${activeIdx + 1}` : "Download image"}
             </Button>
             <Button
               onClick={handleCopyCaption}
