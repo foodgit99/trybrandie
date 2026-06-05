@@ -304,34 +304,20 @@ const Engine = () => {
                   : "border-border bg-card"
               }`}
             >
-              {/* Ambient "engine working" pulse — concentric emerald rings */}
+              {/* Ambient "engine working" pulse — sweeps left → right */}
               {merged.enabled && (
-                <>
-                  <motion.div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-3xl"
-                    style={{ boxShadow: "0 0 0 0 hsl(152 80% 55% / 0.55)" }}
-                    animate={{
-                      boxShadow: [
-                        "0 0 0 0 hsl(152 80% 55% / 0.55)",
-                        "0 0 0 14px hsl(152 80% 55% / 0)",
-                      ],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
-                  />
-                  <motion.div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-3xl"
-                    style={{ boxShadow: "0 0 0 0 hsl(152 80% 55% / 0.4)" }}
-                    animate={{
-                      boxShadow: [
-                        "0 0 0 0 hsl(152 80% 55% / 0.4)",
-                        "0 0 0 22px hsl(152 80% 55% / 0)",
-                      ],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 1 }}
-                  />
-                </>
+                <motion.div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 w-1/2 rounded-3xl"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent 0%, hsl(152 85% 55% / 0.35) 45%, hsl(152 95% 70% / 0.6) 50%, hsl(152 85% 55% / 0.35) 55%, transparent 100%)",
+                    filter: "blur(8px)",
+                  }}
+                  initial={{ left: "-50%" }}
+                  animate={{ left: ["-50%", "100%"] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.3 }}
+                />
               )}
 
               <div className="relative flex items-center justify-between gap-4">
