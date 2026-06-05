@@ -551,21 +551,45 @@ const DailyPost = () => {
           )}
         </section>
 
-        {/* CAPTION */}
+        {/* BRIEF */}
         <section className="space-y-3">
-          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            Caption
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
+              The brief
+            </h2>
+            <span className="text-[11px] text-muted-foreground">
+              {briefSaving ? "Saving…" : briefSavedAt ? "Saved" : "Edits save on blur"}
+            </span>
+          </div>
           <Textarea
-            value={captionDraft}
-            onChange={(e) => setCaptionDraft(e.target.value)}
-            placeholder="Brandie will draft your caption here."
+            value={briefDraft}
+            onChange={(e) => setBriefDraft(e.target.value)}
+            onBlur={saveBrief}
+            placeholder="What should this post say or do?"
             className="min-h-[120px] text-[15px] leading-relaxed bg-card"
           />
           <p className="text-[11px] text-muted-foreground">
-            Tweak in place — what you send is what you copy.
+            Brandie uses this brief when rendering the design.
           </p>
         </section>
+
+        {/* CAPTION — only after a render exists */}
+        {design?.image_url && (
+          <section className="space-y-3">
+            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
+              Caption
+            </h2>
+            <Textarea
+              value={captionDraft}
+              onChange={(e) => setCaptionDraft(e.target.value)}
+              placeholder="Brandie will draft your caption here."
+              className="min-h-[120px] text-[15px] leading-relaxed bg-card"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Tweak in place — what you send is what you copy.
+            </p>
+          </section>
+        )}
 
         {/* HANDOFF */}
         <section className="rounded-3xl border border-border bg-foreground text-background p-6 sm:p-8 space-y-5">
