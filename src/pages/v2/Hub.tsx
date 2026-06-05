@@ -29,6 +29,7 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import AgentChatDock, { AgentContext } from "@/components/v2/AgentChatDock";
 import { CONTENT_CATEGORIES, getCategoryMeta } from "@/lib/contentCategories";
 import { cn } from "@/lib/utils";
+import IdeaThumb from "@/components/v2/IdeaThumb";
 
 /* ------------------------------ Funnel model ------------------------------ */
 
