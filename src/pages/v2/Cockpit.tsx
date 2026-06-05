@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import DayOverview from "@/components/v2/DayOverview";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -55,6 +56,9 @@ const Cockpit = () => {
   const queryClient = useQueryClient();
   const [approving, setApproving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approvingDay, setApprovingDay] = useState(false);
+  const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(), []);
   const weekEnd = useMemo(() => endOfWeek(), []);
@@ -144,6 +148,42 @@ const Cockpit = () => {
     }
   };
 
+  const handleApproveOne = async (id: string) => {
+    setApprovingId(id);
+    try {
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ approval_status: "approved", status: "scheduled" })
+        .eq("id", id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["v2-cockpit-ideas"] });
+    } catch (err: any) {
+      toast({ title: "Couldn't approve", description: err.message, variant: "destructive" });
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleApproveDay = async (dayIdeas: Idea[]) => {
+    if (!dayIdeas.length) return;
+    setApprovingDay(true);
+    try {
+      const ids = dayIdeas.map((i) => i.id);
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ approval_status: "approved", status: "scheduled" })
+        .in("id", ids);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["v2-cockpit-ideas"] });
+      toast({ title: "Day approved." });
+    } catch (err: any) {
+      toast({ title: "Couldn't approve", description: err.message, variant: "destructive" });
+    } finally {
+      setApprovingDay(false);
+    }
+  };
+
+
   if (authLoading || brandLoading) {
     return (
       <div className="min-h-dvh grid place-items-center text-muted-foreground">
@@ -204,10 +244,18 @@ const Cockpit = () => {
               const isToday = idx === todayIdx;
               const isPast = idx < todayIdx;
               return (
-                <Link
+                <button
                   key={label}
-                  to="/blueprint"
-                  className={`relative rounded-xl border p-2.5 sm:p-3 min-h-[100px] flex flex-col gap-1.5 transition-all hover:border-foreground/40 ${
+                  type="button"
+                  onClick={() =>
+                    setSelectedDayIdx((cur) => (cur === idx ? null : idx))
+                  }
+                  aria-pressed={selectedDayIdx === idx}
+                  className={`relative text-left rounded-xl border p-2.5 sm:p-3 min-h-[100px] flex flex-col gap-1.5 transition-all hover:border-foreground/40 ${
+                    selectedDayIdx === idx
+                      ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+                      : ""
+                  } ${
                     isToday
                       ? "border-foreground bg-foreground text-background"
                       : "border-border bg-card"
@@ -267,10 +315,32 @@ const Cockpit = () => {
                       )}
                     </div>
                   )}
-                </Link>
+                </button>
               );
             })}
           </div>
+
+          {selectedDayIdx !== null && (() => {
+            const dayIdeas = byDay.get(selectedDayIdx) ?? [];
+            const dayDate = new Date(weekStart);
+            dayDate.setDate(weekStart.getDate() + selectedDayIdx);
+            return (
+              <DayOverview
+                dayLabel={DAY_LABELS[selectedDayIdx]}
+                date={dayDate}
+                isToday={selectedDayIdx === todayIdx}
+                ideas={dayIdeas}
+                onClose={() => setSelectedDayIdx(null)}
+                onApprove={handleApproveOne}
+                onApproveAll={() => handleApproveDay(dayIdeas)}
+                onSeed={handleSeed}
+                approvingId={approvingId}
+                approvingAll={approvingDay}
+                seeding={seeding}
+                weekIsEmpty={totalThisWeek === 0}
+              />
+            );
+          })()}
         </section>
 
         {/* THE ARC */}
