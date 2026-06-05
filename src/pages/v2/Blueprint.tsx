@@ -56,6 +56,7 @@ type Idea = {
   status: string;
   approval_status: string;
   design_id: string | null;
+  design?: { image_url: string | null; caption: string | null } | null;
 };
 
 const Blueprint = () => {
