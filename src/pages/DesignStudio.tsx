@@ -17,6 +17,7 @@ const loadWatermarkLogo = () => {
 import SEO from "@/components/SEO";
 // Guard ref to prevent stale generation results from previous sessions
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useSmartBack } from "@/hooks/useSmartBack";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
 import { useAuth } from "@/hooks/useAuth";
