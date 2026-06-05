@@ -34,10 +34,21 @@ Deno.serve(async (req) => {
   const now = new Date();
   console.log("[daily-push] sweep at", now.toISOString());
 
+  // Optional: targeted test send from Settings "Send test" button
+  let testUserId: string | null = null;
   try {
-    const { data: profiles } = await supabase
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      if (body && typeof body.test_user_id === "string") testUserId = body.test_user_id;
+    }
+  } catch (_) {}
+
+  try {
+    let query = supabase
       .from("profiles")
       .select("user_id, full_name, posting_timezone, daily_push_hour, last_daily_push_at");
+    if (testUserId) query = query.eq("user_id", testUserId);
+    const { data: profiles } = await query;
 
     if (!profiles?.length) return json({ sent: 0 });
 
