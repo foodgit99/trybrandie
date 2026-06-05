@@ -62,6 +62,13 @@ const Cockpit = () => {
   const [approvingDay, setApprovingDay] = useState(false);
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
 
+  // Forward legacy email deep-links like /cockpit?drop=<idea_id> to /post/<idea_id>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const drop = params.get("drop");
+    if (drop) navigate(`/post/${drop}`, { replace: true });
+  }, [navigate]);
+
   const weekStart = useMemo(() => startOfWeek(), []);
   const weekEnd = useMemo(() => endOfWeek(), []);
 

@@ -70,7 +70,11 @@ const SettingsV2 = () => {
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
   const [v2Default, setV2Default] = useState<boolean>(true);
   const [briefingHour, setBriefingHour] = useState<number>(7);
+  const [pushHour, setPushHour] = useState<number>(8);
+  const [pushTz, setPushTz] = useState<string>("Africa/Lagos");
   const [savingBriefing, setSavingBriefing] = useState(false);
+  const [savingPush, setSavingPush] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -78,12 +82,14 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("whatsapp_number, v2_enabled, monday_briefing_hour")
+        .select("whatsapp_number, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone")
         .eq("user_id", user.id)
         .maybeSingle();
       setWhatsapp((data?.whatsapp_number as string) ?? "");
       setV2Default(!!(data as any)?.v2_enabled);
       setBriefingHour(((data as any)?.monday_briefing_hour as number) ?? 7);
+      setPushHour(((data as any)?.daily_push_hour as number) ?? 8);
+      setPushTz(((data as any)?.posting_timezone as string) ?? "Africa/Lagos");
     })();
   }, [user]);
 
