@@ -406,12 +406,17 @@ function TodayTab({
         return (
           <li key={i.id}>
             <button onClick={() => onOpenPost(i.id)} className="w-full flex items-center gap-3 p-4 text-left hover:bg-secondary/50 transition-colors">
-              <span className="text-base">{cat?.emoji ?? "•"}</span>
+              <IdeaThumb design={i.design} emoji={cat?.emoji} />
               <span className="flex-1 min-w-0">
                 <span className="block text-sm truncate">{i.title}</span>
                 <span className="block text-[11px] text-muted-foreground truncate">
                   {cat?.label ?? "—"} · {i.status}
                 </span>
+                {i.design?.caption && (
+                  <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">
+                    "{i.design.caption}"
+                  </span>
+                )}
               </span>
               <Badge variant="secondary" className="rounded-full text-[10px]">{i.approval_status}</Badge>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
