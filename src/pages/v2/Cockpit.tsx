@@ -19,6 +19,7 @@ import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import DayOverview from "@/components/v2/DayOverview";
 import CEOBriefingPreview from "@/components/v2/CEOBriefingPreview";
+import PushOptInCard from "@/components/PushOptInCard";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -435,6 +436,9 @@ const Cockpit = () => {
           </section>
         )}
 
+
+        {/* PUSH OPT-IN */}
+        <PushOptInCard />
 
         {/* CEO BRIEFING PREVIEW */}
         <CEOBriefingPreview brandId={brand?.id} brandName={brand?.name} />
