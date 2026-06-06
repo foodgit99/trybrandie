@@ -790,26 +790,37 @@ function Field({
   value,
   onChange,
   placeholder,
+  source,
 }: {
   label: string;
   hint?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  source?: "ai_suggested" | "user_edited" | "user_written";
 }) {
+  const isAi = source === "ai_suggested";
   return (
     <div>
-      <label className="text-sm font-medium block mb-1">{label}</label>
+      <div className="flex items-center gap-2 mb-1">
+        <label className="text-sm font-medium">{label}</label>
+        {isAi && (
+          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+            AI draft
+          </span>
+        )}
+      </div>
       {hint && <p className="text-xs text-muted-foreground mb-2">{hint}</p>}
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="min-h-[72px]"
+        className={`min-h-[72px] ${isAi ? "bg-amber-50/60 border-amber-200 focus-visible:ring-amber-300 dark:bg-amber-950/20 dark:border-amber-900/40" : ""}`}
         maxLength={500}
       />
     </div>
   );
 }
+
 
 export default Onboarding;
