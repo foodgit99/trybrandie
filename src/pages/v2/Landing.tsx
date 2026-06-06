@@ -59,8 +59,10 @@ const Landing = () => (
           <span className="font-serif text-xl tracking-tight">Brandie</span>
           <span className="ml-2 text-[10px] tracking-[0.2em] uppercase text-muted-foreground border border-border rounded-full px-1.5 py-0.5">v1</span>
         </Link>
-        <div className="flex items-center gap-1 sm:gap-3">
-          <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground hidden sm:inline-block px-3 py-2">Sign in</Link>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button asChild variant="outline" size="sm" className="rounded-full px-4 h-9">
+            <Link to="/auth">Log in</Link>
+          </Button>
           <Button asChild size="sm" className="rounded-full px-4 h-9">
             <Link to="/auth?mode=signup">Start free <ArrowRight className="h-3.5 w-3.5" /></Link>
           </Button>
