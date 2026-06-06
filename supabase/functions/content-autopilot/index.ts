@@ -435,6 +435,20 @@ async function processIdea(
     }).catch((e) => console.error(`[autopilot] Email failed for idea ${idea.id}:`, e));
   }
 
+  // Send push notification (fire-and-forget)
+  fetch(`${supabaseUrl}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+    body: JSON.stringify({
+      user_id: idea.user_id,
+      title: "Today's post is ready",
+      body: idea.title,
+      url: `/post/${coverDesignId}`,
+      tag: `idea-${idea.id}`,
+      data: { idea_id: idea.id, design_id: coverDesignId },
+    }),
+  }).catch((e) => console.error(`[autopilot] Push failed for idea ${idea.id}:`, e));
+
   console.log(`[autopilot] ✅ Processed idea ${idea.id} → design ${coverDesignId}${isCarousel ? ` (carousel ${designData.carousel_id})` : ""}`);
   return { success: true };
 }
