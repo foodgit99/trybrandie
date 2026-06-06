@@ -46,6 +46,7 @@ import V2ContentHub from "./pages/v2/ContentHubV2";
 import V2Studio from "./pages/v2/Studio";
 import V2History from "./pages/v2/History";
 import V2Hub from "./pages/v2/Hub";
+import V2Pricing from "./pages/v2/Pricing";
 
 const queryClient = new QueryClient();
 
@@ -164,6 +165,7 @@ const App = () => (
           <Route path="/legacy/library" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
           <Route path="/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
           <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+          <Route path="/pricing" element={<V2Pricing />} />
           <Route path="/affiliates" element={<AffiliateMarketing />} />
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
