@@ -25,16 +25,16 @@ const primary: NavItem[] = [
 
 const moreItems: Array<NavItem & { description: string }> = [
   {
-    to: "/brand",
-    label: "Brand",
-    icon: Palette,
-    description: "Your brand centre & style genome",
-  },
-  {
     to: "/blueprint",
     label: "Blueprint",
     icon: CalendarDays,
     description: "The week's strategic arc",
+  },
+  {
+    to: "/brand",
+    label: "Brand",
+    icon: Palette,
+    description: "Your brand centre & style genome",
   },
   {
     to: "/report",
