@@ -285,13 +285,13 @@ const Landing = () => (
       {/* PRICE */}
       <section className="border-t border-border bg-secondary/40">
         <div className="px-5 sm:px-8 py-20 sm:py-28 max-w-3xl mx-auto text-center">
-          <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">One plan, one price</p>
-          <h2 className="mt-3 font-serif text-5xl sm:text-6xl tracking-tight">₦18,500 / month</h2>
-          <p className="mt-4 text-muted-foreground">That's ₦600 a day. Cheaper than a plate of rice, runs your entire marketing department.</p>
+          <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">Pay only for what you create</p>
+          <h2 className="mt-3 font-serif text-5xl sm:text-6xl tracking-tight">₦5,000 / 20 credits</h2>
+          <p className="mt-4 text-muted-foreground">That's ₦250 a post. No subscriptions, no expiry. Start with 5 free credits every month, top up only when you need more.</p>
           <Button asChild size="lg" className="rounded-full mt-10 h-12 px-7 text-base">
             <Link to="/auth?mode=signup">Start free <ArrowRight className="h-4 w-4" /></Link>
           </Button>
-          <p className="mt-4 text-xs text-muted-foreground">First week on us. Cancel in one click.</p>
+          <p className="mt-4 text-xs text-muted-foreground">5 free credits every month. No card required.</p>
         </div>
       </section>
     </main>
