@@ -81,6 +81,7 @@ const Auth = () => {
     if (error) {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
     } else {
+      gaEvent("sign_up", { method: "email" });
       toast({ title: "Check your email", description: "We sent you a confirmation link." });
     }
   };
