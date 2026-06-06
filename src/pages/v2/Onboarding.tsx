@@ -51,6 +51,7 @@ const Onboarding = () => {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState("");
+  const [scanSucceeded, setScanSucceeded] = useState(false);
   const playbook = getPlaybook(playbookId || "general");
 
   // step 1, Look & feel
@@ -182,6 +183,7 @@ const Onboarding = () => {
         if (b.primary_colors?.[0]) setPrimary(b.primary_colors[0]);
         if (b.secondary_colors?.[0]) setSecondary(b.secondary_colors[0]);
         if (b.accent_colors?.[0]) setAccent(b.accent_colors[0]);
+        setScanSucceeded(true);
         toast({ title: "Got it.", description: "Pre-filled what we could from your site." });
       }
     } catch (err: any) {
@@ -458,7 +460,24 @@ const Onboarding = () => {
                       </Button>
                     </div>
                     {scanning && <p className="text-xs text-muted-foreground mt-2">{scanMsg}</p>}
+                    {scanSucceeded && !scanning && (
+                      <div className="mt-3 rounded-xl border border-foreground/10 bg-secondary/40 p-3 space-y-2">
+                        <Button
+                          type="button"
+                          onClick={handleFinish}
+                          disabled={saving || !playbookId || name.trim().length < 2}
+                          className="w-full h-11 rounded-md gap-2"
+                        >
+                          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          Finish with website data
+                        </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                          We'll use what we pulled from your site. You can refine everything later in Brand Centre.
+                        </p>
+                      </div>
+                    )}
                   </div>
+
 
                   <div>
                     <label className="text-sm font-medium block mb-1.5">In one line, what do you sell?</label>
