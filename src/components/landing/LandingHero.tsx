@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
-import { Power, ArrowRight, Check, Loader2 } from "lucide-react";
+import { Power, ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import heroDesigns from "@/assets/landing-hero-designs.jpg";
+import heroPremium from "@/assets/landing-hero-premium.jpg";
 
 const LandingHero = () => {
   const navigate = useNavigate();
