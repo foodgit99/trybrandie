@@ -460,7 +460,24 @@ const Onboarding = () => {
                       </Button>
                     </div>
                     {scanning && <p className="text-xs text-muted-foreground mt-2">{scanMsg}</p>}
+                    {scanSucceeded && !scanning && (
+                      <div className="mt-3 rounded-xl border border-foreground/10 bg-secondary/40 p-3 space-y-2">
+                        <Button
+                          type="button"
+                          onClick={handleFinish}
+                          disabled={saving || !playbookId || name.trim().length < 2}
+                          className="w-full h-11 rounded-md gap-2"
+                        >
+                          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          Finish with website data
+                        </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                          We'll use what we pulled from your site. You can refine everything later in Brand Centre.
+                        </p>
+                      </div>
+                    )}
                   </div>
+
 
                   <div>
                     <label className="text-sm font-medium block mb-1.5">In one line, what do you sell?</label>
