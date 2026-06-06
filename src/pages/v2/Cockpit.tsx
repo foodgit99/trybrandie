@@ -241,11 +241,6 @@ const Cockpit = () => {
             <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
               The week ahead
             </h2>
-            <div className="flex items-center gap-3 text-xs">
-              <Link to="/engine" className="text-muted-foreground hover:text-foreground flex items-center gap-1">
-                Engine controls
-              </Link>
-            </div>
           </div>
 
           <div className="grid grid-cols-7 gap-1.5" aria-busy={ideasLoading}>
