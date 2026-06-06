@@ -18,7 +18,7 @@ const QUOTES = [
   "Whittling the headline to its essence…",
   "Tuning the visual hierarchy…",
   "Letting the negative space breathe…",
-  "Almost there - making it gallery-worthy…",
+  "Almost there, making it gallery-worthy…",
 ];
 
 interface Props {

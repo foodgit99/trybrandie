@@ -133,7 +133,7 @@ const parseStrategistActions = (content: string): { cleanContent: string; action
 };
 
 // Platform-locked canvas presets. Each value is the EXACT pixel output
-// (width × height) the renderer is forced to produce - see strict resize/crop
+// (width × height) the renderer is forced to produce, see strict resize/crop
 // in supabase/functions/design-studio/index.ts.
 import {
   CANVAS_PRESETS,
@@ -194,7 +194,7 @@ const DesignStudio = () => {
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   
 
-  // Carousel mode state - can be activated via URL or local toggle
+  // Carousel mode state, can be activated via URL or local toggle
   const [isCarouselMode, setIsCarouselMode] = useState(searchParams.get("mode") === "carousel");
   const [slideCount, setSlideCount] = useState(5);
   const [carouselSlides, setCarouselSlides] = useState<Array<{ image_url: string; slide_index: number; copy_structure: any; design_id: string }>>([]);
@@ -244,7 +244,7 @@ const DesignStudio = () => {
     enabled: !!user,
   });
 
-  // Active reward credits (admin-granted, expiring) - must be included in totals
+  // Active reward credits (admin-granted, expiring), must be included in totals
   const { data: rewardCredits = 0, refetch: refetchRewardCredits } = useQuery({
     queryKey: ["reward-credits-studio", user?.id],
     queryFn: async () => {
@@ -335,7 +335,7 @@ const DesignStudio = () => {
   useEffect(() => {
     if (recommendationFetched.current) return;
     if (!brand) return;
-    // Wait for trendPrefs to load - if they have a trend set, skip recommendation
+    // Wait for trendPrefs to load, if they have a trend set, skip recommendation
     if (trendPrefs === undefined) return; // still loading
     if (trendPrefs?.trend_enabled && trendPrefs?.selected_trend !== "none") return; // user already chose
 
@@ -383,7 +383,7 @@ const DesignStudio = () => {
     const now = new Date();
     const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
     const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
-    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const freeRemaining = Math.max(0, FREE_MONTHLY, monthlyUsed);
     const bonus = (profile as any).bonus_credits ?? 0;
     const paid = (profile as any).paid_credits ?? 0;
     return freeRemaining + bonus + (rewardCredits ?? 0) + paid;
@@ -586,7 +586,7 @@ const DesignStudio = () => {
     const now = new Date();
     const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
     const monthlyUsed = isCurrentMonth ? data.generations_count : 0;
-    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const freeRemaining = Math.max(0, FREE_MONTHLY, monthlyUsed);
     const bonus = (data as any).bonus_credits ?? 0;
     const paid = (data as any).paid_credits ?? 0;
     const reward = (rewards || []).reduce((sum: number, r: any) => sum + (r.remaining ?? 0), 0);
@@ -640,7 +640,7 @@ const DesignStudio = () => {
 
     const isEdit = !!currentImage && !!currentPrompt;
 
-    // Only check credit limit for new generations (edits may be free - server decides)
+    // Only check credit limit for new generations (edits may be free, server decides)
     if (!isEdit) {
       const canGenerate = await checkGenerationLimit();
       if (!canGenerate) return;
@@ -762,7 +762,7 @@ const DesignStudio = () => {
         return;
       }
 
-      const freeLabel = r.free_edit ? " (free edit - no credit used)" : "";
+      const freeLabel = r.free_edit ? " (free edit, no credit used)" : "";
       const assistantMsg: Message = {
         role: "assistant",
         content: r.explanation + freeLabel,
@@ -809,7 +809,7 @@ const DesignStudio = () => {
   }, [generation.status, generation.result, generation.error]);
 
   const handleSave = async () => {
-    // Auto-save already persisted the design - just show confirmation
+    // Auto-save already persisted the design, just show confirmation
     if (saved) {
       toast({ title: "Design already saved" });
       return;
@@ -877,8 +877,8 @@ const DesignStudio = () => {
       const ratio = logo.naturalHeight / logo.naturalWidth || 1;
       const targetH = Math.round(targetW * ratio);
       const margin = Math.round(w * 0.025);
-      const x = w - targetW - margin;
-      const y = h - targetH - margin;
+      const x = w, targetW, margin;
+      const y = h, targetH, margin;
 
       // Render monochrome white silhouette via offscreen canvas
       const off = document.createElement("canvas");
@@ -1041,9 +1041,9 @@ const DesignStudio = () => {
     const upsertAssistant = (nextChunk: string) => {
       assistantSoFar += nextChunk;
       setPlanMessages((prev) => {
-        const last = prev[prev.length - 1];
+        const last = prev[prev.length, 1];
         if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+          return prev.map((m, i) => (i === prev.length, 1 ? { ...m, content: assistantSoFar } : m));
         }
         return [...prev, { role: "assistant", content: assistantSoFar }];
       });
@@ -1174,7 +1174,7 @@ const DesignStudio = () => {
   // Carousel slide navigation
   const navigateSlide = (delta: number) => {
     if (carouselSlides.length === 0) return;
-    const next = Math.max(0, Math.min(carouselSlides.length - 1, currentSlideIndex + delta));
+    const next = Math.max(0, Math.min(carouselSlides.length, 1, currentSlideIndex + delta));
     setCurrentSlideIndex(next);
     setCurrentImage(carouselSlides[next].image_url);
     setCurrentDesignId(carouselSlides[next].design_id);
@@ -1202,8 +1202,8 @@ const DesignStudio = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background relative overflow-hidden">
-      <SEO title="Design Studio - Brandie" description="Generate and edit branded social graphics with the Brandie creative director." path="/studio" noindex />
-      {/* Top bar - fixed */}
+      <SEO title="Design Studio, Brandie" description="Generate and edit branded social graphics with the Brandie creative director." path="/studio" noindex />
+      {/* Top bar, fixed */}
       <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="ghost" size="icon" onClick={smartBack}>
@@ -1270,7 +1270,7 @@ const DesignStudio = () => {
                   Smart
                 </SelectLabel>
                 <SelectItem value={AUTO_CANVAS_VALUE} className="text-xs sm:text-sm">
-                  ✨ Auto - pick from prompt
+                  ✨ Auto, pick from prompt
                 </SelectItem>
               </SelectGroup>
               {Object.entries(CANVAS_GROUPS).map(([platform, presets]) => (
@@ -1289,14 +1289,14 @@ const DesignStudio = () => {
           </Select>
             </>
           )}
-          {/* Audience selector removed from header - now in chat input area */}
+          {/* Audience selector removed from header, now in chat input area */}
           <span className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-3 py-1 rounded-lg bg-secondary hidden sm:inline">
             {brand?.name || "Brand"}
           </span>
         </div>
       </header>
 
-      {/* Single-column chat layout - scrollable between fixed header and input */}
+      {/* Single-column chat layout, scrollable between fixed header and input */}
       {(
       <div className="flex flex-col flex-1 min-h-0 max-w-2xl mx-auto w-full pt-[60px] pb-0">
         {/* Messages */}
@@ -1399,7 +1399,7 @@ const DesignStudio = () => {
                 const { cleanContent, actions } = isAssistant
                   ? parseStrategistActions(msg.content)
                   : { cleanContent: msg.content, actions: [] };
-                const isLastAssistant = isAssistant && !planLoading && i === planMessages.length - 1;
+                const isLastAssistant = isAssistant && !planLoading && i === planMessages.length, 1;
 
                 return (
                 <motion.div
@@ -1464,7 +1464,7 @@ const DesignStudio = () => {
                 </motion.div>
                 );
               })}
-              {planLoading && planMessages[planMessages.length - 1]?.role !== "assistant" && (
+              {planLoading && planMessages[planMessages.length, 1]?.role !== "assistant" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                   <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1489,7 +1489,7 @@ const DesignStudio = () => {
               </div>
               <h3 className="text-lg font-serif">What would you like to design?</h3>
               <p className="text-sm text-muted-foreground max-w-[260px]">
-                Describe your social media post and I'll bring it to life - always on brand.
+                Describe your social media post and I'll bring it to life, always on brand.
               </p>
 
               {/* Trend recommendation */}
@@ -1533,7 +1533,7 @@ const DesignStudio = () => {
                 </motion.div>
               )}
 
-              {/* Suggestion bubbles - empty state */}
+              {/* Suggestion bubbles, empty state */}
               <ChatSuggestions
                 brandName={brand?.name}
                 brandVibe={brand?.vibe}
@@ -1548,7 +1548,7 @@ const DesignStudio = () => {
           {(() => {
             // Find the index of the last assistant message with an image (the current design)
             let lastImageIdx = -1;
-            for (let j = messages.length - 1; j >= 0; j--) {
+            for (let j = messages.length, 1; j >= 0; j--) {
               if (messages[j].role === "assistant" && messages[j].imageUrl) { lastImageIdx = j; break; }
             }
             return messages.map((msg, i) => (
@@ -1597,7 +1597,7 @@ const DesignStudio = () => {
                   )}
                 </div>
 
-                {/* Research sources panel - shown when Firecrawl returned grounding for this category */}
+                {/* Research sources panel, shown when Firecrawl returned grounding for this category */}
                 {msg.role === "assistant" && msg.researchSources && msg.researchSources.length > 0 && (
                   <details className="mt-2 rounded-xl border border-border/60 bg-muted/30 text-xs overflow-hidden group/research">
                     <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors list-none [&::-webkit-details-marker]:hidden">
@@ -1645,7 +1645,7 @@ const DesignStudio = () => {
                   </details>
                 )}
 
-                {/* Updates used panel - first-party brand updates that fed this design */}
+                {/* Updates used panel, first-party brand updates that fed this design */}
                 {msg.role === "assistant" && msg.updatesUsed && msg.updatesUsed.length > 0 && (
                   <details className="mt-2 rounded-xl border border-border/60 bg-muted/30 text-xs overflow-hidden group/updates">
                     <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors list-none [&::-webkit-details-marker]:hidden">
@@ -1691,7 +1691,7 @@ const DesignStudio = () => {
                               <ChevronLeft className="h-4 w-4" />
                             </button>
                           )}
-                          {currentSlideIndex < carouselSlides.length - 1 && (
+                          {currentSlideIndex < carouselSlides.length, 1 && (
                             <button onClick={() => navigateSlide(1)} className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors shadow-sm">
                               <ChevronRight className="h-4 w-4" />
                             </button>
@@ -1890,7 +1890,7 @@ const DesignStudio = () => {
               <GenerationLoader onStop={() => generation.stopGeneration()} />
             </motion.div>
           )}
-          {/* Suggestion bubbles - after messages */}
+          {/* Suggestion bubbles, after messages */}
           {messages.length > 0 && !loading && (
             <div className="py-2">
               <ChatSuggestions
@@ -1909,11 +1909,11 @@ const DesignStudio = () => {
           )}
         </div>
 
-        {/* Input - fixed at bottom */}
+        {/* Input, fixed at bottom */}
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="rounded-2xl border border-border bg-card shadow-[0_0_15px_-3px_hsl(var(--primary)/0.15),0_0_30px_-5px_hsl(var(--primary)/0.08)] p-3 sm:p-4 space-y-3">
-            {/* Attached image preview - only in create mode */}
+            {/* Attached image preview, only in create mode */}
             {chatMode === "create" && (
               <AnimatePresence>
                 {attachedImage && (
@@ -2098,7 +2098,7 @@ const DesignStudio = () => {
       </div>
       )}
 
-      {/* Fullscreen image preview - carousel viewer or single image */}
+      {/* Fullscreen image preview, carousel viewer or single image */}
       {carouselSlides.length > 0 ? (
         <DesignViewer
           designs={carouselSlides.map((slide, idx) => ({

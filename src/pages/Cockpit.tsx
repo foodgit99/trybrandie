@@ -347,7 +347,7 @@ const Cockpit = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Cockpit - Brandie" description="Today's drop and one-tap WhatsApp share." path="/cockpit" noindex />
+      <SEO title="Cockpit, Brandie" description="Today's drop and one-tap WhatsApp share." path="/cockpit" noindex />
       <AppHeader />
 
       <main className="mx-auto w-full max-w-3xl px-4 pb-12 pt-6 lg:pl-24">
@@ -439,7 +439,7 @@ const Cockpit = () => {
                   <div className="space-y-4 border-t border-border/60 px-4 py-4">
                     <p className="text-sm text-muted-foreground">
                       {isLocked
-                        ? "Brandie is on the wheel. Just show up and share - each day is mapped to a narrative arc that builds momentum across the week."
+                        ? "Brandie is on the wheel. Just show up and share, each day is mapped to a narrative arc that builds momentum across the week."
                         : pendingApproval > 0
                         ? "Review each day below, swap anything that doesn't fit with Quick pivot, then approve once. Each day is mapped to a narrative arc that builds momentum across the week."
                         : "Each day is mapped to a narrative arc that builds momentum across the week."}

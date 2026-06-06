@@ -273,7 +273,7 @@ const ContentHubV2 = () => {
 
   return (
     <div className="min-h-screen bg-background pb-32 lg:pl-20">
-      <SEO title="Content Hub - Brandie" description="Strategic command surface for your funnels, strategy, campaigns and content. Work hand-in-hand with the brand agents." path="/content-hub" />
+      <SEO title="Content Hub, Brandie" description="Strategic command surface for your funnels, strategy, campaigns and content. Work hand-in-hand with the brand agents." path="/content-hub" />
       <NewAppHeader />
 
       <main className="px-4 sm:px-8 py-6 sm:py-10 max-w-6xl mx-auto space-y-8">
@@ -287,7 +287,7 @@ const ContentHubV2 = () => {
             Command your content, end-to-end.
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl">
-            Funnels, strategy, campaigns, and every individual post - orchestrated by the autonomous engine
+            Funnels, strategy, campaigns, and every individual post, orchestrated by the autonomous engine
             and shaped together with your brand agents.
           </p>
         </header>

@@ -90,11 +90,11 @@ const Index = () => {
     }
 
     for (const [, slides] of carouselMap) {
-      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
+      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0), ((b as any).slide_index ?? 0));
       result.push({ ...sorted[0], _slideCount: sorted.length, _carouselSlides: sorted });
     }
 
-    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    result.sort((a, b) => new Date(b.created_at).getTime(), new Date(a.created_at).getTime());
     return result;
   }, [designs]);
 
@@ -162,7 +162,7 @@ const Index = () => {
     const today = new Date();
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
-      d.setDate(today.getDate() - i);
+      d.setDate(today.getDate(), i);
       days.push(d);
     }
     return days;
@@ -199,7 +199,7 @@ const Index = () => {
 
   const streakCount = useMemo(() => {
     let count = 0;
-    for (let i = weeklyActivity.length - 1; i >= 0; i--) {
+    for (let i = weeklyActivity.length, 1; i >= 0; i--) {
       if (weeklyActivity[i].active) count++;
       else if (weeklyActivity[i].isToday) continue;
       else break;
@@ -254,7 +254,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Dashboard - Brandie" description="Your Brandie home: today's drop, weekly plan, and quick actions." path="/dashboard" noindex />
+      <SEO title="Dashboard, Brandie" description="Your Brandie home: today's drop, weekly plan, and quick actions." path="/dashboard" noindex />
       <AppHeader />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
@@ -264,7 +264,7 @@ const Index = () => {
           transition={{ duration: 0.5 }}
           className="space-y-10 sm:space-y-12"
         >
-          {/* Engine Status Hero - autonomous content system */}
+          {/* Engine Status Hero, autonomous content system */}
           <EngineStatusHero brandId={brand?.id} firstName={profile?.full_name?.split(" ")[0] || null} />
 
           {/* Today's Content */}
@@ -346,7 +346,7 @@ const Index = () => {
               ))}
             </div>
 
-            {/* Quick Update chips - prefill type for faster logging */}
+            {/* Quick Update chips, prefill type for faster logging */}
             <div className="rounded-2xl border border-border bg-card/60 p-4">
               <div className="flex items-center justify-between mb-3 gap-2">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -446,7 +446,7 @@ const Index = () => {
             const used = isCurrentMonth ? profile.generations_count : 0;
             const bonus = profile.bonus_credits ?? 0;
             const paid = (profile as any)?.paid_credits ?? 0;
-            const freeRemaining = Math.max(0, FREE_MONTHLY - used);
+            const freeRemaining = Math.max(0, FREE_MONTHLY, used);
             const reward = rewardCreditsTotal ?? 0;
             const remaining = freeRemaining + bonus + reward + paid;
 
@@ -509,7 +509,7 @@ const Index = () => {
                 <div className="flex-1 space-y-1">
                   <h3 className="text-sm font-semibold text-foreground">Earn 5 bonus credits per friend</h3>
                   <p className="text-xs text-muted-foreground">
-                    Share your link - when they sign up, you both win.
+                    Share your link, when they sign up, you both win.
                     {(profile.bonus_credits ?? 0) > 0 && (
                       <span className="ml-1 font-medium text-primary">
                         You've earned {profile.bonus_credits} bonus credits so far!
@@ -531,7 +531,7 @@ const Index = () => {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 rounded-lg"
-                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("I've been using Brandie to create stunning branded graphics with AI - try it out and we both get 5 bonus credits! " + referralLink)}`, "_blank")}
+                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("I've been using Brandie to create stunning branded graphics with AI, try it out and we both get 5 bonus credits! " + referralLink)}`, "_blank")}
                     aria-label="Share on X"
                   >
                     <Twitter className="h-3.5 w-3.5" />

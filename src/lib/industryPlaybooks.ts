@@ -1,4 +1,4 @@
-// Industry Playbooks - defaults the autonomous content engine runs on.
+// Industry Playbooks, defaults the autonomous content engine runs on.
 // Each playbook seeds 7 starter content ideas and provides sensible brand defaults.
 
 export type PlaybookIdeaTemplate = {
@@ -314,5 +314,5 @@ export const INDUSTRY_PLAYBOOKS: IndustryPlaybook[] = [
 ];
 
 export function getPlaybook(id: string | null | undefined): IndustryPlaybook {
-  return INDUSTRY_PLAYBOOKS.find((p) => p.id === id) || INDUSTRY_PLAYBOOKS[INDUSTRY_PLAYBOOKS.length - 1];
+  return INDUSTRY_PLAYBOOKS.find((p) => p.id === id) || INDUSTRY_PLAYBOOKS[INDUSTRY_PLAYBOOKS.length, 1];
 }

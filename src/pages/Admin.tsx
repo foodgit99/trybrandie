@@ -635,13 +635,13 @@ function EmailCRMTab() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 pt-4">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded-xl">
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p, 1))} disabled={page === 0} className="rounded-xl">
             Previous
           </Button>
           <span className="flex items-center px-3 text-sm text-muted-foreground">
             {page + 1} / {totalPages}
           </span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="rounded-xl">
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, 1, p + 1))} disabled={page >= totalPages, 1} className="rounded-xl">
             Next
           </Button>
         </div>
@@ -1253,9 +1253,9 @@ function AdminDesignsTab() {
 
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 pt-4">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded-xl">Previous</Button>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p, 1))} disabled={page === 0} className="rounded-xl">Previous</Button>
           <span className="flex items-center px-3 text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="rounded-xl">Next</Button>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, 1, p + 1))} disabled={page >= totalPages, 1} className="rounded-xl">Next</Button>
         </div>
       )}
 
@@ -1796,9 +1796,9 @@ function DataTable({ tableName }: { tableName: string }) {
 
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 pt-4">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded-xl">Previous</Button>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p, 1))} disabled={page === 0} className="rounded-xl">Previous</Button>
           <span className="flex items-center px-3 text-sm text-muted-foreground">{page + 1} / {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="rounded-xl">Next</Button>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, 1, p + 1))} disabled={page >= totalPages, 1} className="rounded-xl">Next</Button>
         </div>
       )}
 

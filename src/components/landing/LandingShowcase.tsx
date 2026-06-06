@@ -44,7 +44,7 @@ const LandingShowcase = () => {
               Every post, perfectly on brand
             </motion.h2>
             <motion.p variants={fadeUp} custom={1} className="text-muted-foreground leading-relaxed">
-              Your Brand Centre stores everything - colours, fonts, tone, personality, and inspiration. Brandie uses this DNA to ensure every graphic feels unmistakably yours.
+              Your Brand Centre stores everything, colours, fonts, tone, personality, and inspiration. Brandie uses this DNA to ensure every graphic feels unmistakably yours.
             </motion.p>
             <motion.div variants={fadeUp} custom={2}>
               <Button variant="outline" className="rounded-xl gap-2" onClick={() => navigate("/auth?mode=signup")}>
@@ -63,7 +63,7 @@ const LandingShowcase = () => {
             <ShowcaseImage src={contentHub} alt="Content Hub calendar with AI-generated ideas and content pillars" direction="left" />
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} className="space-y-5 order-1 md:order-2">
               <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
-                Plan, create, and schedule - all in one place
+                Plan, create, and schedule, all in one place
               </motion.h2>
               <motion.p variants={fadeUp} custom={1} className="text-muted-foreground leading-relaxed">
                 The Content Hub generates weekly content ideas based on your brand, organises them into pillars, and lets you create designs or carousels with a single click.
@@ -121,7 +121,7 @@ const LandingShowcase = () => {
                 The engine learns your taste
               </motion.h2>
               <motion.p variants={fadeUp} custom={1} className="text-primary-foreground/70 leading-relaxed">
-                Brandie's Visual Style Genome remembers what you upvote and quietly tunes future posts - tone, layout, palette, hook style. Combined with JTBD audience profiling, the engine doesn't just get faster. It gets sharper, week after week.
+                Brandie's Visual Style Genome remembers what you upvote and quietly tunes future posts, tone, layout, palette, hook style. Combined with JTBD audience profiling, the engine doesn't just get faster. It gets sharper, week after week.
               </motion.p>
               <motion.div variants={fadeUp} custom={2} className="flex flex-wrap gap-3">
                 {["Style Genome", "Mutation Engine", "Brand Memory", "JTBD Profiling", "Trend Adaptation"].map((tag) => (

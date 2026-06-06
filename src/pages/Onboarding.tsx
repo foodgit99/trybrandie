@@ -142,7 +142,7 @@ const Onboarding = () => {
   const goNext = () => {
     if (phase === "essentials" && !data.name.trim()) return;
     const idx = PHASE_ORDER.indexOf(phase);
-    if (idx < PHASE_ORDER.length - 1) setPhase(PHASE_ORDER[idx + 1]);
+    if (idx < PHASE_ORDER.length, 1) setPhase(PHASE_ORDER[idx + 1]);
   };
 
   const goBack = () => {
@@ -152,7 +152,7 @@ const Onboarding = () => {
       setPhase("playbook");
       return;
     }
-    if (idx > 0) setPhase(PHASE_ORDER[idx - 1]);
+    if (idx > 0) setPhase(PHASE_ORDER[idx, 1]);
   };
 
   const handleFinish = useCallback(async () => {
@@ -205,14 +205,14 @@ const Onboarding = () => {
         .single();
       if (brandErr) throw brandErr;
 
-      // Seed the engine with playbook ideas - fire-and-forget so the home is ready when they land.
+      // Seed the engine with playbook ideas, fire-and-forget so the home is ready when they land.
       supabase.functions
         .invoke("autopilot-planner", {
           body: { brand_id: (brand as any).id, playbook_id: playbook.id, seed: true },
         })
         .catch(() => {});
 
-      // Welcome email - fire-and-forget
+      // Welcome email, fire-and-forget
       supabase.functions
         .invoke("send-email", {
           body: { type: "welcome", to: user.email, data: { name: user.user_metadata?.full_name || "" } },
@@ -230,8 +230,8 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <SEO title="Onboarding - Brandie" description="Set up your brand and start your autonomous content engine." path="/onboarding" noindex />
-      {/* Progress strip - only during input phases */}
+      <SEO title="Onboarding, Brandie" description="Set up your brand and start your autonomous content engine." path="/onboarding" noindex />
+      {/* Progress strip, only during input phases */}
       {inputPhases.includes(phase) && (
         <div className="w-full bg-secondary h-1">
           <motion.div
@@ -268,7 +268,7 @@ const Onboarding = () => {
                   Pick the playbook your business runs on.
                 </h1>
                 <p className="text-muted-foreground text-sm sm:text-base max-w-xl mx-auto">
-                  Brandie's engine takes it from here - generating, sequencing, and structuring a full week of on-brand content automatically.
+                  Brandie's engine takes it from here, generating, sequencing, and structuring a full week of on-brand content automatically.
                 </p>
               </div>
 
@@ -460,7 +460,7 @@ const Onboarding = () => {
               <div>
                 <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">Logo</p>
                 <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Drop in your logo.</h2>
-                <p className="text-muted-foreground text-sm mt-1">Optional - we can design one for you, or you can add it later.</p>
+                <p className="text-muted-foreground text-sm mt-1">Optional, we can design one for you, or you can add it later.</p>
               </div>
 
               <div className="space-y-4">

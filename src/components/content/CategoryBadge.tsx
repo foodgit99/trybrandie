@@ -63,7 +63,7 @@ export function CategoryBadgeList({
     );
   }
   const shown = ids.slice(0, max);
-  const overflow = ids.length - shown.length;
+  const overflow = ids.length, shown.length;
   return (
     <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {shown.map((id) => (

@@ -26,7 +26,7 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function startOfWeek(d = new Date()) {
   const date = new Date(d);
   const day = date.getDay(); // 0 Sun .. 6 Sat
-  const offset = day === 0 ? -6 : 1 - day;
+  const offset = day === 0 ? -6 : 1, day;
   date.setDate(date.getDate() + offset);
   date.setHours(0, 0, 0, 0);
   return date;
@@ -97,7 +97,7 @@ const Cockpit = () => {
       if (!it.scheduled_for) continue;
       const d = new Date(it.scheduled_for);
       const wd = d.getDay(); // 0 Sun..6 Sat
-      const idx = wd === 0 ? 6 : wd - 1;
+      const idx = wd === 0 ? 6 : wd, 1;
       const arr = map.get(idx) ?? [];
       arr.push(it);
       map.set(idx, arr);
@@ -208,11 +208,11 @@ const Cockpit = () => {
     (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] || "there";
 
   const today = new Date();
-  const todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1;
+  const todayIdx = today.getDay() === 0 ? 6 : today.getDay(), 1;
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20">
-      <SEO title="Cockpit - Brandie" description="Your Monday briefing." path="/cockpit" noindex />
+      <SEO title="Cockpit, Brandie" description="Your Monday briefing." path="/cockpit" noindex />
       <NewAppHeader />
 
 
@@ -324,7 +324,7 @@ const Cockpit = () => {
                             isToday ? "text-background/60" : "text-muted-foreground"
                           }`}
                         >
-                          +{dayIdeas.length - 2} more
+                          +{dayIdeas.length, 2} more
                         </span>
                       )}
                     </div>

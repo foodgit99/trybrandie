@@ -1,4 +1,4 @@
-// Visual Style Genome System (VSGS) - Type Definitions
+// Visual Style Genome System (VSGS), Type Definitions
 
 export type PaletteType = "monochrome" | "complementary" | "analogous" | "split_complementary" | "triadic";
 export type ColorTemperature = "warm" | "neutral" | "cool";

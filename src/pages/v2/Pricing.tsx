@@ -74,7 +74,7 @@ const V2Pricing = () => {
       now.getMonth() === resetAt.getMonth() &&
       now.getFullYear() === resetAt.getFullYear();
     const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
-    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const freeRemaining = Math.max(0, FREE_MONTHLY, monthlyUsed);
     return freeRemaining + (profile.bonus_credits ?? 0) + (profile.paid_credits ?? 0);
   };
 
@@ -103,7 +103,7 @@ const V2Pricing = () => {
         lastData = data;
         lastError = error;
         if (data?.verified && (data.credited || data.already_credited)) break;
-        if (attempt < maxAttempts - 1) {
+        if (attempt < maxAttempts, 1) {
           await new Promise((r) => setTimeout(r, intervalMs));
         }
       }
@@ -117,7 +117,7 @@ const V2Pricing = () => {
         });
       } else if (!lastData.credited && !lastData.already_credited) {
         toast({
-          title: "Payment received - credits are syncing",
+          title: "Payment received, credits are syncing",
           description: "Refresh in a moment. Contact support if it doesn't appear.",
         });
       } else {
@@ -176,7 +176,7 @@ const V2Pricing = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Pricing - Brandie"
+        title="Pricing, Brandie"
         description="Pay only for what you create. ₦5,000 per 20 credits. No subscription, no expiry."
         path="/pricing"
       />
@@ -341,7 +341,7 @@ const V2Pricing = () => {
                     ) : user ? (
                       <>
                         <Zap className="h-4 w-4" />
-                        Buy {credits} credits - {formatNaira(price)}
+                        Buy {credits} credits, {formatNaira(price)}
                       </>
                     ) : (
                       <>

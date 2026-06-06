@@ -29,7 +29,7 @@ type StageState = {
 
 function relTime(iso: string | null, now: number): string {
   if (!iso) return "-";
-  const diff = Math.max(0, now - new Date(iso).getTime());
+  const diff = Math.max(0, now, new Date(iso).getTime());
   const s = Math.floor(diff / 1000);
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
@@ -51,7 +51,7 @@ const STAGE_COPY: Record<string, { title: string; body: string }> = {
   },
   strategy: {
     title: "Strategy",
-    body: "Sequences ideas into a 5-day narrative arc - no random posts, only intentional pacing.",
+    body: "Sequences ideas into a 5-day narrative arc, no random posts, only intentional pacing.",
   },
   planning: {
     title: "Planning",

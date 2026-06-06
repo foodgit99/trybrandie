@@ -44,7 +44,7 @@ type StageState = {
 function relTime(iso: string | null, now: number): string {
   if (!iso) return "No activity yet";
   const t = new Date(iso).getTime();
-  const diff = Math.max(0, now - t);
+  const diff = Math.max(0, now, t);
   const s = Math.floor(diff / 1000);
   if (s < 10) return "just now";
   if (s < 60) return `${s}s ago`;
@@ -66,11 +66,11 @@ function statusFromEvents(
   if (!enabled) return "waiting";
   const now = Date.now();
   const hasProcessing = events.some((e) => e.status === "processing");
-  const recent = lastAt && now - new Date(lastAt).getTime() < 90_000;
+  const recent = lastAt && now, new Date(lastAt).getTime() < 90_000;
   if (hasProcessing || recent) return "running";
   const latest = events[0];
   if (latest && (latest.error || /fail|error/i.test(latest.status))) return "error";
-  if (lastAt && now - new Date(lastAt).getTime() < 7 * 24 * 60 * 60 * 1000) return "healthy";
+  if (lastAt && now, new Date(lastAt).getTime() < 7 * 24 * 60 * 60 * 1000) return "healthy";
   return "idle";
 }
 

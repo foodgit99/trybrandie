@@ -21,14 +21,14 @@ export function buildAudienceCopy(brand: BrandLike): AudiencePromptCopy {
   const description = (brand?.description || "").trim();
 
   const contextLine = tagline
-    ? `“${tagline}” is a strong promise - but a promise only lands when it's pointed at the right person.`
+    ? `“${tagline}” is a strong promise, but a promise only lands when it's pointed at the right person.`
     : description
       ? `${name} already has a clear story. The next leap is pointing that story at a specific human.`
       : `${name} has the voice set. The next leap is knowing exactly who that voice is for.`;
 
   const heading = `${name}, who exactly are you talking to?`;
 
-  const subheading = `${contextLine} Right now, every suggestion we generate goes out to "everyone" - which is the fastest way to be ignored. Tell us who actually buys from ${name}, and we'll rewrite every caption, hook, and visual to speak straight to them.`;
+  const subheading = `${contextLine} Right now, every suggestion we generate goes out to "everyone", which is the fastest way to be ignored. Tell us who actually buys from ${name}, and we'll rewrite every caption, hook, and visual to speak straight to them.`;
 
   const bullets = [
     {
@@ -41,7 +41,7 @@ export function buildAudienceCopy(brand: BrandLike): AudiencePromptCopy {
     },
     {
       title: "Higher conversion",
-      body: "Audience-aware designs consistently outperform generic posts - often by 2–3×.",
+      body: "Audience-aware designs consistently outperform generic posts, often by 2–3×.",
     },
   ];
 

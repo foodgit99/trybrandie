@@ -82,7 +82,7 @@ const DELIVERY_OPTIONS: { id: Delivery; label: string; sub: string }[] = [
 const AUTOFILL_OPTIONS: { id: AutoFill; label: string; description: string; icon: any }[] = [
   { id: "never", label: "Never", description: "Pause when credits run out.", icon: Ban },
   { id: "free_only", label: "Free credits only", description: "Use free monthly allowance, then pause.", icon: Gift },
-  { id: "always", label: "Always", description: "Use any credits available - never stops.", icon: InfinityIcon },
+  { id: "always", label: "Always", description: "Use any credits available, never stops.", icon: InfinityIcon },
 ];
 
 const PIPELINE = [
@@ -258,7 +258,7 @@ const Engine = () => {
 
   const activeStageIdx = merged.enabled
     ? Math.min(
-        PIPELINE.length - 1,
+        PIPELINE.length, 1,
         Math.max(
           0,
           (queueStats?.processing ?? 0) > 0
@@ -273,7 +273,7 @@ const Engine = () => {
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO
-        title="Engine - Brandie"
+        title="Engine, Brandie"
         description="Command your autonomous content engine."
         path="/engine"
         noindex
@@ -292,7 +292,7 @@ const Engine = () => {
                 The Engine.
               </h1>
               <p className="text-muted-foreground max-w-xl">
-                Six agents working in concert - researching, ideating, designing and
+                Six agents working in concert, researching, ideating, designing and
                 shipping. You hold the keys.
               </p>
             </div>
@@ -304,7 +304,7 @@ const Engine = () => {
                   : "border-border bg-card"
               }`}
             >
-              {/* Ambient "engine working" pulse - sweeps left → right */}
+              {/* Ambient "engine working" pulse, sweeps left → right */}
               {merged.enabled && (
                 <motion.div
                   aria-hidden
@@ -380,10 +380,10 @@ const Engine = () => {
           ))}
         </section>
 
-        {/* PIPELINE - live telemetry */}
+        {/* PIPELINE, live telemetry */}
         <PipelineTelemetry brandId={brand!.id} enabled={merged.enabled} />
 
-        {/* MODE - segmented throttle */}
+        {/* MODE, segmented throttle */}
         <section className="space-y-5">
           <div className="flex items-baseline justify-between">
             <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
@@ -414,8 +414,8 @@ const Engine = () => {
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     className="absolute top-1.5 bottom-1.5 rounded-xl bg-foreground shadow-[0_8px_24px_-12px_hsl(var(--foreground)/0.45)]"
                     style={{
-                      width: `calc((100% - 0.75rem) / 3)`,
-                      left: `calc(0.375rem + ${safeIdx} * ((100% - 0.75rem) / 3))`,
+                      width: `calc((100%, 0.75rem) / 3)`,
+                      left: `calc(0.375rem + ${safeIdx} * ((100%, 0.75rem) / 3))`,
                     }}
                   />
                   {MODE_OPTIONS.map(({ id, label, icon: Icon }, i) => {
@@ -510,7 +510,7 @@ const Engine = () => {
                   Open the Studio to design on demand
                 </p>
                 <p className="text-sm text-background/70 mt-0.5">
-                  Same agents, same brand memory - you in the driver's seat.
+                  Same agents, same brand memory, you in the driver's seat.
                 </p>
               </div>
             </div>
@@ -598,7 +598,7 @@ const Engine = () => {
           </div>
         </section>
 
-        {/* AUTOFILL - segmented throttle */}
+        {/* AUTOFILL, segmented throttle */}
         <section className="space-y-5">
           <div className="flex items-baseline justify-between">
             <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
@@ -628,8 +628,8 @@ const Engine = () => {
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     className="absolute top-1.5 bottom-1.5 rounded-xl bg-foreground shadow-[0_8px_24px_-12px_hsl(var(--foreground)/0.45)]"
                     style={{
-                      width: `calc((100% - 0.75rem) / 3)`,
-                      left: `calc(0.375rem + ${safeIdx} * ((100% - 0.75rem) / 3))`,
+                      width: `calc((100%, 0.75rem) / 3)`,
+                      left: `calc(0.375rem + ${safeIdx} * ((100%, 0.75rem) / 3))`,
                     }}
                   />
                   {AUTOFILL_OPTIONS.map(({ id, label, icon: Icon }, i) => {

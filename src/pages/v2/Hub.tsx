@@ -216,7 +216,7 @@ const Hub = () => {
 
   return (
     <div className="min-h-screen bg-background pb-32 lg:pl-20">
-      <SEO title="Content Hub - Brandie" description="Your autonomous content cockpit: today, this week, funnels, and campaigns - orchestrated end-to-end." path="/hub" />
+      <SEO title="Content Hub, Brandie" description="Your autonomous content cockpit: today, this week, funnels, and campaigns, orchestrated end-to-end." path="/hub" />
       <NewAppHeader />
 
       <main className="px-4 sm:px-8 py-6 sm:py-10 max-w-6xl mx-auto space-y-8">
@@ -233,7 +233,7 @@ const Hub = () => {
           </p>
         </header>
 
-        {/* Engine status - mirrors /engine live card */}
+        {/* Engine status, mirrors /engine live card */}
         <section className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-stretch">
           <div
             className={cn(
@@ -243,7 +243,7 @@ const Hub = () => {
                 : "border-border bg-card"
             )}
           >
-            {/* Ambient "engine working" pulse - sweeps left → right */}
+            {/* Ambient "engine working" pulse, sweeps left → right */}
             {engine?.enabled && (
               <motion.div
                 aria-hidden
@@ -616,7 +616,7 @@ function CampaignsTab({
         <Megaphone className="h-6 w-6 mx-auto text-muted-foreground" />
         <h3 className="mt-3 text-sm font-medium">No campaigns yet</h3>
         <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-          Ask the strategist below to spin up a multi-post campaign - or jump into the Studio to draft one.
+          Ask the strategist below to spin up a multi-post campaign, or jump into the Studio to draft one.
         </p>
         <Button size="sm" variant="outline" className="rounded-xl mt-4" onClick={onCreate}>
           Open Studio <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
