@@ -277,7 +277,7 @@ export default function CarouselPreviewDialog({ open, onOpenChange, designId, ti
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                     )}
-                    {index < slides.length, 1 && (
+                    {index < slides.length - 1 && (
                       <button
                         onClick={() => setIndex((i) => Math.min(slides.length, 1, i + 1))}
                         className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 backdrop-blur shadow-sm flex items-center justify-center hover:bg-background transition-colors"

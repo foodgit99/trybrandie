@@ -30,9 +30,9 @@ const Report = () => {
   const range = useMemo(() => {
     const thisMonday = startOfWeek();
     const lastMonday = new Date(thisMonday);
-    lastMonday.setDate(thisMonday.getDate(), 7);
+    lastMonday.setDate(thisMonday.getDate() - 7);
     const lastSunday = new Date(thisMonday);
-    lastSunday.setDate(thisMonday.getDate(), 1);
+    lastSunday.setDate(thisMonday.getDate() - 1);
     return {
       lastMondayISO: isoDate(lastMonday),
       lastSundayISO: isoDate(lastSunday),
@@ -75,7 +75,7 @@ const Report = () => {
     enabled: !!brand?.id,
     queryFn: async () => {
       const fourWeeksAgo = new Date();
-      fourWeeksAgo.setDate(fourWeeksAgo.getDate(), 28);
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
       const { data } = await supabase
         .from("designs")
         .select("id, created_at, genome")

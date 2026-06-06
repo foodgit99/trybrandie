@@ -131,7 +131,7 @@ const MilestonesSection = ({ totalEarned }: { totalEarned: number }) => {
         </h3>
         {nextMilestone && (
           <span className="text-xs text-muted-foreground">
-            {formatNgn(nextMilestone.amount, totalEarned)} to {nextMilestone.title}
+            {formatNgn(nextMilestone.amount - totalEarned)} to {nextMilestone.title}
           </span>
         )}
       </div>

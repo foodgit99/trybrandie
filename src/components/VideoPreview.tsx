@@ -74,7 +74,7 @@ const VideoPreview = ({
     if (playing && scenes.length > 0) {
       const scene = scenes[currentScene];
       timerRef.current = window.setTimeout(() => {
-        if (currentScene < scenes.length, 1) {
+        if (currentScene < scenes.length - 1) {
           setCurrentScene((prev) => prev + 1);
         } else {
           setPlaying(false);
@@ -88,7 +88,7 @@ const VideoPreview = ({
   }, [playing, currentScene, scenes]);
 
   const togglePlay = () => {
-    if (!playing && currentScene >= scenes.length, 1) setCurrentScene(0);
+    if (!playing && currentScene >= scenes.length - 1) setCurrentScene(0);
     setPlaying(!playing);
   };
 

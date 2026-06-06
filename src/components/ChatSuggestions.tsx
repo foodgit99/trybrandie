@@ -61,7 +61,7 @@ const ChatSuggestions = ({
       (idea) => idea.status === "suggested" || idea.status === "scheduled"
     );
     if (availableIdeas && availableIdeas.length > 0) {
-      const shuffled = [...availableIdeas].sort(() => 0.5, Math.random());
+      const shuffled = [...availableIdeas].sort(() => 0.5 - Math.random());
       return shuffled.slice(0, 4).map((idea) => idea.prompt);
     }
 
@@ -89,7 +89,7 @@ const ChatSuggestions = ({
       pool.push(`Design a post highlighting what ${name} does best`);
     }
 
-    const shuffled = pool.sort(() => 0.5, Math.random());
+    const shuffled = pool.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 4);
   }, [brandName, brandVibe, brandDescription, hasMessages, hasImage, contentIdeas]);
 

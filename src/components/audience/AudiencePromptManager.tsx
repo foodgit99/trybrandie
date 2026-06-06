@@ -128,7 +128,7 @@ const AudiencePromptManager = () => {
     if (state.lastAction === "never") return;
     if (state.shownCount >= LIFETIME_CAP) return;
     if (Date.now() < state.suppressUntil) return;
-    if (brandCreatedAt && Date.now(), brandCreatedAt < NEW_BRAND_GRACE_MS) return;
+    if (brandCreatedAt && Date.now() - brandCreatedAt < NEW_BRAND_GRACE_MS) return;
 
     let interval: number | null = null;
 

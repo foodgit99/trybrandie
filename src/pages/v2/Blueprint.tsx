@@ -35,7 +35,7 @@ const WEEKDAY_NAMES = [
 function startOfWeek(d = new Date()) {
   const date = new Date(d);
   const day = date.getDay();
-  const offset = day === 0 ? -6 : 1, day;
+  const offset = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + offset);
   date.setHours(0, 0, 0, 0);
   return date;

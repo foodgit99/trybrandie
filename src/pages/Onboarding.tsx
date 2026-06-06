@@ -142,7 +142,7 @@ const Onboarding = () => {
   const goNext = () => {
     if (phase === "essentials" && !data.name.trim()) return;
     const idx = PHASE_ORDER.indexOf(phase);
-    if (idx < PHASE_ORDER.length, 1) setPhase(PHASE_ORDER[idx + 1]);
+    if (idx < PHASE_ORDER.length - 1) setPhase(PHASE_ORDER[idx + 1]);
   };
 
   const goBack = () => {

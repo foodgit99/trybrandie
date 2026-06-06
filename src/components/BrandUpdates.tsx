@@ -149,7 +149,7 @@ const daysUntilExpiry = (expires_at: string | null): number | null => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const exp = new Date(expires_at + "T00:00:00");
-  return Math.ceil((exp.getTime(), today.getTime()) / 86400000);
+  return Math.ceil((exp.getTime() - today.getTime()) / 86400000);
 };
 
 const emptyForm = (): FormState => ({
@@ -411,7 +411,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const goPrevLowConf = () => {
     if (lowConfidenceUpdates.length <= 1) return;
     setLowConfIndex((i) =>
-      (i, 1 + lowConfidenceUpdates.length) % lowConfidenceUpdates.length,
+      (i - 1 + lowConfidenceUpdates.length) % lowConfidenceUpdates.length,
     );
   };
 
@@ -423,7 +423,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       return;
     }
     if (lowConfIndex >= lowConfidenceUpdates.length) {
-      setLowConfIndex(lowConfidenceUpdates.length, 1);
+      setLowConfIndex(lowConfidenceUpdates.length - 1);
     }
   }, [lowConfidenceUpdates.length, lowConfIndex]);
 
@@ -774,7 +774,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
           const days = daysUntilExpiry(form.expires_at);
           if (days === null) return null;
           if (days < 0) {
-            return <p className="text-[11px] text-destructive">⚠ This date is in the past, the update won't be used.</p>;
+            return <p className="text-[11px] text-destructive">⚠ This date is in the past - the update won't be used.</p>;
           }
           if (days === 0) {
             return <p className="text-[11px] text-amber-600 dark:text-amber-400">Expires today.</p>;

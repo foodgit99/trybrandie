@@ -21,9 +21,9 @@ const CEOBriefingPreview = ({ brandId, brandName }: Props) => {
   const range = useMemo(() => {
     const thisMonday = startOfWeek();
     const lastMonday = new Date(thisMonday);
-    lastMonday.setDate(thisMonday.getDate(), 7);
+    lastMonday.setDate(thisMonday.getDate() - 7);
     const lastSunday = new Date(thisMonday);
-    lastSunday.setDate(thisMonday.getDate(), 1);
+    lastSunday.setDate(thisMonday.getDate() - 1);
     return {
       lastMondayISO: isoDate(lastMonday),
       lastSundayISO: isoDate(lastSunday),
@@ -136,7 +136,7 @@ const CEOBriefingPreview = ({ brandId, brandName }: Props) => {
                 <Stat label="Shipped" value={stats.shipped} suffix={`${shipRate}%`} />
                 <Stat
                   label="Signal"
-                  value={stats.ups, stats.downs}
+                  value={stats.ups - stats.downs}
                   suffix={`${stats.ups + stats.downs} votes`}
                   positive={stats.ups >= stats.downs}
                 />

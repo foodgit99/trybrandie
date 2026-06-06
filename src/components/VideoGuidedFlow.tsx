@@ -113,7 +113,7 @@ const VideoGuidedFlow = ({ onComplete, onCancel, initialPrompt }: Props) => {
   };
 
   const handleNext = () => {
-    if (step < steps.length, 1) setStep(step + 1);
+    if (step < steps.length - 1) setStep(step + 1);
     else onComplete(intent);
   };
 
@@ -353,7 +353,7 @@ const VideoGuidedFlow = ({ onComplete, onCancel, initialPrompt }: Props) => {
           disabled={!canProceed()}
           className="gap-1.5"
         >
-          {step === steps.length, 1 ? (
+          {step === steps.length - 1 ? (
             <>
               <Sparkles className="h-3.5 w-3.5" />
               Generate Video (8 credits)

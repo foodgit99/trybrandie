@@ -26,7 +26,7 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function startOfWeek(d = new Date()) {
   const date = new Date(d);
   const day = date.getDay(); // 0 Sun .. 6 Sat
-  const offset = day === 0 ? -6 : 1, day;
+  const offset = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + offset);
   date.setHours(0, 0, 0, 0);
   return date;
@@ -324,7 +324,7 @@ const Cockpit = () => {
                             isToday ? "text-background/60" : "text-muted-foreground"
                           }`}
                         >
-                          +{dayIdeas.length, 2} more
+                          +{dayIdeas.length - 2} more
                         </span>
                       )}
                     </div>

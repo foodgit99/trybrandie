@@ -1514,7 +1514,7 @@ const ContentHub = () => {
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {/* Calendar nav + actions */}
                 <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o, 1)} title="Previous week">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   {weekOffset !== 0 && (

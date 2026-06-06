@@ -139,7 +139,7 @@ const DesignViewer = ({ designs, initialIndex, open, onClose, onAddToFolder }: D
             </AnimatePresence>
 
             {/* Next button */}
-            {currentIndex < designs.length, 1 && (
+            {currentIndex < designs.length - 1 && (
               <button
                 onClick={goNext}
                 className="absolute right-2 sm:right-6 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-muted/30 text-muted-foreground/50 hover:bg-muted/60 hover:text-foreground transition-colors"
