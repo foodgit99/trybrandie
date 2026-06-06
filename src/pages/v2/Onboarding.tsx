@@ -596,36 +596,62 @@ const Onboarding = () => {
                   </p>
                 </div>
 
+                <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">Not sure where to start?</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Brandie can draft a starting point from your brand. Edit anything that doesn't match your real customers.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleSuggestAudience}
+                    disabled={suggestingAudience || !name.trim()}
+                    className="w-full sm:w-auto"
+                  >
+                    {suggestingAudience ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Drafting…</>
+                    ) : (
+                      <><Sparkles className="w-4 h-4 mr-2" />Suggest with Brandie</>
+                    )}
+                  </Button>
+                </div>
+
                 <div className="space-y-5">
                   <Field
                     label="Who are they?"
                     hint="One sentence. Age, role, vibe."
                     value={audienceWho}
-                    onChange={setAudienceWho}
+                    onChange={(v) => setAudienceField("who", v)}
                     placeholder="e.g. 28-40 working women in Lagos who care about craftsmanship."
+                    source={audienceSources.who}
                   />
                   <Field
                     label="What are they struggling with?"
-                    hint="The pain that makes them open their phone at midnight."
+                    hint="The pain that makes them open their phone at midnight. Worth double-checking — this drives every caption."
                     value={audienceStruggle}
-                    onChange={setAudienceStruggle}
+                    onChange={(v) => setAudienceField("struggle", v)}
                     placeholder="e.g. Can't find a bag that's elegant for work and big enough for a laptop."
+                    source={audienceSources.struggle}
                   />
                   <Field
                     label="What outcome do they want?"
                     hint="The version of life they're paying for."
                     value={audienceOutcome}
-                    onChange={setAudienceOutcome}
+                    onChange={(v) => setAudienceField("outcome", v)}
                     placeholder="e.g. To walk into the boardroom and feel quietly powerful."
+                    source={audienceSources.outcome}
                   />
                   <Field
                     label="What makes them finally buy?"
                     hint="The trigger event or moment of decision."
                     value={audienceTrigger}
-                    onChange={setAudienceTrigger}
+                    onChange={(v) => setAudienceField("trigger", v)}
                     placeholder="e.g. A promotion. A new role. End-of-month bonus."
+                    source={audienceSources.trigger}
                   />
                 </div>
+
               </motion.div>
             )}
 
