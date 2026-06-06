@@ -443,7 +443,7 @@ async function processIdea(
       user_id: idea.user_id,
       title: "Today's post is ready",
       body: idea.title,
-      url: `/post/${coverDesignId}`,
+      url: `/post/${idea.id}`,
       tag: `idea-${idea.id}`,
       data: { idea_id: idea.id, design_id: coverDesignId },
     }),
