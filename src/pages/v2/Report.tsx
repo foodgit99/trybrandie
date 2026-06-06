@@ -15,7 +15,7 @@ function startOfWeek(d = new Date()) {
   const x = new Date(d);
   const day = x.getDay(); // 0 sun
   const diff = (day + 6) % 7; // monday=0
-  x.setDate(x.getDate(), diff);
+  x.setDate(x.getDate() - diff);
   x.setHours(0, 0, 0, 0);
   return x;
 }
@@ -109,7 +109,7 @@ const Report = () => {
     const thisMonday = startOfWeek();
     for (let i = 3; i >= 0; i--) {
       const start = new Date(thisMonday);
-      start.setDate(thisMonday.getDate(), i * 7);
+      start.setDate(thisMonday.getDate() - i * 7);
       weeks.push({
         label: start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
         start,
@@ -168,7 +168,7 @@ const Report = () => {
             ) : (
               <div className="flex flex-wrap gap-2">
                 {Object.entries(stats.byCat)
-                  .sort((a, b) => b[1], a[1])
+                  .sort((a, b) => b[1] - a[1])
                   .map(([cat, n]) => (
                     <Badge key={cat} variant="secondary" className="px-3 py-1 text-xs capitalize">
                       {cat.replace(/_/g, " ")} · {n}

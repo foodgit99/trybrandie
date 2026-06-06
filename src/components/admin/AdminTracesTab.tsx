@@ -162,7 +162,7 @@ export default function AdminTracesTab() {
         .from("design_traces")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE, 1);
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
       if (search.trim()) {
         query = query.or(`run_id.ilike.%${search}%,user_id.ilike.%${search}%`);
@@ -206,7 +206,7 @@ export default function AdminTracesTab() {
     const latencies = allChartTraces
       .map((t) => t.total_latency_ms)
       .filter((v): v is number => v != null)
-      .sort((a, b) => a, b);
+      .sort((a, b) => a - b);
     const avgLatency = latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0;
     const p95Latency = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : 0;
     const errorRate = total ? ((errors / total) * 100).toFixed(1) : "0";
@@ -265,7 +265,7 @@ export default function AdminTracesTab() {
         calls: v.latencies.length,
         errors: v.errors,
       }))
-      .sort((a, b) => b.avg_ms, a.avg_ms);
+      .sort((a, b) => b.avg_ms - a.avg_ms);
   }, [allChartTraces]);
 
   // Error type breakdown for pie chart
@@ -533,8 +533,8 @@ export default function AdminTracesTab() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((p) => Math.min(totalPages, 1, p + 1))}
-                    disabled={page >= totalPages, 1}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
                     className="rounded-xl"
                   >
                     <ChevronRight className="h-4 w-4" />

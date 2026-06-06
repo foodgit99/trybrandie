@@ -182,7 +182,7 @@ export default function CalendarExport({
     doc.text(brand?.name || "Content Plan", margin, 13);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(dateRange, pageWidth, margin, 13, { align: "right" });
+    doc.text(dateRange, pageWidth - margin, 13, { align: "right" });
 
     y = 28;
 
@@ -282,7 +282,7 @@ export default function CalendarExport({
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFontSize(7);
     doc.setTextColor(180, 180, 180);
-    doc.text("Planned with Brandie", pageWidth / 2, pageHeight, 8, { align: "center" });
+    doc.text("Planned with Brandie", pageWidth / 2, pageHeight - 8, { align: "center" });
 
     doc.save(`${brand?.name || "Brandie"}-content-plan-${viewMode}.pdf`);
   };
@@ -403,7 +403,7 @@ export default function CalendarExport({
   };
 
   const truncateText = (text: string, max: number) =>
-    text.length > max ? text.substring(0, max, 1) + "…" : text;
+    text.length > max ? text.substring(0, max - 1) + "…" : text;
 
   const escapeHtml = (str: string) =>
     str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

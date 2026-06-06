@@ -877,8 +877,8 @@ const DesignStudio = () => {
       const ratio = logo.naturalHeight / logo.naturalWidth || 1;
       const targetH = Math.round(targetW * ratio);
       const margin = Math.round(w * 0.025);
-      const x = w, targetW, margin;
-      const y = h, targetH, margin;
+      const x = w - targetW - margin;
+      const y = h - targetH - margin;
 
       // Render monochrome white silhouette via offscreen canvas
       const off = document.createElement("canvas");

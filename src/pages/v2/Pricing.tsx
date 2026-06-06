@@ -103,7 +103,7 @@ const V2Pricing = () => {
         lastData = data;
         lastError = error;
         if (data?.verified && (data.credited || data.already_credited)) break;
-        if (attempt < maxAttempts, 1) {
+        if (attempt < maxAttempts - 1) {
           await new Promise((r) => setTimeout(r, intervalMs));
         }
       }

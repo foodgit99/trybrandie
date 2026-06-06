@@ -152,7 +152,7 @@ const Onboarding = () => {
       setPhase("playbook");
       return;
     }
-    if (idx > 0) setPhase(PHASE_ORDER[idx, 1]);
+    if (idx > 0) setPhase(PHASE_ORDER[idx - 1]);
   };
 
   const handleFinish = useCallback(async () => {

@@ -259,7 +259,7 @@ const Onboarding = () => {
     else handleFinish();
   };
   const back = () => {
-    if (step > 0) setStep((s) => (s, 1) as Step);
+    if (step > 0) setStep((s) => (s - 1) as Step);
   };
 
   return (

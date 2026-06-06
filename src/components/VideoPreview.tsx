@@ -312,13 +312,13 @@ const VideoPreview = ({
 
         {/* Playback controls */}
         <div className="flex items-center justify-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.max(0, currentScene, 1))} disabled={currentScene === 0}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.max(0, currentScene - 1))} disabled={currentScene === 0}>
             <SkipBack className="h-3.5 w-3.5" />
           </Button>
           <Button size="icon" className="h-9 w-9 rounded-full" onClick={togglePlay}>
             {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.min(scenes.length, 1, currentScene + 1))} disabled={currentScene === scenes.length, 1}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.min(scenes.length - 1, currentScene + 1))} disabled={currentScene === scenes.length - 1}>
             <SkipForward className="h-3.5 w-3.5" />
           </Button>
         </div>

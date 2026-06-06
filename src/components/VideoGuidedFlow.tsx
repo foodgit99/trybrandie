@@ -341,7 +341,7 @@ const VideoGuidedFlow = ({ onComplete, onCancel, initialPrompt }: Props) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={step === 0 ? onCancel : () => setStep(step, 1)}
+          onClick={step === 0 ? onCancel : () => setStep(step - 1)}
           className="gap-1.5"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
