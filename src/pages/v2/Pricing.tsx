@@ -117,7 +117,7 @@ const V2Pricing = () => {
         });
       } else if (!lastData.credited && !lastData.already_credited) {
         toast({
-          title: "Payment received — credits are syncing",
+          title: "Payment received - credits are syncing",
           description: "Refresh in a moment. Contact support if it doesn't appear.",
         });
       } else {
@@ -176,7 +176,7 @@ const V2Pricing = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Pricing — Brandie"
+        title="Pricing - Brandie"
         description="Pay only for what you create. ₦5,000 per 20 credits. No subscription, no expiry."
         path="/pricing"
       />
@@ -325,7 +325,7 @@ const V2Pricing = () => {
                   </div>
 
                   <p className="text-center text-sm text-muted-foreground">
-                    {units} × ₦5,000 —{" "}
+                    {units} × ₦5,000 -{" "}
                     <span className="font-medium text-foreground">
                       {formatNaira(price)}
                     </span>
@@ -341,7 +341,7 @@ const V2Pricing = () => {
                     ) : user ? (
                       <>
                         <Zap className="h-4 w-4" />
-                        Buy {credits} credits — {formatNaira(price)}
+                        Buy {credits} credits - {formatNaira(price)}
                       </>
                     ) : (
                       <>

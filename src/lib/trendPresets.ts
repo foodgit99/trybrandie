@@ -18,7 +18,7 @@ export const TREND_PRESETS: TrendPreset[] = [
     typography_style: "Handwritten or rough serif fonts, irregular baselines, ink-stamp lettering, slightly rotated text blocks",
     color_profile: "Muted earth tones layered with the brand palette, cream/kraft paper backgrounds, ink-wash colour effects",
     texture_elements: "Heavy grain, paper fibre texture, ink splatter, tape/sticker overlays, pencil scribbles",
-    copy_tone_hint: "More expressive and human — use imperfect, authentic, conversational language",
+    copy_tone_hint: "More expressive and human - use imperfect, authentic, conversational language",
   },
   {
     id: "hyper-chromatic",
@@ -28,7 +28,7 @@ export const TREND_PRESETS: TrendPreset[] = [
     typography_style: "Heavy bold sans-serif, oversized display type, colour-filled text, glow effects on headlines",
     color_profile: "Saturated neon accents blended with brand colours, vivid gradients, high-contrast complementary pairings",
     texture_elements: "Light leaks, chromatic aberration, glass refraction, holographic sheen, subtle noise on gradients",
-    copy_tone_hint: "High-energy promotional language — bold, punchy, exclamatory, confident",
+    copy_tone_hint: "High-energy promotional language - bold, punchy, exclamatory, confident",
   },
   {
     id: "technical-mono",
@@ -38,7 +38,7 @@ export const TREND_PRESETS: TrendPreset[] = [
     typography_style: "Monospaced fonts for all text, fixed-width grid alignment, code-editor aesthetic, minimal font-weight variation",
     color_profile: "Desaturated palette with single brand-colour accent, dark backgrounds, terminal-green or cyan highlights",
     texture_elements: "Dot grids, scan lines, subtle noise, circuit-board patterns, thin rule lines",
-    copy_tone_hint: "Shorter and sharper copy — precise, technical, no-nonsense, data-driven",
+    copy_tone_hint: "Shorter and sharper copy - precise, technical, no-nonsense, data-driven",
   },
   {
     id: "neo-naturalism",
@@ -48,7 +48,7 @@ export const TREND_PRESETS: TrendPreset[] = [
     typography_style: "Elegant thin serifs or rounded sans-serif, generous letter-spacing, light font weights, organic flow",
     color_profile: "Soft greens, warm terracottas, sky blues blended with brand palette, low saturation, natural harmony",
     texture_elements: "Watercolour washes, linen textures, leaf shadows, soft bokeh, natural light effects",
-    copy_tone_hint: "Calm and soothing tone — gentle, reassuring, mindful, nurturing",
+    copy_tone_hint: "Calm and soothing tone - gentle, reassuring, mindful, nurturing",
   },
   {
     id: "kinetic-typography",
@@ -58,7 +58,7 @@ export const TREND_PRESETS: TrendPreset[] = [
     typography_style: "Elastic/stretched display fonts, extreme size contrasts, slanted baselines, overlapping text layers, variable font weight animation feel",
     color_profile: "High-contrast brand colours with motion blur accents, speed gradients, directional colour transitions",
     texture_elements: "Motion blur streaks, speed lines, dynamic shadows, perspective distortion, wind effects",
-    copy_tone_hint: "Energetic and dynamic — action-oriented verbs, short punchy phrases, momentum-building",
+    copy_tone_hint: "Energetic and dynamic - action-oriented verbs, short punchy phrases, momentum-building",
   },
 ];
 

@@ -112,8 +112,8 @@ export default function CategoryCoveragePanel({
                 empty
                   ? clickable
                     ? `Add an idea for ${c.label}`
-                    : `${c.label} — not covered`
-                  : `${c.label} — ${count}`
+                    : `${c.label} - not covered`
+                  : `${c.label} - ${count}`
               }
               className={cn(
                 "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors",

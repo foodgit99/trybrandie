@@ -27,13 +27,13 @@ const features = [
   {
     icon: Layers,
     title: "Always-Full Queue",
-    description: "Every week, the engine drafts the next seven posts in advance — sequenced for narrative, variety, and conversion. You're never staring at an empty calendar.",
+    description: "Every week, the engine drafts the next seven posts in advance - sequenced for narrative, variety, and conversion. You're never staring at an empty calendar.",
     image: featureContentHub,
   },
   {
     icon: Brain,
     title: "Brand Memory",
-    description: "Your colours, fonts, tone, and personality live inside the engine. Every generated post comes out unmistakably yours — no styling, no fixing.",
+    description: "Your colours, fonts, tone, and personality live inside the engine. Every generated post comes out unmistakably yours - no styling, no fixing.",
     image: featureDesignStudio,
   },
   {
@@ -45,13 +45,13 @@ const features = [
   {
     icon: Target,
     title: "Audience Intelligence",
-    description: "JTBD profiling shapes every headline and CTA — so the engine doesn't just post pretty pictures, it posts persuasion.",
+    description: "JTBD profiling shapes every headline and CTA - so the engine doesn't just post pretty pictures, it posts persuasion.",
     image: featureAudience,
   },
   {
     icon: TrendingUp,
     title: "Trend Adaptation",
-    description: "The engine watches modern design trends and quietly evolves your visual style — so your feed never looks dated, without you ever lifting a finger.",
+    description: "The engine watches modern design trends and quietly evolves your visual style - so your feed never looks dated, without you ever lifting a finger.",
     image: featureTrendLab,
   },
 ];
@@ -69,7 +69,7 @@ const LandingFeatures = () => (
           An engine, not a tool.
         </motion.h2>
         <motion.p variants={fadeUp} custom={1} className="text-muted-foreground max-w-lg mx-auto">
-          Six systems running in the background — playbooks, brand memory, audience psychology, trend intelligence — so you don't have to think about marketing.
+          Six systems running in the background - playbooks, brand memory, audience psychology, trend intelligence - so you don't have to think about marketing.
         </motion.p>
       </motion.div>
 

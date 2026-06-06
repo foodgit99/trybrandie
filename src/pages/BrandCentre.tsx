@@ -81,7 +81,7 @@ const BrandCentre = () => {
   const [typPrimary, setTypPrimary] = useState("");
   const [typSecondary, setTypSecondary] = useState("");
 
-  // Audience Intelligence — multiple profiles
+  // Audience Intelligence - multiple profiles
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [audienceOpen, setAudienceOpen] = useState(false);
@@ -128,7 +128,7 @@ const BrandCentre = () => {
   const [selectedTrend, setSelectedTrend] = useState("none");
   const [trendIntensity, setTrendIntensity] = useState(40);
 
-  // Research Lab state — per-category Firecrawl tuning
+  // Research Lab state - per-category Firecrawl tuning
   const [researchLabOpen, setResearchLabOpen] = useState(false);
   type ResearchPref = { mode?: "fast" | "accurate"; recency?: "24h" | "7d" | "30d"; enabled?: boolean };
   const [researchPrefs, setResearchPrefs] = useState<Record<string, ResearchPref>>({});
@@ -653,7 +653,7 @@ const BrandCentre = () => {
       <div className="flex items-center justify-between rounded-lg border border-border p-2.5">
         <div className="flex items-center gap-2">
           <Star className={`h-3.5 w-3.5 ${productForm.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
-          <span className="text-xs font-medium text-muted-foreground">Featured — AI will prioritise this in content</span>
+          <span className="text-xs font-medium text-muted-foreground">Featured - AI will prioritise this in content</span>
         </div>
         <Switch checked={productForm.is_featured} onCheckedChange={(v) => setProductForm(p => ({ ...p, is_featured: v }))} className="scale-75" />
       </div>
@@ -705,7 +705,7 @@ const BrandCentre = () => {
   );
 
   // Audience questionnaire form (rendered as a JSX element, NOT a nested
-  // component — defining a component inside another component creates a new
+  // component - defining a component inside another component creates a new
   // function reference on every render, which forces React to unmount/remount
   // the inputs and steals focus on every keystroke.
   const audienceFormEl = (
@@ -808,7 +808,7 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Brand Centre — Brandie" description="Manage your brand identity, products, audience, and visual style genome." path="/brand" noindex />
+      <SEO title="Brand Centre - Brandie" description="Manage your brand identity, products, audience, and visual style genome." path="/brand" noindex />
       <AppHeader />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
@@ -1097,7 +1097,7 @@ const BrandCentre = () => {
             ) : null}
           </div>
 
-          {/* Updates — real-time business activity feed */}
+          {/* Updates - real-time business activity feed */}
           {brand?.id && user?.id && <BrandUpdates brandId={brand.id} userId={user.id} />}
 
           {/* Inspiration */}
@@ -1300,7 +1300,7 @@ const BrandCentre = () => {
             )}
           </div>
 
-          {/* Research Lab — per-category Firecrawl tuning */}
+          {/* Research Lab - per-category Firecrawl tuning */}
           {(() => {
             const RESEARCH_CATEGORIES: Array<{ id: string; name: string; defaultRecency: "24h" | "7d" | "30d"; description: string }> = [
               { id: "trending",      name: "Trending",      defaultRecency: "24h", description: "Viral moments, fast-moving culture" },

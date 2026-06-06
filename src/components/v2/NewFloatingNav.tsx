@@ -149,7 +149,7 @@ const NewFloatingNav = () => {
 
   return (
     <>
-      {/* Mobile / tablet — bottom bar */}
+      {/* Mobile / tablet - bottom bar */}
       <nav
         aria-label="Primary"
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70"
@@ -206,7 +206,7 @@ const NewFloatingNav = () => {
         </ul>
       </nav>
 
-      {/* Desktop — left rail */}
+      {/* Desktop - left rail */}
       <nav
         aria-label="Primary"
         className="hidden lg:flex fixed left-0 top-0 bottom-0 z-40 w-20 flex-col items-center gap-1 border-r border-border/60 bg-background/80 backdrop-blur py-6"

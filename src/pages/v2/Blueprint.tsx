@@ -199,7 +199,7 @@ const Blueprint = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-40">
-      <SEO title="Weekly Blueprint — Brandie" description="Your week, as a story." path="/blueprint" noindex />
+      <SEO title="Weekly Blueprint - Brandie" description="Your week, as a story." path="/blueprint" noindex />
       <NewAppHeader />
 
 
@@ -255,7 +255,7 @@ const Blueprint = () => {
 
                     {dayIdeas.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                        Nothing scheduled — Brandie kept this day light.
+                        Nothing scheduled - Brandie kept this day light.
                       </div>
                     ) : (
                       <AnimatePresence>

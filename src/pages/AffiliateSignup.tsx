@@ -35,7 +35,7 @@ const fadeUp = {
 };
 
 const BENEFITS = [
-  { icon: DollarSign, title: "20% First Payment", desc: "Earn 20% on every referral's first purchase — paid instantly." },
+  { icon: DollarSign, title: "20% First Payment", desc: "Earn 20% on every referral's first purchase - paid instantly." },
   { icon: Clock, title: "5% Lifetime Revenue", desc: "Keep earning 5% on all future payments for as long as your referral stays." },
   { icon: Users2, title: "2nd-Tier Commissions", desc: "Recruit affiliates and earn 5% first + 3% lifetime from their referrals." },
   { icon: BarChart3, title: "Real-Time Dashboard", desc: "Track referrals, conversions, and earnings with live performance data." },
@@ -44,7 +44,7 @@ const BENEFITS = [
 ];
 
 const HOW_IT_WORKS = [
-  { step: "01", title: "Apply", desc: "Fill out the form below — approval takes less than 24 hours." },
+  { step: "01", title: "Apply", desc: "Fill out the form below - approval takes less than 24 hours." },
   { step: "02", title: "Share", desc: "Get your unique link and share it across your channels." },
   { step: "03", title: "Earn", desc: "Earn commissions on every payment your referrals make." },
 ];
@@ -229,7 +229,7 @@ const AffiliateSignup = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Friends of Brandie — Affiliate Program" description="Earn 20% first-month and 5% lifetime commission referring small businesses to Brandie." path="/affiliate/signup" />
+      <SEO title="Friends of Brandie - Affiliate Program" description="Earn 20% first-month and 5% lifetime commission referring small businesses to Brandie." path="/affiliate/signup" />
       {/* ─── Nav ─── */}
       <nav className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
@@ -345,7 +345,7 @@ const AffiliateSignup = () => {
                   <DollarSign className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-serif text-lg">Tier 1 — Direct</h3>
+                  <h3 className="font-serif text-lg">Tier 1 - Direct</h3>
                   <p className="text-xs text-muted-foreground">Your personal referrals</p>
                 </div>
               </div>
@@ -378,7 +378,7 @@ const AffiliateSignup = () => {
                   <Users2 className="h-5 w-5 text-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-serif text-lg">Tier 2 — Network</h3>
+                  <h3 className="font-serif text-lg">Tier 2 - Network</h3>
                   <p className="text-xs text-muted-foreground">Affiliates you recruit</p>
                 </div>
               </div>
@@ -517,7 +517,7 @@ const AffiliateSignup = () => {
                 {user ? "Apply as Affiliate" : "Join the program"}
               </h2>
               <p className="text-muted-foreground text-sm">
-                Fill in your details — we'll review and approve within 24 hours.
+                Fill in your details - we'll review and approve within 24 hours.
               </p>
             </motion.div>
 

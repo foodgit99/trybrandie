@@ -118,7 +118,7 @@ const LandingPricing = () => {
           </div>
 
           <p className="text-center text-sm text-muted-foreground">
-            {units} × ₦5,000 —{" "}
+            {units} × ₦5,000 -{" "}
             <span className="font-medium text-foreground">
               {formatNaira(price)}
             </span>
@@ -129,7 +129,7 @@ const LandingPricing = () => {
             onClick={handleCTA}
           >
             <Zap className="h-4 w-4" />
-            {user ? `Buy ${credits} credits — ${formatNaira(price)}` : "Get started free"}
+            {user ? `Buy ${credits} credits - ${formatNaira(price)}` : "Get started free"}
           </Button>
         </div>
 

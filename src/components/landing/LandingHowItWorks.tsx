@@ -14,13 +14,13 @@ const steps = [
   {
     step: "01",
     title: "Pick a playbook",
-    desc: "Choose the industry that matches your business — Restaurants, Beauty, Fitness, Retail, Services. Brandie loads the right cadence and content mix instantly.",
+    desc: "Choose the industry that matches your business - Restaurants, Beauty, Fitness, Retail, Services. Brandie loads the right cadence and content mix instantly.",
     icon: Sparkles,
   },
   {
     step: "02",
     title: "Hit start",
-    desc: "The engine boots, generates your first 7 posts, and sets a weekly rhythm — calibrated to your brand colours, voice, and audience.",
+    desc: "The engine boots, generates your first 7 posts, and sets a weekly rhythm - calibrated to your brand colours, voice, and audience.",
     icon: Power,
   },
   {
@@ -47,7 +47,7 @@ const LandingHowItWorks = () => (
           Three minutes to switch it on. Forever to switch it off.
         </motion.h2>
         <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-lg mx-auto">
-          No briefs. No prompts. No blank canvas. Brandie runs in the background — like infrastructure for your marketing.
+          No briefs. No prompts. No blank canvas. Brandie runs in the background - like infrastructure for your marketing.
         </motion.p>
       </div>
 

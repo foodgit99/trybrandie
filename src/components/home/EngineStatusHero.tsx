@@ -138,7 +138,7 @@ const EngineStatusHero = ({ brandId, firstName }: Props) => {
           <div className="rounded-xl border border-border/60 bg-background/40 px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Next</p>
             <p className="text-sm font-medium mt-0.5 truncate">
-              {next ? formatDay(next.scheduled_for) : "—"}
+              {next ? formatDay(next.scheduled_for) : "-"}
             </p>
             <p className="text-[10px] text-muted-foreground truncate">
               {next ? next.title : "Nothing queued"}

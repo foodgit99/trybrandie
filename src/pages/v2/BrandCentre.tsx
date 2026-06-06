@@ -92,7 +92,7 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="Brand Centre — Brandie" description="Your brand memory." path="/brand" noindex />
+      <SEO title="Brand Centre - Brandie" description="Your brand memory." path="/brand" noindex />
       <NewAppHeader />
 
 
@@ -125,7 +125,7 @@ const BrandCentre = () => {
                 Description
               </p>
               <p className="text-sm leading-relaxed">
-                {brand.description || "—"}
+                {brand.description || "-"}
               </p>
             </div>
             <div className="space-y-1.5">
@@ -133,7 +133,7 @@ const BrandCentre = () => {
                 Voice
               </p>
               <p className="text-sm leading-relaxed">
-                {brand.tone_of_voice || "—"}
+                {brand.tone_of_voice || "-"}
               </p>
             </div>
           </div>
@@ -161,7 +161,7 @@ const BrandCentre = () => {
                 className="text-2xl"
                 style={{ fontFamily: brand.typography_display || undefined }}
               >
-                {brand.typography_display || "—"}
+                {brand.typography_display || "-"}
               </p>
             </div>
             <div>
@@ -172,7 +172,7 @@ const BrandCentre = () => {
                 className="text-base"
                 style={{ fontFamily: brand.typography_primary || undefined }}
               >
-                {brand.typography_primary || "—"}
+                {brand.typography_primary || "-"}
               </p>
             </div>
           </div>
@@ -205,7 +205,7 @@ const BrandCentre = () => {
                     <p className="text-[11px] tracking-wider uppercase text-muted-foreground mb-1">
                       {label}
                     </p>
-                    <p className="leading-relaxed">{(value as string) || "—"}</p>
+                    <p className="leading-relaxed">{(value as string) || "-"}</p>
                   </div>
                 ))}
               </div>

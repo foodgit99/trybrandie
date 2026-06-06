@@ -212,7 +212,7 @@ const Cockpit = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20">
-      <SEO title="Cockpit — Brandie" description="Your Monday briefing." path="/cockpit" noindex />
+      <SEO title="Cockpit - Brandie" description="Your Monday briefing." path="/cockpit" noindex />
       <NewAppHeader />
 
 
@@ -294,7 +294,7 @@ const Cockpit = () => {
                       }`}
                       aria-label="No posts"
                     >
-                      —
+                      -
                     </span>
                   ) : (
                     <div className="flex flex-col gap-1 mt-auto">

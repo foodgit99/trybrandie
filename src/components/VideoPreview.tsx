@@ -111,7 +111,7 @@ const VideoPreview = ({
     }
   };
 
-  // Loading state — show progress through pipeline stages
+  // Loading state - show progress through pipeline stages
   if (loading) {
     const stageLabels: Record<string, string> = {
       scripting: "Writing the script…",
@@ -135,7 +135,7 @@ const VideoPreview = ({
           </p>
           {status === "rendering" && (
             <p className="text-xs text-muted-foreground/70 mt-2">
-              You can leave this page — we'll notify you when it's done.
+              You can leave this page - we'll notify you when it's done.
             </p>
           )}
         </div>
@@ -163,7 +163,7 @@ const VideoPreview = ({
     );
   }
 
-  // Rendered video — show final video player
+  // Rendered video - show final video player
   if (renderStatus === "rendered" && renderedVideoUrl) {
     return (
       <div className="flex flex-col h-full">
@@ -245,7 +245,7 @@ const VideoPreview = ({
     );
   }
 
-  // Storyboard preview (fallback — shouldn't normally be seen in new flow)
+  // Storyboard preview (fallback - shouldn't normally be seen in new flow)
   const scene = scenes[currentScene];
 
   return (

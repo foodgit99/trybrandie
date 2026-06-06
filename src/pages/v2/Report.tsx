@@ -141,7 +141,7 @@ const Report = () => {
 
   return (
     <main className="min-h-dvh bg-background text-foreground lg:pl-20 pb-28 lg:pb-12">
-      <SEO title="CEO Briefing — Brandie" description="Last week, in numbers." path="/report" noindex />
+      <SEO title="CEO Briefing - Brandie" description="Last week, in numbers." path="/report" noindex />
       <NewAppHeader />
       <div className="max-w-5xl mx-auto px-6 py-12 space-y-10">
 
@@ -218,7 +218,7 @@ const Report = () => {
                       <div className="flex h-24 w-full overflow-hidden rounded-md bg-muted">
                         {w.total === 0 ? (
                           <div className="w-full grid place-items-center text-[10px] text-muted-foreground">
-                            —
+                            -
                           </div>
                         ) : (
                           <div className="flex flex-col w-full">
@@ -327,7 +327,7 @@ const Report = () => {
               <Send className="h-5 w-5 mt-0.5 text-muted-foreground" />
               <div className="text-sm">
                 <p className="font-medium">
-                  Last push: {profile?.last_daily_push_at ? new Date(profile.last_daily_push_at).toLocaleString() : "—"}
+                  Last push: {profile?.last_daily_push_at ? new Date(profile.last_daily_push_at).toLocaleString() : "-"}
                 </p>
                 <p className="text-muted-foreground">Hourly sweep. No double-sends per day.</p>
               </div>

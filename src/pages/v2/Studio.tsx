@@ -1,4 +1,4 @@
-// V2 Studio — Manual Engine Mode
+// V2 Studio - Manual Engine Mode
 // Clones the legacy Design Studio surface 1:1 by rendering the shared
 // DesignStudio component. Shares ALL frontend and backend functionality
 // (chat orchestrator, generation, history, plan mode, sources, ideas,

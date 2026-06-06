@@ -56,7 +56,7 @@ const normalize = (input: string): string => {
 
 /**
  * Whole-word matcher. Each needle is matched against the padded text using
- * word boundaries — prevents false positives like "story" matching "history".
+ * word boundaries - prevents false positives like "story" matching "history".
  * Multi-word needles (with spaces) are matched as substrings of the padded text.
  */
 const makeMatcher = (text: string) => (...needles: string[]): boolean =>
@@ -131,7 +131,7 @@ export const resolveAutoCanvas = (prompt: string): CanvasPreset => {
   );
 
   // ---- Resolution priority -------------------------------------------------
-  // 1) Vertical (story/reel/shorts) — platform-specific
+  // 1) Vertical (story/reel/shorts) - platform-specific
   if (wantsStory) {
     if (mentionsFacebook) return find("fb-1080x1920");
     if (mentionsTikTok) return find("tt-1080x1920");
@@ -146,7 +146,7 @@ export const resolveAutoCanvas = (prompt: string): CanvasPreset => {
     return find("1640x924"); // Facebook cover default
   }
 
-  // 3) Pinterest pin — only when Pinterest is explicitly mentioned, OR
+  // 3) Pinterest pin - only when Pinterest is explicitly mentioned, OR
   // when "tall"/"2:3" appears WITHOUT a "portrait" modifier (which is IG portrait).
   if (mentionsPinterest) return find("1000x1500");
   if (wantsPin && !wantsPortrait && !wantsFeed) {
@@ -181,6 +181,6 @@ export const resolveAutoCanvas = (prompt: string): CanvasPreset => {
   if (wantsLandscape) return find("1920x1080");
   if (wantsSquare) return find("1080x1080");
 
-  // Final fallback — most universally usable
+  // Final fallback - most universally usable
   return find("1080x1080");
 };

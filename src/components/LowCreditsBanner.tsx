@@ -65,7 +65,7 @@ const LowCreditsBanner = () => {
           <span className="font-medium">
             {credits === 0 ? "No credits left" : `Only ${credits} credit${credits === 1 ? "" : "s"} left`}
           </span>
-          <span className="text-muted-foreground"> — top up to keep designing.</span>
+          <span className="text-muted-foreground"> - top up to keep designing.</span>
         </p>
         <Button
           size="sm"

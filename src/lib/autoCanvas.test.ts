@@ -45,7 +45,7 @@ const cases: Array<{ prompt: string; value: string; note?: string }> = [
   { prompt: "in-feed post for instagram", value: "1080x1350" },
   { prompt: "carousel for instagram", value: "1080x1350" },
 
-  // Edge cases — should NOT trip on substrings
+  // Edge cases - should NOT trip on substrings
   { prompt: "history of our brand poster", value: "1080x1080", note: "'history' must not match 'story'" },
   { prompt: "pinwheel illustration", value: "1080x1080", note: "'pinwheel' must not match 'pin'" },
   { prompt: "", value: "1080x1080", note: "empty fallback" },

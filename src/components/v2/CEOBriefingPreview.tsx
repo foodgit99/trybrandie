@@ -124,7 +124,7 @@ const CEOBriefingPreview = ({ brandId, brandName }: Props) => {
                 </p>
                 <p className="text-sm text-muted-foreground max-w-md">
                   Plan and ship a full week, then Brandie will show you what
-                  worked — pillar mix, training signal, and what to repeat.
+                  worked - pillar mix, training signal, and what to repeat.
                 </p>
               </div>
             </div>

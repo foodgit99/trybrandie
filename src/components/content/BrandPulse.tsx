@@ -102,7 +102,7 @@ export default function BrandPulse({
               title="Brand Pulse"
               summary="A single read on your content health: coverage, cadence, structure, and delivery reliability."
               learnMore={
-                "Consistent brands compound. Pulse turns four signals — category mix, posting cadence, pillar structure, and autopilot reliability — into one verdict so you know whether your brand is on track without inspecting every widget.\n\nIf the score drops, the recommendation card below tells you the single highest-leverage move to make this week."
+                "Consistent brands compound. Pulse turns four signals - category mix, posting cadence, pillar structure, and autopilot reliability - into one verdict so you know whether your brand is on track without inspecting every widget.\n\nIf the score drops, the recommendation card below tells you the single highest-leverage move to make this week."
               }
             />
             <span className="ml-1 inline-flex items-center gap-0.5">
@@ -144,7 +144,7 @@ export default function BrandPulse({
         {!autopilotEnabled && (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground border-t border-border/40 pt-2">
             <AlertTriangle className="h-3 w-3 text-amber-500" />
-            <span>Autopilot is off — your brand depends on you remembering to post.</span>
+            <span>Autopilot is off - your brand depends on you remembering to post.</span>
           </div>
         )}
       </CardContent>
