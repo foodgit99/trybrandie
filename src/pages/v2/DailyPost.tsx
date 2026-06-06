@@ -614,38 +614,30 @@ const DailyPost = () => {
           )}
         </section>
 
-        {/* BRIEF */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
-              The brief
-            </h2>
-            <span className="text-[11px] text-muted-foreground">
-              {design?.image_url
-                ? "Locked after generation"
-                : briefSaving
-                ? "Saving…"
-                : briefSavedAt
-                ? "Saved"
-                : "Edits save on blur"}
-            </span>
-          </div>
-          <Textarea
-            value={briefDraft}
-            onChange={(e) => setBriefDraft(e.target.value)}
-            onBlur={saveBrief}
-            readOnly={!!design?.image_url}
-            placeholder="What should this post say or do?"
-            className={`min-h-[120px] text-[15px] leading-relaxed bg-card ${
-              design?.image_url ? "opacity-80 cursor-not-allowed" : ""
-            }`}
-          />
-          <p className="text-[11px] text-muted-foreground">
-            {design?.image_url
-              ? "This brief is locked because the design is already generated."
-              : "Edit the brief now, then generate or save it — the autonomous engine will render it when scheduled."}
-          </p>
-        </section>
+        {/* BRIEF — hidden after design is generated */}
+        {!design?.image_url && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
+                The brief
+              </h2>
+              <span className="text-[11px] text-muted-foreground">
+                {briefSaving ? "Saving…" : briefSavedAt ? "Saved" : "Edits save on blur"}
+              </span>
+            </div>
+            <Textarea
+              value={briefDraft}
+              onChange={(e) => setBriefDraft(e.target.value)}
+              onBlur={saveBrief}
+              placeholder="What should this post say or do?"
+              className="min-h-[120px] text-[15px] leading-relaxed bg-card"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Edit the brief now, then generate or save it — the autonomous engine will render it when scheduled.
+            </p>
+          </section>
+        )}
+
 
         {/* CAPTION — only after a render exists */}
         {design?.image_url && (
