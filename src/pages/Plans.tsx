@@ -1,4 +1,5 @@
 import SEO from "@/components/SEO";
+import { gaEvent } from "@/lib/ga";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
