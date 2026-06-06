@@ -109,7 +109,7 @@ const HistoryV2 = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="History - Brandie" description="Every generation, one tap away." path="/history" noindex />
+      <SEO title="History, Brandie" description="Every generation, one tap away." path="/history" noindex />
       <NewAppHeader />
 
       <main className="max-w-6xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-8">
@@ -147,7 +147,7 @@ const HistoryV2 = () => {
             </p>
             <p className="text-sm text-muted-foreground">
               {designs.length === 0
-                ? "Head to the Studio or approve a daily post - they'll all land here."
+                ? "Head to the Studio or approve a daily post, they'll all land here."
                 : "Try a different search."}
             </p>
           </div>

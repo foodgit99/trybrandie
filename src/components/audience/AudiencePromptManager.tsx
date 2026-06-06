@@ -10,7 +10,7 @@ import { trackEvent } from "@/lib/analytics";
 // Routes where the prompt is allowed to appear.
 const ELIGIBLE_ROUTES = ["/", "/dashboard", "/cockpit", "/content", "/studio", "/history"];
 
-// Routes where the user is already engaging with audiences - suppress.
+// Routes where the user is already engaging with audiences, suppress.
 const AUDIENCE_ROUTES = ["/brand"];
 
 // Pacing constants
@@ -128,7 +128,7 @@ const AudiencePromptManager = () => {
     if (state.lastAction === "never") return;
     if (state.shownCount >= LIFETIME_CAP) return;
     if (Date.now() < state.suppressUntil) return;
-    if (brandCreatedAt && Date.now() - brandCreatedAt < NEW_BRAND_GRACE_MS) return;
+    if (brandCreatedAt && Date.now(), brandCreatedAt < NEW_BRAND_GRACE_MS) return;
 
     let interval: number | null = null;
 
@@ -152,7 +152,7 @@ const AudiencePromptManager = () => {
           {
             shown_count: next.shownCount,
             route: location.pathname,
-            brand_age_ms: brandCreatedAt ? Date.now() - brandCreatedAt : null,
+            brand_age_ms: brandCreatedAt ? Date.now(), brandCreatedAt : null,
           },
           { userId, brandId }
         );

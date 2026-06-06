@@ -5,8 +5,8 @@ import SEO from "@/components/SEO";
 import brandieLogo from "@/assets/brandie-logo.png";
 
 const pillars = [
-  { icon: Sparkles, title: "Autonomous research", body: "Trends, holidays, payday cycles - picked for your industry. You never hunt for inspiration again." },
-  { icon: Wand2, title: "Strategic arc, not status spam", body: "Each week is a 5-day narrative - hook, proof, scarcity, CTA. Designed to convert, not to fill a feed." },
+  { icon: Sparkles, title: "Autonomous research", body: "Trends, holidays, payday cycles, picked for your industry. You never hunt for inspiration again." },
+  { icon: Wand2, title: "Strategic arc, not status spam", body: "Each week is a 5-day narrative, hook, proof, scarcity, CTA. Designed to convert, not to fill a feed." },
   { icon: Calendar, title: "Pre-filled weekly blueprint", body: "Your calendar arrives already done. Review once, approve once. Brandie handles the rest." },
   { icon: MessageSquare, title: "Conversational edits", body: "“Swap Thursday for a restock post.” Brandie reworks just that one. Nothing else breaks." },
   { icon: BarChart3, title: "CEO briefing", body: "A weekly summary that prioritises link clicks and DMs over likes. Then it teaches itself." },
@@ -15,7 +15,7 @@ const pillars = [
 const Landing = () => (
   <div className="min-h-dvh bg-background text-foreground">
     <SEO
-      title="Brandie - your marketing department, on autopilot"
+      title="Brandie, your marketing department, on autopilot"
       description="Pick your playbook. Brandie generates a strategic 5-day campaign every week. You approve in ten minutes. Done."
       path="/v2"
     />
@@ -108,10 +108,10 @@ const Landing = () => (
           <h2 className="mt-3 font-serif text-4xl sm:text-5xl tracking-tight">Ten minutes. Once a week.</h2>
           <ol className="mt-12 space-y-8 sm:space-y-10">
             {[
-              { t: "08:00 - Notification", b: "Your weekly strategy is ready for approval." },
-              { t: "08:02 - Review the Blueprint", b: "Five days. One narrative. Read it like a story." },
-              { t: "08:06 - Edit conversationally", b: "“Swap Thursday for a restock post.” Brandie reworks just that one." },
-              { t: "08:09 - Approve", b: "One tap. The engine handles the rest of the week." },
+              { t: "08:00, Notification", b: "Your weekly strategy is ready for approval." },
+              { t: "08:02, Review the Blueprint", b: "Five days. One narrative. Read it like a story." },
+              { t: "08:06, Edit conversationally", b: "“Swap Thursday for a restock post.” Brandie reworks just that one." },
+              { t: "08:09, Approve", b: "One tap. The engine handles the rest of the week." },
             ].map((s, i) => (
               <li key={s.t} className="grid grid-cols-[3rem_1fr] gap-5 sm:gap-8 items-baseline border-b border-border/60 pb-8 last:border-0">
                 <span className="font-serif text-3xl text-muted-foreground">0{i + 1}</span>
@@ -129,7 +129,7 @@ const Landing = () => (
       <section className="px-5 sm:px-8 py-20 sm:py-28 max-w-3xl mx-auto text-center">
         <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">One plan, one price</p>
         <h2 className="mt-3 font-serif text-5xl sm:text-6xl tracking-tight">₦18,500 / month</h2>
-        <p className="mt-4 text-muted-foreground">That's ₦600 a day. Cheaper than a plate of rice - runs your entire marketing department.</p>
+        <p className="mt-4 text-muted-foreground">That's ₦600 a day. Cheaper than a plate of rice, runs your entire marketing department.</p>
         <Button asChild size="lg" className="rounded-full mt-10 h-12 px-7 text-base">
           <Link to="/onboarding">Start free <ArrowRight className="h-4 w-4" /></Link>
         </Button>

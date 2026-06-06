@@ -129,7 +129,7 @@ const LandingPricing = () => {
             onClick={handleCTA}
           >
             <Zap className="h-4 w-4" />
-            {user ? `Buy ${credits} credits - ${formatNaira(price)}` : "Get started free"}
+            {user ? `Buy ${credits} credits, ${formatNaira(price)}` : "Get started free"}
           </Button>
         </div>
 

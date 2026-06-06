@@ -40,7 +40,7 @@ export const getLastCategory = (
   const match = availableCategories.find((c) => norm(c) === norm(saved));
   if (match) return match; // canonical casing from current options
 
-  // Stale value - clear cache so it's not reused.
+  // Stale value, clear cache so it's not reused.
   try {
     window.localStorage.removeItem(lsKey(userId, brandId, kind));
   } catch {

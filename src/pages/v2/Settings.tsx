@@ -156,7 +156,7 @@ const SettingsV2 = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="Settings - Brandie" description="Tune the system." path="/settings" noindex />
+      <SEO title="Settings, Brandie" description="Tune the system." path="/settings" noindex />
       <NewAppHeader />
 
 

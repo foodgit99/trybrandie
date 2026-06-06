@@ -172,7 +172,7 @@ export default function LogoDesignerDialog({
     setSaving(true);
     try {
       if (brandId) {
-        // Brand exists - upload to storage and update DB
+        // Brand exists, upload to storage and update DB
         const base64 = generatedImage.replace(/^data:image\/\w+;base64,/, "");
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
@@ -197,7 +197,7 @@ export default function LogoDesignerDialog({
         onLogoCreated(logoUrl);
         toast({ title: "Logo saved!", description: "Your new logo is live." });
       } else {
-        // Onboarding mode - pass base64 back to parent
+        // Onboarding mode, pass base64 back to parent
         onLogoCreated(generatedImage);
         toast({ title: "Logo ready!", description: "Your logo will be saved with your brand." });
       }

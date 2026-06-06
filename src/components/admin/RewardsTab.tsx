@@ -106,7 +106,7 @@ function ExpiryBadge({ expiresAt, status }: { expiresAt: string; status: string 
     return <Badge variant="secondary">Depleted</Badge>;
   }
   const days = Math.ceil(
-    (new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    (new Date(expiresAt).getTime(), Date.now()) / (1000 * 60 * 60 * 24)
   );
   let cls = "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
   if (days <= 3) cls = "bg-destructive/15 text-destructive border-destructive/30";
@@ -370,7 +370,7 @@ export default function RewardsTab() {
                   variant="outline"
                   size="sm"
                   disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  onClick={() => setPage((p) => Math.max(0, p, 1))}
                 >
                   Previous
                 </Button>
@@ -413,7 +413,7 @@ export default function RewardsTab() {
             <AlertDialogTitle>Delete this reward?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleting && deleting.remaining < deleting.amount
-                ? `This reward has been partially used (${deleting.amount - deleting.remaining}/${deleting.amount} consumed). Already-used credits will not be refunded. Continue?`
+                ? `This reward has been partially used (${deleting.amount, deleting.remaining}/${deleting.amount} consumed). Already-used credits will not be refunded. Continue?`
                 : "This will permanently remove the reward. This cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -847,7 +847,7 @@ function EditRewardDialog({
 
   if (!reward) return null;
 
-  const consumed = reward.amount - reward.remaining;
+  const consumed = reward.amount, reward.remaining;
 
   const handleSave = async () => {
     if (amount < consumed) {

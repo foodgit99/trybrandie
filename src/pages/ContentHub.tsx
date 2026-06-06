@@ -98,33 +98,33 @@ const FEATURE_INFO = {
     summary:
       "Holidays and key cultural moments coming up in the next 14 days, with one-tap design starters.",
     learnMore:
-      "Timely content earns disproportionate attention. Audiences are already searching, talking, and shopping around well-known events - so brands that show up early ride that wave instead of fighting for attention from scratch.\n\nUse this to plan ahead, secure visibility before competitors, and build emotional relevance by aligning your brand with moments your audience already cares about.",
+      "Timely content earns disproportionate attention. Audiences are already searching, talking, and shopping around well-known events, so brands that show up early ride that wave instead of fighting for attention from scratch.\n\nUse this to plan ahead, secure visibility before competitors, and build emotional relevance by aligning your brand with moments your audience already cares about.",
   },
   pillars: {
     title: "Content Pillars",
     summary:
       "The 3–5 core themes your brand consistently talks about across all your content.",
     learnMore:
-      "Pillars are the marketing equivalent of brand positioning. They keep your messaging focused so the audience quickly understands what you stand for and why to follow you.\n\nWithout pillars, content feels random and forgettable. With them, every post reinforces a clear identity - which builds trust, recall, and category authority over time.",
+      "Pillars are the marketing equivalent of brand positioning. They keep your messaging focused so the audience quickly understands what you stand for and why to follow you.\n\nWithout pillars, content feels random and forgettable. With them, every post reinforces a clear identity, which builds trust, recall, and category authority over time.",
   },
   campaigns: {
     title: "Campaigns",
     summary:
-      "Time-bound content pushes around a specific goal - a launch, promo, or seasonal moment.",
+      "Time-bound content pushes around a specific goal, a launch, promo, or seasonal moment.",
     learnMore:
-      "Campaigns concentrate your audience's attention. By telling a connected story across multiple posts within a tight window, you create momentum, urgency, and a reason to act now.\n\nThis is how brands turn awareness into measurable outcomes - sales, sign-ups, bookings - instead of just posting steady content that quietly fades.",
+      "Campaigns concentrate your audience's attention. By telling a connected story across multiple posts within a tight window, you create momentum, urgency, and a reason to act now.\n\nThis is how brands turn awareness into measurable outcomes, sales, sign-ups, bookings, instead of just posting steady content that quietly fades.",
   },
   series: {
     title: "Recurring Series",
     summary:
       "Repeating post formats your audience can expect on a schedule (e.g. Monday Tips, Friday Features).",
     learnMore:
-      "Series build the most powerful asset in marketing: appointment viewing. When people learn to expect something from you on a specific day, you stop competing for attention - they come looking for you.\n\nThey also dramatically reduce content fatigue. Once a format works, you can reuse the structure forever, swapping only the topic. Less effort, more consistency, stronger brand recognition.",
+      "Series build the most powerful asset in marketing: appointment viewing. When people learn to expect something from you on a specific day, you stop competing for attention, they come looking for you.\n\nThey also dramatically reduce content fatigue. Once a format works, you can reuse the structure forever, swapping only the topic. Less effort, more consistency, stronger brand recognition.",
   },
   trends: {
     title: "Trends",
     summary:
-      "What's currently moving in your industry - topics, formats, and conversations to ride.",
+      "What's currently moving in your industry, topics, formats, and conversations to ride.",
     learnMore:
       "Riding a relevant trend gives your content a natural reach boost because algorithms and audiences are already paying attention. It signals that your brand is alive, current, and tuned in.\n\nThe key is selective participation: trends that align with your pillars amplify your positioning, while random trend-chasing dilutes it. Use this list to spot the few that genuinely fit.",
   },
@@ -133,7 +133,7 @@ const FEATURE_INFO = {
     summary:
       "A weekly view of every idea scheduled across your days, color-coded by category.",
     learnMore:
-      "Consistency outperforms intensity. Brands that post predictably stay top-of-mind, while bursts of activity followed by silence quietly erode trust and reach.\n\nThe calendar lets you plan a balanced mix - promotional, educational, social-proof, entertainment - so you're nurturing the audience instead of only selling. That balance is what turns followers into buyers over time.",
+      "Consistency outperforms intensity. Brands that post predictably stay top-of-mind, while bursts of activity followed by silence quietly erode trust and reach.\n\nThe calendar lets you plan a balanced mix, promotional, educational, social-proof, entertainment, so you're nurturing the audience instead of only selling. That balance is what turns followers into buyers over time.",
   },
   categoryCoverage: {
     title: "Category Coverage",
@@ -147,21 +147,21 @@ const FEATURE_INFO = {
     summary:
       "Brandie automatically generates and emails your scheduled designs at your chosen delivery time.",
     learnMore:
-      "The biggest reason brands stop posting isn't strategy - it's friction. Autopilot removes the daily decision of 'what should I post today?' so consistency becomes the default.\n\nBy delivering ready-made, on-brand designs to your inbox, it turns content from a recurring task into a system. The compounding effect is what most small brands never reach: months of consistent presence with minimal effort.",
+      "The biggest reason brands stop posting isn't strategy, it's friction. Autopilot removes the daily decision of 'what should I post today?' so consistency becomes the default.\n\nBy delivering ready-made, on-brand designs to your inbox, it turns content from a recurring task into a system. The compounding effect is what most small brands never reach: months of consistent presence with minimal effort.",
   },
   regenerateAll: {
     title: "Regenerate All",
     summary:
-      "Rebuild your full content strategy - pillars, campaigns, series, and weekly ideas - in one go.",
+      "Rebuild your full content strategy, pillars, campaigns, series, and weekly ideas, in one go.",
     learnMore:
-      "Brands evolve. Audiences shift, offers change, seasons turn. A periodic full refresh keeps your content engine aligned with where the business is now, not where it was when you started.\n\nUse this when you've updated your brand, audience profile, or goals - or when content has started to feel repetitive. A clean regeneration restores creative range and strategic relevance.",
+      "Brands evolve. Audiences shift, offers change, seasons turn. A periodic full refresh keeps your content engine aligned with where the business is now, not where it was when you started.\n\nUse this when you've updated your brand, audience profile, or goals, or when content has started to feel repetitive. A clean regeneration restores creative range and strategic relevance.",
   },
   audienceContext: {
     title: "Audience Suggestions",
     summary:
       "Ideas pulled directly from your audience's pains, desires, and decision triggers.",
     learnMore:
-      "The most persuasive content speaks to a specific person, not a market. By grounding ideas in your audience's actual jobs-to-be-done - what they're struggling with, what they want, what makes them buy - you bypass generic advice and create content that feels personally written.\n\nThis is the difference between content people scroll past and content people screenshot.",
+      "The most persuasive content speaks to a specific person, not a market. By grounding ideas in your audience's actual jobs-to-be-done, what they're struggling with, what they want, what makes them buy, you bypass generic advice and create content that feels personally written.\n\nThis is the difference between content people scroll past and content people screenshot.",
   },
 } as const;
 
@@ -282,14 +282,14 @@ const ContentHub = () => {
     title: "",
   });
 
-  // Category filter (applies across Series, Campaigns, and Ideas) - persisted per user+brand
+  // Category filter (applies across Series, Campaigns, and Ideas), persisted per user+brand
   const [categoryFilter, setCategoryFilterState] = useState<string>("all");
   const setCategoryFilter = (v: string) => {
     setCategoryFilterState(v);
     setLastFilterCategory(user?.id, brand?.id, v);
   };
 
-  // Sort option (applies across Series, Campaigns, and Ideas) - persisted per user+brand
+  // Sort option (applies across Series, Campaigns, and Ideas), persisted per user+brand
   const [sortOption, setSortOptionState] = useState<ContentHubSortOption>("newest");
   const setSortOption = (v: ContentHubSortOption) => {
     setSortOptionState(v);
@@ -396,9 +396,9 @@ const ContentHub = () => {
     if (!run) return null;
     const date = new Date(run.started_at);
     const timeStr = date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    if (run.errors > 0 && run.processed === 0) return { label: `Failed - ${timeStr}`, status: "error" as const };
-    if (run.processed > 0) return { label: `${run.processed} created - ${timeStr}`, status: "success" as const };
-    return { label: `No ideas - ${timeStr}`, status: "neutral" as const };
+    if (run.errors > 0 && run.processed === 0) return { label: `Failed, ${timeStr}`, status: "error" as const };
+    if (run.processed > 0) return { label: `${run.processed} created, ${timeStr}`, status: "success" as const };
+    return { label: `No ideas, ${timeStr}`, status: "neutral" as const };
   };
 
   const [runningAutopilot, setRunningAutopilot] = useState(false);
@@ -470,7 +470,7 @@ const ContentHub = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const monday = new Date(today);
-    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7) + offset * 7);
+    monday.setDate(today.getDate(), ((dayOfWeek + 6) % 7) + offset * 7);
     return monday;
   }, []);
 
@@ -687,7 +687,7 @@ const ContentHub = () => {
       // Check if free first; if not free, skip silently (don't charge without user consent)
       const status = await callEngine("check_content_gen_status");
       if (!status.is_free) {
-        console.log("Silent regen skipped - would cost credits");
+        console.log("Silent regen skipped, would cost credits");
         setRegenPending(false);
         return;
       }
@@ -1074,14 +1074,14 @@ const ContentHub = () => {
     const nm = (it: T) => String((it as any)[nameKey] || "").toLowerCase();
     switch (sortOption) {
       case "oldest":
-        return arr.sort((a, b) => ts(a.created_at) - ts(b.created_at));
+        return arr.sort((a, b) => ts(a.created_at), ts(b.created_at));
       case "az":
         return arr.sort((a, b) => nm(a).localeCompare(nm(b)));
       case "za":
         return arr.sort((a, b) => nm(b).localeCompare(nm(a)));
       case "newest":
       default:
-        return arr.sort((a, b) => ts(b.created_at) - ts(a.created_at));
+        return arr.sort((a, b) => ts(b.created_at), ts(a.created_at));
     }
   };
   const filteredSeries = sortItems((series || []).filter((s: any) => matchesCategory(s.content_category)), "name");
@@ -1140,7 +1140,7 @@ const ContentHub = () => {
   };
 
   const fillDay = (day: string) => {
-    // Manual create - pre-fill the create dialog for this day with last-used category
+    // Manual create, pre-fill the create dialog for this day with last-used category
     setIdeaForm({
       ...emptyIdea,
       autopilot: autopilotAll,
@@ -1151,7 +1151,7 @@ const ContentHub = () => {
     setIdeaDialogOpen(true);
   };
 
-  // AI-fill a single empty day (additive - never wipes existing ideas)
+  // AI-fill a single empty day (additive, never wipes existing ideas)
   const [fillingDay, setFillingDay] = useState<string | null>(null);
   const aiFillDay = async (day: string) => {
     if (!brandId || fillingDay) return;
@@ -1237,7 +1237,7 @@ const ContentHub = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Content Hub - Brandie" description="Your weekly content engine: pulse, blueprint, and queued posts." path="/content" noindex />
+      <SEO title="Content Hub, Brandie" description="Your weekly content engine: pulse, blueprint, and queued posts." path="/content" noindex />
       <AppHeader />
       <main className="max-w-4xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div
@@ -1254,7 +1254,7 @@ const ContentHub = () => {
             </p>
           </div>
 
-          {/* Category filter + sort - applies to Series, Campaigns, and weekly Ideas */}
+          {/* Category filter + sort, applies to Series, Campaigns, and weekly Ideas */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none flex-1 min-w-0">
               <button
@@ -1351,7 +1351,7 @@ const ContentHub = () => {
             </Card>
           )}
 
-          {/* Brand Pulse - composite health header */}
+          {/* Brand Pulse, composite health header */}
           {brandId && (
             <BrandPulse
               weeklyIdeas={(weeklyIdeas as any[]) || []}
@@ -1362,7 +1362,7 @@ const ContentHub = () => {
             />
           )}
 
-          {/* Next Best Action - single recommendation that turns the Hub from passive to autonomous */}
+          {/* Next Best Action, single recommendation that turns the Hub from passive to autonomous */}
           {brandId && (
             <NextBestActionCard
               brandId={brandId}
@@ -1451,7 +1451,7 @@ const ContentHub = () => {
             );
           })()}
 
-          {/* Hub action buttons - open dialogs */}
+          {/* Hub action buttons, open dialogs */}
           <section className="space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
@@ -1514,7 +1514,7 @@ const ContentHub = () => {
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {/* Calendar nav + actions */}
                 <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o, 1)} title="Previous week">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   {weekOffset !== 0 && (
@@ -1596,7 +1596,7 @@ const ContentHub = () => {
                                     title={`${conflictHoliday!.name} falls on this day with nothing scheduled`}
                                   >
                                     <AlertTriangle className="h-3 w-3" />
-                                    {conflictHoliday!.name} - nothing scheduled
+                                    {conflictHoliday!.name}, nothing scheduled
                                   </span>
                                 ) : (
                                   <span className="text-xs text-muted-foreground/50">-</span>
@@ -1636,13 +1636,13 @@ const ContentHub = () => {
                                       </Badge>
                                     )}
                                     {(idea as any).autopilot_status === "failed_no_credits" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot couldn't create - no credits remaining">
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot couldn't create, no credits remaining">
                                         <AlertTriangle className="h-2 w-2" />
                                         no credits
                                       </Badge>
                                     )}
                                     {(idea as any).autopilot_status === "failed_error" && (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot encountered an error - will retry automatically">
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 bg-destructive/15 text-destructive border-destructive/20" title="Autopilot encountered an error, will retry automatically">
                                         <AlertTriangle className="h-2 w-2" />
                                         failed
                                       </Badge>
@@ -1819,7 +1819,7 @@ const ContentHub = () => {
                       <Switch
                         checked={autopilotAll}
                         onCheckedChange={async (checked) => {
-                          // Switch is a quick on/off - sets mode to assisted (on) or manual (off)
+                          // Switch is a quick on/off, sets mode to assisted (on) or manual (off)
                           await updateAutopilotSetting({ mode: checked ? "assisted" : "manual" });
                           toast({
                             title: checked ? "Autopilot enabled" : "Autopilot disabled",
@@ -1846,7 +1846,7 @@ const ContentHub = () => {
                       />
                     </div>
 
-                    {/* Mode selector - Manual / Assisted / Autonomous */}
+                    {/* Mode selector, Manual / Assisted / Autonomous */}
                     <div className="space-y-2 pt-1">
                       <div className="flex items-center justify-between gap-2">
                         <Label className="text-xs text-muted-foreground">Mode</Label>
@@ -2258,7 +2258,7 @@ const ContentHub = () => {
               {trendIntel?.generated_at && (
                 <span className="text-[10px] font-normal text-muted-foreground">
                   Updated {(() => {
-                    const age = Date.now() - new Date(trendIntel.generated_at).getTime();
+                    const age = Date.now(), new Date(trendIntel.generated_at).getTime();
                     const days = Math.floor(age / (1000 * 60 * 60 * 24));
                     return days === 0 ? "today" : `${days}d ago`;
                   })()}
@@ -2618,7 +2618,7 @@ const ContentHub = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingIdeaId ? "Edit Idea" : `Add Idea - ${DAY_LABELS[ideaDay] || ideaDay}`}
+              {editingIdeaId ? "Edit Idea" : `Add Idea, ${DAY_LABELS[ideaDay] || ideaDay}`}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">

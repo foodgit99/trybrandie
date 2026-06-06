@@ -1,6 +1,6 @@
 // Single source of truth for the 10 content categories used across
 // pillars, series, campaigns, and content ideas. Backend enum lives in
-// supabase/functions/brand-engine/index.ts (CONTENT_CATEGORY_ENUM) - keep IDs in sync.
+// supabase/functions/brand-engine/index.ts (CONTENT_CATEGORY_ENUM), keep IDs in sync.
 
 export type ContentCategoryId =
   | "announcement"

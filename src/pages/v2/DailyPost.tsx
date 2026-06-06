@@ -267,7 +267,7 @@ const DailyPost = () => {
       ? [activeSlide]
       : [];
 
-    // Try native share with image(s) + caption - opens the OS share sheet
+    // Try native share with image(s) + caption, opens the OS share sheet
     // (WhatsApp shows up there on iOS/Android) so the post and the caption
     // travel together in a single share.
     if (slidesToShare.length > 0 && typeof navigator !== "undefined" && (navigator as any).canShare) {
@@ -286,7 +286,7 @@ const DailyPost = () => {
         const sharePayload: ShareData = { text: caption, files };
         if ((navigator as any).canShare(sharePayload)) {
           await (navigator as any).share(sharePayload);
-          // Caption is shared along with the image - also drop it on the
+          // Caption is shared along with the image, also drop it on the
           // clipboard so the user can paste it again if needed.
           try {
             await navigator.clipboard.writeText(caption);
@@ -430,7 +430,7 @@ const DailyPost = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="Today's post - Brandie" description="Execute the day." path={`/post/${dayId}`} noindex />
+      <SEO title="Today's post, Brandie" description="Execute the day." path={`/post/${dayId}`} noindex />
       <NewAppHeader />
 
 
@@ -487,7 +487,7 @@ const DailyPost = () => {
                         <CarouselItem key={s.id} className="pl-0 basis-full">
                           <img
                             src={s.image_url}
-                            alt={`${idea.title} - slide ${i + 1}`}
+                            alt={`${idea.title}, slide ${i + 1}`}
                             className="w-full aspect-square object-cover"
                           />
                         </CarouselItem>
@@ -513,7 +513,7 @@ const DailyPost = () => {
                   <button
                     type="button"
                     onClick={() => carouselApi?.scrollNext()}
-                    disabled={activeIdx >= allSlides.length - 1}
+                    disabled={activeIdx >= allSlides.length, 1}
                     aria-label="Next slide"
                     className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/85 border border-border grid place-items-center backdrop-blur disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background"
                   >
@@ -614,7 +614,7 @@ const DailyPost = () => {
           )}
         </section>
 
-        {/* BRIEF - hidden after design is generated */}
+        {/* BRIEF, hidden after design is generated */}
         {!design?.image_url && (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
@@ -633,13 +633,13 @@ const DailyPost = () => {
               className="min-h-[120px] text-[15px] leading-relaxed bg-card"
             />
             <p className="text-[11px] text-muted-foreground">
-              Edit the brief now, then generate or save it - the autonomous engine will render it when scheduled.
+              Edit the brief now, then generate or save it, the autonomous engine will render it when scheduled.
             </p>
           </section>
         )}
 
 
-        {/* CAPTION - only after a render exists */}
+        {/* CAPTION, only after a render exists */}
         {design?.image_url && (
           <section className="space-y-3">
             <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
@@ -652,7 +652,7 @@ const DailyPost = () => {
               className="min-h-[120px] text-[15px] leading-relaxed bg-card"
             />
             <p className="text-[11px] text-muted-foreground">
-              Tweak in place - what you send is what you copy.
+              Tweak in place, what you send is what you copy.
             </p>
           </section>
         )}

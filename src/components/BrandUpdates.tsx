@@ -86,12 +86,12 @@ const tierMeta: Record<ConfTier, { label: string; cls: string; help: string }> =
   high: {
     label: "Strong signal",
     cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-    help: "AI will use this as factual seed material - quoting specifics.",
+    help: "AI will use this as factual seed material, quoting specifics.",
   },
   medium: {
     label: "Soft signal",
     cls: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
-    help: "AI will use this as inspiration only - no invented specifics.",
+    help: "AI will use this as inspiration only, no invented specifics.",
   },
   low: {
     label: "Needs detail",
@@ -120,8 +120,8 @@ const buildFollowUpQuestion = (u: { update_type: string; title: string | null; c
   const headline = (u.title || u.content || "this update").toString().trim().slice(0, 60);
   const base = FOLLOWUP_TYPE_ASK[u.update_type] || FOLLOWUP_TYPE_ASK.other;
   return gaps.length > 0
-    ? `For "${headline}" - ${base} (Missing: ${gaps.join(", ")}.)`
-    : `For "${headline}" - ${base}`;
+    ? `For "${headline}", ${base} (Missing: ${gaps.join(", ")}.)`
+    : `For "${headline}", ${base}`;
 };
 
 interface FormState {
@@ -149,7 +149,7 @@ const daysUntilExpiry = (expires_at: string | null): number | null => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const exp = new Date(expires_at + "T00:00:00");
-  return Math.ceil((exp.getTime() - today.getTime()) / 86400000);
+  return Math.ceil((exp.getTime(), today.getTime()) / 86400000);
 };
 
 const emptyForm = (): FormState => ({
@@ -320,7 +320,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     try {
       const question = buildFollowUpQuestion(u);
       // Append the Q+A as a new line so the original wording is preserved.
-      const mergedContent = `${(u.content || "").trim()}\n\nFollow-up - ${question}\nAnswer: ${answer}`.slice(0, 600);
+      const mergedContent = `${(u.content || "").trim()}\n\nFollow-up, ${question}\nAnswer: ${answer}`.slice(0, 600);
 
       // Re-score the merged content so future generations know it's stronger now.
       let newConfidence: number | null = null;
@@ -367,10 +367,10 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         title: "Answer saved",
         description:
           tier === "low"
-            ? "Saved - but confidence is still low. Try adding a name, number or date."
+            ? "Saved, but confidence is still low. Try adding a name, number or date."
             : tier === "medium"
-              ? `Confidence lifted to ${newConfidence}/100 - AI can now use it as soft inspiration.`
-              : `Strong signal (${newConfidence}/100) - AI will quote this directly.`,
+              ? `Confidence lifted to ${newConfidence}/100, AI can now use it as soft inspiration.`
+              : `Strong signal (${newConfidence}/100), AI will quote this directly.`,
       });
 
       qc.invalidateQueries({ queryKey: ["brand_updates", brandId] });
@@ -397,9 +397,9 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       delete next[id];
       return next;
     });
-    // After dismiss, the list shrinks by one - keep the cursor on the same
+    // After dismiss, the list shrinks by one, keep the cursor on the same
     // visual slot (which now shows the next item) without going out of bounds.
-    setLowConfIndex((i) => Math.max(0, Math.min(i, lowConfidenceUpdates.length - 2)));
+    setLowConfIndex((i) => Math.max(0, Math.min(i, lowConfidenceUpdates.length, 2)));
   };
 
   // Advance the stepper to the next low-confidence update, wrapping to the
@@ -411,7 +411,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
   const goPrevLowConf = () => {
     if (lowConfidenceUpdates.length <= 1) return;
     setLowConfIndex((i) =>
-      (i - 1 + lowConfidenceUpdates.length) % lowConfidenceUpdates.length,
+      (i, 1 + lowConfidenceUpdates.length) % lowConfidenceUpdates.length,
     );
   };
 
@@ -423,7 +423,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       return;
     }
     if (lowConfIndex >= lowConfidenceUpdates.length) {
-      setLowConfIndex(lowConfidenceUpdates.length - 1);
+      setLowConfIndex(lowConfidenceUpdates.length, 1);
     }
   }, [lowConfidenceUpdates.length, lowConfIndex]);
 
@@ -440,7 +440,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
     if (activeCount === 0) {
       toast({
         title: "No active updates",
-        description: "Add at least one update first - the AI uses these as factual seed material.",
+        description: "Add at least one update first, the AI uses these as factual seed material.",
         variant: "destructive",
       });
       return;
@@ -691,8 +691,8 @@ export default function BrandUpdates({ brandId, userId }: Props) {
       <Textarea
         placeholder={
           form.update_type === "testimonial"
-            ? '"Brandie cut our content production time in half. We finally look professional online." - Quote it verbatim if you have it.'
-            : "What happened? Be concrete - names, numbers, places, outcomes."
+            ? '"Brandie cut our content production time in half. We finally look professional online.", Quote it verbatim if you have it.'
+            : "What happened? Be concrete, names, numbers, places, outcomes."
         }
         value={form.content}
         maxLength={600}
@@ -774,7 +774,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
           const days = daysUntilExpiry(form.expires_at);
           if (days === null) return null;
           if (days < 0) {
-            return <p className="text-[11px] text-destructive">⚠ This date is in the past - the update won't be used.</p>;
+            return <p className="text-[11px] text-destructive">⚠ This date is in the past, the update won't be used.</p>;
           }
           if (days === 0) {
             return <p className="text-[11px] text-amber-600 dark:text-amber-400">Expires today.</p>;
@@ -998,7 +998,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Drop quick real-time updates - testimonials, events, product news, milestones. The AI uses these as fresh,
+        Drop quick real-time updates, testimonials, events, product news, milestones. The AI uses these as fresh,
         factual material when planning ideas and creating posts (especially Social Proof, BTS, Announcements, and
         Trending).
       </p>
@@ -1053,7 +1053,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 space-y-1">
           <div className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400">
             <Calendar className="h-3.5 w-3.5" />
-            Heads up - some updates need attention
+            Heads up, some updates need attention
           </div>
           {expiringSoon.length > 0 && (
             <p className="text-[11px] text-muted-foreground">
@@ -1068,7 +1068,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
         </div>
       )}
 
-      {/* Inline follow-up panel - every active LOW-confidence update gets a
+      {/* Inline follow-up panel, every active LOW-confidence update gets a
           deterministic, type-aware question + textarea so the user can
           strengthen items one by one without leaving the page. */}
       {lowConfidenceUpdates.length > 0 && showLowConfPanel && (
@@ -1084,7 +1084,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
                   {lowConfidenceUpdates.length} update{lowConfidenceUpdates.length === 1 ? "" : "s"} need{lowConfidenceUpdates.length === 1 ? "s" : ""} more detail
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Answer one quick question per item - the AI will then start using them as factual seed material.
+                  Answer one quick question per item, the AI will then start using them as factual seed material.
                 </p>
               </div>
             </div>
@@ -1099,7 +1099,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
 
           {(() => {
             const total = lowConfidenceUpdates.length;
-            const safeIndex = Math.min(lowConfIndex, total - 1);
+            const safeIndex = Math.min(lowConfIndex, total, 1);
             const u = lowConfidenceUpdates[safeIndex];
             if (!u) return null;
             const meta = TYPE_META[u.update_type] || TYPE_META.other;
@@ -1160,7 +1160,7 @@ export default function BrandUpdates({ brandId, userId }: Props) {
                     {value.length}/400 · ⌘/Ctrl + Enter to save
                   </span>
                   <div className="flex items-center gap-1.5">
-                    {/* Stepper controls - only meaningful when there's >1 item. */}
+                    {/* Stepper controls, only meaningful when there's >1 item. */}
                     {hasMore && (
                       <>
                         <Button

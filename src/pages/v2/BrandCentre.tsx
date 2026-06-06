@@ -92,7 +92,7 @@ const BrandCentre = () => {
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20 pb-24">
-      <SEO title="Brand Centre - Brandie" description="Your brand memory." path="/brand" noindex />
+      <SEO title="Brand Centre, Brandie" description="Your brand memory." path="/brand" noindex />
       <NewAppHeader />
 
 

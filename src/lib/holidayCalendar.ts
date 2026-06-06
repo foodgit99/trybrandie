@@ -72,15 +72,15 @@ export function getUpcomingHolidays(days: number = 14): UpcomingHoliday[] {
 
   for (const h of HOLIDAYS) {
     for (const y of [year, year + 1]) {
-      const hDate = new Date(y, h.month - 1, h.day);
-      const diff = (hDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      const hDate = new Date(y, h.month, 1, h.day);
+      const diff = (hDate.getTime(), now.getTime()) / (1000 * 60 * 60 * 24);
       if (diff >= -0.5 && diff <= days) {
         results.push({ ...h, date: hDate, daysUntil: Math.ceil(diff) });
       }
     }
   }
 
-  results.sort((a, b) => a.date.getTime() - b.date.getTime());
+  results.sort((a, b) => a.date.getTime(), b.date.getTime());
   const seen = new Set<string>();
   return results.filter((r) => {
     const key = `${r.name}-${r.date.toISOString().split("T")[0]}`;

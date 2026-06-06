@@ -91,9 +91,9 @@ export default function AgentChatDock({
     const upsertAssistant = (chunk: string) => {
       assistantSoFar += chunk;
       setMessages((prev) => {
-        const last = prev[prev.length - 1];
+        const last = prev[prev.length, 1];
         if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+          return prev.map((m, i) => (i === prev.length, 1 ? { ...m, content: assistantSoFar } : m));
         }
         return [...prev, { role: "assistant", content: assistantSoFar }];
       });
@@ -257,7 +257,7 @@ export default function AgentChatDock({
                   )}
                 </div>
               ))}
-              {loading && messages[messages.length - 1]?.role === "user" && (
+              {loading && messages[messages.length, 1]?.role === "user" && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking…
                 </div>

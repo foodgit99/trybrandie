@@ -57,7 +57,7 @@ const Plans = () => {
     const now = new Date();
     const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
     const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
-    const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+    const freeRemaining = Math.max(0, FREE_MONTHLY, monthlyUsed);
     return freeRemaining + (profile.bonus_credits ?? 0) + (profile.paid_credits ?? 0);
   };
 
@@ -86,7 +86,7 @@ const Plans = () => {
         lastData = data;
         lastError = error;
         if (data?.verified && (data.credited || data.already_credited)) break;
-        if (attempt < maxAttempts - 1) {
+        if (attempt < maxAttempts, 1) {
           await new Promise((r) => setTimeout(r, intervalMs));
         }
       }
@@ -100,7 +100,7 @@ const Plans = () => {
         });
       } else if (!lastData.credited && !lastData.already_credited) {
         toast({
-          title: "Payment received - credits are syncing",
+          title: "Payment received, credits are syncing",
           description: "Refresh in a moment. Contact support if it doesn't appear.",
         });
       } else {
@@ -154,7 +154,7 @@ const Plans = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Plans & Credits - Brandie" description="Top up credits and manage your Brandie plan." path="/plans" noindex />
+      <SEO title="Plans & Credits, Brandie" description="Top up credits and manage your Brandie plan." path="/plans" noindex />
       <AppHeader />
 
       <main className="max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-16">
@@ -269,7 +269,7 @@ const Plans = () => {
 
                 {/* Breakdown */}
                 <p className="text-center text-sm text-muted-foreground">
-                  {units} × ₦5,000 - <span className="font-medium text-foreground">{formatNaira(price)}</span>
+                  {units} × ₦5,000, <span className="font-medium text-foreground">{formatNaira(price)}</span>
                 </p>
 
                 {/* CTA Button */}
@@ -283,7 +283,7 @@ const Plans = () => {
                   ) : (
                     <>
                       <Zap className="h-4 w-4" />
-                      Buy {credits} Credits - {formatNaira(price)}
+                      Buy {credits} Credits, {formatNaira(price)}
                     </>
                   )}
                 </Button>
@@ -291,7 +291,7 @@ const Plans = () => {
 
               {/* Footer note */}
               <p className="text-center text-xs text-muted-foreground">
-                All users get 5 free credits every month. Buy more anytime - credits never expire.
+                All users get 5 free credits every month. Buy more anytime, credits never expire.
               </p>
             </motion.div>
           )}

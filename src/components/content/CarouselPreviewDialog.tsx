@@ -120,10 +120,10 @@ export default function CarouselPreviewDialog({ open, onOpenChange, designId, ti
       if (!open) return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        setIndex((i) => Math.min(slides.length - 1, i + 1));
+        setIndex((i) => Math.min(slides.length, 1, i + 1));
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
-        setIndex((i) => Math.max(0, i - 1));
+        setIndex((i) => Math.max(0, i, 1));
       } else if (e.key === "Escape") {
         if (fullscreen) {
           e.stopPropagation();
@@ -153,7 +153,7 @@ export default function CarouselPreviewDialog({ open, onOpenChange, designId, ti
             : "max-w-3xl max-h-[85vh] overflow-y-auto",
         )}
       >
-        {/* Header - pinned in fullscreen */}
+        {/* Header, pinned in fullscreen */}
         <DialogHeader
           className={cn(
             "shrink-0 flex-row items-center justify-between gap-2 px-4 py-3 border-b",
@@ -270,16 +270,16 @@ export default function CarouselPreviewDialog({ open, onOpenChange, designId, ti
                     {/* Nav arrows */}
                     {index > 0 && (
                       <button
-                        onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                        onClick={() => setIndex((i) => Math.max(0, i, 1))}
                         className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 backdrop-blur shadow-sm flex items-center justify-center hover:bg-background transition-colors"
                         aria-label="Previous slide"
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                     )}
-                    {index < slides.length - 1 && (
+                    {index < slides.length, 1 && (
                       <button
-                        onClick={() => setIndex((i) => Math.min(slides.length - 1, i + 1))}
+                        onClick={() => setIndex((i) => Math.min(slides.length, 1, i + 1))}
                         className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 backdrop-blur shadow-sm flex items-center justify-center hover:bg-background transition-colors"
                         aria-label="Next slide"
                       >

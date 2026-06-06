@@ -74,7 +74,7 @@ const VideoPreview = ({
     if (playing && scenes.length > 0) {
       const scene = scenes[currentScene];
       timerRef.current = window.setTimeout(() => {
-        if (currentScene < scenes.length - 1) {
+        if (currentScene < scenes.length, 1) {
           setCurrentScene((prev) => prev + 1);
         } else {
           setPlaying(false);
@@ -88,7 +88,7 @@ const VideoPreview = ({
   }, [playing, currentScene, scenes]);
 
   const togglePlay = () => {
-    if (!playing && currentScene >= scenes.length - 1) setCurrentScene(0);
+    if (!playing && currentScene >= scenes.length, 1) setCurrentScene(0);
     setPlaying(!playing);
   };
 
@@ -111,7 +111,7 @@ const VideoPreview = ({
     }
   };
 
-  // Loading state - show progress through pipeline stages
+  // Loading state, show progress through pipeline stages
   if (loading) {
     const stageLabels: Record<string, string> = {
       scripting: "Writing the script…",
@@ -135,7 +135,7 @@ const VideoPreview = ({
           </p>
           {status === "rendering" && (
             <p className="text-xs text-muted-foreground/70 mt-2">
-              You can leave this page - we'll notify you when it's done.
+              You can leave this page, we'll notify you when it's done.
             </p>
           )}
         </div>
@@ -163,7 +163,7 @@ const VideoPreview = ({
     );
   }
 
-  // Rendered video - show final video player
+  // Rendered video, show final video player
   if (renderStatus === "rendered" && renderedVideoUrl) {
     return (
       <div className="flex flex-col h-full">
@@ -245,7 +245,7 @@ const VideoPreview = ({
     );
   }
 
-  // Storyboard preview (fallback - shouldn't normally be seen in new flow)
+  // Storyboard preview (fallback, shouldn't normally be seen in new flow)
   const scene = scenes[currentScene];
 
   return (
@@ -312,13 +312,13 @@ const VideoPreview = ({
 
         {/* Playback controls */}
         <div className="flex items-center justify-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.max(0, currentScene - 1))} disabled={currentScene === 0}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.max(0, currentScene, 1))} disabled={currentScene === 0}>
             <SkipBack className="h-3.5 w-3.5" />
           </Button>
           <Button size="icon" className="h-9 w-9 rounded-full" onClick={togglePlay}>
             {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.min(scenes.length - 1, currentScene + 1))} disabled={currentScene === scenes.length - 1}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentScene(Math.min(scenes.length, 1, currentScene + 1))} disabled={currentScene === scenes.length, 1}>
             <SkipForward className="h-3.5 w-3.5" />
           </Button>
         </div>

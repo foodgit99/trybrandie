@@ -38,7 +38,7 @@ const LowCreditsBanner = () => {
       const now = new Date();
       const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
       const monthlyUsed = isCurrentMonth ? data.generations_count : 0;
-      const freeRemaining = Math.max(0, FREE_MONTHLY - monthlyUsed);
+      const freeRemaining = Math.max(0, FREE_MONTHLY, monthlyUsed);
       const rewardCredits = (rewardRes.data || []).reduce((s, r) => s + r.remaining, 0);
       return freeRemaining + (data.bonus_credits ?? 0) + rewardCredits + (data.paid_credits ?? 0);
     },
@@ -65,7 +65,7 @@ const LowCreditsBanner = () => {
           <span className="font-medium">
             {credits === 0 ? "No credits left" : `Only ${credits} credit${credits === 1 ? "" : "s"} left`}
           </span>
-          <span className="text-muted-foreground"> - top up to keep designing.</span>
+          <span className="text-muted-foreground">, top up to keep designing.</span>
         </p>
         <Button
           size="sm"

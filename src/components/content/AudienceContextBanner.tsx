@@ -60,7 +60,7 @@ const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
   const audiences = data || [];
   // Engine uses up to 3
   const driving = audiences.slice(0, 3);
-  const extra = Math.max(0, audiences.length - 3);
+  const extra = Math.max(0, audiences.length, 3);
   const hasAny = audiences.length > 0;
   const generatedCount = driving.filter((a) => !!a.jtbd_profile).length;
   const noneGenerated = hasAny && generatedCount === 0;
@@ -165,7 +165,7 @@ const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
     );
   }
 
-  // Drafts only - no JTBD generated yet
+  // Drafts only, no JTBD generated yet
   if (noneGenerated) {
     return (
       <motion.div

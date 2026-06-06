@@ -4,7 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 const faqs = [
   {
     q: "What exactly is Brandie?",
-    a: "Brandie is an autonomous content system for small businesses. You pick a playbook for your industry, hit start, and Brandie generates a full week of on-brand social posts for you - every week, on its own.",
+    a: "Brandie is an autonomous content system for small businesses. You pick a playbook for your industry, hit start, and Brandie generates a full week of on-brand social posts for you, every week, on its own.",
   },
   {
     q: "Do I need design or marketing skills?",
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     q: "Can I edit or approve posts before they go out?",
-    a: "Always. Nothing leaves your queue without you. You can tweak copy, swap visuals, reschedule, or delete any post in one click - or let the engine handle everything end to end.",
+    a: "Always. Nothing leaves your queue without you. You can tweak copy, swap visuals, reschedule, or delete any post in one click, or let the engine handle everything end to end.",
   },
   {
     q: "What if I run out of ideas?",
@@ -32,7 +32,7 @@ const faqs = [
   },
   {
     q: "Can I use it for more than one brand?",
-    a: "Yes - on the Creator and Agency plans. Each brand gets its own playbook, memory, and queue, fully separated.",
+    a: "Yes, on the Creator and Agency plans. Each brand gets its own playbook, memory, and queue, fully separated.",
   },
   {
     q: "Where does the content get published?",
@@ -61,7 +61,7 @@ const LandingFAQ = () => (
           Everything you're wondering, answered.
         </h2>
         <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto">
-          Plain English. No jargon. If something's still unclear, just start the engine - it's free.
+          Plain English. No jargon. If something's still unclear, just start the engine, it's free.
         </p>
       </motion.div>
 

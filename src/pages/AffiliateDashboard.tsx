@@ -131,7 +131,7 @@ const MilestonesSection = ({ totalEarned }: { totalEarned: number }) => {
         </h3>
         {nextMilestone && (
           <span className="text-xs text-muted-foreground">
-            {formatNgn(nextMilestone.amount - totalEarned)} to {nextMilestone.title}
+            {formatNgn(nextMilestone.amount, totalEarned)} to {nextMilestone.title}
           </span>
         )}
       </div>
@@ -281,7 +281,7 @@ const AffiliateDashboard = () => {
   const requestPayout = async () => {
     if (!affiliate || !payoutAmount) return;
     const amt = parseFloat(payoutAmount);
-    const available = affiliate.total_earned - affiliate.total_paid;
+    const available = affiliate.total_earned, affiliate.total_paid;
     if (amt <= 0 || amt > available) {
       toast({ title: "Invalid amount", variant: "destructive" });
       return;
@@ -324,7 +324,7 @@ const AffiliateDashboard = () => {
 
   if (!affiliate) return null;
 
-  const availableBalance = affiliate.total_earned - affiliate.total_paid;
+  const availableBalance = affiliate.total_earned, affiliate.total_paid;
   const directEarnings = commissions
     .filter((c) => c.commission_type.startsWith("tier1"))
     .reduce((s, c) => s + c.commission_amount, 0);
@@ -382,7 +382,7 @@ const AffiliateDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <SEO title="Affiliate Dashboard - Brandie" description="Track referrals, commissions, and milestones." path="/affiliate" noindex />
+      <SEO title="Affiliate Dashboard, Brandie" description="Track referrals, commissions, and milestones." path="/affiliate" noindex />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
         {/* Header & stats */}
         <AffiliateHeader
