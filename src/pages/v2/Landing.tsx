@@ -8,13 +8,18 @@ import atelierAsset from "@/assets/landing-atelier-ng.jpg.asset.json";
 import tundeAsset from "@/assets/testimonial-ng-tunde.jpg.asset.json";
 import chiomaAsset from "@/assets/testimonial-ng-chioma.jpg.asset.json";
 import aminaAsset from "@/assets/testimonial-ng-amina.jpg.asset.json";
+import pillar1Asset from "@/assets/landing-pillar-1.jpg.asset.json";
+import pillar2Asset from "@/assets/landing-pillar-2.jpg.asset.json";
+import pillar3Asset from "@/assets/landing-pillar-3.jpg.asset.json";
+import pillar4Asset from "@/assets/landing-pillar-4.jpg.asset.json";
+import pillar5Asset from "@/assets/landing-pillar-5.jpg.asset.json";
 
 const pillars = [
-  { icon: Sparkles, title: "Autonomous research", body: "Trends, holidays, payday cycles, picked for your industry. You never hunt for inspiration again." },
-  { icon: Wand2, title: "Strategic arc, not status spam", body: "Each week is a 5-day narrative, hook, proof, scarcity, CTA. Designed to convert, not to fill a feed." },
-  { icon: Calendar, title: "Pre-filled weekly blueprint", body: "Your calendar arrives already done. Review once, approve once. Brandie handles the rest." },
-  { icon: MessageSquare, title: "Conversational edits", body: "“Swap Thursday for a restock post.” Brandie reworks just that one. Nothing else breaks." },
-  { icon: BarChart3, title: "CEO briefing", body: "A weekly summary that prioritises link clicks and DMs over likes. Then it teaches itself." },
+  { icon: Sparkles, title: "Autonomous research", body: "Trends, holidays, payday cycles, picked for your industry. You never hunt for inspiration again.", image: pillar1Asset.url, alt: "Hand-illustrated research cards on linen with ankara motif" },
+  { icon: Wand2, title: "Strategic arc, not status spam", body: "Each week is a 5-day narrative, hook, proof, scarcity, CTA. Designed to convert, not to fill a feed.", image: pillar2Asset.url, alt: "Five charcoal dots connected by a rising gold thread on beige paper" },
+  { icon: Calendar, title: "Pre-filled weekly blueprint", body: "Your calendar arrives already done. Review once, approve once. Brandie handles the rest.", image: pillar3Asset.url, alt: "Hand-drawn weekly calendar with brass paperclip and ankara strip" },
+  { icon: MessageSquare, title: "Conversational edits", body: "“Swap Thursday for a restock post.” Brandie reworks just that one. Nothing else breaks.", image: pillar4Asset.url, alt: "Calendar with a gold brushstroke swap and a fountain pen" },
+  { icon: BarChart3, title: "CEO briefing", body: "A weekly summary that prioritises link clicks and DMs over likes. Then it teaches itself.", image: pillar5Asset.url, alt: "Editorial chart on cream paper beside a leather notebook and espresso" },
 ];
 
 const testimonials = [
