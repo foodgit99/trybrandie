@@ -66,6 +66,78 @@ const Onboarding = () => {
   const [audienceStruggle, setAudienceStruggle] = useState("");
   const [audienceOutcome, setAudienceOutcome] = useState("");
   const [audienceTrigger, setAudienceTrigger] = useState("");
+  type AudienceKey = "who" | "struggle" | "outcome" | "trigger";
+  type FieldSource = "ai_suggested" | "user_edited" | "user_written";
+  const [audienceSources, setAudienceSources] = useState<Record<AudienceKey, FieldSource>>({
+    who: "user_written",
+    struggle: "user_written",
+    outcome: "user_written",
+    trigger: "user_written",
+  });
+  const [suggestingAudience, setSuggestingAudience] = useState(false);
+  const [audienceConfidence, setAudienceConfidence] = useState<Partial<Record<AudienceKey, number>>>({});
+
+  const setAudienceField = (key: AudienceKey, value: string) => {
+    const setter = { who: setAudienceWho, struggle: setAudienceStruggle, outcome: setAudienceOutcome, trigger: setAudienceTrigger }[key];
+    setter(value);
+    setAudienceSources((prev) => {
+      const wasAi = prev[key] === "ai_suggested";
+      return { ...prev, [key]: wasAi ? "user_edited" : prev[key] === "user_edited" ? "user_edited" : "user_written" };
+    });
+  };
+
+  const handleSuggestAudience = async () => {
+    if (suggestingAudience) return;
+    setSuggestingAudience(true);
+    const startedAt = performance.now();
+    try {
+      const { data, error } = await supabase.functions.invoke("audience-suggest", {
+        body: {
+          brand: {
+            name: name.trim(),
+            description: description.trim(),
+            playbook_id: playbook.id,
+            vibe: playbook.defaultVibe,
+            tone_of_voice: playbook.defaultTone,
+            personality_traits: playbook.defaultPersonality,
+            website_url: websiteUrl.trim(),
+            products: products
+              .filter((p) => p.label.trim())
+              .map((p) => ({ label: p.label, description: p.description, price: p.price })),
+          },
+        },
+      });
+      if (error) throw error;
+      const s = data?.suggestion;
+      if (!s) throw new Error("No suggestion returned");
+
+      const apply = (key: AudienceKey, value: string, current: string, setter: (v: string) => void) => {
+        const canOverwrite =
+          !current.trim() || audienceSources[key] === "ai_suggested";
+        if (canOverwrite && value) {
+          setter(value);
+          setAudienceSources((prev) => ({ ...prev, [key]: "ai_suggested" }));
+        }
+      };
+      apply("who", s.who, audienceWho, setAudienceWho);
+      apply("struggle", s.struggle, audienceStruggle, setAudienceStruggle);
+      apply("outcome", s.outcome, audienceOutcome, setAudienceOutcome);
+      apply("trigger", s.trigger, audienceTrigger, setAudienceTrigger);
+      setAudienceConfidence(data?.confidence ?? {});
+      const ms = Math.round(performance.now() - startedAt);
+      toast({ title: "Draft ready", description: `Brandie filled in a starting point in ${(ms / 1000).toFixed(1)}s. Edit anything that doesn't match your real customers.` });
+    } catch (err: any) {
+      const status = err?.context?.status ?? err?.status;
+      const msg = status === 402
+        ? "AI credits exhausted. Add credits to keep using Brandie."
+        : status === 429
+          ? "Too many requests. Try again in a moment."
+          : err?.message || "Couldn't draft an audience. Try again.";
+      toast({ title: "Couldn't suggest", description: msg, variant: "destructive" });
+    } finally {
+      setSuggestingAudience(false);
+    }
+  };
 
   // step 3, Offer
   const [products, setProducts] = useState<ProductDraft[]>([
