@@ -1,38 +1,39 @@
-## Findings
+## Goal
+Add a fresh, v2-styled **Pricing** page for the new Brandie experience. Keep the existing credit-pack model (₦5,000 / 20 credits) and the existing one-time Paystack checkout. Leave `/plans` untouched as a fallback, and update the landing page pricing section to mirror the new design.
 
-I traced the caption pipeline end-to-end and confirmed there is a real bug for **carousels** produced by the autonomous engine. Single-graphic autopilot posts are fine.
+## Scope
+1. **New route `/pricing`** (public + authenticated friendly).
+2. **New component** `src/pages/v2/Pricing.tsx` — fully working: balance, slider, Paystack one-time checkout, callback verification, success state. Reuses `paystack-checkout` + `paystack-verify` edge functions exactly like `/plans`.
+3. **Replace `LandingPricing`** body with the same visual treatment so the marketing site and in-app pricing tell the same story. Button on landing routes to `/auth` for guests and `/pricing` for signed-in users.
+4. **No changes** to edge functions, DB, or the existing `/plans` page.
 
-**Evidence (live DB):**
-- Last 20 autopilot-completed ideas: every single post (`carousel_id = null`) has a caption persisted. Every carousel cover (`slide_index = 0`) has `caption = NULL`.
-- `content_ideas.whatsapp_dm` is `NULL` for all of them, so the UI fallback in `DailyPost.tsx` also produces nothing.
-- The idea you're currently viewing (`8d947b3d…`) is one of these carousels — that's why the caption box is empty.
+## UX (v2 visual language — warm neutral palette, serif headings, generous whitespace)
+- Hero: "Pay only for what you create." + sub-copy framing it as no subscription, no expiry.
+- Single Credit Pack card (the hero unit):
+  - Slider 1–10 units, default 2, with live `credits` and `₦price` big numerals.
+  - Per-credit rate caption ("₦250 / credit").
+  - Primary CTA: `Buy {credits} credits — ₦{price}` (Paystack flow).
+  - Guest CTA: `Sign up to buy` → `/auth?next=/pricing`.
+- Side panel with what every credit unlocks (uses existing `features` list from `LandingPricing`).
+- "Current balance" pill only when authed (mirrors `/plans`).
+- Post-payment success state identical to `/plans` (verify polling, invalidate `profile` queries, CTA → `/cockpit`).
+- SEO tags via `<SEO>` (title <60, desc <160, canonical `/pricing`, indexable).
 
-**Root cause:**
-1. `supabase/functions/design-studio/index.ts` carousel branch generates a caption (line ~3290) and returns it in the response, but **never writes it onto any slide row** in `designs`. The per-slide `insert` (line ~3260) has no `caption` field.
-2. `supabase/functions/content-autopilot/index.ts` only persists `designData.caption` in the **single-post** branch (line ~386). The carousel branch (line ~350) just reads the cover `design_id` and never updates `designs.caption`.
-3. `src/pages/v2/DailyPost.tsx` reads caption only from the cover `design` row (line ~141), so a missing caption shows the empty placeholder.
+## Technical details
+- File: `src/pages/v2/Pricing.tsx` — copy the verification + checkout logic from `src/pages/Plans.tsx` lines 40–153; restyle the layout in v2 tokens.
+- `callback_url` passed to `paystack-checkout` → `https://trybrandie.com/pricing` so the redirect lands back on the new page.
+- Route in `src/App.tsx`: `<Route path="/pricing" element={<V2Pricing />} />` (public, no `ProtectedRoute` — but checkout button gates on `user`).
+- Landing: rewrite `src/components/landing/LandingPricing.tsx` body to the new layout. Keep constants (`PRICE_PER_UNIT`, `CREDITS_PER_UNIT`, `formatNaira`, `features`). CTA: `navigate(user ? "/pricing" : "/auth?next=/pricing")` — read `user` from `useAuth`.
+- Header: use `AppHeader` when `user` exists, else a slim landing-style nav (mirrors how other v2 pages handle it).
+- No new dependencies. No design tokens added — reuse existing `primary`, `accent`, `secondary`, `border`, `card`, `muted-foreground`.
 
-## Plan
+## Verification
+1. `/pricing` renders for both guest and authed users; slider math correct; CTA disabled while loading.
+2. Click CTA while signed in → redirected to Paystack → returning to `/pricing?reference=…` shows verifying → success state, credits visible in header.
+3. Landing pricing section visually matches `/pricing` and routes correctly.
+4. `/plans` still works unchanged.
 
-### 1. Persist carousel caption at generation time
-In `supabase/functions/design-studio/index.ts`, after `captionText` is generated for the carousel (right before the response is returned), update the cover slide row:
-- `UPDATE designs SET caption = captionText WHERE carousel_id = carouselId AND slide_index = 0` (only when `captionText` is non-empty).
-- This fixes manual carousel renders too.
-
-### 2. Defense-in-depth in autopilot
-In `supabase/functions/content-autopilot/index.ts` carousel branch, after resolving `coverDesignId`, if `designData.caption` is present run an `update designs set caption=... where id = coverDesignId`. This guarantees the autopilot-produced cover always carries the caption even if design-studio's write fails.
-
-### 3. UI fallback hardening (small)
-In `src/pages/v2/DailyPost.tsx`, when the active design is a carousel and the cover has no caption, also look at sibling slides for the first non-null caption before falling back to the placeholder. Cheap safety net for any historical rows.
-
-### 4. No schema or RLS changes
-`designs.caption` already exists and is writable by the service role; no migration needed.
-
-### 5. Out of scope
-- Backfilling captions on the ~3 historical autopilot carousels already in the DB (they were generated before the fix; regenerating would cost credits). I'll note this to you instead of silently doing it.
-- The brief/lock change from the previous turn stays as-is.
-
-### Verification
-After deploying the edge functions:
-- Trigger one autopilot carousel (or wait for the next cron tick) and confirm via `select id, slide_index, caption is not null from designs where carousel_id = …` that the cover row has a caption.
-- Open `/post/<idea_id>` for that idea and confirm the Caption box is pre-filled.
+## Out of scope
+- Subscription billing, multiple tiers, recurring Paystack plans.
+- WhatsApp pricing copy, currency switcher, coupon codes.
+- Removing or deprecating `/plans`.
