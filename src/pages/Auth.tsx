@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import SEO from "@/components/SEO";
+import { gaEvent } from "@/lib/ga";
 
 type Mode = "login" | "signup" | "forgot";
 
