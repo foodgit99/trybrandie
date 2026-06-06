@@ -51,6 +51,7 @@ const Onboarding = () => {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState("");
+  const [scanSucceeded, setScanSucceeded] = useState(false);
   const playbook = getPlaybook(playbookId || "general");
 
   // step 1, Look & feel
