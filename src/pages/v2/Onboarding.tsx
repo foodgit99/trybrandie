@@ -321,6 +321,7 @@ const Onboarding = () => {
         })
         .catch(() => {});
 
+      gaEvent("onboarding_complete", { playbook_id: playbook.id, has_website: !!websiteUrl.trim() });
       toast({ title: "Your engine is starting." });
       navigate("/cockpit");
     } catch (err: any) {
