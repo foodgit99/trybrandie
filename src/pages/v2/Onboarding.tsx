@@ -24,6 +24,7 @@ import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import { INDUSTRY_PLAYBOOKS, getPlaybook } from "@/lib/industryPlaybooks";
 import brandieLogo from "@/assets/brandie-logo.png";
 import SEO from "@/components/SEO";
+import { gaEvent } from "@/lib/ga";
 
 type Step = 0 | 1 | 2 | 3;
 
