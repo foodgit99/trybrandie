@@ -143,6 +143,7 @@ const App = () => (
       <DesignGenerationProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <RouteAnalytics />
         <Routes>
           {/* ============ PRIMARY (v2) experience ============ */}
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
