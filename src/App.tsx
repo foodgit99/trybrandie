@@ -46,6 +46,7 @@ import V2ContentHub from "./pages/v2/ContentHubV2";
 import V2Studio from "./pages/v2/Studio";
 import V2History from "./pages/v2/History";
 import V2Hub from "./pages/v2/Hub";
+import V2Pricing from "./pages/v2/Pricing";
 
 const queryClient = new QueryClient();
 
