@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import SEO from "@/components/SEO";
+import { gaEvent } from "@/lib/ga";
 
 type Mode = "login" | "signup" | "forgot";
 
@@ -80,6 +81,7 @@ const Auth = () => {
     if (error) {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
     } else {
+      gaEvent("sign_up", { method: "email" });
       toast({ title: "Check your email", description: "We sent you a confirmation link." });
     }
   };

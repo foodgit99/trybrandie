@@ -1,4 +1,5 @@
 import SEO from "@/components/SEO";
+import { gaEvent } from "@/lib/ga";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -109,6 +110,14 @@ const Plans = () => {
           amount: lastData.amount,
           currency: lastData.currency,
         });
+        if (!lastData.already_credited) {
+          gaEvent("purchase", {
+            transaction_id: reference,
+            value: Number(lastData.amount) || undefined,
+            currency: lastData.currency || "NGN",
+            items: [{ item_id: "credits", item_name: "Brandie credits", quantity: lastData.credits }],
+          });
+        }
         queryClient.invalidateQueries({ queryKey: ["profile-studio"] });
         queryClient.invalidateQueries({ queryKey: ["profile"] });
         queryClient.invalidateQueries({ queryKey: ["header-profile"] });

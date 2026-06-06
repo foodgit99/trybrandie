@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { DesignGenerationProvider } from "@/contexts/DesignGenerationContext";
 import FloatingDesignStatus from "@/components/FloatingDesignStatus";
 import ScrollToTop from "@/components/ScrollToTop";
+import RouteAnalytics from "@/components/RouteAnalytics";
 import FloatingNavBar from "@/components/FloatingNavBar";
 import LowCreditsBanner from "@/components/LowCreditsBanner";
 import AudiencePromptManager from "@/components/audience/AudiencePromptManager";
@@ -142,6 +143,7 @@ const App = () => (
       <DesignGenerationProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <RouteAnalytics />
         <Routes>
           {/* ============ PRIMARY (v2) experience ============ */}
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />

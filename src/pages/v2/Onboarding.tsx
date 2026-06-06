@@ -24,6 +24,7 @@ import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import { INDUSTRY_PLAYBOOKS, getPlaybook } from "@/lib/industryPlaybooks";
 import brandieLogo from "@/assets/brandie-logo.png";
 import SEO from "@/components/SEO";
+import { gaEvent } from "@/lib/ga";
 
 type Step = 0 | 1 | 2 | 3;
 
@@ -320,6 +321,7 @@ const Onboarding = () => {
         })
         .catch(() => {});
 
+      gaEvent("onboarding_complete", { playbook_id: playbook.id, has_website: !!websiteUrl.trim() });
       toast({ title: "Your engine is starting." });
       navigate("/cockpit");
     } catch (err: any) {
