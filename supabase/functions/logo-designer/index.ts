@@ -209,7 +209,8 @@ Requirements:
     }
 
     const aiData = await aiResponse.json();
-    const imageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const b64 = aiData?.data?.[0]?.b64_json;
+    const imageUrl = b64 ? `data:image/png;base64,${b64}` : aiData?.data?.[0]?.url;
 
     if (!imageUrl) {
       return new Response(JSON.stringify({ error: "No image generated" }), {
