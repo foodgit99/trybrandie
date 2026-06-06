@@ -153,7 +153,7 @@ export default function CarouselPreviewDialog({ open, onOpenChange, designId, ti
             : "max-w-3xl max-h-[85vh] overflow-y-auto",
         )}
       >
-        {/* Header — pinned in fullscreen */}
+        {/* Header - pinned in fullscreen */}
         <DialogHeader
           className={cn(
             "shrink-0 flex-row items-center justify-between gap-2 px-4 py-3 border-b",

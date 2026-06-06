@@ -17,7 +17,7 @@ const lsKey = (userId: string, brandId: string, kind: CategoryDialogKind) =>
 /**
  * Sync read from localStorage cache (per user + brand).
  * If `availableCategories` is provided, validates the saved value against it
- * (case-insensitive) and returns "" if the category was renamed/removed —
+ * (case-insensitive) and returns "" if the category was renamed/removed -
  * also clearing the stale cache entry so it won't be used again.
  */
 export const getLastCategory = (
@@ -40,7 +40,7 @@ export const getLastCategory = (
   const match = availableCategories.find((c) => norm(c) === norm(saved));
   if (match) return match; // canonical casing from current options
 
-  // Stale value — clear cache so it's not reused.
+  // Stale value - clear cache so it's not reused.
   try {
     window.localStorage.removeItem(lsKey(userId, brandId, kind));
   } catch {

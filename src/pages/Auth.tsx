@@ -102,8 +102,8 @@ const Auth = () => {
 
   return (
     <main className="flex min-h-screen">
-      <SEO title="Sign in — Brandie" description="Sign in or create your Brandie account to start your autonomous content engine." path="/auth" noindex />
-      {/* Left — branding */}
+      <SEO title="Sign in - Brandie" description="Sign in or create your Brandie account to start your autonomous content engine." path="/auth" noindex />
+      {/* Left - branding */}
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-secondary">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -114,12 +114,12 @@ const Auth = () => {
           <img src={brandieLogo} alt="Brandie" className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-5xl font-serif tracking-tight text-foreground mb-4">Brandie</h1>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Your AI creative director. Beautiful, on-brand social graphics — every time.
+            Your AI creative director. Beautiful, on-brand social graphics - every time.
           </p>
         </motion.div>
       </div>
 
-      {/* Right — form */}
+      {/* Right - form */}
       <div className="flex w-full lg:w-1/2 items-center justify-center px-6">
         <motion.div
           initial={{ opacity: 0, y: 12 }}

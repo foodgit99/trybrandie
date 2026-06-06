@@ -115,7 +115,7 @@ export default function CalendarExport({
       DAYS.forEach((day) => {
         const ideas = ideasByDay[day] || [];
         if (ideas.length === 0) {
-          rows.push([DAY_LABELS[day], "—", "—"]);
+          rows.push([DAY_LABELS[day], "-", "-"]);
         } else {
           ideas.forEach((idea: any, i: number) => {
             rows.push([
@@ -131,7 +131,7 @@ export default function CalendarExport({
       DAYS.forEach((day) => {
         const ideas = ideasByDay[day] || [];
         if (ideas.length === 0) {
-          rows.push([DAY_LABELS[day], "—", "", "", "", "", ""]);
+          rows.push([DAY_LABELS[day], "-", "", "", "", "", ""]);
         } else {
           ideas.forEach((idea: any, i: number) => {
             rows.push([
@@ -215,7 +215,7 @@ export default function CalendarExport({
         const ideas = ideasByDay[day] || [];
         if (ideas.length === 0) {
           doc.text(DAY_SHORT[day], cols[0].x + 2, y + 4);
-          doc.text("—", cols[1].x + 2, y + 4);
+          doc.text("-", cols[1].x + 2, y + 4);
           doc.setDrawColor(230, 230, 230);
           doc.line(margin, y + 6, margin + contentWidth, y + 6);
           y += 7;
@@ -255,7 +255,7 @@ export default function CalendarExport({
         const ideas = ideasByDay[day] || [];
         if (ideas.length === 0) {
           doc.text(DAY_SHORT[day], cols[0].x + 1, y + 4);
-          doc.text("—", cols[1].x + 1, y + 4);
+          doc.text("-", cols[1].x + 1, y + 4);
           doc.setDrawColor(230, 230, 230);
           doc.line(margin, y + 6, margin + contentWidth, y + 6);
           y += 7;
@@ -342,8 +342,8 @@ export default function CalendarExport({
         if (ideas.length === 0) {
           html += `<tr style="border-bottom:1px solid #eee;">
             <td style="padding:10px 12px;font-weight:500;">${DAY_SHORT[day]}</td>
-            <td style="padding:10px 12px;color:#ccc;">—</td>
-            <td style="padding:10px 12px;color:#ccc;">—</td>
+            <td style="padding:10px 12px;color:#ccc;">-</td>
+            <td style="padding:10px 12px;color:#ccc;">-</td>
           </tr>`;
         } else {
           ideas.forEach((idea: any, i: number) => {
@@ -369,7 +369,7 @@ export default function CalendarExport({
         if (ideas.length === 0) {
           html += `<tr style="border-bottom:1px solid #eee;">
             <td style="padding:10px;font-weight:500;">${DAY_SHORT[day]}</td>
-            <td style="padding:10px;color:#ccc;">—</td>
+            <td style="padding:10px;color:#ccc;">-</td>
             <td style="padding:10px;"></td>
             <td style="padding:10px;"></td>
           </tr>`;
@@ -463,7 +463,7 @@ export default function CalendarExport({
             >
               <div className="font-medium text-sm">Strategy View</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Compact overview — day, type, and title. Great for planning.
+                Compact overview - day, type, and title. Great for planning.
               </p>
             </button>
             <button
@@ -472,7 +472,7 @@ export default function CalendarExport({
             >
               <div className="font-medium text-sm">Execution View</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Full details — prompts, pillars, status. Ready for doing.
+                Full details - prompts, pillars, status. Ready for doing.
               </p>
             </button>
           </div>

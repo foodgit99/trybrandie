@@ -310,7 +310,7 @@ export default function RewardsTab() {
                         <tr key={r.id} className="border-t hover:bg-muted/30">
                           <td className="px-4 py-3">
                             <div className="font-medium">
-                              {r.recipient_name || "—"}
+                              {r.recipient_name || "-"}
                             </div>
                             <div className="text-xs text-muted-foreground font-mono">
                               {r.user_id.slice(0, 8)}…
@@ -323,7 +323,7 @@ export default function RewardsTab() {
                             </span>
                           </td>
                           <td className="px-4 py-3 max-w-[200px] truncate" title={r.reason}>
-                            {r.reason || <span className="text-muted-foreground">—</span>}
+                            {r.reason || <span className="text-muted-foreground">-</span>}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground text-xs">
                             {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}

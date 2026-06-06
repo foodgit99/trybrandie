@@ -65,7 +65,7 @@ const ChatSuggestions = ({
       return shuffled.slice(0, 4).map((idea) => idea.prompt);
     }
 
-    // Fallback — brand + real upcoming events aware
+    // Fallback - brand + real upcoming events aware
     const pool: string[] = [];
 
     // Add event-specific suggestions

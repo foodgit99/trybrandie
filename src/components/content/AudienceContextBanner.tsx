@@ -165,7 +165,7 @@ const AudienceContextBanner = ({ brandId }: AudienceContextBannerProps) => {
     );
   }
 
-  // Drafts only — no JTBD generated yet
+  // Drafts only - no JTBD generated yet
   if (noneGenerated) {
     return (
       <motion.div

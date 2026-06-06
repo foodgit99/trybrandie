@@ -382,7 +382,7 @@ const AffiliateDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <SEO title="Affiliate Dashboard — Brandie" description="Track referrals, commissions, and milestones." path="/affiliate" noindex />
+      <SEO title="Affiliate Dashboard - Brandie" description="Track referrals, commissions, and milestones." path="/affiliate" noindex />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
         {/* Header & stats */}
         <AffiliateHeader

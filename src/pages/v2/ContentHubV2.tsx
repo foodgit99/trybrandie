@@ -273,7 +273,7 @@ const ContentHubV2 = () => {
 
   return (
     <div className="min-h-screen bg-background pb-32 lg:pl-20">
-      <SEO title="Content Hub — Brandie" description="Strategic command surface for your funnels, strategy, campaigns and content. Work hand-in-hand with the brand agents." path="/content-hub" />
+      <SEO title="Content Hub - Brandie" description="Strategic command surface for your funnels, strategy, campaigns and content. Work hand-in-hand with the brand agents." path="/content-hub" />
       <NewAppHeader />
 
       <main className="px-4 sm:px-8 py-6 sm:py-10 max-w-6xl mx-auto space-y-8">
@@ -287,7 +287,7 @@ const ContentHubV2 = () => {
             Command your content, end-to-end.
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl">
-            Funnels, strategy, campaigns, and every individual post — orchestrated by the autonomous engine
+            Funnels, strategy, campaigns, and every individual post - orchestrated by the autonomous engine
             and shaped together with your brand agents.
           </p>
         </header>
@@ -538,7 +538,7 @@ function StrategyTab({
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm truncate">{i.title}</span>
                     <span className="block text-[11px] text-muted-foreground">
-                      {i.scheduled_for ? new Date(i.scheduled_for).toLocaleDateString(undefined, { weekday: "short" }) : "Unscheduled"} · {cat?.label ?? "—"}
+                      {i.scheduled_for ? new Date(i.scheduled_for).toLocaleDateString(undefined, { weekday: "short" }) : "Unscheduled"} · {cat?.label ?? "-"}
                     </span>
                     {i.design?.caption && (
                       <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">
@@ -615,7 +615,7 @@ function CampaignsTab({ campaigns, ideas }: { campaigns: Campaign[]; ideas: Idea
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">{c.name}</div>
-                <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{c.description || "—"}</div>
+                <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{c.description || "-"}</div>
               </div>
               {cat && (
                 <Badge variant="outline" className={cn("rounded-full text-[10px] shrink-0", cat.badgeClass)}>
@@ -694,7 +694,7 @@ function ContentTab({
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm truncate">{i.title}</span>
                     <span className="block text-[11px] text-muted-foreground truncate">
-                      {i.scheduled_for ?? "Unscheduled"} · {cat?.label ?? "—"} · {i.status}
+                      {i.scheduled_for ?? "Unscheduled"} · {cat?.label ?? "-"} · {i.status}
                     </span>
                     {i.design?.caption && (
                       <span className="block text-[11px] text-muted-foreground/80 italic truncate mt-0.5">

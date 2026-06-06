@@ -39,11 +39,11 @@ import {
 const FAQS = [
   {
     q: "Who can join the Brandie Affiliate Program?",
-    a: "Anyone with an audience — creators, influencers, agencies, freelancers, small business advisors. You don't have to be a Brandie customer to apply, though it helps to have used the product so you can speak to it honestly.",
+    a: "Anyone with an audience - creators, influencers, agencies, freelancers, small business advisors. You don't have to be a Brandie customer to apply, though it helps to have used the product so you can speak to it honestly.",
   },
   {
     q: "How much can I earn?",
-    a: `You earn ${AFFILIATE_RATES.tier1FirstPct}% on every new user's first payment, then ${AFFILIATE_RATES.tier1RecurringPct}% on every payment they make after that — for life. If you also recruit other affiliates, you earn ${AFFILIATE_RATES.tier2FirstPct}% first and ${AFFILIATE_RATES.tier2RecurringPct}% recurring on their referrals too. There is no earnings cap.`,
+    a: `You earn ${AFFILIATE_RATES.tier1FirstPct}% on every new user's first payment, then ${AFFILIATE_RATES.tier1RecurringPct}% on every payment they make after that - for life. If you also recruit other affiliates, you earn ${AFFILIATE_RATES.tier2FirstPct}% first and ${AFFILIATE_RATES.tier2RecurringPct}% recurring on their referrals too. There is no earnings cap.`,
   },
   {
     q: "When and how do I get paid?",
@@ -51,7 +51,7 @@ const FAQS = [
   },
   {
     q: "What counts as a referral?",
-    a: "Any new user who clicks your unique affiliate link and signs up. Once they make a paid subscription or one-time payment, you earn commission automatically — no need to claim it.",
+    a: "Any new user who clicks your unique affiliate link and signs up. Once they make a paid subscription or one-time payment, you earn commission automatically - no need to claim it.",
   },
   {
     q: "How long do referral cookies last?",
@@ -59,11 +59,11 @@ const FAQS = [
   },
   {
     q: "What about international payouts?",
-    a: "Payouts are currently in Naira to Nigerian bank accounts. International payouts are on the roadmap — for now, international affiliates can apply and we'll work with you case-by-case.",
+    a: "Payouts are currently in Naira to Nigerian bank accounts. International payouts are on the roadmap - for now, international affiliates can apply and we'll work with you case-by-case.",
   },
   {
     q: "Do I need to handle tax?",
-    a: "Yes — affiliate income is your responsibility to declare in your jurisdiction. We provide a clear earnings statement in your dashboard for your records.",
+    a: "Yes - affiliate income is your responsibility to declare in your jurisdiction. We provide a clear earnings statement in your dashboard for your records.",
   },
   {
     q: "Where do I get help or marketing materials?",
@@ -118,7 +118,7 @@ const AffiliateMarketing = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Brandie Affiliate Program — Earn 20% + Lifetime Commissions"
+        title="Brandie Affiliate Program - Earn 20% + Lifetime Commissions"
         description="Turn your audience into recurring income. Earn 20% first-payment + 5% lifetime on every referral, plus 2nd-tier network commissions. Open to creators, influencers and agencies."
         path="/affiliates"
         jsonLd={faqJsonLd}
@@ -189,7 +189,7 @@ const AffiliateMarketing = () => {
             <div className="text-center space-y-3">
               <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">A program built like a partnership</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Brandie is a product creators actually love — and we share the upside generously.
+                Brandie is a product creators actually love - and we share the upside generously.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -390,7 +390,7 @@ const AffiliateMarketing = () => {
                   </div>
                 ))}
                 <p className="text-[11px] text-muted-foreground italic">
-                  Indicative only — your actual earnings depend on conversion and retention.
+                  Indicative only - your actual earnings depend on conversion and retention.
                 </p>
               </div>
             </div>
@@ -402,7 +402,7 @@ const AffiliateMarketing = () => {
           <div className="max-w-5xl mx-auto space-y-10">
             <div className="text-center space-y-3">
               <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">Built for people with reach</h2>
-              <p className="text-muted-foreground">If your audience makes things, runs things, or builds things — Brandie is for them.</p>
+              <p className="text-muted-foreground">If your audience makes things, runs things, or builds things - Brandie is for them.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
@@ -446,7 +446,7 @@ const AffiliateMarketing = () => {
             <div className="text-center space-y-3">
               <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">A real marketing kit, not a link dump</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Approved affiliates get branded banners, ready-to-use swipe copy, and FTC disclosure snippets — all in the dashboard.
+                Approved affiliates get branded banners, ready-to-use swipe copy, and FTC disclosure snippets - all in the dashboard.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -470,7 +470,7 @@ const AffiliateMarketing = () => {
           <div className="max-w-5xl mx-auto space-y-10">
             <div className="text-center space-y-3">
               <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">Climb the leaderboard</h2>
-              <p className="text-muted-foreground">Earn badges as you grow — from Rising Star to Legend.</p>
+              <p className="text-muted-foreground">Earn badges as you grow - from Rising Star to Legend.</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
               {MILESTONES.map((m) => (

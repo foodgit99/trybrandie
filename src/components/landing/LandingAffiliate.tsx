@@ -28,7 +28,7 @@ const LandingAffiliate = () => (
               Turn your audience into income
             </h2>
             <p className="text-muted-foreground text-base max-w-lg leading-relaxed">
-              Join the Brandie Affiliate Program and earn up to 20% lifetime commissions — plus
+              Join the Brandie Affiliate Program and earn up to 20% lifetime commissions - plus
               5% from every affiliate you recruit. Perfect for creators, agencies, and influencers.
             </p>
             <Link

@@ -34,7 +34,7 @@ const LandingHero = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto"
         >
-          Brandie is an autonomous content system for small businesses. Pick a playbook, hit start, and a full week of on-brand posts is generated, sequenced, and waiting for you — every week, on its own.
+          Brandie is an autonomous content system for small businesses. Pick a playbook, hit start, and a full week of on-brand posts is generated, sequenced, and waiting for you - every week, on its own.
         </motion.p>
 
         <motion.div
@@ -72,7 +72,7 @@ const LandingHero = () => {
         </motion.p>
       </div>
 
-      {/* Engine status preview card — premium signature visual */}
+      {/* Engine status preview card - premium signature visual */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}

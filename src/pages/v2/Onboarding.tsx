@@ -44,7 +44,7 @@ const Onboarding = () => {
   const [step, setStep] = useState<Step>(0);
   const [saving, setSaving] = useState(false);
 
-  // step 0 — Brand
+  // step 0 - Brand
   const [playbookId, setPlaybookId] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -53,7 +53,7 @@ const Onboarding = () => {
   const [scanMsg, setScanMsg] = useState("");
   const playbook = getPlaybook(playbookId || "general");
 
-  // step 1 — Look & feel
+  // step 1 - Look & feel
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [logoDesignerOpen, setLogoDesignerOpen] = useState(false);
@@ -61,13 +61,13 @@ const Onboarding = () => {
   const [secondary, setSecondary] = useState("#FAF8F5");
   const [accent, setAccent] = useState("#C4993B");
 
-  // step 2 — Audience JTBD
+  // step 2 - Audience JTBD
   const [audienceWho, setAudienceWho] = useState("");
   const [audienceStruggle, setAudienceStruggle] = useState("");
   const [audienceOutcome, setAudienceOutcome] = useState("");
   const [audienceTrigger, setAudienceTrigger] = useState("");
 
-  // step 3 — Offer
+  // step 3 - Offer
   const [products, setProducts] = useState<ProductDraft[]>([
     { label: "", description: "", price: "" },
   ]);
@@ -264,7 +264,7 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      <SEO title="Set up — Brandie" description="Four steps to your autonomous engine." path="/onboarding" noindex />
+      <SEO title="Set up - Brandie" description="Four steps to your autonomous engine." path="/onboarding" noindex />
 
       {/* Header + step indicator */}
       <header className="border-b border-border">
@@ -497,7 +497,7 @@ const Onboarding = () => {
                     {name || "Your brand"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-3">
-                    Live preview — Brandie locks these into every post.
+                    Live preview - Brandie locks these into every post.
                   </p>
                 </div>
               </motion.div>
@@ -570,7 +570,7 @@ const Onboarding = () => {
                     What do you <em>sell?</em>
                   </h1>
                   <p className="text-muted-foreground mt-3">
-                    Add up to a few flagship products or services. Optional — you can add more in Brand Centre.
+                    Add up to a few flagship products or services. Optional - you can add more in Brand Centre.
                   </p>
                 </div>
 
@@ -605,7 +605,7 @@ const Onboarding = () => {
                           copy[idx] = { ...copy[idx], description: e.target.value };
                           setProducts(copy);
                         }}
-                        placeholder="One line — what it is and who it's for."
+                        placeholder="One line - what it is and who it's for."
                         className="min-h-[60px]"
                         maxLength={500}
                       />

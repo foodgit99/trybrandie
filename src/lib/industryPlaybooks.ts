@@ -1,4 +1,4 @@
-// Industry Playbooks — defaults the autonomous content engine runs on.
+// Industry Playbooks - defaults the autonomous content engine runs on.
 // Each playbook seeds 7 starter content ideas and provides sensible brand defaults.
 
 export type PlaybookIdeaTemplate = {

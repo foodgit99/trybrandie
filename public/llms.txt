@@ -1,6 +1,6 @@
 # Brandie
 
-> Autonomous content system for small businesses. Pick a playbook, hit start, and a full week of on-brand social posts is generated, sequenced, and waiting for you — every week, on its own.
+> Autonomous content system for small businesses. Pick a playbook, hit start, and a full week of on-brand social posts is generated, sequenced, and waiting for you - every week, on its own.
 
 Brandie is an AI brand studio that combines brand memory, audience intelligence (Jobs To Be Done), trend awareness, and a multi-agent creative pipeline (copywriter + creative director + image renderer) to produce branded social media graphics and a weekly content ritual for small business owners, creators, and agencies.
 

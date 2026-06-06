@@ -1007,7 +1007,7 @@ function CampaignComposer({
                   This campaign will be sent to{" "}
                   <strong>{recipientCount ?? "?"} user{(recipientCount ?? 0) !== 1 ? "s" : ""}</strong> on{" "}
                   <strong>
-                    {scheduledDate ? format(scheduledDate, "MMM d, yyyy") : "—"} at {scheduledTime} UTC
+                    {scheduledDate ? format(scheduledDate, "MMM d, yyyy") : "-"} at {scheduledTime} UTC
                   </strong>.
                 </>
               ) : (
@@ -1363,13 +1363,13 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">email</p>
               <p className="text-sm mt-0.5 break-all">
-                {emailLoading ? <span className="text-muted-foreground italic">Loading...</span> : email || <span className="text-muted-foreground italic">—</span>}
+                {emailLoading ? <span className="text-muted-foreground italic">Loading...</span> : email || <span className="text-muted-foreground italic">-</span>}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">whatsapp number</p>
               <p className="text-sm mt-0.5 break-all">
-                {detailItem.whatsapp_number ? String(detailItem.whatsapp_number) : <span className="text-muted-foreground italic">—</span>}
+                {detailItem.whatsapp_number ? String(detailItem.whatsapp_number) : <span className="text-muted-foreground italic">-</span>}
               </p>
             </div>
             {Object.entries(detailItem).map(([key, value]) => (
@@ -1377,7 +1377,7 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{key.replace(/_/g, " ")}</p>
                 <p className="text-sm mt-0.5 break-all">
                   {value === null || value === undefined
-                    ? <span className="text-muted-foreground italic">—</span>
+                    ? <span className="text-muted-foreground italic">-</span>
                     : typeof value === "object"
                     ? JSON.stringify(value, null, 2)
                     : String(value)}

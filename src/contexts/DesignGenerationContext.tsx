@@ -208,7 +208,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
           return;
         }
 
-        // Single design — auto-save into designs + design_messages
+        // Single design - auto-save into designs + design_messages
         let designId = current_design_id || null;
         const isEdit = params.action === "edit";
 
@@ -217,7 +217,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
             const userMsg = full_messages[full_messages.length - 1];
             const assistantMsg = {
               role: "assistant",
-              content: (data.explanation || "Here's your design.") + (data.free_edit ? " (free edit — no credit used)" : ""),
+              content: (data.explanation || "Here's your design.") + (data.free_edit ? " (free edit - no credit used)" : ""),
               imageUrl: data.image_url,
             };
 

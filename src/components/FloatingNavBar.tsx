@@ -43,7 +43,7 @@ const FloatingNavBar = () => {
 
   return (
     <>
-      {/* Mobile / Tablet — bottom floating bar */}
+      {/* Mobile / Tablet - bottom floating bar */}
       <nav
         className="lg:hidden fixed left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
@@ -62,7 +62,7 @@ const FloatingNavBar = () => {
         </div>
       </nav>
 
-      {/* Desktop — left floating sidebar */}
+      {/* Desktop - left floating sidebar */}
       <nav
         className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-50 flex-col"
         aria-label="Primary"

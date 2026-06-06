@@ -64,7 +64,7 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Settings — Brandie" description="Manage your account, preferences, and notifications." path="/settings" noindex />
+      <SEO title="Settings - Brandie" description="Manage your account, preferences, and notifications." path="/settings" noindex />
       <AppHeader />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
@@ -194,7 +194,7 @@ const Settings = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Earn 5 free credits per referral</p>
-                  <p className="text-xs text-muted-foreground">Share your link — when they sign up, you get rewarded.</p>
+                  <p className="text-xs text-muted-foreground">Share your link - when they sign up, you get rewarded.</p>
                 </div>
               </div>
 
@@ -230,7 +230,7 @@ const Settings = () => {
                       variant="outline"
                       size="sm"
                       className="rounded-xl text-xs gap-1.5"
-                      onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("I've been using Brandie to create stunning branded graphics with AI — try it out and we both get 5 bonus credits! " + referralLink)}`, "_blank")}
+                      onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("I've been using Brandie to create stunning branded graphics with AI - try it out and we both get 5 bonus credits! " + referralLink)}`, "_blank")}
                     >
                       <Share2 className="h-3.5 w-3.5" />
                       X / Twitter
