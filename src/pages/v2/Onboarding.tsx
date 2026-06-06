@@ -278,6 +278,8 @@ const Onboarding = () => {
             struggle: audienceStruggle.trim(),
             outcome: audienceOutcome.trim(),
             trigger: audienceTrigger.trim(),
+            field_sources: audienceSources,
+            ai_confidence: audienceConfidence,
           },
         } as any);
       }
