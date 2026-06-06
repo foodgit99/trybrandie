@@ -165,6 +165,7 @@ const App = () => (
           <Route path="/legacy/library" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
           <Route path="/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
           <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+          <Route path="/pricing" element={<V2Pricing />} />
           <Route path="/affiliates" element={<AffiliateMarketing />} />
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
