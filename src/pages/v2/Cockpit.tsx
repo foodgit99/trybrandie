@@ -97,7 +97,7 @@ const Cockpit = () => {
       if (!it.scheduled_for) continue;
       const d = new Date(it.scheduled_for);
       const wd = d.getDay(); // 0 Sun..6 Sat
-      const idx = wd === 0 ? 6 : wd, 1;
+      const idx = wd === 0 ? 6 : wd - 1;
       const arr = map.get(idx) ?? [];
       arr.push(it);
       map.set(idx, arr);
@@ -208,7 +208,7 @@ const Cockpit = () => {
     (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] || "there";
 
   const today = new Date();
-  const todayIdx = today.getDay() === 0 ? 6 : today.getDay(), 1;
+  const todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1;
 
   return (
     <div className="min-h-dvh bg-background lg:pl-20">

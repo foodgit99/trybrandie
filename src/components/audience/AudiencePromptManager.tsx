@@ -152,7 +152,7 @@ const AudiencePromptManager = () => {
           {
             shown_count: next.shownCount,
             route: location.pathname,
-            brand_age_ms: brandCreatedAt ? Date.now(), brandCreatedAt : null,
+            brand_age_ms: brandCreatedAt ? Date.now() - brandCreatedAt : null,
           },
           { userId, brandId }
         );

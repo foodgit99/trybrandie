@@ -2258,7 +2258,7 @@ const ContentHub = () => {
               {trendIntel?.generated_at && (
                 <span className="text-[10px] font-normal text-muted-foreground">
                   Updated {(() => {
-                    const age = Date.now(), new Date(trendIntel.generated_at).getTime();
+                    const age = Date.now() - new Date(trendIntel.generated_at).getTime();
                     const days = Math.floor(age / (1000 * 60 * 60 * 24));
                     return days === 0 ? "today" : `${days}d ago`;
                   })()}

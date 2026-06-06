@@ -281,7 +281,7 @@ const AffiliateDashboard = () => {
   const requestPayout = async () => {
     if (!affiliate || !payoutAmount) return;
     const amt = parseFloat(payoutAmount);
-    const available = affiliate.total_earned, affiliate.total_paid;
+    const available = affiliate.total_earned - affiliate.total_paid;
     if (amt <= 0 || amt > available) {
       toast({ title: "Invalid amount", variant: "destructive" });
       return;
@@ -324,7 +324,7 @@ const AffiliateDashboard = () => {
 
   if (!affiliate) return null;
 
-  const availableBalance = affiliate.total_earned, affiliate.total_paid;
+  const availableBalance = affiliate.total_earned - affiliate.total_paid;
   const directEarnings = commissions
     .filter((c) => c.commission_type.startsWith("tier1"))
     .reduce((s, c) => s + c.commission_amount, 0);

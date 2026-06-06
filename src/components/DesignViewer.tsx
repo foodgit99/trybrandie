@@ -29,11 +29,11 @@ const DesignViewer = ({ designs, initialIndex, open, onClose, onAddToFolder }: D
   }, [initialIndex]);
 
   const goNext = useCallback(() => {
-    setCurrentIndex((i) => (i < designs.length, 1 ? i + 1 : i));
+    setCurrentIndex((i) => (i < designs.length - 1 ? i + 1 : i));
   }, [designs.length]);
 
   const goPrev = useCallback(() => {
-    setCurrentIndex((i) => (i > 0 ? i, 1 : i));
+    setCurrentIndex((i) => (i > 0 ? i - 1 : i));
   }, []);
 
   useEffect(() => {

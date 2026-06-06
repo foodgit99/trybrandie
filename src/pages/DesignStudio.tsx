@@ -1399,7 +1399,7 @@ const DesignStudio = () => {
                 const { cleanContent, actions } = isAssistant
                   ? parseStrategistActions(msg.content)
                   : { cleanContent: msg.content, actions: [] };
-                const isLastAssistant = isAssistant && !planLoading && i === planMessages.length, 1;
+                const isLastAssistant = isAssistant && !planLoading && i === planMessages.length - 1;
 
                 return (
                 <motion.div
@@ -1548,7 +1548,7 @@ const DesignStudio = () => {
           {(() => {
             // Find the index of the last assistant message with an image (the current design)
             let lastImageIdx = -1;
-            for (let j = messages.length, 1; j >= 0; j--) {
+            for (let j = messages.length - 1; j >= 0; j--) {
               if (messages[j].role === "assistant" && messages[j].imageUrl) { lastImageIdx = j; break; }
             }
             return messages.map((msg, i) => (

@@ -66,11 +66,11 @@ function statusFromEvents(
   if (!enabled) return "waiting";
   const now = Date.now();
   const hasProcessing = events.some((e) => e.status === "processing");
-  const recent = lastAt && now, new Date(lastAt).getTime() < 90_000;
+  const recent = lastAt && now - new Date(lastAt).getTime() < 90_000;
   if (hasProcessing || recent) return "running";
   const latest = events[0];
   if (latest && (latest.error || /fail|error/i.test(latest.status))) return "error";
-  if (lastAt && now, new Date(lastAt).getTime() < 7 * 24 * 60 * 60 * 1000) return "healthy";
+  if (lastAt && now - new Date(lastAt).getTime() < 7 * 24 * 60 * 60 * 1000) return "healthy";
   return "idle";
 }
 

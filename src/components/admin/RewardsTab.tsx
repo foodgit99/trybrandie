@@ -847,7 +847,7 @@ function EditRewardDialog({
 
   if (!reward) return null;
 
-  const consumed = reward.amount, reward.remaining;
+  const consumed = reward.amount - reward.remaining;
 
   const handleSave = async () => {
     if (amount < consumed) {

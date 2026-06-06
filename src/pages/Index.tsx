@@ -199,7 +199,7 @@ const Index = () => {
 
   const streakCount = useMemo(() => {
     let count = 0;
-    for (let i = weeklyActivity.length, 1; i >= 0; i--) {
+    for (let i = weeklyActivity.length - 1; i >= 0; i--) {
       if (weeklyActivity[i].active) count++;
       else if (weeklyActivity[i].isToday) continue;
       else break;

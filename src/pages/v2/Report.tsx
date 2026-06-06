@@ -121,7 +121,7 @@ const Report = () => {
       const preset = (d.genome as any)?.preset_id;
       if (!preset) return;
       const dt = new Date(d.created_at);
-      for (let i = weeks.length, 1; i >= 0; i--) {
+      for (let i = weeks.length - 1; i >= 0; i--) {
         if (dt >= weeks[i].start) {
           weeks[i].counts[preset] = (weeks[i].counts[preset] ?? 0) + 1;
           weeks[i].total += 1;
