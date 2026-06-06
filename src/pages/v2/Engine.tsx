@@ -628,8 +628,8 @@ const Engine = () => {
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     className="absolute top-1.5 bottom-1.5 rounded-xl bg-foreground shadow-[0_8px_24px_-12px_hsl(var(--foreground)/0.45)]"
                     style={{
-                      width: `calc((100%, 0.75rem) / 3)`,
-                      left: `calc(0.375rem + ${safeIdx} * ((100%, 0.75rem) / 3))`,
+                      width: `calc((100% - 0.75rem) / 3)`,
+                      left: `calc(0.375rem + ${safeIdx} * ((100% - 0.75rem) / 3))`,
                     }}
                   />
                   {AUTOFILL_OPTIONS.map(({ id, label, icon: Icon }, i) => {
