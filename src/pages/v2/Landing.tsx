@@ -158,10 +158,20 @@ const Landing = () => (
         </div>
         <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border border border-border rounded-2xl overflow-hidden">
           {pillars.map((p, i) => (
-            <div key={p.title} className="bg-background p-7 sm:p-9 flex flex-col gap-4">
+            <div key={p.title} className="bg-background p-7 sm:p-9 flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <p.icon className="h-5 w-5 text-foreground" />
                 <span className="text-[11px] tracking-[0.2em] text-muted-foreground">0{i + 1}</span>
+              </div>
+              <div className="aspect-[4/3] -mx-1 rounded-xl overflow-hidden bg-secondary/40 border border-border/60">
+                <img
+                  src={p.image}
+                  alt={p.alt}
+                  className="h-full w-full object-cover"
+                  width={1024}
+                  height={768}
+                  loading="lazy"
+                />
               </div>
               <h3 className="font-serif text-2xl tracking-tight">{p.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{p.body}</p>
