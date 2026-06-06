@@ -245,13 +245,6 @@ const Cockpit = () => {
               <Link to="/engine" className="text-muted-foreground hover:text-foreground flex items-center gap-1">
                 Engine controls
               </Link>
-              <span className="text-muted-foreground/40">·</span>
-              <Link
-                to="/hub"
-                className="text-muted-foreground hover:text-foreground flex items-center gap-1"
-              >
-                Open Content Hub <ArrowRight className="h-3 w-3" />
-              </Link>
             </div>
           </div>
 
