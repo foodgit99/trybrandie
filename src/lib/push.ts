@@ -39,7 +39,7 @@ async function registerMessagingSW(): Promise<ServiceWorkerRegistration> {
 
 export async function enablePush(): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
   const support = detectPushSupport();
-  if (!support.supported) return { ok: false, error: support.reason };
+  if (!support.supported) return { ok: false, error: (support as { reason: string }).reason };
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { ok: false, error: "permission-denied" };

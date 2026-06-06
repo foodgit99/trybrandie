@@ -21,7 +21,7 @@ export default function PushOptInCard() {
     const support = detectPushSupport();
     if (!support.supported) {
       // Only show iOS "install first" hint, hide everything else silently.
-      if (support.reason === "ios-not-installed") {
+      if ((support as { reason: string }).reason === "ios-not-installed") {
         setReason("ios");
         setVisible(!isDismissed());
       }
@@ -59,10 +59,11 @@ export default function PushOptInCard() {
       toast({ title: "Notifications on", description: "We'll ping you when today's post is ready." });
       setVisible(false);
     } else {
-      gaEvent("push_optin_failed", { error: res.error });
+      const err = (res as { ok: false; error: string }).error;
+      gaEvent("push_optin_failed", { error: err });
       toast({
         title: "Couldn't enable notifications",
-        description: res.error === "permission-denied"
+        description: err === "permission-denied"
           ? "You blocked notifications. Enable them from your browser settings."
           : "Try again in a moment.",
         variant: "destructive",
