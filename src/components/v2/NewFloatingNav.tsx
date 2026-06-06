@@ -20,15 +20,15 @@ type NavItem = { to: string; label: string; icon: React.ComponentType<{ classNam
 const primary: NavItem[] = [
   { to: "/cockpit", label: "Cockpit", icon: Gauge },
   { to: "/hub", label: "Content", icon: LayoutGrid },
-  { to: "/brand", label: "Brand", icon: Palette },
+  { to: "/engine", label: "Engine", icon: Sparkles },
 ];
 
 const moreItems: Array<NavItem & { description: string }> = [
   {
-    to: "/engine",
-    label: "Engine",
-    icon: Sparkles,
-    description: "Your autonomous content engine",
+    to: "/brand",
+    label: "Brand",
+    icon: Palette,
+    description: "Your brand centre & style genome",
   },
   {
     to: "/blueprint",
