@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Calendar, Wand2, MessageSquare, BarChart3 } from "lucide-react";
+import { ArrowRight, Sparkles, Calendar, Wand2, MessageSquare, BarChart3, Star } from "lucide-react";
 import SEO from "@/components/SEO";
 import brandieLogo from "@/assets/brandie-logo.png";
+import heroAsset from "@/assets/landing-hero-ng.jpg.asset.json";
+import atelierAsset from "@/assets/landing-atelier-ng.jpg.asset.json";
+import tundeAsset from "@/assets/testimonial-ng-tunde.jpg.asset.json";
+import chiomaAsset from "@/assets/testimonial-ng-chioma.jpg.asset.json";
+import aminaAsset from "@/assets/testimonial-ng-amina.jpg.asset.json";
 
 const pillars = [
   { icon: Sparkles, title: "Autonomous research", body: "Trends, holidays, payday cycles, picked for your industry. You never hunt for inspiration again." },
@@ -10,6 +15,27 @@ const pillars = [
   { icon: Calendar, title: "Pre-filled weekly blueprint", body: "Your calendar arrives already done. Review once, approve once. Brandie handles the rest." },
   { icon: MessageSquare, title: "Conversational edits", body: "“Swap Thursday for a restock post.” Brandie reworks just that one. Nothing else breaks." },
   { icon: BarChart3, title: "CEO briefing", body: "A weekly summary that prioritises link clicks and DMs over likes. Then it teaches itself." },
+];
+
+const testimonials = [
+  {
+    name: "Amina O.",
+    role: "Founder, leather atelier · Lagos",
+    quote: "Monday used to be panic. Now it's ten minutes with coffee. My feed finally looks like the brand I always described.",
+    img: aminaAsset.url,
+  },
+  {
+    name: "Tunde A.",
+    role: "Co-founder, SaaS · Lekki",
+    quote: "Brandie writes like someone who actually sells in Nigeria. The strategic arc is the part no freelancer ever gave me.",
+    img: tundeAsset.url,
+  },
+  {
+    name: "Chioma E.",
+    role: "Owner, beauty studio · Abuja",
+    quote: "Five posts a week, fully on brand, with WhatsApp ready captions. I cancelled my social media manager.",
+    img: chiomaAsset.url,
+  },
 ];
 
 const Landing = () => (
@@ -38,30 +64,74 @@ const Landing = () => (
     </header>
 
     <main>
-      {/* HERO */}
-      <section className="px-5 sm:px-8 pt-16 sm:pt-28 pb-20 sm:pb-32 max-w-6xl mx-auto">
-        <div className="max-w-3xl">
-          <span className="inline-flex items-center gap-1.5 text-[11px] tracking-[0.18em] uppercase text-muted-foreground border border-border rounded-full px-3 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-foreground" /> Autonomous Content System · v1.0
-          </span>
-          <h1 className="mt-6 font-serif tracking-tight text-5xl sm:text-7xl leading-[0.95]">
-            Your marketing<br />
-            department,<br />
-            <em className="text-muted-foreground">on autopilot.</em>
-          </h1>
-          <p className="mt-8 text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl">
-            Pick your playbook. Brandie researches, writes, designs and sequences a full week of on-brand posts.
-            You review in ten minutes on Monday. Done.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-3">
-            <Button asChild size="lg" className="rounded-full h-12 px-7 text-base">
-              <Link to="/onboarding">Start my engine <ArrowRight className="h-4 w-4" /></Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost" className="rounded-full h-12 px-6 text-base text-muted-foreground">
-              <a href="#how">How it works</a>
-            </Button>
+      {/* HERO — split editorial */}
+      <section className="px-5 sm:px-8 pt-12 sm:pt-20 pb-16 sm:pb-24 max-w-6xl mx-auto">
+        <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
+          <div>
+            <span className="inline-flex items-center gap-1.5 text-[11px] tracking-[0.18em] uppercase text-muted-foreground border border-border rounded-full px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-foreground" /> Autonomous Content System · v1.0
+            </span>
+            <h1 className="mt-6 font-serif tracking-tight text-5xl sm:text-7xl leading-[0.95]">
+              Your marketing<br />
+              department,<br />
+              <em className="text-muted-foreground">on autopilot.</em>
+            </h1>
+            <p className="mt-7 text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl">
+              Pick your playbook. Brandie researches, writes, designs and sequences a full week of on-brand posts.
+              You review in ten minutes on Monday. Done.
+            </p>
+            <div className="mt-9 flex flex-col sm:flex-row gap-3">
+              <Button asChild size="lg" className="rounded-full h-12 px-7 text-base">
+                <Link to="/onboarding">Start my engine <ArrowRight className="h-4 w-4" /></Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost" className="rounded-full h-12 px-6 text-base text-muted-foreground">
+                <a href="#how">How it works</a>
+              </Button>
+            </div>
+            <p className="mt-6 text-xs text-muted-foreground">No card required · First week free · Cancel anytime</p>
+
+            {/* Trust strip */}
+            <div className="mt-10 flex items-center gap-4">
+              <div className="flex -space-x-2">
+                <img src={aminaAsset.url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-background" />
+                <img src={chiomaAsset.url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-background" />
+                <img src={tundeAsset.url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-background" />
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <div className="flex items-center gap-0.5 text-foreground">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-current" />
+                  ))}
+                </div>
+                Trusted by Nigerian founders building real brands.
+              </div>
+            </div>
           </div>
-          <p className="mt-6 text-xs text-muted-foreground">No card required · First week free · Cancel anytime</p>
+
+          {/* Hero portrait */}
+          <div className="relative">
+            <div className="absolute -inset-6 bg-gradient-to-br from-secondary/60 via-transparent to-accent/10 rounded-[2rem] blur-2xl -z-10" />
+            <div className="relative aspect-[4/5] rounded-[1.75rem] overflow-hidden border border-border bg-secondary/40 shadow-[0_30px_80px_-30px_hsl(var(--foreground)/0.25)]">
+              <img
+                src={heroAsset.url}
+                alt="A Nigerian founder, calm and in control of her brand"
+                className="h-full w-full object-cover"
+                width={1080}
+                height={1350}
+              />
+              {/* Floating spec card */}
+              <div className="absolute left-4 right-4 bottom-4 sm:left-5 sm:right-5 sm:bottom-5 rounded-2xl bg-background/90 backdrop-blur border border-border p-4 sm:p-5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">This week's blueprint</p>
+                  <p className="font-serif text-base sm:text-lg mt-0.5">5 posts · 1 narrative · 0 hustle</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-serif text-2xl leading-none">10<span className="text-muted-foreground text-sm">min</span></p>
+                  <p className="text-[10px] tracking-wider uppercase text-muted-foreground mt-1">Mon review</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -101,8 +171,51 @@ const Landing = () => (
         </div>
       </section>
 
+      {/* BUILT FOR NIGERIA — image + copy */}
+      <section className="border-y border-border bg-secondary/30">
+        <div className="px-5 sm:px-8 py-20 sm:py-28 max-w-6xl mx-auto grid lg:grid-cols-[0.95fr_1.05fr] gap-12 lg:gap-16 items-center">
+          <div className="relative order-2 lg:order-1">
+            <div className="aspect-[16/10] rounded-[1.75rem] overflow-hidden border border-border shadow-[0_20px_60px_-25px_hsl(var(--foreground)/0.25)]">
+              <img
+                src={atelierAsset.url}
+                alt="A Lagos atelier with leather bags, ankara fabric and a phone showing the Brandie calendar"
+                className="h-full w-full object-cover"
+                width={1920}
+                height={1080}
+                loading="lazy"
+              />
+            </div>
+            <div className="absolute -bottom-5 -right-3 sm:-right-5 rounded-2xl bg-background border border-border px-4 py-3 shadow-md hidden sm:block">
+              <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Built for</p>
+              <p className="font-serif text-lg">Lagos · Abuja · PH</p>
+            </div>
+          </div>
+          <div className="order-1 lg:order-2">
+            <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">Built for Nigeria</p>
+            <h2 className="mt-3 font-serif text-4xl sm:text-5xl tracking-tight">It speaks like your customer.</h2>
+            <p className="mt-6 text-muted-foreground text-lg leading-relaxed">
+              Brandie understands the payday rhythm, the WhatsApp DM, the “abeg send price”, the Sallah rush, the December bridal season.
+              Your captions read like a Lagosian, not a SaaS template.
+            </p>
+            <ul className="mt-8 space-y-3 text-sm">
+              {[
+                "Naira pricing and WhatsApp-ready captions",
+                "Sallah, Christmas, Independence and payday cadence",
+                "Pidgin, English or both, your tone, locked in",
+                "Designs that hold up next to the best on your timeline",
+              ].map((s) => (
+                <li key={s} className="flex items-start gap-3">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-foreground shrink-0" />
+                  <span className="text-foreground/90">{s}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* RITUAL */}
-      <section className="border-t border-border bg-secondary/30">
+      <section className="border-b border-border">
         <div className="px-5 sm:px-8 py-20 sm:py-28 max-w-5xl mx-auto">
           <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">The Monday ritual</p>
           <h2 className="mt-3 font-serif text-4xl sm:text-5xl tracking-tight">Ten minutes. Once a week.</h2>
@@ -125,15 +238,44 @@ const Landing = () => (
         </div>
       </section>
 
+      {/* TESTIMONIALS */}
+      <section className="px-5 sm:px-8 py-20 sm:py-28 max-w-6xl mx-auto">
+        <div className="max-w-2xl">
+          <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">Founders running it now</p>
+          <h2 className="mt-3 font-serif text-4xl sm:text-5xl tracking-tight">Quiet weeks. Loud results.</h2>
+        </div>
+        <div className="mt-12 grid md:grid-cols-3 gap-5">
+          {testimonials.map((t) => (
+            <figure key={t.name} className="rounded-2xl border border-border bg-background p-6 sm:p-7 flex flex-col gap-5">
+              <div className="flex items-center gap-0.5 text-foreground">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="h-3.5 w-3.5 fill-current" />
+                ))}
+              </div>
+              <blockquote className="font-serif text-xl leading-snug">“{t.quote}”</blockquote>
+              <figcaption className="mt-auto flex items-center gap-3 pt-3 border-t border-border/60">
+                <img src={t.img} alt={t.name} className="h-11 w-11 rounded-full object-cover" loading="lazy" width={88} height={88} />
+                <div>
+                  <p className="text-sm font-medium">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.role}</p>
+                </div>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
       {/* PRICE */}
-      <section className="px-5 sm:px-8 py-20 sm:py-28 max-w-3xl mx-auto text-center">
-        <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">One plan, one price</p>
-        <h2 className="mt-3 font-serif text-5xl sm:text-6xl tracking-tight">₦18,500 / month</h2>
-        <p className="mt-4 text-muted-foreground">That's ₦600 a day. Cheaper than a plate of rice, runs your entire marketing department.</p>
-        <Button asChild size="lg" className="rounded-full mt-10 h-12 px-7 text-base">
-          <Link to="/onboarding">Start free <ArrowRight className="h-4 w-4" /></Link>
-        </Button>
-        <p className="mt-4 text-xs text-muted-foreground">First week on us. Cancel in one click.</p>
+      <section className="border-t border-border bg-secondary/40">
+        <div className="px-5 sm:px-8 py-20 sm:py-28 max-w-3xl mx-auto text-center">
+          <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">One plan, one price</p>
+          <h2 className="mt-3 font-serif text-5xl sm:text-6xl tracking-tight">₦18,500 / month</h2>
+          <p className="mt-4 text-muted-foreground">That's ₦600 a day. Cheaper than a plate of rice, runs your entire marketing department.</p>
+          <Button asChild size="lg" className="rounded-full mt-10 h-12 px-7 text-base">
+            <Link to="/onboarding">Start free <ArrowRight className="h-4 w-4" /></Link>
+          </Button>
+          <p className="mt-4 text-xs text-muted-foreground">First week on us. Cancel in one click.</p>
+        </div>
       </section>
     </main>
 
@@ -141,7 +283,7 @@ const Landing = () => (
       <div className="max-w-6xl mx-auto px-5 sm:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <img src={brandieLogo} alt="" className="h-5 w-5" />
-          <span>© {new Date().getFullYear()} Brandie</span>
+          <span>© {new Date().getFullYear()} Brandie · Made in Lagos</span>
         </div>
         <div className="flex items-center gap-5">
           <Link to="/legacy" className="hover:text-foreground">Legacy app</Link>
