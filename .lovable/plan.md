@@ -1,39 +1,87 @@
+
 ## Goal
-Add a fresh, v2-styled **Pricing** page for the new Brandie experience. Keep the existing credit-pack model (₦5,000 / 20 credits) and the existing one-time Paystack checkout. Leave `/plans` untouched as a fallback, and update the landing page pricing section to mirror the new design.
 
-## Scope
-1. **New route `/pricing`** (public + authenticated friendly).
-2. **New component** `src/pages/v2/Pricing.tsx` — fully working: balance, slider, Paystack one-time checkout, callback verification, success state. Reuses `paystack-checkout` + `paystack-verify` edge functions exactly like `/plans`.
-3. **Replace `LandingPricing`** body with the same visual treatment so the marketing site and in-app pricing tell the same story. Button on landing routes to `/auth` for guests and `/pricing` for signed-in users.
-4. **No changes** to edge functions, DB, or the existing `/plans` page.
+Let users on the Audience step of `/onboarding` (v2) click one button to have Brandie draft answers to all 11 questionnaire fields, then edit before continuing. Track which fields stayed AI-generated vs were user-edited so we can weight downstream quality.
 
-## UX (v2 visual language — warm neutral palette, serif headings, generous whitespace)
-- Hero: "Pay only for what you create." + sub-copy framing it as no subscription, no expiry.
-- Single Credit Pack card (the hero unit):
-  - Slider 1–10 units, default 2, with live `credits` and `₦price` big numerals.
-  - Per-credit rate caption ("₦250 / credit").
-  - Primary CTA: `Buy {credits} credits — ₦{price}` (Paystack flow).
-  - Guest CTA: `Sign up to buy` → `/auth?next=/pricing`.
-- Side panel with what every credit unlocks (uses existing `features` list from `LandingPricing`).
-- "Current balance" pill only when authed (mirrors `/plans`).
-- Post-payment success state identical to `/plans` (verify polling, invalidate `profile` queries, CTA → `/cockpit`).
-- SEO tags via `<SEO>` (title <60, desc <160, canonical `/pricing`, indexable).
+## Quality impact — what we accept
 
-## Technical details
-- File: `src/pages/v2/Pricing.tsx` — copy the verification + checkout logic from `src/pages/Plans.tsx` lines 40–153; restyle the layout in v2 tokens.
-- `callback_url` passed to `paystack-checkout` → `https://trybrandie.com/pricing` so the redirect lands back on the new page.
-- Route in `src/App.tsx`: `<Route path="/pricing" element={<V2Pricing />} />` (public, no `ProtectedRoute` — but checkout button gates on `user`).
-- Landing: rewrite `src/components/landing/LandingPricing.tsx` body to the new layout. Keep constants (`PRICE_PER_UNIT`, `CREDITS_PER_UNIT`, `formatNaira`, `features`). CTA: `navigate(user ? "/pricing" : "/auth?next=/pricing")` — read `user` from `useAuth`.
-- Header: use `AppHeader` when `user` exists, else a slim landing-style nav (mirrors how other v2 pages handle it).
-- No new dependencies. No design tokens added — reuse existing `primary`, `accent`, `secondary`, `border`, `card`, `muted-foreground`.
+- **Wins:** dramatic drop in step abandonment; median user reaches a usable JTBD profile instead of bouncing or typing one-word answers.
+- **Risks:** autofill bias (users accept generic guesses), sanitised frustrations, marketing-speak `language_patterns`. The mitigations below contain this — they do not eliminate it. Net: ~70% of a thoughtful manual fill, ~250% of a rushed/skipped fill.
 
-## Verification
-1. `/pricing` renders for both guest and authed users; slider math correct; CTA disabled while loading.
-2. Click CTA while signed in → redirected to Paystack → returning to `/pricing?reference=…` shows verifying → success state, credits visible in header.
-3. Landing pricing section visually matches `/pricing` and routes correctly.
-4. `/plans` still works unchanged.
+## Mitigations baked in
 
-## Out of scope
-- Subscription billing, multiple tiers, recurring Paystack plans.
-- WhatsApp pricing copy, currency switcher, coupon codes.
-- Removing or deprecating `/plans`.
+1. AI-suggested fields render with a subtle warm-amber tint and a small "AI draft" pill until the user edits them.
+2. Helper text above the form after suggestion: *"Brandie's best guess based on your brand. Please correct anything that doesn't match your real customers — especially the words they use."*
+3. The two highest-leverage fields (`frustrations`, `emotional_drivers`) get an extra inline nudge: *"Worth double-checking — this drives every caption."*
+4. Per-field provenance saved on `target_audiences` so we can later identify brands whose audience is mostly AI-guessed and re-prompt them once real post engagement data exists.
+
+## Backend
+
+### 1. New edge function: `audience-suggest`
+
+- Input: `{ brand_id }`. Function resolves auth, loads the brand row + `brand_products` rows.
+- Builds a context block: name, description, tagline, industry/playbook, vibe, personality_traits, tone_of_voice, special_instructions, website_url, and a compact list of products/services (label + description + price).
+- Calls `google/gemini-3-flash-preview` via Lovable AI Gateway with a tool-call schema mirroring `raw_inputs`:
+  - strings: `who_buys`, `life_stage`, `improving`, `frustrations`, `not_working`, `tried_before`, `success_looks_like`, `consequences`, `when_buy`, `hesitations`
+  - array: `emotional_drivers[]` (3–5 items, from the same fixed vocabulary the manual form uses)
+  - plus `confidence` map: `{ field_name: 0..1 }`
+- System prompt explicitly instructs: "Use language a Nigerian SME owner would actually hear from buyers. Avoid corporate jargon. If you do not have evidence for a field, return a short honest placeholder rather than fabricating specifics."
+- Returns `{ raw_inputs, confidence }`. Maps 429→429, 402→402, gateway failures→503, matching existing convention.
+- Deployed with `verify_jwt = false` and validates JWT in code (project pattern).
+
+### 2. Schema change — provenance on `target_audiences`
+
+Add one column:
+
+- `field_sources jsonb NOT NULL DEFAULT '{}'::jsonb`
+  Shape: `{ who_buys: "ai_suggested" | "user_edited" | "user_written", ... }`
+
+No new table. RLS already covers `target_audiences`. Add via migration tool.
+
+## Frontend
+
+### 3. Audience step on `src/pages/v2/Onboarding.tsx`
+
+Above the first question, primary button: **"✨ Suggest with Brandie"** (full-width on mobile, inline on desktop). Helper line beneath: *"Get a draft based on your brand, then make it yours."*
+
+State additions in the step component:
+- `suggesting: boolean`
+- `fieldSources: Record<FieldKey, 'ai_suggested' | 'user_edited' | 'user_written'>` (initialised to `'user_written'` for anything the user typed before clicking).
+
+On click:
+- POST to `audience-suggest` with `brand_id`.
+- On success: merge returned `raw_inputs` into form state for all fields that are currently empty OR were previously `ai_suggested`; mark those fields `ai_suggested`. Fields the user already typed into are preserved and stay `user_written`.
+- On error: toast with the existing 402/503 messaging conventions.
+
+Per-field behaviour:
+- Inputs/textareas read a `data-source` attribute and apply a `bg-amber-50/40 border-amber-200` tint when `ai_suggested`.
+- Render a small "AI draft" pill in the field label row.
+- `onChange` flips the field's source to `'user_edited'` and removes the tint.
+- For `emotional_drivers` chips, toggling any chip flips the source to `'user_edited'`.
+
+Continue button stays enabled (soft nudge per user's choice). On submit:
+- Persist `raw_inputs` + `field_sources` to `target_audiences` via the existing save path.
+- Then call existing `audience-intelligence` exactly as today to build the JTBD profile.
+
+### 4. Analytics
+
+Three `trackEvent` calls via `src/lib/analytics.ts`:
+- `audience_suggest_clicked` `{ brand_id }`
+- `audience_suggest_completed` `{ brand_id, latency_ms }`
+- `audience_suggest_submitted` `{ brand_id, edited_count, ai_kept_count, total_fields: 11 }`
+
+The third one is the key signal for whether quality is holding.
+
+## Files touched
+
+- **New:** `supabase/functions/audience-suggest/index.ts`
+- **Migration:** add `field_sources` column to `target_audiences`
+- **Edit:** the Audience step component used by `src/pages/v2/Onboarding.tsx` (locate the existing 5-section questionnaire component and extend it; do not create a parallel form)
+- **Edit:** the save path that writes `target_audiences` to include `field_sources`
+- **No change** to `audience-intelligence` — it keeps consuming `raw_inputs` unchanged
+
+## Out of scope (deliberately)
+
+- Re-prompting users later based on `field_sources`. Column is in place; UI for it ships in a separate iteration once we have data.
+- Changing the manual questionnaire copy or sections.
+- Affecting the v1 `/onboarding` audience flow (this change is v2 only).
