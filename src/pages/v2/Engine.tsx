@@ -258,7 +258,7 @@ const Engine = () => {
 
   const activeStageIdx = merged.enabled
     ? Math.min(
-        PIPELINE.length, 1,
+        PIPELINE.length - 1,
         Math.max(
           0,
           (queueStats?.processing ?? 0) > 0

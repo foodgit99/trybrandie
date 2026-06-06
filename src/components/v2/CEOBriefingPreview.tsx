@@ -11,7 +11,7 @@ function startOfWeek(d = new Date()) {
   const x = new Date(d);
   const day = x.getDay();
   const diff = (day + 6) % 7; // monday=0
-  x.setDate(x.getDate(), diff);
+  x.setDate(x.getDate() - diff);
   x.setHours(0, 0, 0, 0);
   return x;
 }
@@ -21,9 +21,9 @@ const CEOBriefingPreview = ({ brandId, brandName }: Props) => {
   const range = useMemo(() => {
     const thisMonday = startOfWeek();
     const lastMonday = new Date(thisMonday);
-    lastMonday.setDate(thisMonday.getDate(), 7);
+    lastMonday.setDate(thisMonday.getDate() - 7);
     const lastSunday = new Date(thisMonday);
-    lastSunday.setDate(thisMonday.getDate(), 1);
+    lastSunday.setDate(thisMonday.getDate() - 1);
     return {
       lastMondayISO: isoDate(lastMonday),
       lastSundayISO: isoDate(lastSunday),
@@ -60,7 +60,7 @@ const CEOBriefingPreview = ({ brandId, brandName }: Props) => {
       const k = i.content_category || "uncategorised";
       byCat[k] = (byCat[k] ?? 0) + 1;
     });
-    const topCat = Object.entries(byCat).sort((a, b) => b[1], a[1])[0]?.[0] ?? null;
+    const topCat = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     const thumbs = list
       .map((i) => i.designs?.image_url)
       .filter(Boolean)
@@ -136,7 +136,7 @@ const CEOBriefingPreview = ({ brandId, brandName }: Props) => {
                 <Stat label="Shipped" value={stats.shipped} suffix={`${shipRate}%`} />
                 <Stat
                   label="Signal"
-                  value={stats.ups, stats.downs}
+                  value={stats.ups - stats.downs}
                   suffix={`${stats.ups + stats.downs} votes`}
                   positive={stats.ups >= stats.downs}
                 />
@@ -149,7 +149,7 @@ const CEOBriefingPreview = ({ brandId, brandName }: Props) => {
                       <div
                         key={i}
                         className="h-12 w-12 rounded-xl overflow-hidden border-2 border-card bg-muted shrink-0"
-                        style={{ zIndex: 10, i }}
+                        style={{ zIndex: 10 - i }}
                       >
                         <img
                           src={url as string}

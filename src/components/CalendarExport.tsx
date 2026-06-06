@@ -159,7 +159,7 @@ export default function CalendarExport({
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
-    const contentWidth = pageWidth, margin * 2;
+    const contentWidth = pageWidth - margin * 2;
     let y = margin;
 
     // Parse hex color to RGB
@@ -182,7 +182,7 @@ export default function CalendarExport({
     doc.text(brand?.name || "Content Plan", margin, 13);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(dateRange, pageWidth, margin, 13, { align: "right" });
+    doc.text(dateRange, pageWidth - margin, 13, { align: "right" });
 
     y = 28;
 
@@ -200,7 +200,7 @@ export default function CalendarExport({
       const cols = [
         { label: "Day", x: margin, w: 25 },
         { label: "Type", x: margin + 25, w: 25 },
-        { label: "Title", x: margin + 50, w: contentWidth, 50 },
+        { label: "Title", x: margin + 50, w: contentWidth - 50 },
       ];
       doc.rect(margin, y, contentWidth, headerHeight, "F");
       doc.setTextColor(60, 60, 60);
@@ -239,7 +239,7 @@ export default function CalendarExport({
         { label: "Title", x: margin + 18, w: 40 },
         { label: "Prompt", x: margin + 58, w: 55 },
         { label: "Pillar", x: margin + 113, w: 25 },
-        { label: "Status", x: margin + 138, w: contentWidth, 138 },
+        { label: "Status", x: margin + 138, w: contentWidth - 138 },
       ];
       doc.rect(margin, y, contentWidth, headerHeight, "F");
       doc.setTextColor(60, 60, 60);
@@ -282,7 +282,7 @@ export default function CalendarExport({
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFontSize(7);
     doc.setTextColor(180, 180, 180);
-    doc.text("Planned with Brandie", pageWidth / 2, pageHeight, 8, { align: "center" });
+    doc.text("Planned with Brandie", pageWidth / 2, pageHeight - 8, { align: "center" });
 
     doc.save(`${brand?.name || "Brandie"}-content-plan-${viewMode}.pdf`);
   };
@@ -403,7 +403,7 @@ export default function CalendarExport({
   };
 
   const truncateText = (text: string, max: number) =>
-    text.length > max ? text.substring(0, max, 1) + "…" : text;
+    text.length > max ? text.substring(0, max - 1) + "…" : text;
 
   const escapeHtml = (str: string) =>
     str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

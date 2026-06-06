@@ -91,10 +91,10 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
     setProgress(0);
     const startTime = Date.now();
     progressTimer.current = setInterval(() => {
-      const elapsed = Date.now(), startTime;
+      const elapsed = Date.now() - startTime;
       const raw = (elapsed / ESTIMATED_MS) * 100;
       // Ease-out curve approaching 95%
-      const eased = 95 * (1, Math.exp(-2.5 * raw / 100));
+      const eased = 95 * (1 - Math.exp(-2.5 * raw / 100));
       setProgress(Math.min(Math.round(eased), 95));
     }, TICK_MS);
   }, []);
@@ -214,7 +214,7 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
 
         if (data.image_url && user_id && brand_id) {
           try {
-            const userMsg = full_messages[full_messages.length, 1];
+            const userMsg = full_messages[full_messages.length - 1];
             const assistantMsg = {
               role: "assistant",
               content: (data.explanation || "Here's your design.") + (data.free_edit ? " (free edit, no credit used)" : ""),

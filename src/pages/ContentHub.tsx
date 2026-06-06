@@ -470,7 +470,7 @@ const ContentHub = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const monday = new Date(today);
-    monday.setDate(today.getDate(), ((dayOfWeek + 6) % 7) + offset * 7);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7) + offset * 7);
     return monday;
   }, []);
 
@@ -1074,14 +1074,14 @@ const ContentHub = () => {
     const nm = (it: T) => String((it as any)[nameKey] || "").toLowerCase();
     switch (sortOption) {
       case "oldest":
-        return arr.sort((a, b) => ts(a.created_at), ts(b.created_at));
+        return arr.sort((a, b) => ts(a.created_at) - ts(b.created_at));
       case "az":
         return arr.sort((a, b) => nm(a).localeCompare(nm(b)));
       case "za":
         return arr.sort((a, b) => nm(b).localeCompare(nm(a)));
       case "newest":
       default:
-        return arr.sort((a, b) => ts(b.created_at), ts(a.created_at));
+        return arr.sort((a, b) => ts(b.created_at) - ts(a.created_at));
     }
   };
   const filteredSeries = sortItems((series || []).filter((s: any) => matchesCategory(s.content_category)), "name");
@@ -1514,7 +1514,7 @@ const ContentHub = () => {
               <CollapsibleContent className="space-y-3 animate-accordion-down data-[state=closed]:animate-accordion-up">
                 {/* Calendar nav + actions */}
                 <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o, 1)} title="Previous week">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)} title="Previous week">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   {weekOffset !== 0 && (
@@ -2258,7 +2258,7 @@ const ContentHub = () => {
               {trendIntel?.generated_at && (
                 <span className="text-[10px] font-normal text-muted-foreground">
                   Updated {(() => {
-                    const age = Date.now(), new Date(trendIntel.generated_at).getTime();
+                    const age = Date.now() - new Date(trendIntel.generated_at).getTime();
                     const days = Math.floor(age / (1000 * 60 * 60 * 24));
                     return days === 0 ? "today" : `${days}d ago`;
                   })()}

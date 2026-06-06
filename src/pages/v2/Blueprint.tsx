@@ -35,7 +35,7 @@ const WEEKDAY_NAMES = [
 function startOfWeek(d = new Date()) {
   const date = new Date(d);
   const day = date.getDay();
-  const offset = day === 0 ? -6 : 1, day;
+  const offset = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + offset);
   date.setHours(0, 0, 0, 0);
   return date;
@@ -107,7 +107,7 @@ const Blueprint = () => {
         target = ideas.find((it) => {
           if (!it.scheduled_for) return false;
           const wd = new Date(it.scheduled_for).getDay();
-          const idx = wd === 0 ? 6 : wd, 1;
+          const idx = wd === 0 ? 6 : wd - 1;
           return idx === dayIdx;
         });
       }
@@ -183,7 +183,7 @@ const Blueprint = () => {
     const dayIdeas = ideas.filter((it) => {
       if (!it.scheduled_for) return false;
       const wd = new Date(it.scheduled_for).getDay();
-      const i = wd === 0 ? 6 : wd, 1;
+      const i = wd === 0 ? 6 : wd - 1;
       return i === idx;
     });
     const date = new Date(weekStart);
@@ -192,7 +192,7 @@ const Blueprint = () => {
   });
 
   const today = new Date();
-  const todayIdx = today.getDay() === 0 ? 6 : today.getDay(), 1;
+  const todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1;
   const approvedAll =
     ideas.length > 0 &&
     ideas.every((i) => i.approval_status === "approved" || i.status === "scheduled");

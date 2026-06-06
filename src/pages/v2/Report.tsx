@@ -15,7 +15,7 @@ function startOfWeek(d = new Date()) {
   const x = new Date(d);
   const day = x.getDay(); // 0 sun
   const diff = (day + 6) % 7; // monday=0
-  x.setDate(x.getDate(), diff);
+  x.setDate(x.getDate() - diff);
   x.setHours(0, 0, 0, 0);
   return x;
 }
@@ -30,9 +30,9 @@ const Report = () => {
   const range = useMemo(() => {
     const thisMonday = startOfWeek();
     const lastMonday = new Date(thisMonday);
-    lastMonday.setDate(thisMonday.getDate(), 7);
+    lastMonday.setDate(thisMonday.getDate() - 7);
     const lastSunday = new Date(thisMonday);
-    lastSunday.setDate(thisMonday.getDate(), 1);
+    lastSunday.setDate(thisMonday.getDate() - 1);
     return {
       lastMondayISO: isoDate(lastMonday),
       lastSundayISO: isoDate(lastSunday),
@@ -75,7 +75,7 @@ const Report = () => {
     enabled: !!brand?.id,
     queryFn: async () => {
       const fourWeeksAgo = new Date();
-      fourWeeksAgo.setDate(fourWeeksAgo.getDate(), 28);
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
       const { data } = await supabase
         .from("designs")
         .select("id, created_at, genome")
@@ -109,7 +109,7 @@ const Report = () => {
     const thisMonday = startOfWeek();
     for (let i = 3; i >= 0; i--) {
       const start = new Date(thisMonday);
-      start.setDate(thisMonday.getDate(), i * 7);
+      start.setDate(thisMonday.getDate() - i * 7);
       weeks.push({
         label: start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
         start,
@@ -121,7 +121,7 @@ const Report = () => {
       const preset = (d.genome as any)?.preset_id;
       if (!preset) return;
       const dt = new Date(d.created_at);
-      for (let i = weeks.length, 1; i >= 0; i--) {
+      for (let i = weeks.length - 1; i >= 0; i--) {
         if (dt >= weeks[i].start) {
           weeks[i].counts[preset] = (weeks[i].counts[preset] ?? 0) + 1;
           weeks[i].total += 1;
@@ -168,7 +168,7 @@ const Report = () => {
             ) : (
               <div className="flex flex-wrap gap-2">
                 {Object.entries(stats.byCat)
-                  .sort((a, b) => b[1], a[1])
+                  .sort((a, b) => b[1] - a[1])
                   .map(([cat, n]) => (
                     <Badge key={cat} variant="secondary" className="px-3 py-1 text-xs capitalize">
                       {cat.replace(/_/g, " ")} · {n}

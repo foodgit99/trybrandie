@@ -58,7 +58,7 @@ export function projectEarnings(input: CalculatorInput): CalculatorOutput {
     // all previously acquired referrals pay recurring.
     const newDirect = input.newReferralsPerMonth;
     const cumulativeDirect = input.newReferralsPerMonth * month;
-    const recurringDirect = cumulativeDirect, newDirect;
+    const recurringDirect = cumulativeDirect - newDirect;
 
     direct += newDirect * arpu * (AFFILIATE_RATES.tier1FirstPct / 100);
     direct += recurringDirect * arpu * (AFFILIATE_RATES.tier1RecurringPct / 100);
@@ -66,7 +66,7 @@ export function projectEarnings(input: CalculatorInput): CalculatorOutput {
     // Network: each recruit brings R direct referrals/month.
     const recruitNewReferrals = input.recruitedAffiliates * input.recruitReferralsPerMonth;
     const recruitCumulative = recruitNewReferrals * month;
-    const recruitRecurring = recruitCumulative, recruitNewReferrals;
+    const recruitRecurring = recruitCumulative - recruitNewReferrals;
 
     network += recruitNewReferrals * arpu * (AFFILIATE_RATES.tier2FirstPct / 100);
     network += recruitRecurring * arpu * (AFFILIATE_RATES.tier2RecurringPct / 100);

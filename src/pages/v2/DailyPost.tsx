@@ -513,7 +513,7 @@ const DailyPost = () => {
                   <button
                     type="button"
                     onClick={() => carouselApi?.scrollNext()}
-                    disabled={activeIdx >= allSlides.length, 1}
+                    disabled={activeIdx >= allSlides.length - 1}
                     aria-label="Next slide"
                     className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/85 border border-border grid place-items-center backdrop-blur disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background"
                   >

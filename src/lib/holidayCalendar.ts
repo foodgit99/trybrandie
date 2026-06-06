@@ -80,7 +80,7 @@ export function getUpcomingHolidays(days: number = 14): UpcomingHoliday[] {
     }
   }
 
-  results.sort((a, b) => a.date.getTime(), b.date.getTime());
+  results.sort((a, b) => a.date.getTime() - b.date.getTime());
   const seen = new Set<string>();
   return results.filter((r) => {
     const key = `${r.name}-${r.date.toISOString().split("T")[0]}`;

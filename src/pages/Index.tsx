@@ -90,11 +90,11 @@ const Index = () => {
     }
 
     for (const [, slides] of carouselMap) {
-      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0), ((b as any).slide_index ?? 0));
+      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
       result.push({ ...sorted[0], _slideCount: sorted.length, _carouselSlides: sorted });
     }
 
-    result.sort((a, b) => new Date(b.created_at).getTime(), new Date(a.created_at).getTime());
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
   }, [designs]);
 
@@ -162,7 +162,7 @@ const Index = () => {
     const today = new Date();
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
-      d.setDate(today.getDate(), i);
+      d.setDate(today.getDate() - i);
       days.push(d);
     }
     return days;
@@ -199,7 +199,7 @@ const Index = () => {
 
   const streakCount = useMemo(() => {
     let count = 0;
-    for (let i = weeklyActivity.length, 1; i >= 0; i--) {
+    for (let i = weeklyActivity.length - 1; i >= 0; i--) {
       if (weeklyActivity[i].active) count++;
       else if (weeklyActivity[i].isToday) continue;
       else break;

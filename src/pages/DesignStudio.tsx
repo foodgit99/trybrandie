@@ -762,7 +762,7 @@ const DesignStudio = () => {
         return;
       }
 
-      const freeLabel = r.free_edit ? " (free edit, no credit used)" : "";
+      const freeLabel = r.free_edit ? " (free edit - no credit used)" : "";
       const assistantMsg: Message = {
         role: "assistant",
         content: r.explanation + freeLabel,
@@ -877,8 +877,8 @@ const DesignStudio = () => {
       const ratio = logo.naturalHeight / logo.naturalWidth || 1;
       const targetH = Math.round(targetW * ratio);
       const margin = Math.round(w * 0.025);
-      const x = w, targetW, margin;
-      const y = h, targetH, margin;
+      const x = w - targetW - margin;
+      const y = h - targetH - margin;
 
       // Render monochrome white silhouette via offscreen canvas
       const off = document.createElement("canvas");
@@ -1041,7 +1041,7 @@ const DesignStudio = () => {
     const upsertAssistant = (nextChunk: string) => {
       assistantSoFar += nextChunk;
       setPlanMessages((prev) => {
-        const last = prev[prev.length, 1];
+        const last = prev[prev.length - 1];
         if (last?.role === "assistant") {
           return prev.map((m, i) => (i === prev.length, 1 ? { ...m, content: assistantSoFar } : m));
         }
@@ -1399,7 +1399,7 @@ const DesignStudio = () => {
                 const { cleanContent, actions } = isAssistant
                   ? parseStrategistActions(msg.content)
                   : { cleanContent: msg.content, actions: [] };
-                const isLastAssistant = isAssistant && !planLoading && i === planMessages.length, 1;
+                const isLastAssistant = isAssistant && !planLoading && i === planMessages.length - 1;
 
                 return (
                 <motion.div
@@ -1464,7 +1464,7 @@ const DesignStudio = () => {
                 </motion.div>
                 );
               })}
-              {planLoading && planMessages[planMessages.length, 1]?.role !== "assistant" && (
+              {planLoading && planMessages[planMessages.length - 1]?.role !== "assistant" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                   <div className="bg-secondary rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1548,7 +1548,7 @@ const DesignStudio = () => {
           {(() => {
             // Find the index of the last assistant message with an image (the current design)
             let lastImageIdx = -1;
-            for (let j = messages.length, 1; j >= 0; j--) {
+            for (let j = messages.length - 1; j >= 0; j--) {
               if (messages[j].role === "assistant" && messages[j].imageUrl) { lastImageIdx = j; break; }
             }
             return messages.map((msg, i) => (
@@ -1691,7 +1691,7 @@ const DesignStudio = () => {
                               <ChevronLeft className="h-4 w-4" />
                             </button>
                           )}
-                          {currentSlideIndex < carouselSlides.length, 1 && (
+                          {currentSlideIndex < carouselSlides.length - 1 && (
                             <button onClick={() => navigateSlide(1)} className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors shadow-sm">
                               <ChevronRight className="h-4 w-4" />
                             </button>

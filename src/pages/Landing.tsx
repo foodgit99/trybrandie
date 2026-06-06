@@ -2,6 +2,7 @@ import LandingNav from "@/components/landing/LandingNav";
 import LandingHero from "@/components/landing/LandingHero";
 import LandingFeatures from "@/components/landing/LandingFeatures";
 import LandingShowcase from "@/components/landing/LandingShowcase";
+import LandingTestimonials from "@/components/landing/LandingTestimonials";
 import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
 import LandingPricing from "@/components/landing/LandingPricing";
 import LandingFAQ from "@/components/landing/LandingFAQ";
@@ -46,6 +47,7 @@ const Landing = () => (
       <LandingHero />
       <LandingFeatures />
       <LandingShowcase />
+      <LandingTestimonials />
       <LandingHowItWorks />
       <LandingPricing />
       <LandingFAQ />

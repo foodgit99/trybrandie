@@ -143,12 +143,12 @@ const DesignHistory = () => {
 
     // Insert grouped carousels (use first slide by slide_index)
     for (const [, slides] of carouselMap) {
-      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0), ((b as any).slide_index ?? 0));
+      const sorted = [...slides].sort((a, b) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
       result.push({ ...sorted[0], _slideCount: sorted.length, _carouselSlides: sorted });
     }
 
     // Sort by created_at descending
-    result.sort((a, b) => new Date(b.created_at).getTime(), new Date(a.created_at).getTime());
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
   }, [designs, activeFolder, assignments]);
 
@@ -218,7 +218,7 @@ const DesignHistory = () => {
   const openViewer = (index: number, design: any) => {
     // If it's a carousel group, show all slides in the viewer
     if (design._carouselSlides && design._carouselSlides.length > 1) {
-      const sorted = [...design._carouselSlides].sort((a: any, b: any) => ((a as any).slide_index ?? 0), ((b as any).slide_index ?? 0));
+      const sorted = [...design._carouselSlides].sort((a: any, b: any) => ((a as any).slide_index ?? 0) - ((b as any).slide_index ?? 0));
       setViewerDesigns(sorted);
       setViewerIndex(0);
     } else {
