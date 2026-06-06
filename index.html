@@ -9,6 +9,27 @@
     <meta name="author" content="Lovable" />
     <meta name="google-site-verification" content="tV96G3NRE3-mMA0zfIxMtkkx-Hxxm0IwtTvn3TX7gAg" />
 
+    <!-- Google Analytics (GA4) — disabled on Lovable preview / localhost -->
+    <script>
+      (function () {
+        var h = location.hostname;
+        var isPreview = h === 'localhost' || h.endsWith('.lovableproject.com') || h.endsWith('.lovableproject-dev.com') || h.startsWith('id-preview--') || h.startsWith('preview--');
+        window.__GA_ID__ = 'G-76P8501LY4';
+        window.__GA_DISABLED__ = isPreview;
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        if (!isPreview) {
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://www.googletagmanager.com/gtag/js?id=G-76P8501LY4';
+          document.head.appendChild(s);
+          gtag('js', new Date());
+          // Disable automatic page_view so React Router can fire them with correct path
+          gtag('config', 'G-76P8501LY4', { send_page_view: false });
+        }
+      })();
+    </script>
+
     <!-- PWA / installable -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#2B2D33" />
