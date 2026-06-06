@@ -183,6 +183,7 @@ const Onboarding = () => {
         if (b.primary_colors?.[0]) setPrimary(b.primary_colors[0]);
         if (b.secondary_colors?.[0]) setSecondary(b.secondary_colors[0]);
         if (b.accent_colors?.[0]) setAccent(b.accent_colors[0]);
+        setScanSucceeded(true);
         toast({ title: "Got it.", description: "Pre-filled what we could from your site." });
       }
     } catch (err: any) {
