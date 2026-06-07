@@ -2225,7 +2225,13 @@ function PendingAffiliatesQueue() {
   );
 }
 
-function DataTable({ tableName }: { tableName: string }) {
+function DataTable({
+  tableName,
+  onOpenAffiliateDetail,
+}: {
+  tableName: string;
+  onOpenAffiliateDetail?: (id: string) => void;
+}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
