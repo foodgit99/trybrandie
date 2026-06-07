@@ -68,6 +68,7 @@ import {
   TrendingUp,
   Wallet,
   Users2,
+  CreditCard,
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
