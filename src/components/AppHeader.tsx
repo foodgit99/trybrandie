@@ -2,9 +2,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import CreditsBadge from "@/components/CreditsBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Menu,
-  Sparkles,
   Plus,
   Palette,
   Clock,
@@ -25,56 +23,10 @@ import {
   Layers,
 } from "lucide-react";
 
-const FREE_MONTHLY = 5;
-
 const AppHeader = () => {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
-
-  const { data: profile } = useQuery({
-    queryKey: ["profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("generations_count, generations_reset_at, bonus_credits, subscription_tier, paid_credits")
-        .eq("user_id", user!.id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: rewardCredits } = useQuery({
-    queryKey: ["reward-credits", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("credit_rewards")
-        .select("remaining")
-        .eq("user_id", user!.id)
-        .gt("remaining", 0)
-        .gt("expires_at", new Date().toISOString());
-      if (error) return 0;
-      return (data || []).reduce((sum, r) => sum + r.remaining, 0);
-    },
-    enabled: !!user,
-    staleTime: 60_000,
-  });
-
-  const getCreditsRemaining = () => {
-    if (!profile) return FREE_MONTHLY;
-    const resetAt = new Date(profile.generations_reset_at);
-    const now = new Date();
-    const isCurrentMonth = now.getMonth() === resetAt.getMonth() && now.getFullYear() === resetAt.getFullYear();
-    const monthlyUsed = isCurrentMonth ? profile.generations_count : 0;
-    const freeRemaining = Math.max(0, FREE_MONTHLY, monthlyUsed);
-    const bonus = (profile as any)?.bonus_credits ?? 0;
-    const paid = (profile as any)?.paid_credits ?? 0;
-    return freeRemaining + bonus + (rewardCredits ?? 0) + paid;
-  };
-
-  const creditsRemaining = getCreditsRemaining();
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm">
