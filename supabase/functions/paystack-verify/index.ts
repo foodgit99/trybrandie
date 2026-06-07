@@ -168,6 +168,26 @@ Deno.serve(async (req) => {
         })
         .eq("user_id", user_id);
 
+      // Activation email (non-blocking)
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            type: "subscription_activated",
+            to: `__resolve_user__:${user_id}`,
+            data: { plan_id: planId, period_end: periodEnd.toISOString() },
+          }),
+        });
+      } catch (e) {
+        console.error("[paystack-verify] activation email failed", e);
+      }
+
+
+
       return new Response(JSON.stringify({
         verified: true,
         subscription: true,

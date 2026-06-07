@@ -257,6 +257,32 @@ Deno.serve(async (req) => {
           .eq("user_id", user_id);
 
         console.log(`[paystack-webhook] subscription credited user=${user_id} plan=${planId}`);
+
+        // Fire activation/renewal email (non-blocking)
+        try {
+          const isRenewal = metadata?.type === "subscription_renewal";
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              type: isRenewal ? "subscription_renewed" : "subscription_activated",
+              to: `__resolve_user__:${user_id}`,
+              data: isRenewal
+                ? {
+                    plan_id: planId,
+                    credits: plan.monthly_credits,
+                    next_renewal: periodEnd.toISOString(),
+                    amount: plan.price_naira,
+                  }
+                : { plan_id: planId, period_end: periodEnd.toISOString() },
+            }),
+          });
+        } catch (e) {
+          console.error("[paystack-webhook] subscription email failed", e);
+        }
         return new Response(JSON.stringify({ received: true, subscription: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
