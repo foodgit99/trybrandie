@@ -777,6 +777,167 @@ async function resolveAdminEmails(): Promise<string[]> {
   return emails;
 }
 
+// ============ SUBSCRIPTION EMAILS ============
+
+const PLAN_LABELS: Record<string, string> = {
+  entrepreneur: "Entrepreneur",
+  creator: "Creator",
+  agency: "Agency",
+};
+const PLAN_PRICE: Record<string, number> = {
+  entrepreneur: 18500,
+  creator: 37000,
+  agency: 92500,
+};
+const PLAN_CREDITS: Record<string, number> = {
+  entrepreneur: 100,
+  creator: 200,
+  agency: 500,
+};
+
+const fmtNaira = (n: number) => `₦${Number(n || 0).toLocaleString("en-NG")}`;
+const fmtDate = (d: string | Date) => {
+  try {
+    const dt = typeof d === "string" ? new Date(d) : d;
+    return dt.toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" });
+  } catch { return String(d); }
+};
+
+function subEmailShell(opts: {
+  eyebrow: string;
+  heading: string;
+  body: string;
+  ctaText: string;
+  ctaUrl: string;
+  secondaryText?: string;
+  secondaryUrl?: string;
+  footer: string;
+}): string {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:28px 40px;text-align:center;">
+    <p style="color:#c4a265;font-size:11px;letter-spacing:0.2em;margin:0 0 6px;text-transform:uppercase;">${opts.eyebrow}</p>
+    <h1 style="color:#fff;font-size:24px;margin:0;font-weight:700;">${opts.heading}</h1>
+  </td></tr>
+  <tr><td style="padding:28px 40px 8px;">${opts.body}</td></tr>
+  <tr><td style="padding:18px 40px 28px;text-align:center;">
+    <a href="${opts.ctaUrl}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">${opts.ctaText}</a>
+    ${opts.secondaryText && opts.secondaryUrl ? `<p style="margin:14px 0 0;"><a href="${opts.secondaryUrl}" style="color:#c4a265;font-size:14px;text-decoration:underline;">${opts.secondaryText}</a></p>` : ""}
+  </td></tr>
+  <tr><td style="padding:8px 40px 28px;text-align:center;">
+    <p style="font-size:12px;color:#9ca3af;margin:0;">${opts.footer}</p>
+  </td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+function subscriptionActivatedHtml(planId: string, periodEnd: string): string {
+  const plan = PLAN_LABELS[planId] || planId;
+  const credits = PLAN_CREDITS[planId] || 0;
+  return subEmailShell({
+    eyebrow: "Subscription Active",
+    heading: `Welcome to Brandie ${plan} 🎉`,
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Your <strong>${plan}</strong> plan is now active. <strong>${credits} credits</strong> have just landed in your account — use them to plan, design, and ship a full week of branded content.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Your next renewal is on <strong>${fmtDate(periodEnd)}</strong>. Monthly credits reset each cycle (use it or lose it).</p>`,
+    ctaText: "Open Content Hub",
+    ctaUrl: `${APP_URL}/content`,
+    secondaryText: "Manage subscription",
+    secondaryUrl: `${APP_URL}/settings`,
+    footer: "You received this because you started a Brandie subscription.",
+  });
+}
+
+function subscriptionRenewalReminderHtml(planId: string, renewalDate: string): string {
+  const plan = PLAN_LABELS[planId] || planId;
+  const price = PLAN_PRICE[planId] || 0;
+  return subEmailShell({
+    eyebrow: "Upcoming Renewal",
+    heading: `Your ${plan} plan renews soon`,
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Heads up — your <strong>Brandie ${plan}</strong> subscription renews on <strong>${fmtDate(renewalDate)}</strong> for <strong>${fmtNaira(price)}</strong>.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">You don't need to do anything — we'll charge the card on file automatically. Want to change plan or cancel? You can do it any time before renewal.</p>`,
+    ctaText: "Manage Subscription",
+    ctaUrl: `${APP_URL}/settings`,
+    secondaryText: "Compare plans",
+    secondaryUrl: `${APP_URL}/pricing`,
+    footer: "You received this because your Brandie subscription renews in a few days.",
+  });
+}
+
+function subscriptionRenewedHtml(planId: string, credits: number, nextRenewal: string, amount: number): string {
+  const plan = PLAN_LABELS[planId] || planId;
+  return subEmailShell({
+    eyebrow: "Receipt · Renewal",
+    heading: `Your ${plan} plan just renewed ✅`,
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Thanks for sticking with Brandie. We've charged <strong>${fmtNaira(amount)}</strong> and topped up your account with <strong>${credits} fresh credits</strong>.</p>
+      <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #ececec;border-radius:12px;margin:8px 0 16px;">
+        <tr><td style="padding:12px 16px;font-size:13px;color:#9ca3af;">Plan</td><td style="padding:12px 16px;font-size:14px;color:#1a1a2e;text-align:right;"><strong>${plan}</strong></td></tr>
+        <tr><td style="padding:12px 16px;font-size:13px;color:#9ca3af;border-top:1px solid #ececec;">Amount</td><td style="padding:12px 16px;font-size:14px;color:#1a1a2e;text-align:right;border-top:1px solid #ececec;"><strong>${fmtNaira(amount)}</strong></td></tr>
+        <tr><td style="padding:12px 16px;font-size:13px;color:#9ca3af;border-top:1px solid #ececec;">Credits added</td><td style="padding:12px 16px;font-size:14px;color:#1a1a2e;text-align:right;border-top:1px solid #ececec;"><strong>${credits}</strong></td></tr>
+        <tr><td style="padding:12px 16px;font-size:13px;color:#9ca3af;border-top:1px solid #ececec;">Next renewal</td><td style="padding:12px 16px;font-size:14px;color:#1a1a2e;text-align:right;border-top:1px solid #ececec;"><strong>${fmtDate(nextRenewal)}</strong></td></tr>
+      </table>`,
+    ctaText: "Start Creating",
+    ctaUrl: `${APP_URL}/content`,
+    secondaryText: "View billing history",
+    secondaryUrl: `${APP_URL}/settings`,
+    footer: "This is your renewal receipt. Keep it for your records.",
+  });
+}
+
+function subscriptionChargeFailedHtml(planId: string, attempt: number): string {
+  const plan = PLAN_LABELS[planId] || planId;
+  return subEmailShell({
+    eyebrow: "Payment Failed",
+    heading: `We couldn't renew your ${plan} plan ⚠️`,
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">We tried to renew your <strong>Brandie ${plan}</strong> subscription but the charge didn't go through (attempt <strong>${attempt}</strong>).</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">We'll automatically retry over the next few days. To avoid losing access, please re-subscribe with a working card so we can keep your credits flowing.</p>`,
+    ctaText: "Update Payment",
+    ctaUrl: `${APP_URL}/pricing`,
+    secondaryText: "Manage subscription",
+    secondaryUrl: `${APP_URL}/settings`,
+    footer: "You received this because we couldn't charge your card on the renewal date.",
+  });
+}
+
+function subscriptionCancelledFailedHtml(planId: string): string {
+  const plan = PLAN_LABELS[planId] || planId;
+  return subEmailShell({
+    eyebrow: "Subscription Ended",
+    heading: `Your ${plan} plan has been cancelled`,
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">After several failed renewal attempts, we've cancelled your <strong>Brandie ${plan}</strong> subscription and moved you back to the Free plan.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">You can still use Brandie on the free tier (5 credits / month) or top up anytime with Pay-as-you-go. Want to re-activate ${plan}? You can resubscribe in one tap.</p>`,
+    ctaText: "Resubscribe",
+    ctaUrl: `${APP_URL}/pricing`,
+    secondaryText: "Or top up with PAYG",
+    secondaryUrl: `${APP_URL}/plans`,
+    footer: "You received this because your Brandie subscription was cancelled after failed renewals.",
+  });
+}
+
+function subscriptionCancelledHtml(planId: string, periodEnd: string): string {
+  const plan = PLAN_LABELS[planId] || planId;
+  return subEmailShell({
+    eyebrow: "Cancellation Scheduled",
+    heading: `Your ${plan} plan will end on ${fmtDate(periodEnd)}`,
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">We've scheduled your <strong>Brandie ${plan}</strong> subscription to end on <strong>${fmtDate(periodEnd)}</strong>. Your remaining credits stay available until then.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Changed your mind? You can reactivate any time before that date and keep your benefits without interruption.</p>`,
+    ctaText: "Reactivate Plan",
+    ctaUrl: `${APP_URL}/settings`,
+    secondaryText: "Compare plans",
+    secondaryUrl: `${APP_URL}/pricing`,
+    footer: "You received this because you cancelled your Brandie subscription.",
+  });
+}
+
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
