@@ -284,14 +284,42 @@ const Landing = () => (
 
       {/* PRICE */}
       <section className="border-t border-border bg-secondary/40">
-        <div className="px-5 sm:px-8 py-20 sm:py-28 max-w-3xl mx-auto text-center">
-          <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">Pay only for what you create</p>
-          <h2 className="mt-3 font-serif text-5xl sm:text-6xl tracking-tight">₦5,000 / 20 credits</h2>
-          <p className="mt-4 text-muted-foreground">That's ₦250 a post. No subscriptions, no expiry. Start with 5 free credits every month, top up only when you need more.</p>
-          <Button asChild size="lg" className="rounded-full mt-10 h-12 px-7 text-base">
-            <Link to="/auth?mode=signup">Start free <ArrowRight className="h-4 w-4" /></Link>
-          </Button>
-          <p className="mt-4 text-xs text-muted-foreground">5 free credits every month. No card required.</p>
+        <div className="px-5 sm:px-8 py-20 sm:py-28 max-w-4xl mx-auto text-center">
+          <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground">Pricing that grows with you</p>
+          <h2 className="mt-3 font-serif text-4xl sm:text-5xl tracking-tight">Subscribe monthly or pay as you go</h2>
+          <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
+            Pick a monthly plan from <span className="text-foreground font-medium">₦18,500</span> for credits + premium features, or top up pay-as-you-go from <span className="text-foreground font-medium">₦250/credit</span>. Everyone gets 5 free credits every month.
+          </p>
+
+          <div className="mt-10 grid sm:grid-cols-3 gap-3 text-left">
+            {[
+              { name: "Entrepreneur", price: "₦18,500", credits: "100 credits/mo", note: "1 brand" },
+              { name: "Creator", price: "₦37,000", credits: "200 credits/mo", note: "Unlimited brands + team", highlight: true },
+              { name: "Agency", price: "₦92,500", credits: "500 credits/mo", note: "Client folders + white-label" },
+            ].map((p) => (
+              <div
+                key={p.name}
+                className={`rounded-2xl border p-5 bg-background ${
+                  p.highlight ? "border-primary/60 shadow-sm" : "border-border"
+                }`}
+              >
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{p.name}</p>
+                <p className="mt-1 font-serif text-2xl tracking-tight">{p.price}<span className="text-xs text-muted-foreground font-sans">/mo</span></p>
+                <p className="mt-2 text-sm">{p.credits}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{p.note}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <Button asChild size="lg" className="rounded-full h-12 px-7 text-base">
+              <Link to="/pricing">See full pricing <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
+            <Button asChild size="lg" variant="ghost" className="rounded-full h-12 px-6 text-base">
+              <Link to="/auth?mode=signup">Start free</Link>
+            </Button>
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">5 free credits every month · cancel anytime · no card required to start</p>
         </div>
       </section>
     </main>
