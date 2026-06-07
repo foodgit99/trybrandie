@@ -2477,6 +2477,7 @@ function DataTable({
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [affiliateDetailId, setAffiliateDetailId] = useState<string | null>(null);
 
   const { data: pendingCount } = useQuery({
     queryKey: ["admin-pending-affiliates"],
