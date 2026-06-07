@@ -300,7 +300,7 @@ const Landing = () => (
       <div className="max-w-6xl mx-auto px-5 sm:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <img src={brandieLogo} alt="" className="h-5 w-5" />
-          <span>© {new Date().getFullYear()} Brandie · Made in Lagos</span>
+          <span>© {new Date().getFullYear()} Brandie · A product of Yaries Business Systems</span>
         </div>
         <div className="flex items-center gap-5">
           <Link to="/legacy" className="hover:text-foreground">Legacy app</Link>
