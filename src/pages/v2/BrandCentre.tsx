@@ -8,6 +8,7 @@ import { ArrowRight, Loader2, Pencil } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import TeamMembersPanel from "@/components/team/TeamMembersPanel";
+import BrandUsagePanel from "@/components/brands/BrandUsagePanel";
 
 const Swatch = ({ hex }: { hex: string }) => (
   <div className="flex flex-col items-center gap-1.5">
@@ -251,6 +252,18 @@ const BrandCentre = () => {
           <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Team</h2>
           <TeamMembersPanel />
         </section>
+
+        {(brand as any).__role !== "member" && (
+          <section className="space-y-3">
+            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Usage</h2>
+            <BrandUsagePanel
+              brandId={brand.id}
+              ownerUserId={user.id}
+              ownerName={(user.user_metadata as any)?.full_name || user.email || "Owner"}
+              isOwner={(brand as any).__role !== "member"}
+            />
+          </section>
+        )}
 
 
 
