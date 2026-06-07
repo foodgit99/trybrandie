@@ -172,7 +172,7 @@ const AffiliateMarketing = () => {
                 { icon: Wallet, label: "Monthly payouts" },
                 { icon: TrendingUp, label: "No earnings cap" },
                 { icon: Network, label: "2-tier commissions" },
-                { icon: CheckCircle2, label: "Free to join" },
+                { icon: CheckCircle2, label: "Paid on actual subscription amount" },
               ].map((t) => (
                 <div key={t.label} className="flex items-center gap-1.5">
                   <t.icon className="h-3.5 w-3.5 text-primary" /> {t.label}
