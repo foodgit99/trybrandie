@@ -401,7 +401,12 @@ const AffiliateMarketing = () => {
 
               {/* Outputs */}
               <div className="rounded-2xl border-2 border-primary/40 p-6 space-y-5 bg-gradient-to-br from-primary/5 via-background to-background">
-                <h3 className="font-serif text-lg">Projected earnings</h3>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-serif text-lg">Projected earnings</h3>
+                  <span className="text-[11px] text-muted-foreground">
+                    on {selectedPlan.name} · {formatNgn(selectedPlan.price)}/mo
+                  </span>
+                </div>
                 {[
                   { label: "Month 1", value: projection.m1.total, sub: `${formatNgn(projection.m1.directEarnings)} direct + ${formatNgn(projection.m1.networkEarnings)} network` },
                   { label: "First 6 months", value: projection.m6.total, sub: `${formatNgn(projection.m6.directEarnings)} direct + ${formatNgn(projection.m6.networkEarnings)} network` },
