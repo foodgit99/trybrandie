@@ -325,9 +325,34 @@ const AffiliateMarketing = () => {
               </div>
               <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">What could you earn?</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Move the sliders. Numbers update instantly. Assumes an average referral pays{" "}
-                {formatNgn(AVG_REFERRAL_MONTHLY_NGN)}/month.
+                Pick the plan your referrals are likely on, then move the sliders. Numbers update instantly.
               </p>
+            </div>
+
+            {/* Plan selector */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {PLAN_ARPU_OPTIONS.map((p) => {
+                const active = selectedPlanId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPlanId(p.id)}
+                    className={`rounded-xl border px-4 py-2 text-sm transition ${
+                      active
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    <span className="ml-2 text-xs opacity-80">{formatNgn(p.price)}/mo</span>
+                    {p.highlight && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-primary/15 text-primary text-[10px] uppercase tracking-wider px-1.5 py-0.5">
+                        Popular
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
