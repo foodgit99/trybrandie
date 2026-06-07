@@ -27,14 +27,23 @@ export function highestEarnedMilestone(totalEarned: number) {
 }
 
 // Average revenue per referral per month, used by the calculator.
-// Based on Brandie's mid-tier ($29 Creator ≈ ₦45,000/mo at indicative rate).
-export const AVG_REFERRAL_MONTHLY_NGN = 45000;
+// Defaults to the Creator tier (₦37,000/mo), our most popular plan.
+export const AVG_REFERRAL_MONTHLY_NGN = 37000;
+
+// Per-plan monthly NGN price — kept aligned with src/lib/subscriptionPlans.ts.
+// Single source of truth for the affiliate calculator's plan selector.
+export const PLAN_ARPU_OPTIONS = [
+  { id: "entrepreneur" as const, name: "Entrepreneur", price: 18500 },
+  { id: "creator" as const, name: "Creator", price: 37000, highlight: true },
+  { id: "agency" as const, name: "Agency", price: 92500 },
+];
 
 export interface CalculatorInput {
   newReferralsPerMonth: number;
   recruitedAffiliates: number;
   recruitReferralsPerMonth: number; // avg referrals each recruit brings/month
   horizonMonths: number;
+  arpu?: number; // optional override; defaults to AVG_REFERRAL_MONTHLY_NGN
 }
 
 export interface CalculatorOutput {
@@ -45,17 +54,15 @@ export interface CalculatorOutput {
 
 /**
  * Simple linear projection:
- *  , Each month you add N new direct referrals; they each pay first-month then recur.
- *  , Each recruited affiliate brings R direct referrals/month; you earn tier2 on those.
+ *  - Each month you add N new direct referrals; they each pay first-month then recur.
+ *  - Each recruited affiliate brings R direct referrals/month; you earn tier2 on those.
  */
 export function projectEarnings(input: CalculatorInput): CalculatorOutput {
-  const arpu = AVG_REFERRAL_MONTHLY_NGN;
+  const arpu = input.arpu ?? AVG_REFERRAL_MONTHLY_NGN;
   let direct = 0;
   let network = 0;
 
   for (let month = 1; month <= input.horizonMonths; month++) {
-    // Direct: new referrals this month pay first-payment commission;
-    // all previously acquired referrals pay recurring.
     const newDirect = input.newReferralsPerMonth;
     const cumulativeDirect = input.newReferralsPerMonth * month;
     const recurringDirect = cumulativeDirect - newDirect;
@@ -63,7 +70,6 @@ export function projectEarnings(input: CalculatorInput): CalculatorOutput {
     direct += newDirect * arpu * (AFFILIATE_RATES.tier1FirstPct / 100);
     direct += recurringDirect * arpu * (AFFILIATE_RATES.tier1RecurringPct / 100);
 
-    // Network: each recruit brings R direct referrals/month.
     const recruitNewReferrals = input.recruitedAffiliates * input.recruitReferralsPerMonth;
     const recruitCumulative = recruitNewReferrals * month;
     const recruitRecurring = recruitCumulative - recruitNewReferrals;
