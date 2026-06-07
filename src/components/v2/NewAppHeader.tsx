@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import BrandSwitcher from "@/components/BrandSwitcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,6 +87,10 @@ const NewAppHeader = () => {
       >
         <img src={brandieLogo} alt="Brandie" className="h-8 w-8 sm:h-9 sm:w-9" />
         <span className="text-xl sm:text-2xl font-serif tracking-tight">Brandie</span>
+      </div>
+
+      <div className="hidden sm:flex items-center mx-2">
+        <BrandSwitcher />
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
