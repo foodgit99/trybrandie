@@ -1680,6 +1680,23 @@ type DetailResponse = {
     whatsapp_number: string | null;
     location: string | null;
     created_at: string;
+    // Application fields (from the new signup wizard)
+    primary_channel: string | null;
+    channel_handle: string | null;
+    channel_url: string | null;
+    audience_size: string | null;
+    audience_types: string[] | null;
+    niche: string | null;
+    regions: string[] | null;
+    used_brandie: boolean | null;
+    brandie_experience: string | null;
+    promo_plan: string | null;
+    content_types: string[] | null;
+    posting_cadence: string | null;
+    why_join: string | null;
+    agreed_disclosure: boolean | null;
+    agreed_terms: boolean | null;
+    application_submitted_at: string | null;
   };
   email: string | null;
   recruiter: { affiliate_code: string; email: string | null } | null;
@@ -1715,6 +1732,35 @@ type DetailResponse = {
     outstanding_balance: number;
   };
 };
+
+// Human-friendly labels for application enums
+const APPLICATION_LABELS: Record<string, string> = {
+  // Channels
+  instagram: "Instagram", tiktok: "TikTok", x: "X / Twitter", youtube: "YouTube",
+  linkedin: "LinkedIn", newsletter: "Newsletter / Blog", podcast: "Podcast",
+  whatsapp: "WhatsApp community", telegram: "Telegram community", other: "Other",
+  // Audience sizes
+  under_1k: "Under 1,000", "1k_5k": "1,000 – 5,000", "5k_25k": "5,000 – 25,000",
+  "25k_100k": "25,000 – 100,000", "100k_plus": "100,000+",
+  // Audience types
+  smb_owners: "Small business owners", solopreneurs: "Solopreneurs / founders",
+  creators: "Content creators", agencies: "Agencies / freelancers",
+  marketers: "In-house marketers", students: "Students / early career",
+  // Regions
+  nigeria: "Nigeria", west_africa: "Rest of West Africa", africa: "Rest of Africa",
+  europe: "Europe", north_america: "North America", asia: "Asia", global: "Global / mixed",
+  // Content types
+  reels: "Short-form video", feed_posts: "Feed posts / carousels", stories: "Stories",
+  threads: "Threads / long-form", youtube_long: "Long-form video", livestream: "Livestreams / Spaces",
+  dm_outreach: "1:1 DM / WhatsApp",
+  // Cadence
+  daily: "Daily", few_per_week: "A few times a week", weekly: "Weekly",
+  monthly: "A few times a month", occasional: "Occasional / campaign-based",
+};
+
+const prettyLabel = (val: string) => APPLICATION_LABELS[val] || val.replace(/_/g, " ");
+
+
 
 function AffiliateDetailDrawer({
   affiliateId,
@@ -1918,6 +1964,166 @@ function AffiliateDetailDrawer({
               </p>
             </div>
 
+            {/* Application details (from signup wizard) */}
+            <div className="rounded-xl border border-border p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Application details
+                </p>
+                {data.affiliate.application_submitted_at && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Submitted{" "}
+                    {new Date(
+                      data.affiliate.application_submitted_at,
+                    ).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+
+              {/* Audience */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Audience
+                </p>
+                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                  <p>
+                    <span className="text-muted-foreground">Main channel:</span>{" "}
+                    {data.affiliate.primary_channel
+                      ? prettyLabel(data.affiliate.primary_channel)
+                      : "—"}
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Audience size:</span>{" "}
+                    {data.affiliate.audience_size
+                      ? prettyLabel(data.affiliate.audience_size)
+                      : "—"}
+                  </p>
+                  <p className="sm:col-span-2">
+                    <span className="text-muted-foreground">Handle:</span>{" "}
+                    {data.affiliate.channel_handle || "—"}
+                    {data.affiliate.channel_url && (
+                      <>
+                        {" · "}
+                        <a
+                          href={data.affiliate.channel_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline break-all"
+                        >
+                          {data.affiliate.channel_url}
+                        </a>
+                      </>
+                    )}
+                  </p>
+                  {data.affiliate.niche && (
+                    <p className="sm:col-span-2">
+                      <span className="text-muted-foreground">Niche:</span>{" "}
+                      {data.affiliate.niche}
+                    </p>
+                  )}
+                </div>
+                {data.affiliate.audience_types && data.affiliate.audience_types.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.affiliate.audience_types.map((t) => (
+                      <Badge key={t} variant="secondary" className="text-[10px]">
+                        {prettyLabel(t)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {data.affiliate.regions && data.affiliate.regions.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.affiliate.regions.map((r) => (
+                      <Badge key={r} variant="outline" className="text-[10px]">
+                        {prettyLabel(r)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Fit */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Brandie fit
+                </p>
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Used Brandie:</span>{" "}
+                  {data.affiliate.used_brandie === true
+                    ? "Yes"
+                    : data.affiliate.used_brandie === false
+                      ? "Not yet"
+                      : "—"}
+                </p>
+                {data.affiliate.brandie_experience && (
+                  <div className="text-sm">
+                    <p className="text-muted-foreground text-xs mb-0.5">Experience</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {data.affiliate.brandie_experience}
+                    </p>
+                  </div>
+                )}
+                {data.affiliate.why_join && (
+                  <div className="text-sm">
+                    <p className="text-muted-foreground text-xs mb-0.5">Why they want to join</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {data.affiliate.why_join}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Promo plan */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Promo plan
+                </p>
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Cadence:</span>{" "}
+                  {data.affiliate.posting_cadence
+                    ? prettyLabel(data.affiliate.posting_cadence)
+                    : "—"}
+                </p>
+                {data.affiliate.content_types && data.affiliate.content_types.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.affiliate.content_types.map((c) => (
+                      <Badge key={c} variant="secondary" className="text-[10px]">
+                        {prettyLabel(c)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {data.affiliate.promo_plan && (
+                  <div className="text-sm">
+                    <p className="text-muted-foreground text-xs mb-0.5">Plan</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {data.affiliate.promo_plan}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Agreements */}
+              <div className="space-y-1 pt-2 border-t border-border">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Agreements
+                </p>
+                <p className="text-xs flex items-center gap-1.5">
+                  <span className={data.affiliate.agreed_disclosure ? "text-green-600" : "text-destructive"}>
+                    {data.affiliate.agreed_disclosure ? "✓" : "✗"}
+                  </span>
+                  FTC disclosure
+                </p>
+                <p className="text-xs flex items-center gap-1.5">
+                  <span className={data.affiliate.agreed_terms ? "text-green-600" : "text-destructive"}>
+                    {data.affiliate.agreed_terms ? "✓" : "✗"}
+                  </span>
+                  Program terms
+                </p>
+              </div>
+            </div>
+
+
             {/* Payouts */}
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -2064,7 +2270,7 @@ function AffiliateDetailDrawer({
   );
 }
 
-function PendingAffiliatesQueue() {
+function PendingAffiliatesQueue({ onOpenDetail }: { onOpenDetail?: (id: string) => void }) {
   const queryClient = useQueryClient();
 
   const { data: pending, isLoading } = useQuery({
@@ -2167,56 +2373,88 @@ function PendingAffiliatesQueue() {
         {pending.map((row: Record<string, unknown>) => (
           <div
             key={row.id as string}
-            className="flex items-center gap-3 p-3 rounded-xl bg-background border border-border"
+            className="p-3 rounded-xl bg-background border border-border space-y-2"
           >
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm truncate">
-                {String(row.affiliate_code)}
-              </p>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
-                {row.whatsapp_number && (
-                  <span>{String(row.whatsapp_number)}</span>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium text-sm">
+                    {String(row.affiliate_code)}
+                  </p>
+                  {row.primary_channel && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {prettyLabel(String(row.primary_channel))}
+                      {row.channel_handle && ` · ${String(row.channel_handle)}`}
+                    </Badge>
+                  )}
+                  {row.audience_size && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {prettyLabel(String(row.audience_size))}
+                    </Badge>
+                  )}
+                  {row.recruited_by && (
+                    <Badge variant="outline" className="text-[10px]">
+                      Recruited ✓
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  {row.whatsapp_number && <span>{String(row.whatsapp_number)}</span>}
+                  {row.location && <span>{String(row.location)}</span>}
+                </div>
+                {row.niche && (
+                  <p className="text-xs text-muted-foreground italic truncate">
+                    "{String(row.niche)}"
+                  </p>
                 )}
-                {row.location && <span>{String(row.location)}</span>}
-                {row.recruited_by && <span>Recruited ✓</span>}
               </div>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10 h-8 px-3 text-xs"
-                disabled={actionMutation.isPending}
-                onClick={() =>
-                  actionMutation.mutate({
-                    id: row.id as string,
-                    status: "rejected",
-                    userEmail: row.user_id
-                      ? `__resolve_user__:${row.user_id}`
-                      : undefined,
-                  })
-                }
-              >
-                Reject
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-xl h-8 px-3 text-xs"
-                disabled={actionMutation.isPending}
-                onClick={() =>
-                  actionMutation.mutate({
-                    id: row.id as string,
-                    status: "approved",
-                    affiliateCode: row.affiliate_code as string,
-                    userEmail: row.user_id
-                      ? `__resolve_user__:${row.user_id}`
-                      : undefined,
-                  })
-                }
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                Approve
-              </Button>
+              <div className="flex gap-2 shrink-0">
+                {onOpenDetail && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-8 px-3 text-xs"
+                    onClick={() => onOpenDetail(row.id as string)}
+                  >
+                    Review
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10 h-8 px-3 text-xs"
+                  disabled={actionMutation.isPending}
+                  onClick={() =>
+                    actionMutation.mutate({
+                      id: row.id as string,
+                      status: "rejected",
+                      userEmail: row.user_id
+                        ? `__resolve_user__:${row.user_id}`
+                        : undefined,
+                    })
+                  }
+                >
+                  Reject
+                </Button>
+                <Button
+                  size="sm"
+                  className="rounded-xl h-8 px-3 text-xs"
+                  disabled={actionMutation.isPending}
+                  onClick={() =>
+                    actionMutation.mutate({
+                      id: row.id as string,
+                      status: "approved",
+                      affiliateCode: row.affiliate_code as string,
+                      userEmail: row.user_id
+                        ? `__resolve_user__:${row.user_id}`
+                        : undefined,
+                    })
+                  }
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                  Approve
+                </Button>
+              </div>
             </div>
           </div>
         ))}
@@ -2545,7 +2783,7 @@ export default function Admin() {
           <TabsContent value="affiliates">
             <div className="space-y-6">
               <AffiliateAnalyticsPanel onOpenDetail={setAffiliateDetailId} />
-              <PendingAffiliatesQueue />
+              <PendingAffiliatesQueue onOpenDetail={setAffiliateDetailId} />
               <Card className="rounded-2xl">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
