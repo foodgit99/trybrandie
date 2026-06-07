@@ -78,28 +78,26 @@ const AffiliateMarketing = () => {
   const [refsPerMonth, setRefsPerMonth] = useState(5);
   const [recruits, setRecruits] = useState(2);
   const [recruitRefs, setRecruitRefs] = useState(3);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("creator");
+
+  const selectedPlan = useMemo(
+    () => PLAN_ARPU_OPTIONS.find((p) => p.id === selectedPlanId) ?? PLAN_ARPU_OPTIONS[1],
+    [selectedPlanId],
+  );
 
   const projection = useMemo(() => {
-    const m1 = projectEarnings({
+    const base = {
       newReferralsPerMonth: refsPerMonth,
       recruitedAffiliates: recruits,
       recruitReferralsPerMonth: recruitRefs,
-      horizonMonths: 1,
-    });
-    const m6 = projectEarnings({
-      newReferralsPerMonth: refsPerMonth,
-      recruitedAffiliates: recruits,
-      recruitReferralsPerMonth: recruitRefs,
-      horizonMonths: 6,
-    });
-    const y1 = projectEarnings({
-      newReferralsPerMonth: refsPerMonth,
-      recruitedAffiliates: recruits,
-      recruitReferralsPerMonth: recruitRefs,
-      horizonMonths: 12,
-    });
-    return { m1, m6, y1 };
-  }, [refsPerMonth, recruits, recruitRefs]);
+      arpu: selectedPlan.price,
+    };
+    return {
+      m1: projectEarnings({ ...base, horizonMonths: 1 }),
+      m6: projectEarnings({ ...base, horizonMonths: 6 }),
+      y1: projectEarnings({ ...base, horizonMonths: 12 }),
+    };
+  }, [refsPerMonth, recruits, recruitRefs, selectedPlan]);
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
