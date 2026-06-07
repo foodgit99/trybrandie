@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, Pencil } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import TeamMembersPanel from "@/components/team/TeamMembersPanel";
 
 const Swatch = ({ hex }: { hex: string }) => (
   <div className="flex flex-col items-center gap-1.5">
@@ -245,6 +246,14 @@ const BrandCentre = () => {
             </ul>
           )}
         </Block>
+
+        <section className="space-y-3">
+          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Team</h2>
+          <TeamMembersPanel />
+        </section>
+
+
+
 
         <div className="rounded-3xl border border-border bg-foreground text-background p-6 sm:p-8 flex items-center justify-between gap-4">
           <div className="min-w-0">

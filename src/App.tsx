@@ -49,6 +49,7 @@ import V2History from "./pages/v2/History";
 import V2Hub from "./pages/v2/Hub";
 import V2Pricing from "./pages/v2/Pricing";
 import BrandsPage from "./pages/Brands";
+import AcceptInvite from "./pages/AcceptInvite";
 
 const queryClient = new QueryClient();
 
@@ -93,9 +94,15 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (user) return <Navigate to="/" replace />;
+  if (user) {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") ? next : "/";
+    return <Navigate to={safeNext} replace />;
+  }
   return <>{children}</>;
 }
+
 
 function LandingOrCockpit() {
   const { user, loading } = useAuth();
@@ -149,6 +156,7 @@ const App = () => (
           {/* ============ PRIMARY (v2) experience ============ */}
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/invite/:token" element={<AcceptInvite />} />
           <Route path="/" element={<LandingOrCockpit />} />
           <Route path="/onboarding" element={<OnboardingRoute><V2Onboarding /></OnboardingRoute>} />
           <Route path="/cockpit" element={<ProtectedRoute><V2Cockpit /></ProtectedRoute>} />

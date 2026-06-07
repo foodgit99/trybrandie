@@ -936,6 +936,22 @@ function subscriptionCancelledHtml(planId: string, periodEnd: string): string {
   });
 }
 
+function teamInviteHtml(brandName: string, inviterName: string, token: string, role: string): string {
+  const acceptUrl = `${APP_URL}/invite/${encodeURIComponent(token)}`;
+  return subEmailShell({
+    eyebrow: "Team Invitation",
+    heading: `${inviterName || "Someone"} invited you to ${brandName}`,
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">You've been invited to collaborate on <strong>${brandName}</strong> on Brandie as a <strong>${role}</strong>.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Click the button below to accept. If you don't have a Brandie account yet, you'll be asked to create one with the email this invite was sent to.</p>`,
+    ctaText: "Accept invitation",
+    ctaUrl: acceptUrl,
+    secondaryText: "What is Brandie?",
+    secondaryUrl: `${APP_URL}/`,
+    footer: "You received this because a Brandie user invited you to their brand workspace.",
+  });
+}
+
 
 
 Deno.serve(async (req) => {
@@ -1409,6 +1425,17 @@ Deno.serve(async (req) => {
         const planLabel = PLAN_LABELS[planId] || planId;
         subject = `Your Brandie ${planLabel} plan will end on ${fmtDate(data?.period_end || new Date().toISOString())}`;
         html = subscriptionCancelledHtml(planId, data?.period_end || new Date().toISOString());
+        break;
+      }
+      case "team_invite": {
+        const brandName = String(data?.brand_name || "a brand");
+        subject = `${data?.inviter_name || "Someone"} invited you to ${brandName} on Brandie`;
+        html = teamInviteHtml(
+          brandName,
+          String(data?.inviter_name || ""),
+          String(data?.token || ""),
+          String(data?.role || "editor")
+        );
         break;
       }
       default:
