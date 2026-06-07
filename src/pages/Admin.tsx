@@ -65,6 +65,9 @@ import {
   CalendarIcon,
   X,
   Gift,
+  TrendingUp,
+  Wallet,
+  Users2,
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
