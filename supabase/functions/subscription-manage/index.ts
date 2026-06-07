@@ -38,6 +38,24 @@ Deno.serve(async (req) => {
         .from("subscriptions")
         .update({ cancel_at_period_end: true })
         .eq("id", sub.id);
+
+      // Fire cancellation-scheduled email
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            type: "subscription_cancelled",
+            to: `__resolve_user__:${userId}`,
+            data: { plan_id: sub.plan_id, period_end: sub.current_period_end },
+          }),
+        });
+      } catch (e) {
+        console.error("[subscription-manage] email failed", e);
+      }
       return j({ ok: true, cancel_at_period_end: true });
     } else {
       await supabase
