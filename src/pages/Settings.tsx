@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import AppHeader from "@/components/AppHeader";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import SubscriptionPanel from "@/components/SubscriptionPanel";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -126,27 +127,10 @@ const Settings = () => {
 
           <Separator />
 
-          {/* Plan */}
+          {/* Subscription */}
           <section className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Plan</h3>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <CreditCard className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium capitalize">{profile?.subscription_tier ?? "Free"} Plan</p>
-                    <p className="text-xs text-muted-foreground">
-                      5 free credits renew monthly
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" className="rounded-xl" onClick={() => navigate("/plans")}>
-                  Upgrade
-                </Button>
-              </div>
-            </div>
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Subscription</h3>
+            {user?.id && <SubscriptionPanel userId={user.id} />}
           </section>
 
           <Separator />
