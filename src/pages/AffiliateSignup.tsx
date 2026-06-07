@@ -243,6 +243,124 @@ const AffiliateSignup = () => {
         </div>
       </nav>
 
+      {/* ─── Application Form (moved to top) ─── */}
+      <section id="apply" className="border-b border-border bg-secondary/30 py-12 sm:py-16">
+        <div className="max-w-lg mx-auto px-4 sm:px-6">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            className="space-y-8"
+          >
+            <motion.div variants={fadeUp} custom={0} className="text-center space-y-3">
+              <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">
+                {user ? "Apply as Affiliate" : "Join the program"}
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Fill in your details, we'll review and approve within 24 hours.
+              </p>
+            </motion.div>
+
+            <motion.div variants={fadeUp} custom={1}>
+              <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6">
+                {refCode && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary rounded-xl px-4 py-2.5">
+                    <Users2 className="h-3.5 w-3.5 shrink-0" />
+                    <span>Invited by affiliate: <span className="font-mono font-medium text-foreground">{refCode}</span></span>
+                  </div>
+                )}
+
+                <form onSubmit={handleApply} className="space-y-4">
+                  {!user && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">Full name <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="fullName"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="Jane Smith"
+                          required
+                          maxLength={100}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          required
+                          maxLength={255}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp" className="flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5" /> WhatsApp Number
+                    </Label>
+                    <Input
+                      id="whatsapp"
+                      type="tel"
+                      value={whatsappNumber}
+                      onChange={(e) => setWhatsappNumber(e.target.value)}
+                      placeholder="+234 801 234 5678"
+                      maxLength={20}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="location" className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" /> Location
+                    </Label>
+                    <Input
+                      id="location"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Lagos, Nigeria"
+                      maxLength={100}
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full h-12 rounded-xl gap-2 text-sm" disabled={loading}>
+                    {loading ? "Submitting…" : "Submit Application"}
+                    {!loading && <ArrowRight className="h-4 w-4" />}
+                  </Button>
+                </form>
+
+                {!user && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    Already have an account?{" "}
+                    <button
+                      onClick={() => navigate("/auth")}
+                      className="underline underline-offset-4 hover:text-foreground transition-colors"
+                    >
+                      Sign in
+                    </button>{" "}
+                    then come back here.
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ─── Hero ─── */}
       <section className="relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-12 sm:pb-20">
@@ -503,124 +621,6 @@ const AffiliateSignup = () => {
         </div>
       </section>
 
-      {/* ─── Application Form ─── */}
-      <section id="apply" className="border-t border-border bg-secondary/30 py-16 sm:py-20">
-        <div className="max-w-lg mx-auto px-4 sm:px-6">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="space-y-8"
-          >
-            <motion.div variants={fadeUp} custom={0} className="text-center space-y-3">
-              <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">
-                {user ? "Apply as Affiliate" : "Join the program"}
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                Fill in your details, we'll review and approve within 24 hours.
-              </p>
-            </motion.div>
-
-            <motion.div variants={fadeUp} custom={1}>
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6">
-                {refCode && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary rounded-xl px-4 py-2.5">
-                    <Users2 className="h-3.5 w-3.5 shrink-0" />
-                    <span>Invited by affiliate: <span className="font-mono font-medium text-foreground">{refCode}</span></span>
-                  </div>
-                )}
-
-                <form onSubmit={handleApply} className="space-y-4">
-                  {!user && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName">Full name <span className="text-destructive">*</span></Label>
-                        <Input
-                          id="fullName"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Jane Smith"
-                          required
-                          maxLength={100}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          required
-                          maxLength={255}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          required
-                          minLength={6}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="whatsapp" className="flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5" /> WhatsApp Number
-                    </Label>
-                    <Input
-                      id="whatsapp"
-                      type="tel"
-                      value={whatsappNumber}
-                      onChange={(e) => setWhatsappNumber(e.target.value)}
-                      placeholder="+234 801 234 5678"
-                      maxLength={20}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="location" className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5" /> Location
-                    </Label>
-                    <Input
-                      id="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Lagos, Nigeria"
-                      maxLength={100}
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full h-12 rounded-xl gap-2 text-sm" disabled={loading}>
-                    {loading ? "Submitting…" : "Submit Application"}
-                    {!loading && <ArrowRight className="h-4 w-4" />}
-                  </Button>
-                </form>
-
-                {!user && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Already have an account?{" "}
-                    <button
-                      onClick={() => navigate("/auth")}
-                      className="underline underline-offset-4 hover:text-foreground transition-colors"
-                    >
-                      Sign in
-                    </button>{" "}
-                    then come back here.
-                  </p>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
 
       {/* ─── Footer ─── */}
       <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
