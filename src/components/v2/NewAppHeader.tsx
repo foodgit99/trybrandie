@@ -127,6 +127,14 @@ const NewAppHeader = () => {
               <Palette className="h-4 w-4" />
               Brand Centre
             </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brands")}>
+              <Palette className="h-4 w-4" />
+              Manage brands
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/report")}>
+              <BarChart3 className="h-4 w-4" />
+              Report
+            </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/report")}>
               <BarChart3 className="h-4 w-4" />
               Report
