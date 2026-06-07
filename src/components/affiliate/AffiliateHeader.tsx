@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { DollarSign, Wallet, Clock, Users2, ArrowRight, Sparkles } from "lucide-react";
+import { DollarSign, Wallet, Clock, Users2, ArrowRight, Sparkles, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatNgn, highestEarnedMilestone } from "@/lib/affiliateConfig";
 
 interface Props {
