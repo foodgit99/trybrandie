@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/accordion";
 import {
   AFFILIATE_RATES,
-  AVG_REFERRAL_MONTHLY_NGN,
   PLAN_ARPU_OPTIONS,
   MILESTONES,
   MIN_PAYOUT_NGN,
