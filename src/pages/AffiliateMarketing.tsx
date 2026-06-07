@@ -469,7 +469,7 @@ const AffiliateMarketing = () => {
         <section className="px-4 sm:px-8 py-16 border-t border-border bg-muted/20">
           <div className="max-w-5xl mx-auto space-y-10">
             <div className="text-center space-y-3">
-              <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">Climb the leaderboard</h2>
+              <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">Climb the ranks</h2>
               <p className="text-muted-foreground">Earn badges as you grow, from Rising Star to Legend.</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
