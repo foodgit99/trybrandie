@@ -90,6 +90,23 @@ serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceRoleKey);
     const kind = action === "generate_carousel" ? "carousel" : "single";
 
+    // Priority rendering: Agency tier (and any plan with priority_render_until in future)
+    // gets elevated job priority. Higher number = higher priority.
+    let priority = 0;
+    try {
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("priority_render_until")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const until = (prof as any)?.priority_render_until;
+      if (until && new Date(until).getTime() > Date.now()) {
+        priority = 10;
+      }
+    } catch {
+      // best-effort — default to 0
+    }
+
     const { data: job, error: insertErr } = await admin
       .from("design_jobs")
       .insert({
@@ -99,6 +116,7 @@ serve(async (req) => {
         status: "queued",
         progress: 0,
         stage: "queued",
+        priority,
         input: body,
       })
       .select("id")
