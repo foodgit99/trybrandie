@@ -65,6 +65,9 @@ import {
   CalendarIcon,
   X,
   Gift,
+  TrendingUp,
+  Wallet,
+  Users2,
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
@@ -1473,6 +1476,594 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
   );
 }
 
+const NGN = (n: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(Number(n || 0));
+
+async function affiliateInsights(payload: Record<string, unknown>) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-insights`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Insights request failed");
+  }
+  return res.json();
+}
+
+type AnalyticsResponse = {
+  totals: {
+    affiliates: number;
+    counts_by_status: Record<string, number>;
+    total_earned_all: number;
+    total_paid_all: number;
+    outstanding_balance: number;
+  };
+  payouts: {
+    pending_payout_owed: number;
+    payouts_pending_count: number;
+    payouts_paid_total: number;
+  };
+  commissions: {
+    mtd: number;
+    all_time: number;
+    pending: number;
+    by_type: Record<string, number>;
+  };
+  referrals: { total: number; paying: number; conversion_rate: number };
+  top_earners: Array<{
+    id: string;
+    affiliate_code: string;
+    email: string | null;
+    total_earned: number;
+    total_paid: number;
+    referrals: number;
+    paying_referrals: number;
+  }>;
+};
+
+function AffiliateAnalyticsPanel({
+  onOpenDetail,
+}: {
+  onOpenDetail: (id: string) => void;
+}) {
+  const { data, isLoading } = useQuery<AnalyticsResponse>({
+    queryKey: ["admin-affiliate-analytics"],
+    queryFn: () => affiliateInsights({ operation: "analytics" }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-24 rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+  if (!data) return null;
+
+  const status = data.totals.counts_by_status || {};
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="rounded-2xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Users2 className="h-3.5 w-3.5" /> Affiliates
+            </div>
+            <p className="text-2xl font-semibold mt-1">
+              {data.totals.affiliates}
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {Object.entries(status).map(([k, v]) => (
+                <Badge key={k} variant="secondary" className="text-[10px]">
+                  {k}: {v}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5" /> Outstanding owed
+            </div>
+            <p className="text-2xl font-semibold mt-1">
+              {NGN(data.totals.outstanding_balance)}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {data.payouts.payouts_pending_count} payout request(s) ·{" "}
+              {NGN(data.payouts.pending_payout_owed)} pending
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <TrendingUp className="h-3.5 w-3.5" /> Commissions MTD
+            </div>
+            <p className="text-2xl font-semibold mt-1">
+              {NGN(data.commissions.mtd)}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              All-time: {NGN(data.commissions.all_time)} · Pending:{" "}
+              {NGN(data.commissions.pending)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <UserCheck className="h-3.5 w-3.5" /> Referral conversion
+            </div>
+            <p className="text-2xl font-semibold mt-1">
+              {(data.referrals.conversion_rate * 100).toFixed(1)}%
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {data.referrals.paying} paying / {data.referrals.total} referred
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" /> Top earners
+          </CardTitle>
+          <CardDescription>Tap a row to open full affiliate profile</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {data.top_earners.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No earners yet.</p>
+          ) : (
+            data.top_earners.map((t, i) => (
+              <button
+                key={t.id}
+                onClick={() => onOpenDetail(t.id)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-secondary/50 transition text-left"
+              >
+                <span className="font-serif text-lg text-muted-foreground w-6">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">
+                    {t.email || t.affiliate_code}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {t.affiliate_code} · {t.referrals} referrals ·{" "}
+                    {t.paying_referrals} paying
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold">{NGN(t.total_earned)}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Paid: {NGN(t.total_paid)}
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+type DetailResponse = {
+  affiliate: Record<string, unknown> & {
+    id: string;
+    user_id: string;
+    affiliate_code: string;
+    status: string;
+    commission_rate: number;
+    total_earned: number;
+    total_paid: number;
+    bank_name: string | null;
+    account_name: string | null;
+    account_number: string | null;
+    whatsapp_number: string | null;
+    location: string | null;
+    created_at: string;
+  };
+  email: string | null;
+  recruiter: { affiliate_code: string; email: string | null } | null;
+  referrals: Array<{
+    id: string;
+    referred_user_id: string;
+    email: string | null;
+    status: string;
+    payment_count: number;
+    created_at: string;
+  }>;
+  commissions: Array<{
+    id: string;
+    commission_amount: number;
+    commission_type: string;
+    status: string;
+    created_at: string;
+    payment_reference: string | null;
+  }>;
+  payouts: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    created_at: string;
+    processed_at: string | null;
+  }>;
+  stats: {
+    referrals_count: number;
+    paying_count: number;
+    conversion_rate: number;
+    pending_commission_total: number;
+    requested_payout_total: number;
+    outstanding_balance: number;
+  };
+};
+
+function AffiliateDetailDrawer({
+  affiliateId,
+  onClose,
+}: {
+  affiliateId: string | null;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const open = !!affiliateId;
+
+  const { data, isLoading, refetch } = useQuery<DetailResponse>({
+    queryKey: ["admin-affiliate-detail", affiliateId],
+    queryFn: () =>
+      affiliateInsights({ operation: "detail", affiliate_id: affiliateId }),
+    enabled: open,
+  });
+
+  const updateAffiliate = useMutation({
+    mutationFn: (patch: Record<string, unknown>) =>
+      adminAction({
+        operation: "update",
+        table: "affiliates",
+        id: affiliateId,
+        data: patch,
+      }),
+    onSuccess: () => {
+      toast.success("Affiliate updated");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["admin-affiliate-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-list", "affiliates"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updatePayout = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      adminAction({
+        operation: "update",
+        table: "affiliate_payouts",
+        id,
+        data: {
+          status,
+          processed_at:
+            status === "paid" || status === "rejected"
+              ? new Date().toISOString()
+              : null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Payout updated");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["admin-affiliate-analytics"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updateCommission = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      adminAction({
+        operation: "update",
+        table: "affiliate_commissions",
+        id,
+        data: { status },
+      }),
+    onSuccess: () => {
+      toast.success("Commission updated");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["admin-affiliate-analytics"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Affiliate profile</SheetTitle>
+        </SheetHeader>
+
+        {isLoading || !data ? (
+          <div className="space-y-3 mt-6">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+          </div>
+        ) : (
+          <div className="space-y-6 mt-6">
+            {/* Header */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-lg">
+                  {data.email || data.affiliate.affiliate_code}
+                </p>
+                <Badge
+                  variant={
+                    data.affiliate.status === "approved"
+                      ? "default"
+                      : data.affiliate.status === "pending"
+                      ? "secondary"
+                      : "destructive"
+                  }
+                >
+                  {data.affiliate.status}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Code: {data.affiliate.affiliate_code} · Joined{" "}
+                {new Date(data.affiliate.created_at).toLocaleDateString()}
+                {data.recruiter && (
+                  <> · Recruited by {data.recruiter.email || data.recruiter.affiliate_code}</>
+                )}
+              </p>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] text-muted-foreground">Total earned</p>
+                <p className="font-semibold">{NGN(data.affiliate.total_earned)}</p>
+              </div>
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] text-muted-foreground">Total paid</p>
+                <p className="font-semibold">{NGN(data.affiliate.total_paid)}</p>
+              </div>
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] text-muted-foreground">Outstanding</p>
+                <p className="font-semibold">{NGN(data.stats.outstanding_balance)}</p>
+              </div>
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] text-muted-foreground">Referrals</p>
+                <p className="font-semibold">
+                  {data.stats.referrals_count}{" "}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    ({data.stats.paying_count} paying)
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Status controls */}
+            <div className="rounded-xl border border-border p-3 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Controls
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs">Status</Label>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-border bg-background h-9 px-3 text-sm"
+                    value={data.affiliate.status}
+                    onChange={(e) =>
+                      updateAffiliate.mutate({ status: e.target.value })
+                    }
+                    disabled={updateAffiliate.isPending}
+                  >
+                    <option value="pending">pending</option>
+                    <option value="approved">approved</option>
+                    <option value="suspended">suspended</option>
+                    <option value="rejected">rejected</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Commission rate</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    defaultValue={data.affiliate.commission_rate}
+                    onBlur={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (!Number.isNaN(v) && v !== data.affiliate.commission_rate) {
+                        updateAffiliate.mutate({ commission_rate: v });
+                      }
+                    }}
+                    className="mt-1 rounded-xl h-9"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bank */}
+            <div className="rounded-xl border border-border p-3 text-sm space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Payout details
+              </p>
+              <p>
+                <span className="text-muted-foreground">Bank:</span>{" "}
+                {data.affiliate.bank_name || "—"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Account:</span>{" "}
+                {data.affiliate.account_name || "—"} ·{" "}
+                {data.affiliate.account_number || "—"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">WhatsApp:</span>{" "}
+                {data.affiliate.whatsapp_number || "—"} ·{" "}
+                <span className="text-muted-foreground">Location:</span>{" "}
+                {data.affiliate.location || "—"}
+              </p>
+            </div>
+
+            {/* Payouts */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Payout requests ({data.payouts.length})
+              </p>
+              {data.payouts.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No payouts yet.</p>
+              ) : (
+                data.payouts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-2 rounded-xl border border-border p-2.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{NGN(p.amount)}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {new Date(p.created_at).toLocaleDateString()} · {p.status}
+                      </p>
+                    </div>
+                    {(p.status === "requested" || p.status === "approved") && (
+                      <div className="flex gap-1">
+                        {p.status === "requested" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs rounded-lg"
+                            onClick={() =>
+                              updatePayout.mutate({ id: p.id, status: "approved" })
+                            }
+                          >
+                            Approve
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs rounded-lg"
+                          onClick={() =>
+                            updatePayout.mutate({ id: p.id, status: "paid" })
+                          }
+                        >
+                          Mark paid
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs rounded-lg text-destructive"
+                          onClick={() =>
+                            updatePayout.mutate({ id: p.id, status: "rejected" })
+                          }
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Commissions */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Commissions ({data.commissions.length})
+              </p>
+              {data.commissions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No commissions yet.</p>
+              ) : (
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {data.commissions.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-2 rounded-xl border border-border p-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">
+                          {NGN(c.commission_amount)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {c.commission_type} ·{" "}
+                          {new Date(c.created_at).toLocaleDateString()} ·{" "}
+                          {c.status}
+                        </p>
+                      </div>
+                      {c.status === "pending" && (
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs rounded-lg"
+                            onClick={() =>
+                              updateCommission.mutate({ id: c.id, status: "approved" })
+                            }
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs rounded-lg text-destructive"
+                            onClick={() =>
+                              updateCommission.mutate({ id: c.id, status: "voided" })
+                            }
+                          >
+                            Void
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Referrals */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Referrals ({data.referrals.length})
+              </p>
+              {data.referrals.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No referrals yet.</p>
+              ) : (
+                <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+                  {data.referrals.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center gap-2 rounded-xl border border-border p-2.5 text-sm"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{r.email || r.referred_user_id}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {new Date(r.created_at).toLocaleDateString()} ·{" "}
+                          {r.payment_count} payments · {r.status}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function PendingAffiliatesQueue() {
   const queryClient = useQueryClient();
 
@@ -1634,7 +2225,13 @@ function PendingAffiliatesQueue() {
   );
 }
 
-function DataTable({ tableName }: { tableName: string }) {
+function DataTable({
+  tableName,
+  onOpenAffiliateDetail,
+}: {
+  tableName: string;
+  onOpenAffiliateDetail?: (id: string) => void;
+}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -1771,6 +2368,16 @@ function DataTable({ tableName }: { tableName: string }) {
                       <Eye className="h-4 w-4" />
                     </Button>
                   )}
+                  {tableName === "affiliates" && onOpenAffiliateDetail && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onOpenAffiliateDetail(row.id as string)}
+                      className="rounded-xl"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1870,6 +2477,7 @@ function DataTable({ tableName }: { tableName: string }) {
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [affiliateDetailId, setAffiliateDetailId] = useState<string | null>(null);
 
   const { data: pendingCount } = useQuery({
     queryKey: ["admin-pending-affiliates"],
@@ -1936,6 +2544,7 @@ export default function Admin() {
 
           <TabsContent value="affiliates">
             <div className="space-y-6">
+              <AffiliateAnalyticsPanel onOpenDetail={setAffiliateDetailId} />
               <PendingAffiliatesQueue />
               <Card className="rounded-2xl">
                 <CardHeader>
@@ -1943,13 +2552,24 @@ export default function Admin() {
                     <UserCheck className="h-5 w-5" />
                     All Affiliates
                   </CardTitle>
+                  <CardDescription>
+                    Tap the eye icon on any row to view full profile, payouts, commissions and referrals.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <DataTable tableName="affiliates" />
+                  <DataTable
+                    tableName="affiliates"
+                    onOpenAffiliateDetail={setAffiliateDetailId}
+                  />
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
+          <AffiliateDetailDrawer
+            affiliateId={affiliateDetailId}
+            onClose={() => setAffiliateDetailId(null)}
+          />
+
 
           {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates" && t.key !== "rewards").map((t) => (
             <TabsContent key={t.key} value={t.key}>
