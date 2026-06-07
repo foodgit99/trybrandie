@@ -463,6 +463,51 @@ export type Database = {
           },
         ]
       }
+      brand_team_members: {
+        Row: {
+          accepted_at: string | null
+          brand_id: string
+          created_at: string
+          email: string
+          id: string
+          invite_token: string | null
+          invited_at: string
+          invited_by: string
+          role: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          brand_id: string
+          created_at?: string
+          email: string
+          id?: string
+          invite_token?: string | null
+          invited_at?: string
+          invited_by: string
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          brand_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          invite_token?: string | null
+          invited_at?: string
+          invited_by?: string
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       brand_trend_intel: {
         Row: {
           brand_id: string
@@ -611,10 +656,12 @@ export type Database = {
       brands: {
         Row: {
           accent_colors: string[] | null
+          client_folder_id: string | null
           created_at: string
           description: string | null
           gene_lock_policy: Json | null
           id: string
+          is_archived: boolean
           logo_url: string | null
           name: string
           onboarding_complete: boolean
@@ -635,10 +682,12 @@ export type Database = {
         }
         Insert: {
           accent_colors?: string[] | null
+          client_folder_id?: string | null
           created_at?: string
           description?: string | null
           gene_lock_policy?: Json | null
           id?: string
+          is_archived?: boolean
           logo_url?: string | null
           name: string
           onboarding_complete?: boolean
@@ -659,10 +708,12 @@ export type Database = {
         }
         Update: {
           accent_colors?: string[] | null
+          client_folder_id?: string | null
           created_at?: string
           description?: string | null
           gene_lock_policy?: Json | null
           id?: string
+          is_archived?: boolean
           logo_url?: string | null
           name?: string
           onboarding_complete?: boolean
@@ -681,7 +732,15 @@ export type Database = {
           vibe?: string | null
           website_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "brands_client_folder_id_fkey"
+            columns: ["client_folder_id"]
+            isOneToOne: false
+            referencedRelation: "client_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       campaigns: {
         Row: {
@@ -748,6 +807,33 @@ export type Database = {
           tags?: Json
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      client_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1028,6 +1114,7 @@ export type Database = {
           id: string
           input: Json
           kind: string
+          priority: number
           progress: number
           result: Json | null
           stage: string | null
@@ -1045,6 +1132,7 @@ export type Database = {
           id?: string
           input?: Json
           kind?: string
+          priority?: number
           progress?: number
           result?: Json | null
           stage?: string | null
@@ -1062,6 +1150,7 @@ export type Database = {
           id?: string
           input?: Json
           kind?: string
+          priority?: number
           progress?: number
           result?: Json | null
           stage?: string | null
@@ -1517,6 +1606,7 @@ export type Database = {
           monday_briefing_hour: number
           paid_credits: number
           posting_timezone: string
+          priority_render_until: string | null
           referral_code: string | null
           referred_by: string | null
           subscription_tier: string
@@ -1551,6 +1641,7 @@ export type Database = {
           monday_briefing_hour?: number
           paid_credits?: number
           posting_timezone?: string
+          priority_render_until?: string | null
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
@@ -1585,6 +1676,7 @@ export type Database = {
           monday_briefing_hour?: number
           paid_credits?: number
           posting_timezone?: string
+          priority_render_until?: string | null
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
@@ -1750,6 +1842,198 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "strategy_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_charges: {
+        Row: {
+          amount: number
+          attempt_count: number
+          charge_type: string
+          created_at: string
+          currency: string
+          failure_reason: string | null
+          id: string
+          paystack_reference: string
+          raw_response: Json | null
+          status: string
+          subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          attempt_count?: number
+          charge_type?: string
+          created_at?: string
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          paystack_reference: string
+          raw_response?: Json | null
+          status?: string
+          subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          attempt_count?: number
+          charge_type?: string
+          created_at?: string
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          paystack_reference?: string
+          raw_response?: Json | null
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_charges_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_credits: {
+        Row: {
+          amount: number
+          expires_at: string
+          granted_at: string
+          id: string
+          remaining: number
+          subscription_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          expires_at: string
+          granted_at?: string
+          id?: string
+          remaining: number
+          subscription_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          expires_at?: string
+          granted_at?: string
+          id?: string
+          remaining?: number
+          subscription_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_credits_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          brand_limit: number | null
+          created_at: string
+          features: Json
+          id: string
+          is_active: boolean
+          monthly_credits: number
+          name: string
+          price_naira: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          brand_limit?: number | null
+          created_at?: string
+          features?: Json
+          id: string
+          is_active?: boolean
+          monthly_credits: number
+          name: string
+          price_naira: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          brand_limit?: number | null
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          monthly_credits?: number
+          name?: string
+          price_naira?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          authorization_code: string | null
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          customer_code: string | null
+          failed_attempts: number
+          id: string
+          last_charge_reference: string | null
+          last_renewal_attempt_at: string | null
+          plan_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          authorization_code?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end: string
+          current_period_start?: string
+          customer_code?: string | null
+          failed_attempts?: number
+          id?: string
+          last_charge_reference?: string | null
+          last_renewal_attempt_at?: string | null
+          plan_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          authorization_code?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          customer_code?: string | null
+          failed_attempts?: number
+          id?: string
+          last_charge_reference?: string | null
+          last_renewal_attempt_at?: string | null
+          plan_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -2018,6 +2302,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_brand_access: {
+        Args: { _brand_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
