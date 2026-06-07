@@ -44,7 +44,7 @@ const FAQS = [
   },
   {
     q: "How much can I earn?",
-    a: `You earn ${AFFILIATE_RATES.tier1FirstPct}% on every new user's first payment, then ${AFFILIATE_RATES.tier1RecurringPct}% on every payment they make after that, for life. If you also recruit other affiliates, you earn ${AFFILIATE_RATES.tier2FirstPct}% first and ${AFFILIATE_RATES.tier2RecurringPct}% recurring on their referrals too. There is no earnings cap.`,
+    a: `You earn ${AFFILIATE_RATES.tier1FirstPct}% on every new user's first payment, then ${AFFILIATE_RATES.tier1RecurringPct}% on every payment they make after that, for life. On the Creator plan (${formatNgn(37000)}/mo) that's ${formatNgn(37000 * 0.2)} the first month, then ${formatNgn(37000 * 0.05)} every month after. If you also recruit other affiliates, you earn ${AFFILIATE_RATES.tier2FirstPct}% first and ${AFFILIATE_RATES.tier2RecurringPct}% recurring on their referrals too. There is no earnings cap.`,
   },
   {
     q: "When and how do I get paid?",
