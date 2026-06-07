@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import BrandSwitcher from "@/components/BrandSwitcher";
+import CreditsBadge from "@/components/CreditsBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
