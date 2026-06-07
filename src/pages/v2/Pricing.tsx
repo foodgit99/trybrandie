@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import SubscriptionTiers from "@/components/SubscriptionTiers";
 import { supabase } from "@/integrations/supabase/client";
 
 const FREE_MONTHLY = 5;
@@ -268,11 +269,11 @@ const V2Pricing = () => {
               {/* Hero */}
               <div className="text-center space-y-3 max-w-2xl mx-auto">
                 <h1 className="text-3xl sm:text-5xl font-serif tracking-tight">
-                  Pay only for what you create.
+                  Pick your pace.
                 </h1>
                 <p className="text-muted-foreground sm:text-lg">
-                  No subscriptions. No expiry. Buy credits when you need them and
-                  let Brandie run your marketing department in the background.
+                  Subscribe for monthly credits + premium features, or pay as you go.
+                  Either way, Brandie keeps your marketing running in the background.
                 </p>
               </div>
 
@@ -287,6 +288,18 @@ const V2Pricing = () => {
                   </span>
                 </div>
               )}
+
+              {/* Subscription tiers */}
+              <SubscriptionTiers callbackPath="/pricing" />
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 max-w-md mx-auto">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Or top up anytime
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
 
               <div className="grid md:grid-cols-5 gap-6 items-start">
                 {/* Credit Card */}
