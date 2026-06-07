@@ -1,80 +1,84 @@
-## Goal
-Make Brandie installable on iOS/Android home screens and enable Firebase Cloud Messaging (FCM) web push for transactional moments (e.g. "Today's post is ready", low credits, autopilot done).
+# Real branded banners for the Marketing Kit
 
-## Scope split
+Today the Marketing Kit tab shows three CSS gradient placeholders labeled "Brandie / AI Brand Studio" — no actual image file exists, so affiliates have nothing to download. The landing copy ("Approved affiliates get branded banners…") overpromises. This plan ships 6 real banners they can save in one tap.
 
-**Phase A — Installable (manifest only).** No app-shell service worker, no offline caching. Per Lovable's PWA rules, this avoids preview-breaking stale caches.
+## What gets generated
 
-**Phase B — FCM web push.** Adds a dedicated `firebase-messaging-sw.js` (messaging-only, not an app-shell cache), a token-registration UI surface, an edge function to send notifications, and a `push_subscriptions` table. The two service workers don't conflict — FCM's worker has its own scope and file.
+Two style families × three sizes each = **6 PNG banners**, all matching the warm Nigerian premium palette (Beige `#FAF8F5`, Charcoal `#2B2D33`, Gold `#C4993B`).
 
----
+**Style A — "Founder-led, warm editorial"**
+Soft beige background, serif headline, a Nigerian founder portrait silhouette on the right, gold underline accent. Headline: *"Your marketing department, on autopilot."* Sub: *"Brandie — AI Brand Studio for African founders."*
 
-## Phase A — Installable
+**Style B — "Product-led, bold"**
+Charcoal background, large serif headline in cream, a stylized Weekly Blueprint phone mockup with 5 post tiles, gold CTA chip. Headline: *"5 posts a week. 10-minute Monday review."* Sub: *"Brandie does the rest."*
 
-### Files
-- `public/manifest.webmanifest` — `name: "Brandie"`, `short_name: "Brandie"`, `theme_color: #2B2D33` (charcoal), `background_color: #FAF8F5` (beige), `display: "standalone"`, `start_url: "/"`, `id: "/"`, `scope: "/"`, icon entries (192, 512, 512 maskable).
-- `public/icons/icon-192.png`, `icon-512.png`, `icon-512-maskable.png` — generated from the PNG you'll attach (square, ≥512).
-- `index.html` — add `<link rel="manifest">`, `<meta name="theme-color" content="#2B2D33">`, `<link rel="apple-touch-icon" href="/icons/icon-192.png">`, `<meta name="apple-mobile-web-app-capable" content="yes">`, `<meta name="apple-mobile-web-app-status-bar-style" content="default">`, `<meta name="apple-mobile-web-app-title" content="Brandie">`.
+Sizes per style:
+- `1:1` 1080×1080 — IG/X/LinkedIn feed
+- `9:16` 1080×1920 — Stories / Reels covers
+- `16:9` 1920×1080 — YouTube end card, X header, blog hero
 
-No `vite-plugin-pwa`, no `sw.js`, no registration code. Lovable's cache headers handle freshness.
+All 6 are generated with the premium image model, saved to `src/assets/affiliate-banners/`, then converted to Lovable CDN assets so they don't bloat the repo.
 
----
+## What changes in the dashboard
 
-## Phase B — FCM Push Notifications
+`src/components/affiliate/MarketingKitTab.tsx` and `src/lib/affiliateAssets.ts`:
 
-### Prereqs you'll provide
-1. **Firebase project** with Cloud Messaging enabled.
-2. **Web app config** (publishable — goes in code): `apiKey`, `authDomain`, `projectId`, `messagingSenderId`, `appId`.
-3. **VAPID public key** (publishable — in code).
-4. **Firebase Admin service account JSON** (secret — stored as `FIREBASE_SERVICE_ACCOUNT_JSON` for the edge function to mint OAuth tokens and call FCM HTTP v1 API).
+- `BANNER_ASSETS` becomes a richer structure grouped by style, each entry carrying `{ id, style, label, ratio, dimensions, imageUrl, fileName }`.
+- The Banner kit section gains a small style switcher ("Founder-led" / "Product-led") and renders the actual `<img>` for each size.
+- Each tile gets a **Download** button (uses `fetch` → `blob` → anchor with `download` attr so the file lands with a proper name like `brandie-affiliate-square-founder.png` instead of opening in a new tab).
+- Helper text updated to: *"Download a banner, post it with your referral link in bio or caption. New styles drop monthly."*
+- Remove the "right-click to save" / "generate one in the studio" copy — no longer needed.
 
-I'll request `FIREBASE_SERVICE_ACCOUNT_JSON` via the secrets tool once you confirm the Firebase project is set up.
+No backend, schema, edge function, or pricing changes. Purely frontend + assets.
 
-### New files
-- `public/firebase-messaging-sw.js` — minimal messaging worker. Initializes Firebase with the web config and handles `onBackgroundMessage` to render a notification. **No precaching, no app-shell behavior, no `caches.*` API.** Scope: `/firebase-cloud-messaging-push-scope`.
-- `src/lib/firebase.ts` — initializes Firebase app + Messaging in the browser (lazy, only after user opts in).
-- `src/lib/push.ts` — `enablePush()`: request `Notification.permission`, register the messaging SW at `/firebase-messaging-sw.js`, call `getToken({ vapidKey, serviceWorkerRegistration })`, POST token to edge function.
-- `src/components/PushOptInCard.tsx` — small opt-in card with a CTA "Get post-ready alerts". Rendered on the Cockpit (`/cockpit`) for users who haven't subscribed and whose browser supports `Notification`. Dismissible.
-- `supabase/functions/push-register/index.ts` — authenticated; upserts `(user_id, token, platform, user_agent)` into `push_subscriptions`.
-- `supabase/functions/push-send/index.ts` — service-role; accepts `{ user_id, title, body, url }`, mints a Google OAuth token from `FIREBASE_SERVICE_ACCOUNT_JSON`, POSTs to FCM HTTP v1 for each token, prunes `404/UNREGISTERED` tokens.
+## Technical details
 
-### DB migration
-```sql
-CREATE TABLE public.push_subscriptions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  token text NOT NULL UNIQUE,
-  platform text,
-  user_agent text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  last_seen_at timestamptz NOT NULL DEFAULT now()
-);
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.push_subscriptions TO authenticated;
-GRANT ALL ON public.push_subscriptions TO service_role;
-ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own subs" ON public.push_subscriptions FOR ALL
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE INDEX ON public.push_subscriptions(user_id);
+```text
+src/assets/affiliate-banners/
+  founder-1x1.jpg.asset.json
+  founder-9x16.jpg.asset.json
+  founder-16x9.jpg.asset.json
+  product-1x1.jpg.asset.json
+  product-9x16.jpg.asset.json
+  product-16x9.jpg.asset.json
 ```
 
-### Where push gets triggered (Phase B+ wiring)
-Initially I'll only wire **one** trigger end-to-end to prove the pipeline:
-- `content-autopilot` calls `push-send` after a daily post is ready → notification "Today's post is ready • Tap to review".
+Generation: `imagegen--generate_image` with `model: "premium"` (text legibility matters), `transparent_background: false`, each at the exact dimensions above so no client-side resizing is needed.
 
-The other triggers (low credits, weekly briefing) are out of scope for this turn and can be added later by calling `push-send` from those functions.
+`affiliateAssets.ts`:
+```ts
+export type BannerStyle = "founder" | "product";
+export interface BannerAsset {
+  id: string;
+  style: BannerStyle;
+  label: string;
+  ratio: "1:1" | "9:16" | "16:9";
+  dimensions: string;
+  imageUrl: string;     // from .asset.json
+  fileName: string;     // download filename
+}
+```
 
----
+Download helper added to `MarketingKitTab.tsx`:
+```ts
+async function downloadAsset(url: string, fileName: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+}
+```
 
-## iOS caveat (worth flagging)
-- iOS 16.4+ supports web push **only for apps installed to Home Screen first**. The opt-in card will detect iOS and instruct: "Add Brandie to your Home Screen, open it from the icon, then enable alerts." Android/desktop Chrome work without install.
+## Verification
 
-## Out of scope
-- Offline app shell / `vite-plugin-pwa` (per Lovable rules — adds preview risk without user-stated need).
-- Topic subscriptions, rich images in notifications, in-app foreground toast bridge (can add later).
-- Native iOS/Android via Capacitor.
+- Visually QA each generated banner — confirm legible "Brandie" wordmark, no clipped text, correct aspect ratio, brand palette intact. Regenerate any that fail.
+- Open `/affiliate` → Marketing Kit tab in the preview, switch between Founder-led and Product-led, download one banner per size, confirm the saved PNG opens and matches the preview.
+- TypeScript check.
 
-## Order of execution (build mode)
-1. Phase A (manifest, icons, head tags) — works immediately after you attach the PNG.
-2. You confirm Firebase project + share web config & VAPID key in chat.
-3. I request `FIREBASE_SERVICE_ACCOUNT_JSON` secret.
-4. Phase B (table → edge functions → frontend SW + opt-in → autopilot trigger).
+## Out of scope (flag, don't build)
+
+- Per-affiliate custom banners with their face/handle baked in — flagged in current copy as a "studio" workflow, can be a follow-up using the existing design pipeline.
+- A banner request form for approved affiliates.
