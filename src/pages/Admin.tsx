@@ -68,11 +68,13 @@ import {
   TrendingUp,
   Wallet,
   Users2,
+  CreditCard,
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
 import AdminTracesTab from "@/components/admin/AdminTracesTab";
 import RewardsTab from "@/components/admin/RewardsTab";
+import SubscriptionsTab from "@/components/admin/SubscriptionsTab";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
@@ -80,6 +82,7 @@ const TABLES = [
   { key: "profiles", label: "Users", icon: Users },
   { key: "brands", label: "Brands", icon: Palette },
   { key: "designs", label: "Designs", icon: Image },
+  { key: "subscriptions", label: "Subscriptions", icon: CreditCard },
   { key: "affiliates", label: "Affiliates", icon: UserCheck },
   { key: "affiliate_commissions", label: "Commissions", icon: DollarSign },
   { key: "affiliate_payouts", label: "Payouts", icon: DollarSign },
@@ -2809,7 +2812,11 @@ export default function Admin() {
           />
 
 
-          {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates" && t.key !== "rewards").map((t) => (
+          <TabsContent value="subscriptions">
+            <SubscriptionsTab />
+          </TabsContent>
+
+          {TABLES.filter((t) => !["overview","email_crm","designs","ai_traces","affiliates","rewards","subscriptions"].includes(t.key)).map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
