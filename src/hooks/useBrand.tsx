@@ -33,7 +33,6 @@ export function useBrand(externalUser?: { id: string } | null) {
     readActiveBrandId()
   );
 
-  // Cross-tab + cross-component sync
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === ACTIVE_BRAND_KEY) setActiveBrandIdState(e.newValue);
@@ -54,16 +53,60 @@ export function useBrand(externalUser?: { id: string } | null) {
   }, []);
 
   const { data: brands, isLoading: queryLoading, refetch } = useQuery({
-    queryKey: ["brands", user?.id],
+    queryKey: ["brands-and-memberships", user?.id],
     queryFn: async () => {
       if (!user) return [] as any[];
-      const { data, error } = await supabase
+
+      // 1. Owned brands
+      const ownedPromise = supabase
         .from("brands")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data ?? [];
+
+      // 2. Brands the user is an active team member of
+      const membershipsPromise = supabase
+        .from("brand_team_members")
+        .select("brand_id, role")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+
+      const [{ data: owned, error: oErr }, { data: memberships, error: mErr }] =
+        await Promise.all([ownedPromise, membershipsPromise]);
+
+      if (oErr) throw oErr;
+      if (mErr) {
+        // Don't hard-fail brand loading if memberships table query fails
+        console.warn("memberships fetch failed", mErr);
+      }
+
+      const ownedIds = new Set((owned ?? []).map((b: any) => b.id));
+      const memberBrandIds = (memberships ?? [])
+        .map((m: any) => m.brand_id)
+        .filter((id: string) => !ownedIds.has(id));
+
+      let memberBrands: any[] = [];
+      if (memberBrandIds.length > 0) {
+        const { data: mb } = await supabase
+          .from("brands")
+          .select("*")
+          .in("id", memberBrandIds);
+        memberBrands = mb ?? [];
+      }
+
+      const roleByBrand: Record<string, string> = {};
+      for (const m of memberships ?? []) {
+        roleByBrand[(m as any).brand_id] = (m as any).role || "editor";
+      }
+
+      const ownedTagged = (owned ?? []).map((b: any) => ({ ...b, __role: "owner" as const }));
+      const memberTagged = memberBrands.map((b: any) => ({
+        ...b,
+        __role: "member" as const,
+        __member_role: roleByBrand[b.id] || "editor",
+      }));
+
+      return [...ownedTagged, ...memberTagged];
     },
     enabled: !!user,
   });
@@ -79,7 +122,6 @@ export function useBrand(externalUser?: { id: string } | null) {
     return pool[0];
   })();
 
-  // If localStorage has a stale id, clear it once brands resolve
   useEffect(() => {
     if (!brands || brands.length === 0) return;
     if (activeBrandId && !brands.some((b: any) => b.id === activeBrandId)) {
@@ -95,7 +137,6 @@ export function useBrand(externalUser?: { id: string } | null) {
       window.dispatchEvent(
         new CustomEvent("brandie:active-brand-changed", { detail: id })
       );
-      // Invalidate brand-scoped queries so pages refetch with new brand
       queryClient.invalidateQueries();
     },
     [queryClient]
