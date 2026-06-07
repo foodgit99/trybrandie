@@ -1,131 +1,124 @@
+## Goal
 
-# Hybrid Pricing: PAYG + 3-Tier Subscriptions
+Activate the two remaining headline features for paid tiers:
 
-## 1. Goals & guardrails
+- **Team Access** (Creator + Agency): brand owner invites teammates by email; teammates accept via magic link, then see the brand in their BrandSwitcher and can read/edit it.
+- **Client Folders** (Agency only): organise brands into named, colour-coded folders that group the BrandSwitcher and the `/brands` page.
 
-- PAYG (₦5,000 / 20 credits) stays the default and ships unchanged.
-- Layer a 3-tier monthly subscription on top: Entrepreneur ₦18,500 / 100 cr, Creator ₦37,000 / 200 cr, Agency ₦92,500 / 500 cr.
-- Free 5/mo and PAYG packs remain available for everyone, even subscribers (additive).
-- Monthly subscription credits **expire** on renewal (use-it-or-lose-it).
-- Recurring billing handled as monthly one-off Paystack charges driven by a scheduler + email/WhatsApp reminders (no Paystack Plans API).
-- Build out the full feature set the new tiers advertise: Multi-Brand, Team Access, Client Folders, White-Label Exports, Priority Rendering.
-- Reuse existing deduction order; add subscription credits as a new bucket.
+Tables `brand_team_members` and `client_folders` already exist; this plan wires them end-to-end.
 
-## 2. Credit model (deduction order)
+---
 
-New order, soonest-expiring first:
-1. **Free monthly** (5/mo)
-2. **Subscription credits** (expire on renewal day)
-3. **Bonus credits** (referrals)
-4. **Reward credits** (`credit_rewards`)
-5. **Paid credits** (PAYG, never expire)
+## Part 1 — Team Access
 
-Every credit-spending edge function (`design-studio`, `logo-designer`, `carousel`, `content-autopilot`, `video-studio`, `trend-recommend`, etc.) needs a shared helper update to deduct in this order.
+### 1.1 Brand-data RLS update (migration)
 
-## 3. Data model
+Today most brand-scoped tables (`designs`, `content_ideas`, `content_pillars`, `campaigns`, `brand_products`, `brand_inspiration`, `brand_updates`, `brand_trend_preferences`, `autopilot_settings`, `design_jobs`) restrict access via `brands.user_id = auth.uid()`. Active team members can't read or write them.
 
-### New table: `subscription_plans` (catalog, read-only)
-`id (slug)`, `name`, `price_naira`, `monthly_credits`, `brand_limit` (1 or null=unlimited), `features jsonb` (team, client_folders, white_label, priority_rendering booleans), `sort_order`.
-Seed: `entrepreneur`, `creator`, `agency`.
+Add a parallel SELECT/INSERT/UPDATE/DELETE policy on each of those tables using the existing `public.has_brand_access(brand_id, auth.uid())` security-definer function so any `active` member gets the same access as the owner. Original owner policies stay untouched.
 
-### New table: `subscriptions`
-- `id`, `user_id` (unique), `plan_id`, `status` (`active` | `past_due` | `cancelled`), `current_period_start`, `current_period_end`, `cancel_at_period_end bool`, `last_charge_reference`, timestamps.
-- RLS: user reads own row, service_role writes, admin all.
+For `brands` itself: add a `Team members can view their brands` SELECT policy using `has_brand_access`. Owners keep their full CRUD.
 
-### New table: `subscription_credits` (per-period grant ledger)
-- `id`, `subscription_id`, `user_id`, `amount`, `remaining`, `granted_at`, `expires_at` (= period end).
-- Lets us cleanly expire and audit per-cycle grants.
+### 1.2 `useBrand` includes member brands
 
-### New table: `subscription_charges` (renewal ledger)
-- `id`, `subscription_id`, `user_id`, `paystack_reference UNIQUE`, `amount`, `status` (`pending`|`success`|`failed`), `attempt_count`, timestamps.
+Switch the brand fetch from `eq("user_id", user.id)` to a union: owned brands plus brands where the user is an `active` row in `brand_team_members`. Simplest: two queries merged client-side, de-duped by id, tagged with `__role: 'owner' | 'member'` for UI badges.
 
-### New table: `brand_team_members`
-- `id`, `brand_id`, `user_id` (nullable until accept), `email`, `role` (`owner`|`editor`|`viewer`), `status` (`pending`|`active`|`revoked`), `invited_by`, `invited_at`, `accepted_at`.
-- Brand access policies updated so members with `active` status get same read/write rights via a helper SQL function `has_brand_access(brand_id, user_id)`.
+### 1.3 Invite UI (Brand Centre → Team tab)
 
-### New table: `client_folders` (Agency only)
-- `id`, `owner_user_id`, `name`, `color`, timestamps.
-- `brands` table gets nullable `client_folder_id` (Agency users group brands into folders).
+New `TeamMembersPanel` component lives inside Brand Centre. Shows:
+- Plan-gate: if `useSubscription().features.team === false`, render an upgrade CTA pointing to `/pricing`.
+- List of current members (`brand_team_members` for active brand) with status badge (`pending`/`active`/`revoked`), role (`editor`/`viewer`), invited-at, and a "Revoke" action.
+- Inline form: email + role select → INSERTs a row with `status='pending'`, `invited_by=auth.uid()`, auto-generated `invite_token`.
+- After INSERT, calls `send-email` with new template `team_invite` → CTA opens `/invite/:token`.
 
-### `brands` constraint
-- Add `is_archived bool default false`. Enforce brand-limit on insert via trigger: if user's plan = `entrepreneur` or free → max 1 active brand; Creator/Agency → unlimited.
+### 1.4 New edge function: `team-invite-accept`
 
-### `profiles` additions
-- `priority_render_until timestamptz` (set when active subscription includes priority).
-- Existing `subscription_tier` text column is reused; values become `free | entrepreneur | creator | agency`.
+POST `{ token }`. Service-role client:
+1. Reads `brand_team_members` row by `invite_token`, returns 404 if missing/revoked.
+2. Validates the requesting JWT (`getUser` on the Authorization bearer). Required — invites are not anonymous.
+3. If the row's `email` doesn't match `auth.users.email`, returns 409 `email_mismatch`.
+4. Updates the row: `user_id = auth.uid()`, `status = 'active'`, `accepted_at = now()`, blanks `invite_token`.
+5. Returns `{ brand_id, brand_name }` so the frontend can redirect to `/cockpit` with that brand active.
 
-All new public tables get GRANTs to authenticated + service_role + RLS scoped to ownership.
+### 1.5 New route: `/invite/:token`
 
-## 4. Billing flow (Paystack, one-off recurring)
+`AcceptInvite.tsx` page:
+- If user not signed in → redirect to `/auth?redirect=/invite/:token`.
+- If signed in → calls `team-invite-accept`. Renders states: loading, success (auto-set active brand + redirect), `email_mismatch` (show signed-in email vs invited email, prompt sign-out), `not_found` (link expired).
 
-1. **Initial purchase**: new edge function `paystack-subscribe` → creates Paystack transaction with metadata `{type:"subscription", plan_id, user_id}`, reuses callback to `/plans`.
-2. **paystack-webhook / paystack-verify**: branch on `metadata.type`.
-   - If `subscription` first charge: insert `subscriptions` row (active, period = +30 days), insert `subscription_credits` grant, update `profiles.subscription_tier` and `priority_render_until`.
-   - Idempotent via `subscription_charges.paystack_reference UNIQUE`.
-3. **Renewal scheduler** (new edge function `subscription-renewals` + pg_cron daily 06:00 Africa/Lagos):
-   - For subs whose `current_period_end <= now() + 3 days` and not `cancel_at_period_end`: send reminder email + WhatsApp via existing `send-email` and notification rails.
-   - On `current_period_end`: attempt charge via Paystack `transaction/charge_authorization` using the stored `authorization_code` from the first transaction (Paystack returns this on every charge).
-     - Success → roll period forward 30 days, expire old `subscription_credits`, insert fresh grant.
-     - Failure → set `status='past_due'`, send dunning email; retry T+1, T+3, T+7. After 7 days → `status='cancelled'`, drop tier to `free`, expire credits.
-4. **Cancel**: user toggles `cancel_at_period_end=true` from Settings; credits stay until period end, then `status='cancelled'`.
-5. **Upgrade/downgrade**: immediate plan switch; pro-rate by charging the diff for upgrades, schedule downgrade at period end. (V1: simple — upgrade now / downgrade at period end, no proration to keep math simple.)
+### 1.6 Email template
 
-## 5. Feature gating
+Add `team_invite` case to `send-email` with the existing subscription-shell pattern. CTA → `${APP_URL}/invite/:token`. Inputs: `brand_name`, `inviter_name`, `token`.
 
-Single `useSubscription()` hook returns `{ plan, features, brandLimit, isActive, periodEnd }`. Used everywhere:
+---
 
-- **Multi-Brand**: Brand switcher in `NewAppHeader` (dropdown), new `/brands` management page, server-side enforcement via insert trigger.
-- **Team Access** (Creator+): Invite UI inside Brand Centre → Settings tab. Email invite via Resend with magic link. Member acceptance flow on `/invite/:token` route. Brand RLS updated to allow team members.
-- **Client Folders** (Agency): New folder CRUD UI in Brand switcher; `client_folder_id` on `brands`. Grouped sidebar view.
-- **White-Label Exports** (Agency): Watermark logic in `design-studio` / download path checks plan → omit watermark for Agency on all credit types (today's rule: paid credits = no watermark; Agency = no watermark ever).
-- **Priority Rendering** (Agency): `design_jobs` worker (`design-enqueue` / `inngest`) reads `priority_render_until` and orders queue by `(priority DESC, created_at ASC)`. Add `priority smallint default 0` to `design_jobs`.
+## Part 2 — Client Folders (Agency)
 
-## 6. UI changes
+### 2.1 No schema change needed
 
-### `/pricing` (public) and `/plans` (in-app)
-Restructure into two stacked sections:
-- **Subscriptions** (3 cards, Creator highlighted "Most popular"). Each card: price, monthly credits, brand limit, feature checklist, CTA "Start Entrepreneur / Creator / Agency". Active sub shows "Current plan" with manage button.
-- **Or top up anytime** — existing slider PAYG block kept beneath.
+`client_folders` and `brands.client_folder_id` already exist. Just need UI gated by `useSubscription().features.client_folders === true`.
 
-Toggle to switch monthly/annual is **out of scope** (V1 monthly only).
+### 2.2 Folder CRUD on `/brands`
 
-### `/settings` → new "Subscription" section
-- Current plan + next renewal date + credits used vs granted.
-- Buttons: Change plan / Cancel at period end / Reactivate.
-- Payment history table from `subscription_charges`.
+Extend the existing `Brands.tsx` page with a left rail (desktop) / segmented chips (mobile) listing folders + "All brands" + "Unassigned". Add `+ New folder` action → modal with name + colour swatch. Edit/delete via row menu.
 
-### `NewAppHeader` credits badge
-- Tooltip breakdown: Subscription (X/Y), Free, Bonus, Reward, Paid.
-- Brand switcher appears next to logo when user has > 1 brand.
+Each brand card gets a folder badge (coloured dot + name) and a "Move to folder" item in its row menu.
 
-### Landing page `LandingPricing`
-- Add subscription cards above PAYG slider. CTA copy keeps "Start free" path.
+### 2.3 BrandSwitcher grouping
 
-### Admin panel
-- New "Subscriptions" tab: list subs with status, plan, MRR, churn. Manual override buttons (grant period, force-cancel).
+When the user has > 1 folder, group the dropdown by folder name with the folder colour as a leading dot. Brands without `client_folder_id` show under "Unfiled". When client_folders is disabled (Creator/Free), render the flat list as today.
 
-## 7. Migration sequence
+### 2.4 Non-Agency safeguard
 
-1. **Migration A**: tables `subscription_plans` (+ seed), `subscriptions`, `subscription_credits`, `subscription_charges`, `brand_team_members`, `client_folders`. GRANTs + RLS. Adds `priority smallint` to `design_jobs`, `client_folder_id uuid`, `is_archived bool` to `brands`, `priority_render_until timestamptz` to `profiles`.
-2. **Migration B**: helper SQL function `has_brand_access`; update brand-related RLS policies to use it; brand-limit insert trigger.
-3. **Migration C**: pg_cron schedule for `subscription-renewals` (via insert tool — contains anon key).
-4. Edge functions: `paystack-subscribe`, `subscription-renewals`, `subscription-cancel`, `team-invite-accept`. Update `paystack-webhook` and `paystack-verify` to branch on `metadata.type`.
-5. Shared helper `supabase/functions/_shared/credit-deduction.ts` updated to include subscription bucket; all callers updated.
-6. Frontend: `useSubscription`, `/pricing` + `/plans` redesign, Settings subscription panel, brand switcher, team invite UI, client folders UI, white-label/priority enforcement.
-7. Landing + admin updates.
+Even though `client_folders` policy is owner-only, the UI hides folder controls and folder badges for Creator/Free/Entrepreneur. They simply don't see the feature.
 
-## 8. Out of scope (V1)
+---
 
-- Annual billing / discounts.
-- Proration on plan changes (downgrade defers to period end; upgrade is fresh full charge).
-- Per-seat pricing for teams (seats are unlimited within Creator/Agency for V1).
-- SSO / SAML for Agency.
+## Technical Details
 
-## 9. Risks & notes
+### Files
 
-- Paystack `authorization_code` is required for unattended renewals — first charge must capture and store it on `subscriptions.authorization_code` (encrypted at rest is overkill for V1; stored plain — it's tied to user+merchant and can't be used elsewhere).
-- Multi-brand changes touch many queries that currently assume `brands.user_id = auth.uid()` with `maybeSingle`. Audit `useBrand`, autopilot, content hub, design studio for the active-brand id (store in context / URL param).
-- Migration B will rewrite brand RLS — must test team-member read paths thoroughly.
-- Credits expiring on renewal must run inside the same transaction that grants the new batch to avoid a window where users have zero.
+**New**
+- `src/components/team/TeamMembersPanel.tsx`
+- `src/pages/AcceptInvite.tsx`
+- `src/components/brands/FolderManager.tsx` (CRUD modal + rail)
+- `supabase/functions/team-invite-accept/index.ts`
+- migration: brand-data RLS additions + brands SELECT for members
 
-After approval I will execute migrations first (one at a time), then edge functions, then frontend.
+**Edited**
+- `src/hooks/useBrand.tsx` — owned + member brands union
+- `src/components/BrandSwitcher.tsx` — folder grouping + member badge
+- `src/pages/Brands.tsx` — folder rail + move-to-folder + badges
+- `src/pages/BrandCentre.tsx` (and/or `src/pages/v2/BrandCentre.tsx`) — add Team tab hosting `TeamMembersPanel`
+- `src/App.tsx` — register `/invite/:token`
+- `supabase/functions/send-email/index.ts` — `team_invite` case
+
+### Invite-email CTA routing
+
+`team_invite` CTA → `${APP_URL}/invite/{token}`. Already-signed-in users land on the accept page; signed-out users get bounced through `/auth?redirect=...` then back.
+
+### Role enforcement (V1)
+
+`editor` and `viewer` both get full read access via RLS. We **do not** enforce viewer-only at the DB layer in V1 — too many tables to gate. Instead, the frontend hides edit/destructive controls when `member.role === 'viewer'`. Documented as a known V1 limitation; tightening is a follow-up.
+
+### Subscription gates
+
+`TeamMembersPanel` and Folder UI both read `useSubscription().features`. Gating is presentational; the brand-limit trigger on `brands` already blocks downgraded users from adding brands.
+
+### Out of scope (V1)
+
+- Per-row viewer-only enforcement at the DB layer.
+- Bulk invite, CSV import.
+- Folder sharing between agency teammates.
+- Drag-and-drop folder reordering.
+- Email notifications when a member is revoked.
+
+---
+
+## Migration order
+
+1. RLS additions (member access on brand-scoped tables + brands SELECT).
+2. `team-invite-accept` edge function + `team_invite` email template (deploy together).
+3. Frontend: `useBrand` union → BrandSwitcher → TeamMembersPanel → AcceptInvite → Folder UI.
+
+After approval I'll run the migration first, then deploy functions, then ship the UI.
