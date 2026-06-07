@@ -1,6 +1,13 @@
 // Marketing kit content shared between the public marketing page preview
 // and the dashboard "Marketing Kit" tab.
 
+import founder1x1 from "@/assets/affiliate-banners/founder-1x1.jpg.asset.json";
+import founder9x16 from "@/assets/affiliate-banners/founder-9x16.jpg.asset.json";
+import founder16x9 from "@/assets/affiliate-banners/founder-16x9.jpg.asset.json";
+import product1x1 from "@/assets/affiliate-banners/product-1x1.jpg.asset.json";
+import product9x16 from "@/assets/affiliate-banners/product-9x16.jpg.asset.json";
+import product16x9 from "@/assets/affiliate-banners/product-16x9.jpg.asset.json";
+
 export interface SwipePost {
   id: string;
   label: string;
@@ -56,16 +63,93 @@ export const SWIPE_POSTS: SwipePost[] = [
 export const FTC_DISCLOSURE =
   "Disclosure: I'm a Brandie affiliate. If you sign up through my link, I may earn a commission at no extra cost to you. I only share tools I actually use.";
 
+export type BannerStyle = "founder" | "product";
+
 export interface BannerAsset {
   id: string;
+  style: BannerStyle;
   label: string;
-  ratio: string;            // e.g. "1:1"
-  dimensions: string;       // e.g. "1080x1080"
+  ratio: "1:1" | "9:16" | "16:9";
+  dimensions: string;
   description: string;
+  imageUrl: string;
+  fileName: string;
 }
 
+export const BANNER_STYLES: { id: BannerStyle; label: string; description: string }[] = [
+  {
+    id: "founder",
+    label: "Founder-led",
+    description: "Warm editorial portrait, ideal for personal brand posts.",
+  },
+  {
+    id: "product",
+    label: "Product-led",
+    description: "Bold product mockup, ideal for newsletters and launch posts.",
+  },
+];
+
 export const BANNER_ASSETS: BannerAsset[] = [
-  { id: "square", label: "Square (Feed)", ratio: "1:1", dimensions: "1080×1080", description: "Instagram / X / LinkedIn feed posts" },
-  { id: "story", label: "Story", ratio: "9:16", dimensions: "1080×1920", description: "Instagram & TikTok stories, Reels covers" },
-  { id: "banner", label: "Wide Banner", ratio: "16:9", dimensions: "1920×1080", description: "YouTube end cards, blog headers, X header" },
+  // Founder style
+  {
+    id: "founder-square",
+    style: "founder",
+    label: "Square (Feed)",
+    ratio: "1:1",
+    dimensions: "1024×1024",
+    description: "Instagram / X / LinkedIn feed posts",
+    imageUrl: founder1x1.url,
+    fileName: "brandie-affiliate-founder-square.jpg",
+  },
+  {
+    id: "founder-story",
+    style: "founder",
+    label: "Story",
+    ratio: "9:16",
+    dimensions: "1088×1920",
+    description: "Instagram & TikTok stories, Reels covers",
+    imageUrl: founder9x16.url,
+    fileName: "brandie-affiliate-founder-story.jpg",
+  },
+  {
+    id: "founder-banner",
+    style: "founder",
+    label: "Wide Banner",
+    ratio: "16:9",
+    dimensions: "1920×1088",
+    description: "YouTube end cards, blog headers, X header",
+    imageUrl: founder16x9.url,
+    fileName: "brandie-affiliate-founder-wide.jpg",
+  },
+  // Product style
+  {
+    id: "product-square",
+    style: "product",
+    label: "Square (Feed)",
+    ratio: "1:1",
+    dimensions: "1024×1024",
+    description: "Instagram / X / LinkedIn feed posts",
+    imageUrl: product1x1.url,
+    fileName: "brandie-affiliate-product-square.jpg",
+  },
+  {
+    id: "product-story",
+    style: "product",
+    label: "Story",
+    ratio: "9:16",
+    dimensions: "1088×1920",
+    description: "Instagram & TikTok stories, Reels covers",
+    imageUrl: product9x16.url,
+    fileName: "brandie-affiliate-product-story.jpg",
+  },
+  {
+    id: "product-banner",
+    style: "product",
+    label: "Wide Banner",
+    ratio: "16:9",
+    dimensions: "1920×1088",
+    description: "YouTube end cards, blog headers, X header",
+    imageUrl: product16x9.url,
+    fileName: "brandie-affiliate-product-wide.jpg",
+  },
 ];

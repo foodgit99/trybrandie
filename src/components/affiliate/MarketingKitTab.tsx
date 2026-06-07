@@ -1,16 +1,36 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle2, ImageIcon, FileText } from "lucide-react";
-import { SWIPE_POSTS, BANNER_ASSETS, FTC_DISCLOSURE } from "@/lib/affiliateAssets";
+import { Copy, CheckCircle2, ImageIcon, FileText, Download } from "lucide-react";
+import {
+  SWIPE_POSTS,
+  BANNER_ASSETS,
+  BANNER_STYLES,
+  FTC_DISCLOSURE,
+  type BannerStyle,
+} from "@/lib/affiliateAssets";
 
 interface Props {
   referralLink: string;
 }
 
+async function downloadAsset(url: string, fileName: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
 const MarketingKitTab = ({ referralLink }: Props) => {
   const { toast } = useToast();
   const [copied, setCopied] = useState<string | null>(null);
+  const [activeStyle, setActiveStyle] = useState<BannerStyle>("founder");
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   const copy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -18,6 +38,24 @@ const MarketingKitTab = ({ referralLink }: Props) => {
     setTimeout(() => setCopied(null), 2000);
     toast({ title: "Copied" });
   };
+
+  const handleDownload = async (id: string, url: string, fileName: string) => {
+    try {
+      setDownloading(id);
+      await downloadAsset(url, fileName);
+      toast({ title: "Banner saved", description: fileName });
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Right-click the image and choose Save instead.",
+      });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const visibleBanners = BANNER_ASSETS.filter((b) => b.style === activeStyle);
+  const activeStyleMeta = BANNER_STYLES.find((s) => s.id === activeStyle);
 
   return (
     <div className="space-y-5">
@@ -28,34 +66,69 @@ const MarketingKitTab = ({ referralLink }: Props) => {
           <h3 className="font-medium">Banner kit</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          Branded graphics you can use on social, in newsletters, or on your website. Right-click any
-          preview to save.
+          Download a banner, post it with your referral link in the bio or caption. New styles drop monthly.
         </p>
+
+        {/* Style switcher */}
+        <div className="flex flex-wrap gap-2">
+          {BANNER_STYLES.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setActiveStyle(s.id)}
+              className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                activeStyle === s.id
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-background border-border hover:bg-muted"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {activeStyleMeta && (
+          <p className="text-[11px] text-muted-foreground -mt-1">
+            {activeStyleMeta.description}
+          </p>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {BANNER_ASSETS.map((b) => (
-            <div key={b.id} className="rounded-xl border border-border overflow-hidden">
+          {visibleBanners.map((b) => (
+            <div
+              key={b.id}
+              className="rounded-xl border border-border overflow-hidden flex flex-col"
+            >
               <div
-                className="aspect-square bg-gradient-to-br from-primary/15 via-primary/5 to-background flex items-center justify-center"
+                className="bg-muted/30 flex items-center justify-center overflow-hidden"
                 style={{ aspectRatio: b.ratio.replace(":", " / ") }}
               >
-                <div className="text-center px-3">
-                  <p className="font-serif text-lg tracking-tight">Brandie</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">
-                    AI Brand Studio
+                <img
+                  src={b.imageUrl}
+                  alt={`Brandie ${activeStyleMeta?.label} banner – ${b.label}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div className="p-3 space-y-2">
+                <div>
+                  <p className="text-xs font-medium">{b.label}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {b.dimensions} · {b.description}
                   </p>
                 </div>
-              </div>
-              <div className="p-3 space-y-0.5">
-                <p className="text-xs font-medium">{b.label}</p>
-                <p className="text-[10px] text-muted-foreground">{b.dimensions} · {b.description}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-lg gap-2 h-8 text-xs"
+                  disabled={downloading === b.id}
+                  onClick={() => handleDownload(b.id, b.imageUrl, b.fileName)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {downloading === b.id ? "Saving…" : "Download"}
+                </Button>
               </div>
             </div>
           ))}
         </div>
-        <p className="text-[11px] text-muted-foreground italic">
-          Need custom banners with your face or audience in mind? Generate one in the Brandie studio
-          using your affiliate link as the CTA.
-        </p>
       </div>
 
       {/* Swipe copy library */}
