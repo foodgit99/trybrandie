@@ -94,9 +94,15 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (user) return <Navigate to="/" replace />;
+  if (user) {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("next");
+    const safeNext = next && next.startsWith("/") ? next : "/";
+    return <Navigate to={safeNext} replace />;
+  }
   return <>{children}</>;
 }
+
 
 function LandingOrCockpit() {
   const { user, loading } = useAuth();
