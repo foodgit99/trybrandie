@@ -14,7 +14,7 @@ const LandingFooter = () => (
         </Link>
       </nav>
       <p className="text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Yaries Digital Labs. All rights reserved.
+        © {new Date().getFullYear()} Yaries Business Systems. All rights reserved.
       </p>
     </div>
   </footer>
