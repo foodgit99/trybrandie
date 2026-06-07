@@ -2544,6 +2544,7 @@ export default function Admin() {
 
           <TabsContent value="affiliates">
             <div className="space-y-6">
+              <AffiliateAnalyticsPanel onOpenDetail={setAffiliateDetailId} />
               <PendingAffiliatesQueue />
               <Card className="rounded-2xl">
                 <CardHeader>
@@ -2551,13 +2552,24 @@ export default function Admin() {
                     <UserCheck className="h-5 w-5" />
                     All Affiliates
                   </CardTitle>
+                  <CardDescription>
+                    Tap the eye icon on any row to view full profile, payouts, commissions and referrals.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <DataTable tableName="affiliates" />
+                  <DataTable
+                    tableName="affiliates"
+                    onOpenAffiliateDetail={setAffiliateDetailId}
+                  />
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
+          <AffiliateDetailDrawer
+            affiliateId={affiliateDetailId}
+            onClose={() => setAffiliateDetailId(null)}
+          />
+
 
           {TABLES.filter((t) => t.key !== "overview" && t.key !== "email_crm" && t.key !== "designs" && t.key !== "ai_traces" && t.key !== "affiliates" && t.key !== "rewards").map((t) => (
             <TabsContent key={t.key} value={t.key}>
