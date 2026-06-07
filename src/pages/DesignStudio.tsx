@@ -158,6 +158,7 @@ const FREE_MONTHLY = 5;
 const DesignStudio = () => {
   const { brand } = useBrand();
   const { user } = useAuth();
+  const { data: subscription } = useSubscription();
   const { toast } = useToast();
   const navigate = useNavigate();
   const smartBack = useSmartBack("/dashboard");
