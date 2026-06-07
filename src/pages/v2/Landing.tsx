@@ -303,7 +303,7 @@ const Landing = () => (
           <span>© {new Date().getFullYear()} Brandie · A product of Yaries Business Systems</span>
         </div>
         <div className="flex items-center gap-5">
-          <Link to="/legacy" className="hover:text-foreground">Legacy app</Link>
+          <Link to="/affiliates" className="hover:text-foreground">Affiliate Partner</Link>
           <Link to="/auth" className="hover:text-foreground">Sign in</Link>
         </div>
       </div>
