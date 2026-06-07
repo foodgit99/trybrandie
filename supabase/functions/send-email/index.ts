@@ -1427,6 +1427,17 @@ Deno.serve(async (req) => {
         html = subscriptionCancelledHtml(planId, data?.period_end || new Date().toISOString());
         break;
       }
+      case "team_invite": {
+        const brandName = String(data?.brand_name || "a brand");
+        subject = `${data?.inviter_name || "Someone"} invited you to ${brandName} on Brandie`;
+        html = teamInviteHtml(
+          brandName,
+          String(data?.inviter_name || ""),
+          String(data?.token || ""),
+          String(data?.role || "editor")
+        );
+        break;
+      }
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
           status: 400,
