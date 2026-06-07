@@ -140,55 +140,103 @@ export type Database = {
           account_name: string | null
           account_number: string | null
           affiliate_code: string
+          agreed_disclosure: boolean
+          agreed_terms: boolean
+          application_submitted_at: string | null
+          audience_size: string | null
+          audience_types: string[]
           bank_name: string | null
+          brandie_experience: string | null
+          channel_handle: string | null
+          channel_url: string | null
           commission_rate: number
+          content_types: string[]
           created_at: string
           id: string
           location: string | null
           milestones_notified: number[]
+          niche: string | null
+          posting_cadence: string | null
+          primary_channel: string | null
+          promo_plan: string | null
           recruited_by: string | null
+          regions: string[]
           status: string
           total_earned: number
           total_paid: number
           updated_at: string
+          used_brandie: boolean | null
           user_id: string
           whatsapp_number: string | null
+          why_join: string | null
         }
         Insert: {
           account_name?: string | null
           account_number?: string | null
           affiliate_code?: string
+          agreed_disclosure?: boolean
+          agreed_terms?: boolean
+          application_submitted_at?: string | null
+          audience_size?: string | null
+          audience_types?: string[]
           bank_name?: string | null
+          brandie_experience?: string | null
+          channel_handle?: string | null
+          channel_url?: string | null
           commission_rate?: number
+          content_types?: string[]
           created_at?: string
           id?: string
           location?: string | null
           milestones_notified?: number[]
+          niche?: string | null
+          posting_cadence?: string | null
+          primary_channel?: string | null
+          promo_plan?: string | null
           recruited_by?: string | null
+          regions?: string[]
           status?: string
           total_earned?: number
           total_paid?: number
           updated_at?: string
+          used_brandie?: boolean | null
           user_id: string
           whatsapp_number?: string | null
+          why_join?: string | null
         }
         Update: {
           account_name?: string | null
           account_number?: string | null
           affiliate_code?: string
+          agreed_disclosure?: boolean
+          agreed_terms?: boolean
+          application_submitted_at?: string | null
+          audience_size?: string | null
+          audience_types?: string[]
           bank_name?: string | null
+          brandie_experience?: string | null
+          channel_handle?: string | null
+          channel_url?: string | null
           commission_rate?: number
+          content_types?: string[]
           created_at?: string
           id?: string
           location?: string | null
           milestones_notified?: number[]
+          niche?: string | null
+          posting_cadence?: string | null
+          primary_channel?: string | null
+          promo_plan?: string | null
           recruited_by?: string | null
+          regions?: string[]
           status?: string
           total_earned?: number
           total_paid?: number
           updated_at?: string
+          used_brandie?: boolean | null
           user_id?: string
           whatsapp_number?: string | null
+          why_join?: string | null
         }
         Relationships: [
           {

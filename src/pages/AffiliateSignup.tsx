@@ -1,94 +1,279 @@
 import SEO from "@/components/SEO";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import brandieLogo from "@/assets/brandie-logo.png";
-import affiliateHero from "@/assets/affiliate-hero.jpg";
 import {
-  Users2,
-  DollarSign,
-  Link2,
   ArrowRight,
-  Clock,
-  TrendingUp,
-  Shield,
-  BarChart3,
-  Zap,
+  ArrowLeft,
   CheckCircle2,
-  MapPin,
+  Users2,
+  Sparkles,
+  Megaphone,
+  Target,
+  ShieldCheck,
+  Mail,
   Phone,
+  MapPin,
+  Loader2,
+  PartyPopper,
 } from "lucide-react";
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, delay: i * 0.08, ease: "easeOut" as const },
-  }),
+/* ──────────────────────────────────────────────────────────────────────────
+   Option catalogues — keep in sync with admin filters
+   ────────────────────────────────────────────────────────────────────────── */
+
+const CHANNELS = [
+  { id: "instagram", label: "Instagram" },
+  { id: "tiktok", label: "TikTok" },
+  { id: "x", label: "X / Twitter" },
+  { id: "youtube", label: "YouTube" },
+  { id: "linkedin", label: "LinkedIn" },
+  { id: "newsletter", label: "Newsletter / Blog" },
+  { id: "podcast", label: "Podcast" },
+  { id: "whatsapp", label: "WhatsApp community" },
+  { id: "telegram", label: "Telegram community" },
+  { id: "other", label: "Other" },
+];
+
+const AUDIENCE_SIZES = [
+  { id: "under_1k", label: "Under 1,000" },
+  { id: "1k_5k", label: "1,000 – 5,000" },
+  { id: "5k_25k", label: "5,000 – 25,000" },
+  { id: "25k_100k", label: "25,000 – 100,000" },
+  { id: "100k_plus", label: "100,000+" },
+];
+
+const AUDIENCE_TYPES = [
+  { id: "smb_owners", label: "Small business owners" },
+  { id: "solopreneurs", label: "Solopreneurs / founders" },
+  { id: "creators", label: "Content creators / influencers" },
+  { id: "agencies", label: "Agencies / freelancers" },
+  { id: "marketers", label: "In-house marketers" },
+  { id: "students", label: "Students / early career" },
+  { id: "other", label: "Other" },
+];
+
+const REGIONS = [
+  { id: "nigeria", label: "Nigeria" },
+  { id: "west_africa", label: "Rest of West Africa" },
+  { id: "africa", label: "Rest of Africa" },
+  { id: "europe", label: "Europe" },
+  { id: "north_america", label: "North America" },
+  { id: "asia", label: "Asia" },
+  { id: "global", label: "Global / mixed" },
+];
+
+const CONTENT_TYPES = [
+  { id: "reels", label: "Short-form video (Reels / TikTok)" },
+  { id: "feed_posts", label: "Feed posts / carousels" },
+  { id: "stories", label: "Stories" },
+  { id: "threads", label: "Threads / long-form posts" },
+  { id: "newsletter", label: "Newsletter / blog" },
+  { id: "youtube", label: "Long-form video / YouTube" },
+  { id: "livestream", label: "Livestreams / spaces" },
+  { id: "dm_outreach", label: "1:1 DM / WhatsApp outreach" },
+];
+
+const CADENCE = [
+  { id: "daily", label: "Daily" },
+  { id: "few_per_week", label: "A few times a week" },
+  { id: "weekly", label: "Weekly" },
+  { id: "monthly", label: "A few times a month" },
+  { id: "occasional", label: "Occasional / campaign-based" },
+];
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Wizard config
+   ────────────────────────────────────────────────────────────────────────── */
+
+type StepId =
+  | "welcome"
+  | "account"
+  | "contact"
+  | "audience"
+  | "fit"
+  | "promo"
+  | "agree"
+  | "done";
+
+const STEPS: { id: StepId; label: string; icon: any }[] = [
+  { id: "account", label: "Account", icon: Mail },
+  { id: "contact", label: "Contact", icon: Phone },
+  { id: "audience", label: "Audience", icon: Users2 },
+  { id: "fit", label: "Fit", icon: Sparkles },
+  { id: "promo", label: "Plan", icon: Megaphone },
+  { id: "agree", label: "Review", icon: ShieldCheck },
+];
+
+const fadeSlide = {
+  initial: { opacity: 0, x: 24 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -24 },
 };
 
-const BENEFITS = [
-  { icon: DollarSign, title: "20% First Payment", desc: "Earn 20% on every referral's first purchase, paid instantly." },
-  { icon: Clock, title: "5% Lifetime Revenue", desc: "Keep earning 5% on all future payments for as long as your referral stays." },
-  { icon: Users2, title: "2nd-Tier Commissions", desc: "Recruit affiliates and earn 5% first + 3% lifetime from their referrals." },
-  { icon: BarChart3, title: "Real-Time Dashboard", desc: "Track referrals, conversions, and earnings with live performance data." },
-  { icon: Link2, title: "Unique Links", desc: "Get personal referral and recruitment links to share anywhere." },
-  { icon: Shield, title: "Monthly Payouts", desc: "Reliable monthly payout cycle directly to your bank account." },
-];
-
-const HOW_IT_WORKS = [
-  { step: "01", title: "Apply", desc: "Fill out the form below, approval takes less than 24 hours." },
-  { step: "02", title: "Share", desc: "Get your unique link and share it across your channels." },
-  { step: "03", title: "Earn", desc: "Earn commissions on every payment your referrals make." },
-];
-
-const IDEAL_FOR = [
-  "Content Creators", "Social Media Managers", "Freelancers",
-  "Agency Owners", "Community Leaders", "Tech Enthusiasts",
-];
+/* ──────────────────────────────────────────────────────────────────────────
+   Component
+   ────────────────────────────────────────────────────────────────────────── */
 
 const AffiliateSignup = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const [loading, setLoading] = useState(false);
-
   const refCode = searchParams.get("ref") || "";
 
-  const [email, setEmail] = useState("");
+  const [step, setStep] = useState<StepId>("welcome");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Account
+  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
+  const [email, setEmail] = useState(user?.email || "");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+
+  // Contact
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [location, setLocation] = useState("");
 
-  const handleApply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  // Audience
+  const [primaryChannel, setPrimaryChannel] = useState<string>("");
+  const [channelHandle, setChannelHandle] = useState("");
+  const [channelUrl, setChannelUrl] = useState("");
+  const [audienceSize, setAudienceSize] = useState<string>("");
+  const [niche, setNiche] = useState("");
+  const [audienceTypes, setAudienceTypes] = useState<string[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);
 
+  // Fit
+  const [usedBrandie, setUsedBrandie] = useState<"yes" | "no" | "">("");
+  const [brandieExperience, setBrandieExperience] = useState("");
+  const [whyJoin, setWhyJoin] = useState("");
+
+  // Promo
+  const [contentTypes, setContentTypes] = useState<string[]>([]);
+  const [postingCadence, setPostingCadence] = useState<string>("");
+  const [promoPlan, setPromoPlan] = useState("");
+
+  // Agree
+  const [agreedDisclosure, setAgreedDisclosure] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(false);
+
+  /* helpers ───────────────────────────────────────────────────────────── */
+
+  const toggleIn = (arr: string[], val: string, setter: (v: string[]) => void) => {
+    setter(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
+  };
+
+  const wizardSteps = useMemo(
+    () => (user ? STEPS.filter((s) => s.id !== "account") : STEPS),
+    [user],
+  );
+
+  const currentIndex = wizardSteps.findIndex((s) => s.id === step);
+  const progressPct =
+    step === "welcome"
+      ? 0
+      : step === "done"
+        ? 100
+        : ((currentIndex + 1) / wizardSteps.length) * 100;
+
+  const goNext = () => {
+    if (step === "welcome") return setStep(user ? "contact" : "account");
+    const next = wizardSteps[currentIndex + 1];
+    if (next) setStep(next.id);
+  };
+  const goBack = () => {
+    if (step === "welcome") return;
+    if (currentIndex === 0) return setStep("welcome");
+    const prev = wizardSteps[currentIndex - 1];
+    if (prev) setStep(prev.id);
+  };
+
+  /* per-step validation ────────────────────────────────────────────────── */
+
+  const validateCurrent = (): string | null => {
+    switch (step) {
+      case "account":
+        if (!fullName.trim()) return "Please enter your full name.";
+        if (!email.trim()) return "Please enter your email.";
+        if (!/^\S+@\S+\.\S+$/.test(email.trim())) return "That email doesn't look right.";
+        if (password.length < 6) return "Password must be at least 6 characters.";
+        return null;
+      case "contact":
+        if (!whatsappNumber.trim()) return "WhatsApp number helps us reach you fast.";
+        if (!location.trim()) return "Tell us where you're based.";
+        return null;
+      case "audience":
+        if (!primaryChannel) return "Pick your main channel.";
+        if (!channelHandle.trim()) return "Add your handle or page name.";
+        if (!audienceSize) return "Pick an audience size band.";
+        if (audienceTypes.length === 0) return "Pick at least one audience type.";
+        if (regions.length === 0) return "Pick at least one region.";
+        return null;
+      case "fit":
+        if (!usedBrandie) return "Let us know if you've used Brandie.";
+        if (whyJoin.trim().length < 20) return "Tell us a bit more about why you want to join (min 20 chars).";
+        return null;
+      case "promo":
+        if (contentTypes.length === 0) return "Pick at least one content type.";
+        if (!postingCadence) return "Pick how often you'll post about Brandie.";
+        if (promoPlan.trim().length < 30) return "A short promo plan helps approval (min 30 chars).";
+        return null;
+      case "agree":
+        if (!agreedDisclosure) return "Please agree to the FTC disclosure rule.";
+        if (!agreedTerms) return "Please accept the affiliate terms.";
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const handleNextClick = async () => {
+    const err = validateCurrent();
+    if (err) {
+      toast({ title: err, variant: "destructive" });
+      return;
+    }
+    if (step === "agree") {
+      await handleSubmit();
+      return;
+    }
+    goNext();
+  };
+
+  /* submit ─────────────────────────────────────────────────────────────── */
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       let userId = user?.id;
       let userEmail = user?.email;
 
       if (!userId) {
-        if (!fullName.trim() || !email.trim() || !password.trim()) {
-          toast({ title: "Please fill in all required fields", variant: "destructive" });
-          setLoading(false);
-          return;
-        }
-
         const { data: signupData, error: signupError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
-            data: { full_name: fullName.trim(), whatsapp_number: whatsappNumber.trim() },
+            data: {
+              full_name: fullName.trim(),
+              whatsapp_number: whatsappNumber.trim(),
+            },
             emailRedirectTo: window.location.origin + "/affiliate",
           },
         });
@@ -98,13 +283,14 @@ const AffiliateSignup = () => {
         if (!userId) {
           toast({
             title: "Check your email",
-            description: "Please confirm your email, then come back to apply.",
+            description: "Please confirm your email, then come back to finish your application.",
           });
-          setLoading(false);
+          setSubmitting(false);
           return;
         }
       }
 
+      // Existing application?
       const { data: existing } = await supabase
         .from("affiliates")
         .select("id, status")
@@ -113,17 +299,19 @@ const AffiliateSignup = () => {
 
       if (existing) {
         toast({
-          title: existing.status === "approved" ? "Already approved!" : "Application pending",
+          title: existing.status === "approved" ? "Already approved" : "Application already on file",
           description:
             existing.status === "approved"
-              ? "Redirecting to your dashboard…"
-              : "Your application is being reviewed.",
+              ? "Taking you to your dashboard…"
+              : "Your application is already in review.",
         });
         if (existing.status === "approved") navigate("/affiliate");
-        setLoading(false);
+        setSubmitting(false);
+        setStep("done");
         return;
       }
 
+      // Recruiter (ref code)
       let recruitedBy: string | null = null;
       if (refCode) {
         const { data: recruiter } = await supabase
@@ -140,13 +328,29 @@ const AffiliateSignup = () => {
         status: "pending",
         whatsapp_number: whatsappNumber.trim() || null,
         location: location.trim() || null,
+        primary_channel: primaryChannel || null,
+        channel_handle: channelHandle.trim() || null,
+        channel_url: channelUrl.trim() || null,
+        audience_size: audienceSize || null,
+        audience_types: audienceTypes,
+        niche: niche.trim() || null,
+        regions,
+        used_brandie: usedBrandie === "yes",
+        brandie_experience: brandieExperience.trim() || null,
+        promo_plan: promoPlan.trim() || null,
+        content_types: contentTypes,
+        posting_cadence: postingCadence || null,
+        why_join: whyJoin.trim() || null,
+        agreed_disclosure: agreedDisclosure,
+        agreed_terms: agreedTerms,
+        application_submitted_at: new Date().toISOString(),
       };
       if (recruitedBy) insertData.recruited_by = recruitedBy;
 
       const { error } = await supabase.from("affiliates").insert(insertData as any);
       if (error) throw error;
 
-      // Send application received email to the new affiliate
+      // Notify applicant
       if (userEmail) {
         try {
           await supabase.functions.invoke("send-email", {
@@ -156,478 +360,674 @@ const AffiliateSignup = () => {
               data: { name: fullName.trim() || user?.user_metadata?.full_name || "" },
             },
           });
-        } catch (emailErr) {
-          console.error("Failed to send application email:", emailErr);
+        } catch (e) {
+          console.error("applicant email failed", e);
         }
       }
 
-      // Notify admin(s) about the new application
+      // Notify admins
       try {
         await supabase.functions.invoke("send-email", {
           body: {
             type: "affiliate_application_admin_notify",
             to: "__admins__",
             data: {
-              name: fullName.trim() || user?.user_metadata?.full_name || "",
+              name: fullName.trim(),
               email: userEmail || "",
-              whatsapp: whatsappNumber.trim() || "",
-              location: location.trim() || "",
+              whatsapp: whatsappNumber.trim(),
+              location: location.trim(),
+              primary_channel: primaryChannel,
+              audience_size: audienceSize,
+              niche: niche.trim(),
               recruited_by: refCode || "",
             },
           },
         });
-      } catch (emailErr) {
-        console.error("Failed to send admin notification:", emailErr);
+      } catch (e) {
+        console.error("admin email failed", e);
       }
 
-      // Notify the recruiting affiliate that a new partner joined via their link
+      // Notify recruiter
       if (recruitedBy) {
         try {
-          // We can't look up the recruiter's email client-side (auth.users is private),
-          // so we invoke send-email with the recruiter's user_id and let the edge function
-          // resolve it. But since send-email expects a "to" email, we use a server-side
-          // approach: invoke from the webhook context. Instead, we fire a lightweight
-          // notification via the existing send-email by passing data and using the
-          // recruiter's profile to find their email.
-          // For now, we'll look up the recruiter's user_id and use it in a workaround:
           const { data: recruiterData } = await supabase
             .from("affiliates")
             .select("user_id")
             .eq("id", recruitedBy)
             .single();
-
           if (recruiterData?.user_id) {
-            // We need the recruiter's email, use profiles or auth metadata
-            // Since we can't access auth.users, we check if the current session has info
-            // The safest approach: call send-email edge function which can resolve this server-side
             await supabase.functions.invoke("send-email", {
               body: {
                 type: "affiliate_new_recruit",
                 to: "__resolve_user__:" + recruiterData.user_id,
-                data: {
-                  recruit_name: fullName.trim() || email.trim(),
-                  recruit_code: "",
-                },
+                data: { recruit_name: fullName.trim() || email.trim(), recruit_code: "" },
               },
             });
           }
-        } catch (emailErr) {
-          console.error("Failed to send recruit notification email:", emailErr);
+        } catch (e) {
+          console.error("recruiter email failed", e);
         }
       }
 
-      toast({
-        title: "Application submitted! 🎉",
-        description: "We'll review and get back to you within 24 hours.",
-      });
+      setStep("done");
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't submit", description: err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  /* ─────────────────────────────────────────────────────────────────────
+     Render
+     ───────────────────────────────────────────────────────────────────── */
+
   return (
-    <div className="min-h-screen bg-background">
-      <SEO title="Friends of Brandie, Affiliate Program" description="Earn 20% first-month and 5% lifetime commission referring small businesses to Brandie." path="/affiliate/signup" />
-      {/* ─── Nav ─── */}
-      <nav className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
+    <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title="Apply, Friends of Brandie Affiliate Program"
+        description="Become a Brandie affiliate. Earn 20% first-month and 5% lifetime commission referring small businesses."
+        path="/affiliate/signup"
+      />
+
+      {/* Top nav */}
+      <nav className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
+        <div className="max-w-3xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14">
           <button onClick={() => navigate("/")} className="flex items-center gap-2">
             <img src={brandieLogo} alt="Brandie" className="h-7 w-7" />
             <span className="font-serif text-lg tracking-tight">Brandie</span>
           </button>
-          <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => navigate("/auth")}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-xl text-xs"
+            onClick={() => navigate("/auth")}
+          >
             Sign in
           </Button>
         </div>
       </nav>
 
-      {/* ─── Application Form (moved to top) ─── */}
-      <section id="apply" className="border-b border-border bg-secondary/30 py-12 sm:py-16">
-        <div className="max-w-lg mx-auto px-4 sm:px-6">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            className="space-y-8"
-          >
-            <motion.div variants={fadeUp} custom={0} className="text-center space-y-3">
-              <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">
-                {user ? "Apply as Affiliate" : "Join the program"}
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                Fill in your details, we'll review and approve within 24 hours.
-              </p>
-            </motion.div>
+      {/* Progress bar */}
+      {step !== "welcome" && step !== "done" && (
+        <div className="border-b border-border bg-secondary/30">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                Step {currentIndex + 1} of {wizardSteps.length} ·{" "}
+                {wizardSteps[currentIndex]?.label}
+              </span>
+              <span>{Math.round(progressPct)}%</span>
+            </div>
+            <Progress value={progressPct} className="h-1.5" />
+          </div>
+        </div>
+      )}
 
-            <motion.div variants={fadeUp} custom={1}>
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6">
+      <main className="flex-1 flex flex-col">
+        <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1">
+          <AnimatePresence mode="wait">
+            {/* ─── Welcome ─── */}
+            {step === "welcome" && (
+              <motion.div
+                key="welcome"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                className="space-y-8 text-center pt-4"
+              >
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mx-auto">
+                  <Sparkles className="h-3 w-3" /> Friends of Brandie
+                </div>
+                <div className="space-y-4">
+                  <h1 className="text-3xl sm:text-5xl font-serif tracking-tight">
+                    Apply to become a Brandie affiliate
+                  </h1>
+                  <p className="text-muted-foreground text-base sm:text-lg max-w-lg mx-auto leading-relaxed">
+                    A 2-minute application. Approval in under 24 hours.
+                    Earn <span className="font-semibold text-foreground">20% first-payment</span> +{" "}
+                    <span className="font-semibold text-foreground">5% lifetime</span> on every referral.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto pt-2">
+                  {[
+                    { icon: Target, label: "Tell us about your audience" },
+                    { icon: Megaphone, label: "Share your promo plan" },
+                    { icon: CheckCircle2, label: "Get reviewed fast" },
+                  ].map((b) => (
+                    <div
+                      key={b.label}
+                      className="rounded-2xl border border-border bg-card p-4 text-left space-y-2"
+                    >
+                      <b.icon className="h-4 w-4 text-primary" />
+                      <p className="text-xs font-medium leading-snug">{b.label}</p>
+                    </div>
+                  ))}
+                </div>
+
                 {refCode && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary rounded-xl px-4 py-2.5">
+                  <div className="inline-flex items-center gap-2 text-xs text-muted-foreground bg-secondary rounded-full px-4 py-2 mx-auto">
                     <Users2 className="h-3.5 w-3.5 shrink-0" />
-                    <span>Invited by affiliate: <span className="font-mono font-medium text-foreground">{refCode}</span></span>
+                    <span>
+                      Invited by:{" "}
+                      <span className="font-mono font-medium text-foreground">{refCode}</span>
+                    </span>
                   </div>
                 )}
 
-                <form onSubmit={handleApply} className="space-y-4">
-                  {!user && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName">Full name <span className="text-destructive">*</span></Label>
-                        <Input
-                          id="fullName"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Jane Smith"
-                          required
-                          maxLength={100}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          required
-                          maxLength={255}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          required
-                          minLength={6}
-                        />
-                      </div>
-                    </>
-                  )}
+                <Button
+                  size="lg"
+                  className="rounded-xl h-12 px-8 gap-2 mx-auto"
+                  onClick={goNext}
+                >
+                  Start application <ArrowRight className="h-4 w-4" />
+                </Button>
+              </motion.div>
+            )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="whatsapp" className="flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5" /> WhatsApp Number
-                    </Label>
+            {/* ─── Account ─── */}
+            {step === "account" && (
+              <motion.div key="account" {...fadeSlide} className="space-y-6">
+                <StepHeader
+                  title="Let's create your account"
+                  subtitle="You'll use this to sign in to your affiliate dashboard."
+                />
+                <Card>
+                  <Field label="Full name" required>
                     <Input
-                      id="whatsapp"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Jane Smith"
+                      maxLength={100}
+                    />
+                  </Field>
+                  <Field label="Email" required>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      maxLength={255}
+                    />
+                  </Field>
+                  <Field label="Password" required hint="At least 6 characters.">
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      minLength={6}
+                    />
+                  </Field>
+                  <p className="text-center text-xs text-muted-foreground pt-2">
+                    Already have an account?{" "}
+                    <button
+                      onClick={() => navigate("/auth")}
+                      className="underline underline-offset-4 hover:text-foreground"
+                    >
+                      Sign in
+                    </button>{" "}
+                    then come back.
+                  </p>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─── Contact ─── */}
+            {step === "contact" && (
+              <motion.div key="contact" {...fadeSlide} className="space-y-6">
+                <StepHeader
+                  title="How can we reach you?"
+                  subtitle="We send approval and payout updates via WhatsApp and email."
+                />
+                <Card>
+                  <Field
+                    label="WhatsApp number"
+                    required
+                    icon={<Phone className="h-3.5 w-3.5" />}
+                    hint="Include country code, e.g. +234…"
+                  >
+                    <Input
                       type="tel"
                       value={whatsappNumber}
                       onChange={(e) => setWhatsappNumber(e.target.value)}
                       placeholder="+234 801 234 5678"
                       maxLength={20}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="location" className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5" /> Location
-                    </Label>
+                  </Field>
+                  <Field
+                    label="Where are you based?"
+                    required
+                    icon={<MapPin className="h-3.5 w-3.5" />}
+                  >
                     <Input
-                      id="location"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="Lagos, Nigeria"
                       maxLength={100}
                     />
+                  </Field>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─── Audience ─── */}
+            {step === "audience" && (
+              <motion.div key="audience" {...fadeSlide} className="space-y-6">
+                <StepHeader
+                  title="Tell us about your audience"
+                  subtitle="The clearer the picture, the faster we can approve and match you with the right kit."
+                />
+                <Card>
+                  <Field label="Your main channel" required>
+                    <Select value={primaryChannel} onValueChange={setPrimaryChannel}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pick the platform you'll mostly use" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CHANNELS.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Field label="Handle / page name" required>
+                      <Input
+                        value={channelHandle}
+                        onChange={(e) => setChannelHandle(e.target.value)}
+                        placeholder="@yourhandle"
+                        maxLength={120}
+                      />
+                    </Field>
+                    <Field label="Profile URL" hint="Optional but speeds up review.">
+                      <Input
+                        value={channelUrl}
+                        onChange={(e) => setChannelUrl(e.target.value)}
+                        placeholder="https://…"
+                        maxLength={500}
+                      />
+                    </Field>
                   </div>
 
-                  <Button type="submit" className="w-full h-12 rounded-xl gap-2 text-sm" disabled={loading}>
-                    {loading ? "Submitting…" : "Submit Application"}
-                    {!loading && <ArrowRight className="h-4 w-4" />}
-                  </Button>
-                </form>
+                  <Field label="Audience size" required>
+                    <ChipGroup
+                      options={AUDIENCE_SIZES}
+                      value={audienceSize}
+                      onChange={setAudienceSize}
+                    />
+                  </Field>
 
-                {!user && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Already have an account?{" "}
-                    <button
-                      onClick={() => navigate("/auth")}
-                      className="underline underline-offset-4 hover:text-foreground transition-colors"
+                  <Field
+                    label="Niche / what you talk about"
+                    hint="e.g. small business growth, fashion entrepreneurs, AI tools…"
+                  >
+                    <Input
+                      value={niche}
+                      onChange={(e) => setNiche(e.target.value)}
+                      placeholder="One short line"
+                      maxLength={140}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Who's in your audience?"
+                    required
+                    hint="Pick all that apply."
+                  >
+                    <CheckGroup
+                      options={AUDIENCE_TYPES}
+                      values={audienceTypes}
+                      onToggle={(v) => toggleIn(audienceTypes, v, setAudienceTypes)}
+                    />
+                  </Field>
+
+                  <Field label="Where do they live?" required hint="Pick all that apply.">
+                    <CheckGroup
+                      options={REGIONS}
+                      values={regions}
+                      onToggle={(v) => toggleIn(regions, v, setRegions)}
+                    />
+                  </Field>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─── Fit ─── */}
+            {step === "fit" && (
+              <motion.div key="fit" {...fadeSlide} className="space-y-6">
+                <StepHeader
+                  title="Have you used Brandie?"
+                  subtitle="It's not a requirement, but honest answers help us tailor your approval."
+                />
+                <Card>
+                  <Field label="Have you used Brandie yourself?" required>
+                    <ChipGroup
+                      options={[
+                        { id: "yes", label: "Yes, I've used it" },
+                        { id: "no", label: "Not yet" },
+                      ]}
+                      value={usedBrandie}
+                      onChange={(v) => setUsedBrandie(v as "yes" | "no")}
+                    />
+                  </Field>
+
+                  {usedBrandie === "yes" && (
+                    <Field
+                      label="What's your experience been like?"
+                      hint="One or two lines is plenty."
                     >
-                      Sign in
-                    </button>{" "}
-                    then come back here.
+                      <Textarea
+                        value={brandieExperience}
+                        onChange={(e) => setBrandieExperience(e.target.value)}
+                        placeholder="What you've used it for, what's worked, what hasn't…"
+                        rows={3}
+                        maxLength={500}
+                      />
+                    </Field>
+                  )}
+
+                  <Field
+                    label="Why do you want to join the program?"
+                    required
+                    hint="The 'why' helps us understand fit."
+                  >
+                    <Textarea
+                      value={whyJoin}
+                      onChange={(e) => setWhyJoin(e.target.value)}
+                      placeholder="What excites you about referring Brandie to your audience?"
+                      rows={4}
+                      maxLength={800}
+                    />
+                  </Field>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─── Promo plan ─── */}
+            {step === "promo" && (
+              <motion.div key="promo" {...fadeSlide} className="space-y-6">
+                <StepHeader
+                  title="How will you promote Brandie?"
+                  subtitle="A clear plan dramatically increases your approval odds."
+                />
+                <Card>
+                  <Field label="Content types you'll use" required hint="Pick all that apply.">
+                    <CheckGroup
+                      options={CONTENT_TYPES}
+                      values={contentTypes}
+                      onToggle={(v) => toggleIn(contentTypes, v, setContentTypes)}
+                    />
+                  </Field>
+
+                  <Field label="How often will you post about Brandie?" required>
+                    <ChipGroup
+                      options={CADENCE}
+                      value={postingCadence}
+                      onChange={setPostingCadence}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Your promo plan"
+                    required
+                    hint="A few sentences on what you'll actually do."
+                  >
+                    <Textarea
+                      value={promoPlan}
+                      onChange={(e) => setPromoPlan(e.target.value)}
+                      placeholder="e.g. A weekly carousel showing a Brandie weekly drop + a monthly newsletter feature + DMs to my warm list."
+                      rows={5}
+                      maxLength={1000}
+                    />
+                  </Field>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─── Agree ─── */}
+            {step === "agree" && (
+              <motion.div key="agree" {...fadeSlide} className="space-y-6">
+                <StepHeader
+                  title="Almost there"
+                  subtitle="A couple of agreements and we'll review your application."
+                />
+                <Card>
+                  <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border p-4 hover:bg-secondary/30 transition-colors">
+                    <Checkbox
+                      checked={agreedDisclosure}
+                      onCheckedChange={(c) => setAgreedDisclosure(Boolean(c))}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">FTC disclosure</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        I'll clearly disclose my affiliate relationship whenever I post or share
+                        Brandie (e.g. "#ad" or "affiliate link") so my audience knows I earn a
+                        commission.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border p-4 hover:bg-secondary/30 transition-colors">
+                    <Checkbox
+                      checked={agreedTerms}
+                      onCheckedChange={(c) => setAgreedTerms(Boolean(c))}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Affiliate program terms</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        I won't run paid ads on Brandie's brand keywords, won't spam, won't
+                        self-refer, and understand commissions are paid monthly on confirmed
+                        revenue.
+                      </p>
+                    </div>
+                  </label>
+
+                  <div className="rounded-xl bg-secondary/40 border border-border p-4 text-xs text-muted-foreground leading-relaxed">
+                    <p>
+                      <span className="font-medium text-foreground">What happens next:</span> our
+                      team reviews every application by hand, usually within 24 hours. You'll get
+                      an email + WhatsApp message either way.
+                    </p>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─── Done ─── */}
+            {step === "done" && (
+              <motion.div
+                key="done"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-6 text-center py-10"
+              >
+                <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <PartyPopper className="h-8 w-8 text-primary" />
+                </div>
+                <div className="space-y-3">
+                  <h1 className="text-3xl sm:text-4xl font-serif tracking-tight">
+                    Application in 🎉
+                  </h1>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    We'll review and get back to you within 24 hours via email and WhatsApp. In the
+                    meantime, you can sign in and check your dashboard.
                   </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+                  <Button
+                    size="lg"
+                    className="rounded-xl"
+                    onClick={() => navigate("/affiliate")}
+                  >
+                    Go to dashboard <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => navigate("/")}
+                  >
+                    Back to home
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Sticky footer with nav */}
+        {step !== "welcome" && step !== "done" && (
+          <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur-md">
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+              <Button
+                variant="ghost"
+                onClick={goBack}
+                disabled={submitting}
+                className="rounded-xl gap-1.5"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </Button>
+              <Button
+                onClick={handleNextClick}
+                disabled={submitting}
+                className="rounded-xl gap-1.5 min-w-[140px]"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting…
+                  </>
+                ) : step === "agree" ? (
+                  <>
+                    Submit application <CheckCircle2 className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Continue <ArrowRight className="h-4 w-4" />
+                  </>
                 )}
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ─── Hero ─── */}
-      <section className="relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-12 sm:pb-20">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              className="space-y-6"
-            >
-              <motion.div variants={fadeUp} custom={0}>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                  <Zap className="h-3 w-3" /> Friends of Brandie
-                </span>
-              </motion.div>
-              <motion.h1
-                variants={fadeUp}
-                custom={1}
-                className="text-4xl sm:text-5xl lg:text-[3.5rem] font-serif tracking-tight leading-[1.1]"
-              >
-                Earn while you{" "}
-                <span className="italic text-primary/70">share</span>
-              </motion.h1>
-              <motion.p
-                variants={fadeUp}
-                custom={2}
-                className="text-muted-foreground text-base sm:text-lg max-w-md leading-relaxed"
-              >
-                Join the Friends of Brandie affiliate program. Earn{" "}
-                <strong className="text-foreground">20% on first payments</strong>,{" "}
-                <strong className="text-foreground">5% lifetime revenue</strong>, and unlock
-                second-tier commissions by recruiting other affiliates.
-              </motion.p>
-              <motion.div variants={fadeUp} custom={3} className="flex flex-wrap gap-4 pt-2">
-                <a href="#apply" className="inline-flex">
-                  <Button className="h-12 px-7 rounded-xl gap-2 text-sm">
-                    Apply Now <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </a>
-                <a href="#how-it-works" className="inline-flex">
-                  <Button variant="outline" className="h-12 px-7 rounded-xl text-sm">
-                    How It Works
-                  </Button>
-                </a>
-              </motion.div>
-              <motion.div variants={fadeUp} custom={4} className="flex items-center gap-6 pt-4 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Free to join</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> No minimum sales</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Monthly payouts</span>
-              </motion.div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
-              className="relative hidden lg:block"
-            >
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent blur-2xl pointer-events-none" />
-              <img
-                src={affiliateHero}
-                alt="Friends of Brandie affiliate program"
-                width={1280}
-                height={720}
-                className="relative rounded-2xl border border-border shadow-xl"
-              />
-            </motion.div>
+              </Button>
+            </div>
           </div>
-        </div>
-      </section>
+        )}
+      </main>
 
-      {/* ─── Commission Breakdown ─── */}
-      <section className="border-y border-border bg-secondary/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            className="text-center mb-12 space-y-3"
-          >
-            <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
-              Two tiers. Maximum earnings.
-            </motion.h2>
-            <motion.p variants={fadeUp} custom={1} className="text-muted-foreground max-w-lg mx-auto">
-              A sustainable, performance-based model that rewards both direct referrals and network growth.
-            </motion.p>
-          </motion.div>
-
-          <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Tier 1 */}
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeUp}
-              custom={2}
-              className="rounded-2xl border-2 border-primary/20 bg-card p-6 sm:p-8 space-y-5"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-serif text-lg">Tier 1, Direct</h3>
-                  <p className="text-xs text-muted-foreground">Your personal referrals</p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/60">
-                  <span className="text-sm">First payment</span>
-                  <span className="text-lg font-serif font-semibold">20%</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/60">
-                  <span className="text-sm">Recurring payments</span>
-                  <span className="text-lg font-serif font-semibold">5%</span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Example: A ₦30,000 referral earns you ₦6,000 upfront + ₦1,500/month ongoing.
-              </p>
-            </motion.div>
-
-            {/* Tier 2 */}
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeUp}
-              custom={3}
-              className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-5"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                  <Users2 className="h-5 w-5 text-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-serif text-lg">Tier 2, Network</h3>
-                  <p className="text-xs text-muted-foreground">Affiliates you recruit</p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/60">
-                  <span className="text-sm">First payment</span>
-                  <span className="text-lg font-serif font-semibold">5%</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/60">
-                  <span className="text-sm">Recurring payments</span>
-                  <span className="text-lg font-serif font-semibold">3%</span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Earn passively from every sale made by affiliates in your network.
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Benefits Grid ─── */}
-      <section className="py-16 sm:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            className="text-center mb-12 space-y-3"
-          >
-            <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
-              Why partners love Brandie
-            </motion.h2>
-          </motion.div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {BENEFITS.map((b, i) => (
-              <motion.div
-                key={b.title}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-40px" }}
-                variants={fadeUp}
-                custom={i + 1}
-                className="rounded-2xl border border-border bg-card p-6 space-y-3"
-              >
-                <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                  <b.icon className="h-5 w-5 text-foreground" />
-                </div>
-                <h3 className="font-medium">{b.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{b.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── How It Works ─── */}
-      <section id="how-it-works" className="border-y border-border bg-secondary/30 py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            className="text-center mb-12 space-y-3"
-          >
-            <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-serif tracking-tight">
-              Three steps to start earning
-            </motion.h2>
-          </motion.div>
-
-          <div className="grid sm:grid-cols-3 gap-8">
-            {HOW_IT_WORKS.map((s, i) => (
-              <motion.div
-                key={s.step}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeUp}
-                custom={i + 1}
-                className="text-center space-y-3"
-              >
-                <div className="text-4xl font-serif text-primary/20">{s.step}</div>
-                <h3 className="text-lg font-serif">{s.title}</h3>
-                <p className="text-sm text-muted-foreground">{s.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Ideal For ─── */}
-      <section className="py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <motion.h2
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeUp}
-            custom={0}
-            className="text-3xl sm:text-4xl font-serif tracking-tight mb-8"
-          >
-            Perfect for
-          </motion.h2>
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="flex flex-wrap justify-center gap-3"
-          >
-            {IDEAL_FOR.map((tag, i) => (
-              <motion.span
-                key={tag}
-                variants={fadeUp}
-                custom={i + 1}
-                className="px-4 py-2 rounded-full border border-border bg-card text-sm font-medium"
-              >
-                {tag}
-              </motion.span>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-
-      {/* ─── Footer ─── */}
-      <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
-        <p>© {new Date().getFullYear()} Brandie. All rights reserved.</p>
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
+        © {new Date().getFullYear()} Brandie. All rights reserved.
       </footer>
     </div>
   );
 };
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Small presentational helpers
+   ────────────────────────────────────────────────────────────────────────── */
+
+const StepHeader = ({ title, subtitle }: { title: string; subtitle?: string }) => (
+  <div className="space-y-2">
+    <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">{title}</h2>
+    {subtitle && <p className="text-sm text-muted-foreground leading-relaxed">{subtitle}</p>}
+  </div>
+);
+
+const Card = ({ children }: { children: React.ReactNode }) => (
+  <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-5">{children}</div>
+);
+
+const Field = ({
+  label,
+  hint,
+  required,
+  icon,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  required?: boolean;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) => (
+  <div className="space-y-2">
+    <Label className="flex items-center gap-1.5 text-sm">
+      {icon}
+      {label}
+      {required && <span className="text-destructive">*</span>}
+    </Label>
+    {children}
+    {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+  </div>
+);
+
+const ChipGroup = ({
+  options,
+  value,
+  onChange,
+}: {
+  options: { id: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) => (
+  <div className="flex flex-wrap gap-2">
+    {options.map((o) => {
+      const active = value === o.id;
+      return (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onChange(o.id)}
+          className={`text-xs rounded-full px-3.5 py-2 border transition-colors ${
+            active
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background border-border hover:bg-secondary/60"
+          }`}
+        >
+          {o.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const CheckGroup = ({
+  options,
+  values,
+  onToggle,
+}: {
+  options: { id: string; label: string }[];
+  values: string[];
+  onToggle: (v: string) => void;
+}) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    {options.map((o) => {
+      const active = values.includes(o.id);
+      return (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onToggle(o.id)}
+          className={`flex items-center gap-2 text-sm rounded-xl px-3.5 py-2.5 border transition-colors text-left ${
+            active
+              ? "bg-primary/10 border-primary text-foreground"
+              : "bg-background border-border hover:bg-secondary/60"
+          }`}
+        >
+          <span
+            className={`h-4 w-4 rounded-md border flex items-center justify-center shrink-0 ${
+              active ? "bg-primary border-primary" : "border-border"
+            }`}
+          >
+            {active && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
+          </span>
+          <span className="leading-snug">{o.label}</span>
+        </button>
+      );
+    })}
+  </div>
+);
 
 export default AffiliateSignup;
