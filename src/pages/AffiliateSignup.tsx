@@ -918,7 +918,7 @@ const AffiliateSignup = () => {
       </main>
 
       <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Brandie. All rights reserved.
+        © {new Date().getFullYear()} Yaries Business Systems. All rights reserved.
       </footer>
     </div>
   );
