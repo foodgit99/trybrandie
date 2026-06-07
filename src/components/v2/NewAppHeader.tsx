@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import BrandSwitcher from "@/components/BrandSwitcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,6 +89,10 @@ const NewAppHeader = () => {
         <span className="text-xl sm:text-2xl font-serif tracking-tight">Brandie</span>
       </div>
 
+      <div className="hidden sm:flex items-center mx-2">
+        <BrandSwitcher />
+      </div>
+
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm">
           <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
@@ -121,6 +126,10 @@ const NewAppHeader = () => {
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brand/editor")}>
               <Palette className="h-4 w-4" />
               Brand Centre
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brands")}>
+              <Palette className="h-4 w-4" />
+              Manage brands
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/report")}>
               <BarChart3 className="h-4 w-4" />
