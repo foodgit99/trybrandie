@@ -86,7 +86,7 @@ const AcceptInvite = () => {
 
   return (
     <div className="min-h-dvh bg-background grid place-items-center px-5">
-      <SEO title="Accept invite, Brandie" path={`/invite/${token ?? ""}`} noindex />
+      <SEO title="Accept invite, Brandie" description="Join a brand workspace on Brandie." path={`/invite/${token ?? ""}`} noindex />
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center space-y-4">
         {state.status === "loading" && (
           <>
