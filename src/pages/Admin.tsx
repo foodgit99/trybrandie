@@ -2368,6 +2368,16 @@ function DataTable({
                       <Eye className="h-4 w-4" />
                     </Button>
                   )}
+                  {tableName === "affiliates" && onOpenAffiliateDetail && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onOpenAffiliateDetail(row.id as string)}
+                      className="rounded-xl"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
