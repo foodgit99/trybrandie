@@ -201,7 +201,7 @@ const AffiliateMarketing = () => {
                 {
                   icon: TrendingUp,
                   title: "Recurring, not one-off",
-                  body: `${AFFILIATE_RATES.tier1FirstPct}% on the first payment and ${AFFILIATE_RATES.tier1RecurringPct}% on every payment after. Refer once, earn for as long as they stay.`,
+                  body: `${formatNgn(37000 * 0.2)} on the first payment, then ${formatNgn(37000 * 0.05)} every month after on a Creator referral. Refer once, earn for as long as they stay.`,
                 },
                 {
                   icon: Network,
