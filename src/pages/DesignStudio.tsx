@@ -20,6 +20,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
