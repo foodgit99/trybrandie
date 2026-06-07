@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import {
   AFFILIATE_RATES,
-  AVG_REFERRAL_MONTHLY_NGN,
+  PLAN_ARPU_OPTIONS,
   MILESTONES,
   MIN_PAYOUT_NGN,
   PAYOUT_PROCESSING_DAYS,
@@ -43,7 +43,7 @@ const FAQS = [
   },
   {
     q: "How much can I earn?",
-    a: `You earn ${AFFILIATE_RATES.tier1FirstPct}% on every new user's first payment, then ${AFFILIATE_RATES.tier1RecurringPct}% on every payment they make after that, for life. If you also recruit other affiliates, you earn ${AFFILIATE_RATES.tier2FirstPct}% first and ${AFFILIATE_RATES.tier2RecurringPct}% recurring on their referrals too. There is no earnings cap.`,
+    a: `You earn ${AFFILIATE_RATES.tier1FirstPct}% on every new user's first payment, then ${AFFILIATE_RATES.tier1RecurringPct}% on every payment they make after that, for life. On the Creator plan (${formatNgn(37000)}/mo) that's ${formatNgn(37000 * 0.2)} the first month, then ${formatNgn(37000 * 0.05)} every month after. If you also recruit other affiliates, you earn ${AFFILIATE_RATES.tier2FirstPct}% first and ${AFFILIATE_RATES.tier2RecurringPct}% recurring on their referrals too. There is no earnings cap.`,
   },
   {
     q: "When and how do I get paid?",
@@ -77,28 +77,26 @@ const AffiliateMarketing = () => {
   const [refsPerMonth, setRefsPerMonth] = useState(5);
   const [recruits, setRecruits] = useState(2);
   const [recruitRefs, setRecruitRefs] = useState(3);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("creator");
+
+  const selectedPlan = useMemo(
+    () => PLAN_ARPU_OPTIONS.find((p) => p.id === selectedPlanId) ?? PLAN_ARPU_OPTIONS[1],
+    [selectedPlanId],
+  );
 
   const projection = useMemo(() => {
-    const m1 = projectEarnings({
+    const base = {
       newReferralsPerMonth: refsPerMonth,
       recruitedAffiliates: recruits,
       recruitReferralsPerMonth: recruitRefs,
-      horizonMonths: 1,
-    });
-    const m6 = projectEarnings({
-      newReferralsPerMonth: refsPerMonth,
-      recruitedAffiliates: recruits,
-      recruitReferralsPerMonth: recruitRefs,
-      horizonMonths: 6,
-    });
-    const y1 = projectEarnings({
-      newReferralsPerMonth: refsPerMonth,
-      recruitedAffiliates: recruits,
-      recruitReferralsPerMonth: recruitRefs,
-      horizonMonths: 12,
-    });
-    return { m1, m6, y1 };
-  }, [refsPerMonth, recruits, recruitRefs]);
+      arpu: selectedPlan.price,
+    };
+    return {
+      m1: projectEarnings({ ...base, horizonMonths: 1 }),
+      m6: projectEarnings({ ...base, horizonMonths: 6 }),
+      y1: projectEarnings({ ...base, horizonMonths: 12 }),
+    };
+  }, [refsPerMonth, recruits, recruitRefs, selectedPlan]);
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
@@ -173,7 +171,7 @@ const AffiliateMarketing = () => {
                 { icon: Wallet, label: "Monthly payouts" },
                 { icon: TrendingUp, label: "No earnings cap" },
                 { icon: Network, label: "2-tier commissions" },
-                { icon: CheckCircle2, label: "Free to join" },
+                { icon: CheckCircle2, label: "Paid on actual subscription amount" },
               ].map((t) => (
                 <div key={t.label} className="flex items-center gap-1.5">
                   <t.icon className="h-3.5 w-3.5 text-primary" /> {t.label}
@@ -202,7 +200,7 @@ const AffiliateMarketing = () => {
                 {
                   icon: TrendingUp,
                   title: "Recurring, not one-off",
-                  body: `${AFFILIATE_RATES.tier1FirstPct}% on the first payment and ${AFFILIATE_RATES.tier1RecurringPct}% on every payment after. Refer once, earn for as long as they stay.`,
+                  body: `${formatNgn(37000 * 0.2)} on the first payment, then ${formatNgn(37000 * 0.05)} every month after on a Creator referral. Refer once, earn for as long as they stay.`,
                 },
                 {
                   icon: Network,
@@ -275,15 +273,15 @@ const AffiliateMarketing = () => {
                 <div className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
                   <p className="font-medium text-foreground">Worked example</p>
                   <p>
-                    Refer 10 users on the Creator plan ({formatNgn(AVG_REFERRAL_MONTHLY_NGN)}/mo).
+                    Refer 10 users on the Creator plan ({formatNgn(37000)}/mo).
                   </p>
                   <p>
-                    Month 1: {formatNgn(10 * AVG_REFERRAL_MONTHLY_NGN * 0.2)} ·{" "}
-                    Month 2+: {formatNgn(10 * AVG_REFERRAL_MONTHLY_NGN * 0.05)}/mo
+                    Month 1: {formatNgn(10 * 37000 * 0.2)} ·{" "}
+                    Month 2+: {formatNgn(10 * 37000 * 0.05)}/mo
                   </p>
                   <p>
                     Year 1 total: <span className="text-foreground font-semibold">
-                      {formatNgn(10 * AVG_REFERRAL_MONTHLY_NGN * 0.2 + 10 * AVG_REFERRAL_MONTHLY_NGN * 0.05 * 11)}
+                      {formatNgn(10 * 37000 * 0.2 + 10 * 37000 * 0.05 * 11)}
                     </span>
                   </p>
                 </div>
@@ -326,9 +324,34 @@ const AffiliateMarketing = () => {
               </div>
               <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">What could you earn?</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Move the sliders. Numbers update instantly. Assumes an average referral pays{" "}
-                {formatNgn(AVG_REFERRAL_MONTHLY_NGN)}/month.
+                Pick the plan your referrals are likely on, then move the sliders. Numbers update instantly.
               </p>
+            </div>
+
+            {/* Plan selector */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {PLAN_ARPU_OPTIONS.map((p) => {
+                const active = selectedPlanId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPlanId(p.id)}
+                    className={`rounded-xl border px-4 py-2 text-sm transition ${
+                      active
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    <span className="ml-2 text-xs opacity-80">{formatNgn(p.price)}/mo</span>
+                    {p.highlight && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-primary/15 text-primary text-[10px] uppercase tracking-wider px-1.5 py-0.5">
+                        Popular
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -377,7 +400,12 @@ const AffiliateMarketing = () => {
 
               {/* Outputs */}
               <div className="rounded-2xl border-2 border-primary/40 p-6 space-y-5 bg-gradient-to-br from-primary/5 via-background to-background">
-                <h3 className="font-serif text-lg">Projected earnings</h3>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-serif text-lg">Projected earnings</h3>
+                  <span className="text-[11px] text-muted-foreground">
+                    on {selectedPlan.name} · {formatNgn(selectedPlan.price)}/mo
+                  </span>
+                </div>
                 {[
                   { label: "Month 1", value: projection.m1.total, sub: `${formatNgn(projection.m1.directEarnings)} direct + ${formatNgn(projection.m1.networkEarnings)} network` },
                   { label: "First 6 months", value: projection.m6.total, sub: `${formatNgn(projection.m6.directEarnings)} direct + ${formatNgn(projection.m6.networkEarnings)} network` },
