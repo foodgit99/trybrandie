@@ -134,6 +134,7 @@ serve(async (req) => {
       await sendInngestEvent("app/design.requested", {
         job_id: job.id,
         user_id: user.id,
+        priority,
         body,
       });
     } catch (e) {
