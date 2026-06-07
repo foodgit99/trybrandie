@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Check, Zap, CreditCard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import SubscriptionTiers from "@/components/SubscriptionTiers";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -42,28 +43,40 @@ const LandingPricing = () => {
   };
 
   return (
-    <section className="max-w-5xl mx-auto px-4 sm:px-8 py-20 sm:py-28">
+    <section className="max-w-6xl mx-auto px-4 sm:px-8 py-20 sm:py-28 space-y-16">
       <motion.div
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
-        className="text-center mb-12 space-y-3"
+        className="text-center mb-4 space-y-3"
       >
         <motion.h2
           variants={fadeUp}
           custom={0}
           className="text-3xl sm:text-5xl font-serif tracking-tight"
         >
-          Pay only for what you create.
+          Pricing that grows with you.
         </motion.h2>
         <motion.p
           variants={fadeUp}
           custom={1}
           className="text-muted-foreground max-w-md mx-auto"
         >
-          No subscriptions. No expiry. Start free, top up when you need more.
+          Subscribe for monthly credits + premium features, or pay as you go. Free 5 credits monthly for everyone.
         </motion.p>
       </motion.div>
+
+      {/* Subscription tiers */}
+      <SubscriptionTiers callbackPath="/pricing" />
+
+      {/* Divider */}
+      <div className="flex items-center gap-4 max-w-md mx-auto">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          Or pay as you go
+        </span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
 
       <motion.div
         initial="hidden"
