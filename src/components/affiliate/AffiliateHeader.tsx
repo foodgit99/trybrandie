@@ -44,6 +44,20 @@ const AffiliateHeader = ({
           <div className="space-y-1.5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5" /> Total earned
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" aria-label="How earnings are calculated" className="inline-flex">
+                      <Info className="h-3 w-3 text-muted-foreground/70 hover:text-foreground transition" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">
+                    Calculated as a % of each referral's actual subscription.
+                    <br />
+                    Plans: Entrepreneur ₦18,500 · Creator ₦37,000 · Agency ₦92,500 / mo.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </p>
             <p className="text-4xl sm:text-5xl font-serif tracking-tight">
               {formatNgn(totalEarned)}
