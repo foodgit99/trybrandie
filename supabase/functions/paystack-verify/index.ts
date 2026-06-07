@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  addMonths,
+  getPlan,
+  grantSubscriptionPeriod,
+} from "../_shared/subscription.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,9 +57,122 @@ Deno.serve(async (req) => {
     const credits = Number(metadata?.credits) || 0;
     const amount = data.data.amount / 100;
     const currency = data.data.currency;
+    const isSubscription = metadata?.type === "subscription";
+    const planId = metadata?.plan_id as string | undefined;
 
     let credited = false;
     let alreadyCredited = false;
+
+    // -------- Subscription initial purchase branch --------
+    if (isSubscription && user_id && planId) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Idempotency: charge ledger
+      const { error: chErr } = await supabase.from("subscription_charges").insert({
+        subscription_id: "00000000-0000-0000-0000-000000000000",
+        user_id,
+        paystack_reference: reference,
+        amount,
+        status: "success",
+        charge_type: "initial",
+        raw_response: data.data,
+      }).select().maybeSingle();
+      if (chErr && (chErr as any).code !== "23505") {
+        console.error("[paystack-verify] charge insert", chErr);
+      }
+      const isDuplicate = chErr && (chErr as any).code === "23505";
+      if (isDuplicate) {
+        return new Response(JSON.stringify({ verified: true, subscription: true, already_credited: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const plan = await getPlan(supabase, planId);
+      if (!plan) {
+        return new Response(JSON.stringify({ verified: true, error: "plan_missing" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const now = new Date();
+      const periodEnd = addMonths(now, 1);
+      const authorizationCode = data.data.authorization?.authorization_code || null;
+      const customerCode = data.data.customer?.customer_code || null;
+
+      // Upsert subscription
+      const { data: existing } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", user_id)
+        .maybeSingle();
+
+      let subscriptionId: string;
+      if (existing) {
+        subscriptionId = existing.id;
+        await supabase
+          .from("subscriptions")
+          .update({
+            plan_id: planId,
+            status: "active",
+            current_period_start: now.toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            cancel_at_period_end: false,
+            authorization_code: authorizationCode,
+            customer_code: customerCode,
+            last_charge_reference: reference,
+            failed_attempts: 0,
+          })
+          .eq("id", subscriptionId);
+      } else {
+        const { data: inserted } = await supabase
+          .from("subscriptions")
+          .insert({
+            user_id,
+            plan_id: planId,
+            status: "active",
+            current_period_start: now.toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            authorization_code: authorizationCode,
+            customer_code: customerCode,
+            last_charge_reference: reference,
+          })
+          .select("id")
+          .single();
+        subscriptionId = inserted!.id;
+      }
+
+      // Fix the placeholder subscription_id on the charge row
+      await supabase
+        .from("subscription_charges")
+        .update({ subscription_id: subscriptionId })
+        .eq("paystack_reference", reference);
+
+      await grantSubscriptionPeriod(supabase, {
+        subscriptionId,
+        userId: user_id,
+        plan,
+        periodStart: now,
+        periodEnd,
+      });
+
+      await supabase
+        .from("profiles")
+        .update({
+          subscription_tier: planId,
+          priority_render_until: plan.features?.priority_rendering ? periodEnd.toISOString() : null,
+        })
+        .eq("user_id", user_id);
+
+      return new Response(JSON.stringify({
+        verified: true,
+        subscription: true,
+        plan_id: planId,
+        credits: plan.monthly_credits,
+        amount,
+        currency,
+        credited: true,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     if (user_id && credits > 0) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
