@@ -1363,6 +1363,54 @@ Deno.serve(async (req) => {
 </body></html>`;
         break;
       }
+      // ============ SUBSCRIPTION EMAILS ============
+      case "subscription_activated": {
+        const planId = String(data?.plan_id || "entrepreneur");
+        const planLabel = PLAN_LABELS[planId] || planId;
+        subject = `Welcome to Brandie ${planLabel} 🎉`;
+        html = subscriptionActivatedHtml(planId, data?.period_end || new Date().toISOString());
+        break;
+      }
+      case "subscription_renewal_reminder": {
+        const planId = String(data?.plan_id || "entrepreneur");
+        const planLabel = PLAN_LABELS[planId] || planId;
+        subject = `Your Brandie ${planLabel} plan renews on ${fmtDate(data?.renewal_date || new Date().toISOString())}`;
+        html = subscriptionRenewalReminderHtml(planId, data?.renewal_date || new Date().toISOString());
+        break;
+      }
+      case "subscription_renewed": {
+        const planId = String(data?.plan_id || "entrepreneur");
+        const planLabel = PLAN_LABELS[planId] || planId;
+        subject = `Receipt — your Brandie ${planLabel} plan renewed`;
+        html = subscriptionRenewedHtml(
+          planId,
+          Number(data?.credits || PLAN_CREDITS[planId] || 0),
+          data?.next_renewal || new Date().toISOString(),
+          Number(data?.amount || PLAN_PRICE[planId] || 0)
+        );
+        break;
+      }
+      case "subscription_charge_failed": {
+        const planId = String(data?.plan_id || "entrepreneur");
+        const planLabel = PLAN_LABELS[planId] || planId;
+        subject = `Action needed — couldn't renew your Brandie ${planLabel} plan`;
+        html = subscriptionChargeFailedHtml(planId, Number(data?.attempt || 1));
+        break;
+      }
+      case "subscription_cancelled_failed": {
+        const planId = String(data?.plan_id || "entrepreneur");
+        const planLabel = PLAN_LABELS[planId] || planId;
+        subject = `Your Brandie ${planLabel} subscription was cancelled`;
+        html = subscriptionCancelledFailedHtml(planId);
+        break;
+      }
+      case "subscription_cancelled": {
+        const planId = String(data?.plan_id || "entrepreneur");
+        const planLabel = PLAN_LABELS[planId] || planId;
+        subject = `Your Brandie ${planLabel} plan will end on ${fmtDate(data?.period_end || new Date().toISOString())}`;
+        html = subscriptionCancelledHtml(planId, data?.period_end || new Date().toISOString());
+        break;
+      }
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
           status: 400,
