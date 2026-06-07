@@ -69,23 +69,17 @@ Deno.serve(async (req) => {
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Idempotency: charge ledger
-      const { error: chErr } = await supabase.from("subscription_charges").insert({
-        subscription_id: "00000000-0000-0000-0000-000000000000",
-        user_id,
-        paystack_reference: reference,
-        amount,
-        status: "success",
-        charge_type: "initial",
-        raw_response: data.data,
-      }).select().maybeSingle();
-      if (chErr && (chErr as any).code !== "23505") {
-        console.error("[paystack-verify] charge insert", chErr);
-      }
-      const isDuplicate = chErr && (chErr as any).code === "23505";
-      if (isDuplicate) {
-        return new Response(JSON.stringify({ verified: true, subscription: true, already_credited: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // Idempotency: short-circuit if this reference is already processed
+      const { data: existingCharge } = await supabase
+        .from("subscription_charges")
+        .select("id")
+        .eq("paystack_reference", reference)
+        .maybeSingle();
+      if (existingCharge) {
+        return new Response(
+          JSON.stringify({ verified: true, subscription: true, already_credited: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       const plan = await getPlan(supabase, planId);
@@ -99,7 +93,7 @@ Deno.serve(async (req) => {
       const authorizationCode = data.data.authorization?.authorization_code || null;
       const customerCode = data.data.customer?.customer_code || null;
 
-      // Upsert subscription
+      // Upsert subscription first (FK target)
       const { data: existing } = await supabase
         .from("subscriptions")
         .select("id")
@@ -141,11 +135,22 @@ Deno.serve(async (req) => {
         subscriptionId = inserted!.id;
       }
 
-      // Fix the placeholder subscription_id on the charge row
-      await supabase
-        .from("subscription_charges")
-        .update({ subscription_id: subscriptionId })
-        .eq("paystack_reference", reference);
+      // Insert charge ledger (idempotency guard on UNIQUE reference)
+      const { error: chargeErr } = await supabase.from("subscription_charges").insert({
+        subscription_id: subscriptionId,
+        user_id,
+        paystack_reference: reference,
+        amount,
+        status: "success",
+        charge_type: "initial",
+        raw_response: data.data,
+      });
+      if (chargeErr && (chargeErr as any).code === "23505") {
+        return new Response(
+          JSON.stringify({ verified: true, subscription: true, already_credited: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       await grantSubscriptionPeriod(supabase, {
         subscriptionId,
