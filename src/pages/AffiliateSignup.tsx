@@ -483,7 +483,7 @@ const AffiliateSignup = () => {
                     Apply to become a Brandie affiliate
                   </h1>
                   <p className="text-muted-foreground text-base sm:text-lg max-w-lg mx-auto leading-relaxed">
-                    A 2-minute application. Approval in under 24 hours.
+                    A 2-minute application. Approval is usually within 24-48 hours.
                     Earn <span className="font-semibold text-foreground">20% first-payment</span> +{" "}
                     <span className="font-semibold text-foreground">5% lifetime</span> on every referral.
                   </p>
