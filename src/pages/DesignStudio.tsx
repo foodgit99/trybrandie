@@ -20,6 +20,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -157,6 +158,7 @@ const FREE_MONTHLY = 5;
 const DesignStudio = () => {
   const { brand } = useBrand();
   const { user } = useAuth();
+  const { data: subscription } = useSubscription();
   const { toast } = useToast();
   const navigate = useNavigate();
   const smartBack = useSmartBack("/dashboard");
@@ -907,7 +909,9 @@ const DesignStudio = () => {
     try {
       const response = await fetch(sourceUrl);
       const blob = await response.blob();
-      const isFree = !profile || (profile as any)?.subscription_tier === "free";
+      const hasWhiteLabel = subscription?.features?.white_label === true;
+      const isFree = !hasWhiteLabel && (!profile || (profile as any)?.subscription_tier === "free");
+      const shouldWatermark = !hasWhiteLabel && isFree;
 
       // Fast path for paid users + PNG: ship original bytes from storage
       // (zero re-encoding, max quality, full native resolution).
@@ -939,7 +943,7 @@ const DesignStudio = () => {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0);
-      if (isFree) {
+      if (shouldWatermark) {
         await addWatermark(ctx, canvas.width, canvas.height);
       }
       const mime = format === "png" ? "image/png" : "image/jpeg";
