@@ -274,15 +274,15 @@ const AffiliateMarketing = () => {
                 <div className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
                   <p className="font-medium text-foreground">Worked example</p>
                   <p>
-                    Refer 10 users on the Creator plan ({formatNgn(AVG_REFERRAL_MONTHLY_NGN)}/mo).
+                    Refer 10 users on the Creator plan ({formatNgn(37000)}/mo).
                   </p>
                   <p>
-                    Month 1: {formatNgn(10 * AVG_REFERRAL_MONTHLY_NGN * 0.2)} ·{" "}
-                    Month 2+: {formatNgn(10 * AVG_REFERRAL_MONTHLY_NGN * 0.05)}/mo
+                    Month 1: {formatNgn(10 * 37000 * 0.2)} ·{" "}
+                    Month 2+: {formatNgn(10 * 37000 * 0.05)}/mo
                   </p>
                   <p>
                     Year 1 total: <span className="text-foreground font-semibold">
-                      {formatNgn(10 * AVG_REFERRAL_MONTHLY_NGN * 0.2 + 10 * AVG_REFERRAL_MONTHLY_NGN * 0.05 * 11)}
+                      {formatNgn(10 * 37000 * 0.2 + 10 * 37000 * 0.05 * 11)}
                     </span>
                   </p>
                 </div>
