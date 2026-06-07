@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, CheckCircle2, ArrowRight, Zap, CreditCard, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import SubscriptionTiers from "@/components/SubscriptionTiers";
 import { supabase } from "@/integrations/supabase/client";
 
 const FREE_MONTHLY = 5;
@@ -166,7 +167,7 @@ const Plans = () => {
       <SEO title="Plans & Credits, Brandie" description="Top up credits and manage your Brandie plan." path="/plans" noindex />
       <AppHeader />
 
-      <main className="max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <AnimatePresence mode="wait">
           {verifying ? (
             <motion.div
@@ -225,16 +226,28 @@ const Plans = () => {
                 <span className="text-lg font-serif font-medium">{creditsRemaining} credits</span>
               </div>
 
+              {/* Subscription tiers */}
+              <SubscriptionTiers callbackPath="/plans" />
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 max-w-md mx-auto">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Or top up anytime
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
               {/* Header */}
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-2 max-w-md mx-auto">
                 <h2 className="text-2xl sm:text-3xl font-serif tracking-tight">Buy Credits</h2>
                 <p className="text-muted-foreground text-sm">
-                  Power your designs. ₦5,000 per 20 credits.
+                  Power your designs. ₦5,000 per 20 credits. Never expires.
                 </p>
               </div>
 
               {/* Credit Card */}
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-8 shadow-sm">
+              <div className="max-w-lg mx-auto rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-8 shadow-sm">
                 {/* Icon + Title */}
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
