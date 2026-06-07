@@ -909,7 +909,9 @@ const DesignStudio = () => {
     try {
       const response = await fetch(sourceUrl);
       const blob = await response.blob();
-      const isFree = !profile || (profile as any)?.subscription_tier === "free";
+      const hasWhiteLabel = subscription?.features?.white_label === true;
+      const isFree = !hasWhiteLabel && (!profile || (profile as any)?.subscription_tier === "free");
+      const shouldWatermark = !hasWhiteLabel && isFree;
 
       // Fast path for paid users + PNG: ship original bytes from storage
       // (zero re-encoding, max quality, full native resolution).
