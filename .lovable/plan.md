@@ -1,40 +1,31 @@
 ## Problem
+Users are signing in successfully, but the app then fails to load their completed brand and sends them to `/onboarding`, where the new session-expired screen appears repeatedly.
 
-Users with a stale Supabase session token (e.g. after a JWT key rotation) are silently trapped on `/onboarding`:
+Two issues are visible:
+- The `brands` table has no Data API grants for logged-in users, even though it has RLS policies. That can make brand lookups fail for everyone after login.
+- The recent stale-session fix treats too many brand-load errors as fatal session errors, so a database permission/query issue becomes a forced “session expired” loop.
 
-1. `supabase.auth.getSession()` reads the token from localStorage without server validation → `user` is populated.
-2. PostgREST rejects the JWT (`403 bad_jwt: invalid claim: missing sub claim`), so brand queries return 0 rows under RLS.
-3. `ProtectedRoute` sees no brand → redirects to `/onboarding`, where writes also fail.
+## Fix plan
 
-Confirmed in auth logs (recurring `bad_jwt` 403s from `trybrandie.lovable.app`) and DB (the affected user has `onboarding_complete = true`).
+1. **Restore logged-in access to the `brands` table**
+   - Add a backend migration granting authenticated users the needed access to `public.brands`.
+   - Keep RLS policies intact, so users still only access their own brands or team brands.
+   - Grant service-role access for backend functions.
 
-## Fix
+2. **Make session-expired handling precise**
+   - Update `useAuth` so it clears local sessions only when auth validation truly returns invalid-token/session errors.
+   - Stop treating every 401/403 as a stale session by default.
 
-### 1. Validate the session on boot in `src/hooks/useAuth.tsx`
+3. **Stop onboarding from trapping users on unrelated brand errors**
+   - Update `useBrand` to redirect to `/auth` only for actual JWT/session errors.
+   - For permission or database errors, expose the error without clearing the user’s session.
+   - Ensure brand loading only runs after auth is ready and a valid user exists.
 
-Replace the bare `getSession()` call with a sequence that also calls `supabase.auth.getUser()` once on mount. If `getUser()` returns an `AuthApiError` whose status is 401/403 or whose code is `bad_jwt` / `invalid_claim` / `user_not_found`, run `supabase.auth.signOut({ scope: 'local' })`, clear `user`/`session`, and set `loading = false`. This forces routing to fall through to `/auth` instead of `/onboarding`.
+4. **Improve protected-route behavior**
+   - If brand loading has an error, show a small retry/sign-out error state instead of redirecting to onboarding.
+   - Only redirect to `/onboarding` when the user is authenticated and the brand query successfully returns no completed brand.
 
-Keep the existing `onAuthStateChange` subscription so subsequent sign-ins still update state.
-
-### 2. Add the same guard inside `useBrand`'s query
-
-When the `brands` select returns an error matching `PGRST301` / message contains `JWT` / `invalid claim`, call `supabase.auth.signOut({ scope: 'local' })` so any token that becomes invalid after boot also triggers a clean re-login.
-
-### 3. Friendlier `OnboardingRoute` fallback
-
-If `OnboardingRoute` renders with `user` set but the `brands` fetch errored (not just empty), show a small "Your session expired — sign in again" screen with a button that calls `signOut()` and navigates to `/auth`, instead of silently rendering the onboarding wizard. This is the visible safety net for any future auth edge case.
-
-### 4. No DB or RLS changes
-
-The data is correct; this is purely a client-side stale-token handling fix.
-
-## Technical notes
-
-- `supabase.auth.signOut({ scope: 'local' })` clears the local session without round-tripping the (already-invalid) token to the server.
-- We deliberately keep the redirect to `/auth` (not `/`) so users immediately see the login screen rather than the marketing landing.
-- The change is isolated to `src/hooks/useAuth.tsx`, `src/hooks/useBrand.tsx`, and `src/App.tsx` (`OnboardingRoute`).
-
-## Out of scope
-
-- Rotating Supabase keys or changing auth providers.
-- Any changes to onboarding UI/flow itself.
+5. **Verify**
+   - Check auth logs stop showing repeated forced `/user` failures after login.
+   - Confirm a known completed account can load `/` and route to `/cockpit` instead of `/onboarding`.
+   - Confirm a truly new account still reaches onboarding.
