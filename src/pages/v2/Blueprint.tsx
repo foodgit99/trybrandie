@@ -97,51 +97,88 @@ const Blueprint = () => {
 
   const handleConversationalEdit = async () => {
     const text = editText.trim();
-    if (!text || !ideas.length) return;
+    if (!text || !brand?.id) return;
     setEditing(true);
     try {
-      // Detect a day keyword to pick the target idea.
-      const dayIdx = WEEKDAY_NAMES.findIndex((d) => text.toLowerCase().includes(d.toLowerCase()));
-      let target: Idea | undefined;
+      const lower = text.toLowerCase();
+      const dayIdx = WEEKDAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
+
+      const mentionsWeek =
+        /\b(week|whole week|entire week|7\s*days|this\s*week)\b/.test(lower) ||
+        (dayIdx < 0 &&
+          /\b(plan|generate|create|build|draft|fill|refresh|regenerate|redo|replan|reset|start over)\b/.test(lower));
+
+      const isReplace =
+        /\b(refresh|regenerate|redo|replan|reset|start over|new week|fresh|wipe|clear)\b/.test(lower);
+
+      const isFill = /\b(fill|add|finish|complete|empty days|missing days)\b/.test(lower);
+
+      // ── INTENT 1: Whole-week plan / refresh / fill ──
+      if (mentionsWeek || (dayIdx < 0 && (isReplace || isFill))) {
+        const action = isReplace || ideas.length === 0 ? "generate_weekly_ideas" : "fill_empty_days";
+        const { error } = await supabase.functions.invoke("brand-engine", {
+          body: { action, brand_id: brand.id },
+        });
+        if (error) throw error;
+        toast({
+          title: action === "generate_weekly_ideas" ? "Week replanned" : "Empty days filled",
+          description: "Brandie just reshaped your week. Review and approve below.",
+        });
+        setEditText("");
+        invalidate();
+        return;
+      }
+
+      // ── INTENT 2: Day-specific edit ──
       if (dayIdx >= 0) {
-        target = ideas.find((it) => {
+        const target = ideas.find((it) => {
           if (!it.scheduled_for) return false;
           const wd = new Date(it.scheduled_for).getDay();
           const idx = wd === 0 ? 6 : wd - 1;
           return idx === dayIdx;
         });
-      }
 
-      if (!target) {
-        toast({
-          title: "Tell me which day to change",
-          description: "e.g. \"Swap Thursday's post for a restock announcement.\"",
+        if (!target) {
+          const { error } = await supabase.functions.invoke("brand-engine", {
+            body: { action: "fill_empty_days", brand_id: brand.id },
+          });
+          if (error) throw error;
+          toast({
+            title: `${WEEKDAY_NAMES[dayIdx]} added`,
+            description: "Brandie drafted a post for that day. You can tweak it now.",
+          });
+          setEditText("");
+          invalidate();
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke("v2-edit-router", {
+          body: { idea_id: target.id, instruction: text },
         });
+        if (error) throw error;
+        const kind = (data as any)?.kind ?? "text";
+        toast({
+          title: `${WEEKDAY_NAMES[dayIdx]} updated`,
+          description:
+            kind === "visual"
+              ? "Brandie will re-render the visual."
+              : kind === "strategy"
+                ? "Brandie reshaped the strategy."
+                : "Brandie rewrote the caption.",
+        });
+        setEditText("");
+        invalidate();
         return;
       }
 
-      // Hand off to the v2 edit router. It classifies the instruction
-      // (text vs visual vs strategy) with Flash-Lite, rewrites title + prompt,
-      // and only clears the rendered design when a regen is actually required.
-      const { data, error } = await supabase.functions.invoke("v2-edit-router", {
-        body: { idea_id: target.id, instruction: text },
-      });
-      if (error) throw error;
-      const kind = (data as any)?.kind ?? "text";
-
+      // ── INTENT 3: Ambiguous ──
       toast({
-        title: `${WEEKDAY_NAMES[dayIdx]} updated`,
+        title: "Tell Brandie what to do",
         description:
-          kind === "visual"
-            ? "Brandie will re-render the visual."
-            : kind === "strategy"
-              ? "Brandie reshaped the strategy."
-              : "Brandie rewrote the caption.",
+          'Try "plan this week", "refresh the entire week", or "change Thursday\'s post to a restock announcement".',
       });
-      setEditText("");
-      invalidate();
     } catch (err: any) {
-      toast({ title: "Couldn't edit", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't do that", description: err.message, variant: "destructive" });
     } finally {
       setEditing(false);
     }
