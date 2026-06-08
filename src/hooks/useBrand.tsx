@@ -75,16 +75,17 @@ export function useBrand(externalUser?: { id: string } | null) {
         await Promise.all([ownedPromise, membershipsPromise]);
 
       if (oErr) {
-        // Stale/invalid JWT → drop local session so routing sends user to /auth
-        // instead of trapping them on /onboarding with an empty brand list.
+        // Only treat as a stale-session error if the message actually points
+        // at JWT/claim problems. Plain permission / network errors should
+        // surface as query errors instead of forcing a logout loop.
         const msg = String((oErr as any)?.message ?? "").toLowerCase();
         const code = String((oErr as any)?.code ?? "").toUpperCase();
-        if (
+        const isJwtError =
           code === "PGRST301" ||
           msg.includes("jwt") ||
           msg.includes("invalid claim") ||
-          msg.includes("missing sub")
-        ) {
+          msg.includes("missing sub");
+        if (isJwtError) {
           try {
             await supabase.auth.signOut({ scope: "local" } as any);
             Object.keys(localStorage)

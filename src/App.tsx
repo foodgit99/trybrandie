@@ -71,7 +71,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, signOut } = useAuth();
-  const { brand, isLoading: brandLoading, error: brandError } = useBrand(user);
+  const { brand, isLoading: brandLoading, error: brandError, refetch } = useBrand(user);
 
   if (loading || brandLoading) {
     return (
@@ -82,26 +82,55 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
   }
   if (!user) return <Navigate to="/auth" replace />;
   if (brandError) {
+    const msg = String((brandError as any)?.message ?? "").toLowerCase();
+    const code = String((brandError as any)?.code ?? "").toUpperCase();
+    const isJwtError =
+      code === "PGRST301" ||
+      msg.includes("jwt") ||
+      msg.includes("invalid claim") ||
+      msg.includes("missing sub");
+
+    if (isJwtError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center p-6">
+          <div className="max-w-sm text-center space-y-4">
+            <h1 className="text-lg font-semibold">Your session expired</h1>
+            <p className="text-sm text-muted-foreground">
+              We couldn't verify your account. Please sign in again to continue.
+            </p>
+            <button
+              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
+              onClick={async () => {
+                await signOut();
+                try {
+                  Object.keys(localStorage)
+                    .filter((k) => k.startsWith("sb-"))
+                    .forEach((k) => localStorage.removeItem(k));
+                } catch {/* ignore */}
+                window.location.href = "/auth";
+              }}
+            >
+              Sign in again
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Non-auth error (network, permissions, etc.) — let the user retry
+    // without nuking their session.
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
         <div className="max-w-sm text-center space-y-4">
-          <h1 className="text-lg font-semibold">Your session expired</h1>
+          <h1 className="text-lg font-semibold">Couldn't load your brand</h1>
           <p className="text-sm text-muted-foreground">
-            We couldn't verify your account. Please sign in again to continue.
+            {(brandError as any)?.message || "Something went wrong loading your account."}
           </p>
           <button
             className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
-            onClick={async () => {
-              await signOut();
-              try {
-                Object.keys(localStorage)
-                  .filter((k) => k.startsWith("sb-"))
-                  .forEach((k) => localStorage.removeItem(k));
-              } catch {/* ignore */}
-              window.location.href = "/auth";
-            }}
+            onClick={() => refetch()}
           >
-            Sign in again
+            Try again
           </button>
         </div>
       </div>
