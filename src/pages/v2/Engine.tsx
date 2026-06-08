@@ -203,24 +203,45 @@ const Engine = () => {
     if (!brand?.id) return;
     setSeeding(true);
     try {
-      const { error } = await supabase.functions.invoke("autopilot-planner", {
-        body: {
-          brand_id: brand.id,
-          playbook_id: (brand as any).playbook_id ?? "general",
-          seed: true,
-        },
-      });
-      if (error) throw error;
-      toast({
-        title: "Engine spinning up",
-        description: "Drafting this week's arc. Refresh the Cockpit in a moment.",
-      });
+      // Check whether this brand has any ideas at all. If not, seed the first
+      // week from the playbook (also flips autopilot ON). Otherwise, force a
+      // real AI-planned week via brand-engine, which wipes this week's
+      // suggested ideas and regenerates the arc from pillars + JTBD + trends.
+      const { count } = await supabase
+        .from("content_ideas")
+        .select("id", { count: "exact", head: true })
+        .eq("brand_id", brand.id);
+
+      if ((count ?? 0) === 0) {
+        const { error } = await supabase.functions.invoke("autopilot-planner", {
+          body: {
+            brand_id: brand.id,
+            playbook_id: (brand as any).playbook_id ?? "general",
+            seed: true,
+          },
+        });
+        if (error) throw error;
+        toast({
+          title: "Engine spinning up",
+          description: "Drafting your first week's arc. Refresh the Cockpit in a moment.",
+        });
+      } else {
+        const { error } = await supabase.functions.invoke("brand-engine", {
+          body: { action: "generate_weekly_ideas", brand_id: brand.id },
+        });
+        if (error) throw error;
+        toast({
+          title: "Fresh plan ready",
+          description: "Brandie just rebuilt this week's arc. Review it in the Blueprint.",
+        });
+      }
     } catch (err: any) {
       toast({ title: "Couldn't start", description: err.message, variant: "destructive" });
     } finally {
       setSeeding(false);
     }
   };
+
 
   const handlePauseWeek = async () => {
     setPausing(true);
