@@ -2317,6 +2317,14 @@ export type Database = {
         Args: { p_affiliate_id: string; p_amount: number }
         Returns: undefined
       }
+      is_active_brand_member: {
+        Args: { _brand_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_brand_owner: {
+        Args: { _brand_id: string; _user_id: string }
+        Returns: boolean
+      }
       lock_autopilot_idea: { Args: { p_idea_id: string }; Returns: string }
       process_referral: { Args: { p_user_id: string }; Returns: Json }
       record_preset_feedback: {
