@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 const ACTIVE_BRAND_KEY = "brandie.activeBrandId";
 
@@ -24,11 +25,8 @@ function writeActiveBrandId(id: string | null) {
 }
 
 export function useBrand(externalUser?: { id: string } | null) {
-  // NOTE: do NOT call useAuth() here — every consumer that uses useBrand
-  // already has access to the auth user via its own useAuth() call, and
-  // mounting a second auth subscription per route amplifies /user requests
-  // (which made stale-session loops much worse). Always pass the user in.
-  const user = externalUser ?? null;
+  const { user: authUser, loading: authLoading } = useAuth();
+  const user = externalUser !== undefined ? externalUser : authUser;
   const queryClient = useQueryClient();
 
   const [activeBrandId, setActiveBrandIdState] = useState<string | null>(() =>
@@ -168,7 +166,8 @@ export function useBrand(externalUser?: { id: string } | null) {
     [queryClient]
   );
 
-  const isLoading = queryLoading;
+  const isLoading =
+    externalUser !== undefined ? queryLoading : authLoading || queryLoading;
 
   return {
     brand: activeBrand,
