@@ -253,11 +253,12 @@ const Blueprint = () => {
           </h1>
           <p className="text-muted-foreground max-w-xl">
             {ideas.length === 0
-              ? "Nothing planned this week yet. Head to the Cockpit to generate."
+              ? 'Nothing planned this week yet. Tell Brandie below — try "plan this week" — and she\'ll draft the full arc.'
               : approvedAll
-              ? "All approved. Edit any day by speaking to Brandie below."
-              : "Review the arc. Tap to approve, or talk to Brandie at the bottom to tweak."}
+              ? 'All approved. Edit any day, or say "refresh the entire week" to start over.'
+              : "Review the arc. Tap to approve, or talk to Brandie at the bottom to plan, refresh, or tweak any day."}
           </p>
+
         </header>
 
         {/* TIMELINE */}
