@@ -168,8 +168,7 @@ export function useBrand(externalUser?: { id: string } | null) {
     [queryClient]
   );
 
-  const isLoading =
-    externalUser !== undefined ? queryLoading : authLoading || queryLoading;
+  const isLoading = queryLoading;
 
   return {
     brand: activeBrand,
