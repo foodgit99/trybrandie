@@ -52,7 +52,7 @@ export function useBrand(externalUser?: { id: string } | null) {
     };
   }, []);
 
-  const { data: brands, isLoading: queryLoading, refetch } = useQuery({
+  const { data: brands, isLoading: queryLoading, error: queryError, refetch } = useQuery({
     queryKey: ["brands-and-memberships", user?.id],
     queryFn: async () => {
       if (!user) return [] as any[];
@@ -74,7 +74,29 @@ export function useBrand(externalUser?: { id: string } | null) {
       const [{ data: owned, error: oErr }, { data: memberships, error: mErr }] =
         await Promise.all([ownedPromise, membershipsPromise]);
 
-      if (oErr) throw oErr;
+      if (oErr) {
+        // Stale/invalid JWT → drop local session so routing sends user to /auth
+        // instead of trapping them on /onboarding with an empty brand list.
+        const msg = String((oErr as any)?.message ?? "").toLowerCase();
+        const code = String((oErr as any)?.code ?? "").toUpperCase();
+        if (
+          code === "PGRST301" ||
+          msg.includes("jwt") ||
+          msg.includes("invalid claim") ||
+          msg.includes("missing sub")
+        ) {
+          try {
+            await supabase.auth.signOut({ scope: "local" } as any);
+            Object.keys(localStorage)
+              .filter((k) => k.startsWith("sb-"))
+              .forEach((k) => localStorage.removeItem(k));
+            if (typeof window !== "undefined") window.location.href = "/auth";
+          } catch {
+            /* ignore */
+          }
+        }
+        throw oErr;
+      }
       if (mErr) {
         // Don't hard-fail brand loading if memberships table query fails
         console.warn("memberships fetch failed", mErr);
@@ -109,6 +131,7 @@ export function useBrand(externalUser?: { id: string } | null) {
       return [...ownedTagged, ...memberTagged];
     },
     enabled: !!user,
+    retry: false,
   });
 
   const activeBrand = (() => {
@@ -151,6 +174,8 @@ export function useBrand(externalUser?: { id: string } | null) {
     activeBrandId: activeBrand?.id ?? null,
     setActiveBrand,
     isLoading,
+    error: queryError as Error | null,
     refetch,
   };
 }
+
