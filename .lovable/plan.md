@@ -1,31 +1,39 @@
-## Problem
-Users are signing in successfully, but the app then fails to load their completed brand and sends them to `/onboarding`, where the new session-expired screen appears repeatedly.
+## What is causing it
 
-Two issues are visible:
-- The `brands` table has no Data API grants for logged-in users, even though it has RLS policies. That can make brand lookups fail for everyone after login.
-- The recent stale-session fix treats too many brand-load errors as fatal session errors, so a database permission/query issue becomes a forced “session expired” loop.
+This is not primarily caused by the pricing model UI itself. The strongest signal is backend access: the key public tables used immediately after login currently show **no Data API grants** for `authenticated`, `service_role`, or `anon` in `information_schema.role_table_grants`.
+
+That means users can authenticate successfully, but the app cannot reliably read the brand/account tables it needs after login. When the brand lookup fails, routing falls back toward onboarding, creating the loop.
+
+The pricing updates may be related only if yesterday's pricing/billing migration changed or recreated grants around tables such as `subscriptions`, `subscription_plans`, `credit_rewards`, or broadly affected public table privileges. The login loop itself is being triggered at the post-login brand/account data load step, not the password login step.
 
 ## Fix plan
 
-1. **Restore logged-in access to the `brands` table**
-   - Add a backend migration granting authenticated users the needed access to `public.brands`.
-   - Keep RLS policies intact, so users still only access their own brands or team brands.
-   - Grant service-role access for backend functions.
+1. **Restore required table access immediately**
+   - Add a backend migration that grants logged-in app access to the tables used during login/bootstrap:
+     - `brands`
+     - `brand_team_members`
+     - `profiles`
+     - `subscriptions`
+     - `subscription_plans`
+     - `credit_rewards`
+   - Keep existing row-level rules intact, so users still only see their own data.
+   - Grant backend service access where needed for functions and automation.
+   - Grant public read only where already intended, e.g. `subscription_plans`.
 
-2. **Make session-expired handling precise**
-   - Update `useAuth` so it clears local sessions only when auth validation truly returns invalid-token/session errors.
-   - Stop treating every 401/403 as a stale session by default.
+2. **Add a safety migration for all existing app tables**
+   - Re-run the missing-grant repair across public base tables so older tables are not silently unreachable.
+   - This fixes the likely project-wide grant regression without weakening row-level security.
 
-3. **Stop onboarding from trapping users on unrelated brand errors**
-   - Update `useBrand` to redirect to `/auth` only for actual JWT/session errors.
-   - For permission or database errors, expose the error without clearing the user’s session.
-   - Ensure brand loading only runs after auth is ready and a valid user exists.
+3. **Patch auth/brand loading to avoid loop amplification**
+   - Stop calling `useAuth()` twice on the same route via `useBrand(user)`, because nested auth listeners can multiply `/user` requests and make bad cached-session loops worse.
+   - Only clear local sessions for real JWT/session errors.
+   - Only redirect to onboarding when the brand query succeeds and returns no completed brand.
 
-4. **Improve protected-route behavior**
-   - If brand loading has an error, show a small retry/sign-out error state instead of redirecting to onboarding.
-   - Only redirect to `/onboarding` when the user is authenticated and the brand query successfully returns no completed brand.
+4. **Validate with live signals**
+   - Confirm grants now appear for the affected tables.
+   - Confirm auth logs show normal `/user` 200 responses after login.
+   - Confirm an existing completed account routes to `/cockpit`, while a genuinely new account still routes to `/onboarding`.
 
-5. **Verify**
-   - Check auth logs stop showing repeated forced `/user` failures after login.
-   - Confirm a known completed account can load `/` and route to `/cockpit` instead of `/onboarding`.
-   - Confirm a truly new account still reaches onboarding.
+## Technical note
+
+The logs show some `bad_jwt / missing sub claim` requests from the preview domain, but the custom domain also shows successful `/user` responses. That means the bigger blocker is not password authentication itself; it is the app's post-login data access and routing path.
