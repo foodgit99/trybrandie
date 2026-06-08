@@ -1,85 +1,40 @@
-## Goal
+## Problem
 
-Give Creator and Agency brand **owners** a Usage tab inside Brand Centre that answers: "What is happening on this brand, by whom, and how many credits did it cost?" — purely from data we already capture. No schema changes.
+Users with a stale Supabase session token (e.g. after a JWT key rotation) are silently trapped on `/onboarding`:
 
-Plan-gated: only owners on Creator or Agency tiers see the tab. Free/Entrepreneur owners see an upgrade nudge. Team members never see it (owner-only).
+1. `supabase.auth.getSession()` reads the token from localStorage without server validation → `user` is populated.
+2. PostgREST rejects the JWT (`403 bad_jwt: invalid claim: missing sub claim`), so brand queries return 0 rows under RLS.
+3. `ProtectedRoute` sees no brand → redirects to `/onboarding`, where writes also fail.
 
----
+Confirmed in auth logs (recurring `bad_jwt` 403s from `trybrandie.lovable.app`) and DB (the affected user has `onboarding_complete = true`).
 
-## What the tab shows
+## Fix
 
-A single `BrandUsagePanel` mounted as a new "Usage" tab in `src/pages/v2/BrandCentre.tsx`, with a date-range selector (Last 7 / 30 / 90 days; default 30).
+### 1. Validate the session on boot in `src/hooks/useAuth.tsx`
 
-### 1. Headline stats (4 cards)
-- **Designs generated** — `designs` rows for this brand in range.
-- **Credits spent** — sum of `design_traces.metrics->>'credits'` joined to designs in range; falls back to `count(designs) * 1` when traces lack a credit field. We'll surface whichever is non-null.
-- **Autopilot posts** — `content_ideas` rows where `autopilot = true` and `autopilot_status = 'completed'` in range.
-- **Active members** — distinct `user_id`s that produced a design/idea in range (owner + accepted team members).
+Replace the bare `getSession()` call with a sequence that also calls `supabase.auth.getUser()` once on mount. If `getUser()` returns an `AuthApiError` whose status is 401/403 or whose code is `bad_jwt` / `invalid_claim` / `user_not_found`, run `supabase.auth.signOut({ scope: 'local' })`, clear `user`/`session`, and set `loading = false`. This forces routing to fall through to `/auth` instead of `/onboarding`.
 
-### 2. Daily activity sparkline
-Group `designs.created_at` by day for the range. Tiny `recharts` area chart (matches existing admin look).
+Keep the existing `onAuthStateChange` subscription so subsequent sign-ins still update state.
 
-### 3. Member leaderboard
-Table joining `designs.user_id` → `brand_team_members` (or owner) → counts:
-- Avatar/initial, display name (email when full name missing), role badge (Owner / Editor / Viewer)
-- Designs generated
-- Last active timestamp
+### 2. Add the same guard inside `useBrand`'s query
 
-Owner appears first, then members sorted by design count.
+When the `brands` select returns an error matching `PGRST301` / message contains `JWT` / `invalid claim`, call `supabase.auth.signOut({ scope: 'local' })` so any token that becomes invalid after boot also triggers a clean re-login.
 
-### 4. Content breakdown
-Two small donut/list combos:
-- **By category** — group `content_ideas.content_category` (uses the 10-intent taxonomy already in `src/lib/contentCategories.ts`).
-- **By format** — `content_ideas.content_format` (graphic vs carousel vs video).
+### 3. Friendlier `OnboardingRoute` fallback
 
-### 5. Recent activity feed (last 20)
-Unified list of: design generated, idea approved, autopilot post completed, member joined. Each row shows actor, action, timestamp. Pure read; click-through to the design opens the existing viewer.
+If `OnboardingRoute` renders with `user` set but the `brands` fetch errored (not just empty), show a small "Your session expired — sign in again" screen with a button that calls `signOut()` and navigates to `/auth`, instead of silently rendering the onboarding wizard. This is the visible safety net for any future auth edge case.
 
----
+### 4. No DB or RLS changes
 
-## Technical Details
+The data is correct; this is purely a client-side stale-token handling fix.
 
-**New files**
-- `src/components/brands/BrandUsagePanel.tsx` — the whole tab.
-- `src/hooks/useBrandUsage.ts` — React Query hook that fetches all five sections in parallel, keyed by `[brand_id, range_days]`, `staleTime: 60s`.
+## Technical notes
 
-**Edited**
-- `src/pages/v2/BrandCentre.tsx` — add `usage` tab after `team`. Gate visibility: only when current user is the brand owner AND `useSubscription().features.team === true` (Creator/Agency). Otherwise show a slim upgrade CTA card in place.
+- `supabase.auth.signOut({ scope: 'local' })` clears the local session without round-tripping the (already-invalid) token to the server.
+- We deliberately keep the redirect to `/auth` (not `/`) so users immediately see the login screen rather than the marketing landing.
+- The change is isolated to `src/hooks/useAuth.tsx`, `src/hooks/useBrand.tsx`, and `src/App.tsx` (`OnboardingRoute`).
 
-**Data sources (all existing, owner-readable via current RLS)**
-- `designs` (brand_id, user_id, created_at)
-- `design_traces` (user_id, metrics) joined client-side by run id when present; if joining proves messy we'll just use `designs` count and label the card "Designs generated" instead of credits.
-- `content_ideas` (brand_id, user_id, autopilot, autopilot_status, content_category, content_format, created_at)
-- `brand_team_members` (brand_id, user_id, email, role, status, accepted_at)
-- `brands` (owner display)
+## Out of scope
 
-**Queries — keep client-side**
-
-We avoid new RPCs. The brand owner already has SELECT on every row above. For larger brands we cap each query at 5,000 rows in range and aggregate in JS.
-
-**Owner check**
-
-`useBrand` already tags brands with `__role: 'owner' | 'member'`. Tab and queries gated on `activeBrand.__role === 'owner'`.
-
-**Empty + loading states**
-
-- Loading: skeleton cards (`@/components/ui/skeleton`).
-- Empty (no activity in range): friendly "Nothing yet for this window" with a link to Studio.
-
-**Non-goals (V1)**
-
-- Per-member credit attribution (we'd need to backfill credit cost into traces — out of scope).
-- Export to CSV (easy follow-up).
-- Cross-brand rollup (lives at agency level; separate feature).
-- Realtime updates — 60s stale time is enough.
-
----
-
-## Migration order
-
-No migrations. Pure frontend.
-
-1. Build `useBrandUsage` hook.
-2. Build `BrandUsagePanel` with the five sections.
-3. Wire into Brand Centre v2 behind the owner + plan gate.
-4. Smoke-test on an Agency brand with real activity.
+- Rotating Supabase keys or changing auth providers.
+- Any changes to onboarding UI/flow itself.
