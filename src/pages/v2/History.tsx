@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, Search, ImageIcon, Calendar, Layers } from "lucide-react";
+import { Download, Loader2, Search, ImageIcon, Calendar, Layers, MessageCircle } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
