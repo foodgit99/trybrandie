@@ -18,11 +18,15 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    // Parse delivery window
+    // Parse body — supports delivery_time sweep AND single-brand force path
     let deliveryWindow = "morning";
+    let forceBrandId: string | null = null;
+    let force = false;
     try {
       const body = await req.json();
       if (body?.delivery_time) deliveryWindow = body.delivery_time;
+      if (body?.brand_id) forceBrandId = String(body.brand_id);
+      if (body?.force) force = !!body.force;
     } catch { /* no body — use default */ }
 
     if (!VALID_DELIVERY_TIMES.includes(deliveryWindow)) {
@@ -32,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[autopilot] Running for delivery_time=${deliveryWindow}`);
+    console.log(`[autopilot] Running for delivery_time=${deliveryWindow}${forceBrandId ? ` brand=${forceBrandId} force=${force}` : ""}`);
 
     // Create durable run record
     const { data: run } = await supabase
@@ -42,12 +46,18 @@ Deno.serve(async (req) => {
       .single();
     const runId = run?.id;
 
-    // Fetch autopilot_settings where enabled = true and delivery_time matches
-    const { data: allSettings, error: settingsErr } = await supabase
+    // Fetch autopilot_settings where enabled = true and delivery_time matches.
+    // When forceBrandId is supplied, scope to that brand only (bypass delivery_time match).
+    let settingsQuery = supabase
       .from("autopilot_settings")
       .select("brand_id, delivery_time, timezone, enabled")
-      .eq("enabled", true)
-      .eq("delivery_time", deliveryWindow);
+      .eq("enabled", true);
+    if (forceBrandId) {
+      settingsQuery = settingsQuery.eq("brand_id", forceBrandId);
+    } else {
+      settingsQuery = settingsQuery.eq("delivery_time", deliveryWindow);
+    }
+    const { data: allSettings, error: settingsErr } = await settingsQuery;
 
     if (settingsErr) {
       console.error("[autopilot] Failed to fetch settings:", settingsErr);
@@ -61,7 +71,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ processed: 0, skipped: 0, total: 0, delivery_time: deliveryWindow });
     }
 
-    // Build brand settings map and check time window per brand timezone
+    // Build brand settings map and check time window per brand timezone.
+    // When force=true, skip the hour-window check entirely.
     const nowUtc = new Date();
     const eligibleBrandIds: string[] = [];
     const settingsMap = new Map<string, { delivery_time: string; timezone: string }>();
@@ -71,6 +82,12 @@ Deno.serve(async (req) => {
     for (const s of allSettings) {
       const targetLocalHour = windowLocalHours[s.delivery_time] ?? 8;
       const tz = s.timezone || "Africa/Lagos";
+
+      if (force) {
+        eligibleBrandIds.push(s.brand_id);
+        settingsMap.set(s.brand_id, { delivery_time: s.delivery_time, timezone: tz });
+        continue;
+      }
 
       // Get current local hour in brand's timezone
       const formatter = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false });
@@ -88,6 +105,7 @@ Deno.serve(async (req) => {
       await finalizeRun(supabase, runId, 0, 0, 0, 0, []);
       return jsonResponse({ processed: 0, skipped: 0, total: 0, delivery_time: deliveryWindow });
     }
+
 
     // For each eligible brand, compute local "today" and fetch ideas
     let allIdeas: any[] = [];
