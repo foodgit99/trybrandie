@@ -461,6 +461,23 @@ const HistoryV2 = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                className="h-7 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPost(item);
+                                }}
+                                disabled={openingId === item.key}
+                                aria-label="Open in Post"
+                              >
+                                {openingId === item.key ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 className="h-7 px-2 text-emerald-600 hover:text-emerald-600 hover:bg-emerald-500/10"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -477,6 +494,7 @@ const HistoryV2 = () => {
                                   <MessageCircle className="h-3.5 w-3.5" />
                                 )}
                               </Button>
+
                               <Button
                                 size="sm"
                                 variant="ghost"
