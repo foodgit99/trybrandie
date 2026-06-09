@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, Search, ImageIcon, Calendar, Layers } from "lucide-react";
+import { Download, Loader2, Search, ImageIcon, Calendar, Layers, MessageCircle } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
@@ -56,6 +56,7 @@ const HistoryV2 = () => {
   const [carouselDesignId, setCarouselDesignId] = useState<string | null>(null);
   const [carouselTitle, setCarouselTitle] = useState<string | undefined>(undefined);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   const { data: designs = [], isLoading } = useQuery({
     queryKey: ["v2-history-designs", user?.id],
@@ -197,6 +198,80 @@ const HistoryV2 = () => {
       });
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handleWhatsApp = async (item: HistoryItem) => {
+    setSharingId(item.key);
+    const cover = item.cover;
+    const caption = cover.caption || cover.title || "";
+    const slidesToShare =
+      item.kind === "carousel"
+        ? item.slides.filter((s) => !!s.image_url)
+        : [cover];
+    const baseName = (cover.title || (item.kind === "carousel" ? "carousel" : "design"))
+      .replace(/[^a-z0-9-_]+/gi, "_");
+
+    try {
+      // Try native share with image(s) + caption — the OS share sheet shows
+      // WhatsApp on iOS/Android and the image + caption travel together.
+      if (
+        slidesToShare.length > 0 &&
+        typeof navigator !== "undefined" &&
+        (navigator as any).canShare
+      ) {
+        try {
+          const files: File[] = [];
+          for (let i = 0; i < slidesToShare.length; i++) {
+            const s = slidesToShare[i];
+            const res = await fetch(s.image_url);
+            const blob = await res.blob();
+            files.push(
+              new File(
+                [blob],
+                `${baseName}${item.kind === "carousel" ? `-slide-${i + 1}` : ""}.png`,
+                { type: blob.type || "image/png" },
+              ),
+            );
+          }
+          const sharePayload: ShareData = { text: caption, files };
+          if ((navigator as any).canShare(sharePayload)) {
+            await (navigator as any).share(sharePayload);
+            try {
+              if (caption) await navigator.clipboard.writeText(caption);
+            } catch { /* clipboard optional */ }
+            return;
+          }
+        } catch (err: any) {
+          if (err?.name === "AbortError") return; // user cancelled
+          // fall through to wa.me fallback
+        }
+      }
+
+      // Fallback: copy caption, save first slide, open wa.me with caption.
+      try {
+        if (caption) await navigator.clipboard.writeText(caption);
+      } catch { /* clipboard optional */ }
+      if (slidesToShare[0]?.image_url) {
+        await downloadOne(
+          slidesToShare[0].image_url,
+          `${baseName}${item.kind === "carousel" ? "-slide-1" : ""}.png`,
+        );
+      }
+      toast({
+        title: "Caption copied",
+        description:
+          item.kind === "carousel"
+            ? "First slide saved. Attach it in WhatsApp and paste the caption."
+            : "Image saved. Attach it in WhatsApp and paste the caption.",
+      });
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(caption)}`,
+        "_blank",
+        "noopener",
+      );
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -342,25 +417,46 @@ const HistoryV2 = () => {
                                 ? `${slideCount} slides · ${format(new Date(item.created_at), "h:mm a")}`
                                 : format(new Date(d.created_at), "h:mm a")}
                             </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(item);
-                              }}
-                              disabled={downloadingId === item.key}
-                              aria-label={
-                                isCarousel ? "Download all slides" : "Download design"
-                              }
-                            >
-                              {downloadingId === item.key ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Download className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-emerald-600 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleWhatsApp(item);
+                                }}
+                                disabled={sharingId === item.key}
+                                aria-label={
+                                  isCarousel ? "Send carousel to WhatsApp" : "Send to WhatsApp"
+                                }
+                              >
+                                {sharingId === item.key ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(item);
+                                }}
+                                disabled={downloadingId === item.key}
+                                aria-label={
+                                  isCarousel ? "Download all slides" : "Download design"
+                                }
+                              >
+                                {downloadingId === item.key ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </motion.div>
