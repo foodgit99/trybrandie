@@ -417,25 +417,46 @@ const HistoryV2 = () => {
                                 ? `${slideCount} slides · ${format(new Date(item.created_at), "h:mm a")}`
                                 : format(new Date(d.created_at), "h:mm a")}
                             </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(item);
-                              }}
-                              disabled={downloadingId === item.key}
-                              aria-label={
-                                isCarousel ? "Download all slides" : "Download design"
-                              }
-                            >
-                              {downloadingId === item.key ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Download className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-emerald-600 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleWhatsApp(item);
+                                }}
+                                disabled={sharingId === item.key}
+                                aria-label={
+                                  isCarousel ? "Send carousel to WhatsApp" : "Send to WhatsApp"
+                                }
+                              >
+                                {sharingId === item.key ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(item);
+                                }}
+                                disabled={downloadingId === item.key}
+                                aria-label={
+                                  isCarousel ? "Download all slides" : "Download design"
+                                }
+                              >
+                                {downloadingId === item.key ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </motion.div>
