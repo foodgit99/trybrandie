@@ -290,6 +290,42 @@ const HistoryV2 = () => {
     }
   };
 
+  const handleOpenPost = async (item: HistoryItem) => {
+    setOpeningId(item.key);
+    try {
+      const designIds =
+        item.kind === "carousel"
+          ? item.slides.map((s) => s.id)
+          : [item.cover.id];
+      const { data, error } = await supabase
+        .from("content_ideas")
+        .select("id, created_at")
+        .in("design_id", designIds)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.id) {
+        toast({
+          title: "No linked post",
+          description: "This design wasn't created from a scheduled post.",
+          variant: "destructive",
+        });
+        return;
+      }
+      navigate(`/post/${data.id}`);
+    } catch (e) {
+      toast({
+        title: "Couldn't open post",
+        description: "Try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+
   if (authLoading || brandLoading) {
     return (
       <div className="min-h-dvh grid place-items-center text-muted-foreground">
