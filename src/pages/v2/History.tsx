@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, Search, ImageIcon, Calendar, Layers, MessageCircle } from "lucide-react";
+import { Download, Loader2, Search, ImageIcon, Calendar, Layers, MessageCircle, ExternalLink } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import DesignViewer from "@/components/DesignViewer";
 import CarouselPreviewDialog from "@/components/content/CarouselPreviewDialog";
+
 
 type Design = {
   id: string;
@@ -49,6 +50,7 @@ const HistoryV2 = () => {
   const { user, loading: authLoading } = useAuth();
   const { brand, isLoading: brandLoading } = useBrand(user);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [query, setQuery] = useState("");
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -57,6 +59,8 @@ const HistoryV2 = () => {
   const [carouselTitle, setCarouselTitle] = useState<string | undefined>(undefined);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
 
   const { data: designs = [], isLoading } = useQuery({
     queryKey: ["v2-history-designs", user?.id],
@@ -286,6 +290,42 @@ const HistoryV2 = () => {
     }
   };
 
+  const handleOpenPost = async (item: HistoryItem) => {
+    setOpeningId(item.key);
+    try {
+      const designIds =
+        item.kind === "carousel"
+          ? item.slides.map((s) => s.id)
+          : [item.cover.id];
+      const { data, error } = await supabase
+        .from("content_ideas")
+        .select("id, created_at")
+        .in("design_id", designIds)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.id) {
+        toast({
+          title: "No linked post",
+          description: "This design wasn't created from a scheduled post.",
+          variant: "destructive",
+        });
+        return;
+      }
+      navigate(`/post/${data.id}`);
+    } catch (e) {
+      toast({
+        title: "Couldn't open post",
+        description: "Try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+
   if (authLoading || brandLoading) {
     return (
       <div className="min-h-dvh grid place-items-center text-muted-foreground">
@@ -421,6 +461,23 @@ const HistoryV2 = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                className="h-7 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPost(item);
+                                }}
+                                disabled={openingId === item.key}
+                                aria-label="Open in Post"
+                              >
+                                {openingId === item.key ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 className="h-7 px-2 text-emerald-600 hover:text-emerald-600 hover:bg-emerald-500/10"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -437,6 +494,7 @@ const HistoryV2 = () => {
                                   <MessageCircle className="h-3.5 w-3.5" />
                                 )}
                               </Button>
+
                               <Button
                                 size="sm"
                                 variant="ghost"
