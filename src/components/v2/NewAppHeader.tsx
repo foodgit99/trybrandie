@@ -24,7 +24,9 @@ import {
   Shield,
   Cpu,
   Wand2,
+  History,
 } from "lucide-react";
+
 
 const NewAppHeader = () => {
   const { signOut } = useAuth();
