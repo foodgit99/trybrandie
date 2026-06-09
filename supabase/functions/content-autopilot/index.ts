@@ -123,8 +123,14 @@ Deno.serve(async (req) => {
         .or(
           `and(scheduled_for.eq.${localToday},autopilot_status.is.null),` +
           `and(scheduled_for.eq.${localToday},autopilot_status.eq.pending),` +
-          `and(scheduled_for.gte.${retryFrom},scheduled_for.lte.${localToday},autopilot_status.in.(failed_no_credits,failed_error))`
+          `and(scheduled_for.gte.${retryFrom},scheduled_for.lte.${localToday},autopilot_status.in.(failed_no_credits,failed_error)),` +
+          // Catch-up: ideas scheduled in the past 3 days that were never attempted
+          // (autopilot_status NULL/pending). Prevents orphaned posts when a user
+          // enables Autonomous after their delivery window has already passed.
+          `and(scheduled_for.gte.${retryFrom},scheduled_for.lt.${localToday},autopilot_status.is.null),` +
+          `and(scheduled_for.gte.${retryFrom},scheduled_for.lt.${localToday},autopilot_status.eq.pending)`
         );
+
 
       if (ideasErr) {
         console.error(`[autopilot] Failed to fetch ideas for brand ${brandId}:`, ideasErr);
