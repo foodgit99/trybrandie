@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, Search, ImageIcon, Calendar, Layers, MessageCircle } from "lucide-react";
+import { Download, Loader2, Search, ImageIcon, Calendar, Layers, MessageCircle, ExternalLink } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import DesignViewer from "@/components/DesignViewer";
 import CarouselPreviewDialog from "@/components/content/CarouselPreviewDialog";
+
 
 type Design = {
   id: string;
