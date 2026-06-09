@@ -24,7 +24,9 @@ import {
   Shield,
   Cpu,
   Wand2,
+  History,
 } from "lucide-react";
+
 
 const NewAppHeader = () => {
   const { signOut } = useAuth();
@@ -79,10 +81,15 @@ const NewAppHeader = () => {
               <Palette className="h-4 w-4" />
               Manage brands
             </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/history")}>
+              <History className="h-4 w-4" />
+              History
+            </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/report")}>
               <BarChart3 className="h-4 w-4" />
               Report
             </DropdownMenuItem>
+
             {isAdmin && (
               <>
                 <DropdownMenuSeparator />
