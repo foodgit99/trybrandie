@@ -192,12 +192,39 @@ const Engine = () => {
         .upsert(payload, { onConflict: "brand_id" });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["v2-engine-settings"] });
+
+      // Catch-up: if the user just switched to Autonomous (enabled+autonomous),
+      // fire content-autopilot with force=true so today's idea isn't lost when
+      // the toggle happens after the morning sweep has already run.
+      const becameAutonomous =
+        (payload as any).enabled === true && (payload as any).mode === "autonomous";
+      const wasAlreadyOn =
+        settings?.enabled === true && settings?.mode === "autonomous";
+      if (becameAutonomous && !wasAlreadyOn) {
+        supabase.functions
+          .invoke("content-autopilot", {
+            body: {
+              brand_id: brand.id,
+              delivery_time: (payload as any).delivery_time || merged.delivery_time || "morning",
+              force: true,
+            },
+          })
+          .then(({ error: invokeErr }) => {
+            if (invokeErr) console.warn("[engine] catch-up invoke failed:", invokeErr);
+            else queryClient.invalidateQueries({ queryKey: ["v2-engine-stats"] });
+          });
+        toast({
+          title: "Engine is live",
+          description: "Catching up today's post — check your inbox shortly.",
+        });
+      }
     } catch (err: any) {
       toast({ title: "Couldn't save", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
+
 
   const handleSeedNow = async () => {
     if (!brand?.id) return;
