@@ -50,6 +50,7 @@ const HistoryV2 = () => {
   const { user, loading: authLoading } = useAuth();
   const { brand, isLoading: brandLoading } = useBrand(user);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [query, setQuery] = useState("");
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -58,6 +59,8 @@ const HistoryV2 = () => {
   const [carouselTitle, setCarouselTitle] = useState<string | undefined>(undefined);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
 
   const { data: designs = [], isLoading } = useQuery({
     queryKey: ["v2-history-designs", user?.id],
