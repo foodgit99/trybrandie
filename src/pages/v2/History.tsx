@@ -201,6 +201,80 @@ const HistoryV2 = () => {
     }
   };
 
+  const handleWhatsApp = async (item: HistoryItem) => {
+    setSharingId(item.key);
+    const cover = item.cover;
+    const caption = cover.caption || cover.title || "";
+    const slidesToShare =
+      item.kind === "carousel"
+        ? item.slides.filter((s) => !!s.image_url)
+        : [cover];
+    const baseName = (cover.title || (item.kind === "carousel" ? "carousel" : "design"))
+      .replace(/[^a-z0-9-_]+/gi, "_");
+
+    try {
+      // Try native share with image(s) + caption — the OS share sheet shows
+      // WhatsApp on iOS/Android and the image + caption travel together.
+      if (
+        slidesToShare.length > 0 &&
+        typeof navigator !== "undefined" &&
+        (navigator as any).canShare
+      ) {
+        try {
+          const files: File[] = [];
+          for (let i = 0; i < slidesToShare.length; i++) {
+            const s = slidesToShare[i];
+            const res = await fetch(s.image_url);
+            const blob = await res.blob();
+            files.push(
+              new File(
+                [blob],
+                `${baseName}${item.kind === "carousel" ? `-slide-${i + 1}` : ""}.png`,
+                { type: blob.type || "image/png" },
+              ),
+            );
+          }
+          const sharePayload: ShareData = { text: caption, files };
+          if ((navigator as any).canShare(sharePayload)) {
+            await (navigator as any).share(sharePayload);
+            try {
+              if (caption) await navigator.clipboard.writeText(caption);
+            } catch { /* clipboard optional */ }
+            return;
+          }
+        } catch (err: any) {
+          if (err?.name === "AbortError") return; // user cancelled
+          // fall through to wa.me fallback
+        }
+      }
+
+      // Fallback: copy caption, save first slide, open wa.me with caption.
+      try {
+        if (caption) await navigator.clipboard.writeText(caption);
+      } catch { /* clipboard optional */ }
+      if (slidesToShare[0]?.image_url) {
+        await downloadOne(
+          slidesToShare[0].image_url,
+          `${baseName}${item.kind === "carousel" ? "-slide-1" : ""}.png`,
+        );
+      }
+      toast({
+        title: "Caption copied",
+        description:
+          item.kind === "carousel"
+            ? "First slide saved. Attach it in WhatsApp and paste the caption."
+            : "Image saved. Attach it in WhatsApp and paste the caption.",
+      });
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(caption)}`,
+        "_blank",
+        "noopener",
+      );
+    } finally {
+      setSharingId(null);
+    }
+  };
+
   const openItem = (item: HistoryItem) => {
     if (item.kind === "carousel") {
       setCarouselDesignId(item.cover.id);
