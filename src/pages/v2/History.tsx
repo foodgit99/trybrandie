@@ -56,6 +56,7 @@ const HistoryV2 = () => {
   const [carouselDesignId, setCarouselDesignId] = useState<string | null>(null);
   const [carouselTitle, setCarouselTitle] = useState<string | undefined>(undefined);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   const { data: designs = [], isLoading } = useQuery({
     queryKey: ["v2-history-designs", user?.id],
