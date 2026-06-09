@@ -1,82 +1,45 @@
-## What is causing the error
+# Why nothing arrived today
 
-The current error is **not the pricing model update itself**.
+I traced your account (`desksolutions.expert@gmail.com`, brand "Solutions expert") through the autopilot system. Here's what happened:
 
-The live backend now shows the real blocker:
+**Timeline**
+- `autopilot_settings` for your brand was set to `enabled=true, mode=autonomous, delivery_time=morning` at **16:18 UTC today** (≈ 5:18 PM Lagos).
+- The autopilot's **morning sweep ran at 06:00 UTC today** (≈ 7:00 AM Lagos) — *before* you flipped the switch. At that point your brand wasn't enabled, so it wasn't picked up.
+- The afternoon (12:00 UTC) and evening (17:00 UTC) sweeps only process brands whose `delivery_time` matches that window — yours is `morning`, so they correctly skipped you.
+- Result: today's idea (`Moving Beyond the Manual Logbook`, scheduled_for `2026-06-09`) is still sitting at `status=suggested, autopilot_status=NULL`. Nothing was rendered, nothing was emailed.
 
-`infinite recursion detected in policy for relation "brands"`
+**Secondary bug I uncovered while looking**
+Even tomorrow's 7 AM run won't pick up today's missed idea. The query in `content-autopilot` only matches:
+- ideas scheduled for *local today* with `autopilot_status` null/pending, **or**
+- ideas from the last 3 days **only if** their `autopilot_status` is `failed_no_credits` / `failed_error`.
 
-This happens because two access rules reference each other:
+An idea that was simply never attempted (status NULL, date in the past) falls into a dead zone and is permanently skipped. This will silently affect anyone who turns on autopilot after their delivery window, or anyone whose brand was added mid-week.
+
+# The plan
+
+### 1. Recover today's post for you (one-off)
+Manually invoke `content-autopilot` for `delivery_time=morning` after temporarily marking today's idea as eligible — or simpler, directly call the rendering path for that one idea so you get today's email within minutes.
+
+### 2. Fix the catch-up gap (code change)
+In `supabase/functions/content-autopilot/index.ts`, extend the retry branch of the `content_ideas` query so missed ideas are caught on the next run:
 
 ```text
-brands policy
-  checks brand_team_members
-    brand_team_members policy
-      checks brands
-        brands policy runs again
-          loop forever
+scheduled_for >= retryFrom AND scheduled_for <= localToday
+  AND (autopilot_status IN (failed_no_credits, failed_error)
+       OR autopilot_status IS NULL)
+  AND status IN (suggested, scheduled)
 ```
 
-So existing users are logged in, but when the app tries to load their brand, the database cannot finish evaluating access rules and returns this recursion error. The app then shows “Couldn't load your brand”.
+This way, if a user enables autopilot late in the day, the next morning sweep will still render the missed post (up to 3 days back) instead of orphaning it.
 
-## Fix plan
+### 3. Immediate-trigger on enabling Autonomous (small UX win)
+When the user flips the Engine to Autonomous in `src/pages/v2/Engine.tsx`, if today's scheduled idea exists and the delivery window has already passed for today, fire `content-autopilot` once with `{ delivery_time: <their window>, brand_id: <theirs>, force: true }`. Add an optional `brand_id` + `force` path to the edge function that bypasses the hour-window check for a single brand.
 
-1. **Break the recursive policy chain**
-   - Add safe backend helper functions that check:
-     - whether a user owns a brand
-     - whether a user is an active team member of a brand
-   - These helpers will run as trusted backend functions so the checks do not trigger RLS again.
+### Files touched
+- `supabase/functions/content-autopilot/index.ts` — relax retry query; add optional `{ brand_id, force }` single-brand path.
+- `src/pages/v2/Engine.tsx` — when toggling to Autonomous, call the force path so today isn't lost.
 
-2. **Replace the broken policies**
-   - Update the `brands` team-member view policy so it uses the helper instead of directly querying `brand_team_members`.
-   - Update the `brand_team_members` owner-management policy so it uses the helper instead of directly querying `brands`.
-
-3. **Keep existing access behavior intact**
-   - Brand owners can still access their brands.
-   - Active team members can still view brands they belong to.
-   - Admin/service-role policies remain unchanged.
-   - RLS stays enabled; this is not a security bypass for users.
-
-4. **Validate after the migration**
-   - Re-check the live policies to confirm there is no direct `brands` ↔ `brand_team_members` recursion.
-   - Confirm the reported error no longer appears in backend logs.
-   - Existing completed users should load their brand and reach the main app instead of `/onboarding`.
-
-## Technical details
-
-The migration will likely:
-
-```sql
-create or replace function public.is_brand_owner(...)
-returns boolean
-security definer
-...
-
-create or replace function public.is_active_brand_member(...)
-returns boolean
-security definer
-...
-
-drop policy "Team members can view their brands" on public.brands;
-create policy "Team members can view their brands"
-on public.brands
-for select
-to authenticated
-using (public.is_active_brand_member(id, auth.uid()));
-
-drop policy "Brand owners manage memberships" on public.brand_team_members;
-create policy "Brand owners manage memberships"
-on public.brand_team_members
-for all
-to authenticated
-using (public.is_brand_owner(brand_id, auth.uid()))
-with check (public.is_brand_owner(brand_id, auth.uid()));
-```
-
-<presentation-actions>
-  <presentation-open-history>View History</presentation-open-history>
-</presentation-actions>
-
-<presentation-actions>
-<presentation-link url="https://docs.lovable.dev/tips-tricks/troubleshooting">Troubleshooting docs</presentation-link>
-</presentation-actions>
+### What you'll see after this ships
+- I'll trigger the recovery call for your brand so today's post lands in your inbox.
+- Tomorrow's morning sweep will now catch any same-week ideas that were missed for any reason.
+- Future users enabling Autonomous mid-day will get today's post immediately instead of waiting until tomorrow.
