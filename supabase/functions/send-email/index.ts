@@ -1159,6 +1159,10 @@ Deno.serve(async (req) => {
     let html: string;
 
     switch (type) {
+      case "support_confirmation":
+        subject = `We received your message — ${data?.ticket_number || "Brandie support"}`;
+        html = supportConfirmationHtml(data || {});
+        break;
       case "welcome":
         subject = "Welcome to Brandie — your brand studio is ready ✨";
         html = welcomeHtml(data?.name || "");
