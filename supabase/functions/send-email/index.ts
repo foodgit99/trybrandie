@@ -757,6 +757,116 @@ function affiliateApplicationAdminNotifyHtml(data: {
 </body></html>`;
 }
 
+// ============ SUPPORT EMAIL TEMPLATES ============
+
+function escapeHtml(s: string): string {
+  return String(s || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function supportConfirmationHtml(data: {
+  ticket_number?: string; subject?: string; category?: string; message?: string; name?: string;
+}): string {
+  const name = escapeHtml(data.name || "there");
+  const ticket = data.ticket_number || "—";
+  const subject = escapeHtml(data.subject || "");
+  const category = escapeHtml(data.category || "General");
+  const message = escapeHtml(data.message || "").replace(/\n/g, "<br/>");
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <h1 style="color:#c4a265;font-size:26px;margin:0;font-weight:700;">We've got your message ✉️</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">Hey ${name},</p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Thanks for reaching out. Your support request has been received and our team will get back to you within <strong>24 hours</strong>.
+    </p>
+    <p style="font-size:14px;color:#6b7280;margin:0 0 8px;">Reference</p>
+    <p style="font-size:18px;color:#1a1a2e;font-weight:700;margin:0 0 20px;letter-spacing:0.5px;">${ticket}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:0 0 24px;">
+      <tr><td style="padding:14px 18px;border-bottom:1px solid #f3f4f6;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Category</p>
+        <p style="margin:4px 0 0;font-size:14px;color:#1a1a2e;">${category}</p>
+      </td></tr>
+      <tr><td style="padding:14px 18px;border-bottom:1px solid #f3f4f6;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Subject</p>
+        <p style="margin:4px 0 0;font-size:14px;color:#1a1a2e;">${subject}</p>
+      </td></tr>
+      <tr><td style="padding:14px 18px;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Your message</p>
+        <p style="margin:6px 0 0;font-size:14px;color:#1a1a2e;line-height:1.6;">${message}</p>
+      </td></tr>
+    </table>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+      <a href="${APP_URL}/cockpit" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">Back to Brandie</a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">Reply to this email to add more context to your ticket.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function supportNewTicketHtml(data: {
+  ticket_number?: string; subject?: string; category?: string; message?: string;
+  email?: string; name?: string; context?: Record<string, unknown>;
+}): string {
+  const ticket = data.ticket_number || "—";
+  const subject = escapeHtml(data.subject || "");
+  const category = escapeHtml(data.category || "General");
+  const message = escapeHtml(data.message || "").replace(/\n/g, "<br/>");
+  const email = escapeHtml(data.email || "");
+  const name = escapeHtml(data.name || "");
+  const ctxRows = Object.entries(data.context || {})
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .map(([k, v]) => `<tr>
+        <td style="padding:8px 14px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;width:140px;border-bottom:1px solid #f3f4f6;">${escapeHtml(k)}</td>
+        <td style="padding:8px 14px;font-size:13px;color:#1a1a2e;border-bottom:1px solid #f3f4f6;word-break:break-word;">${escapeHtml(String(v))}</td>
+      </tr>`).join("");
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:24px 32px;">
+    <p style="margin:0;color:#c4a265;font-size:12px;text-transform:uppercase;letter-spacing:0.18em;">New support ticket</p>
+    <h1 style="color:#ffffff;font-size:22px;margin:6px 0 0;font-weight:700;">${ticket} · ${category}</h1>
+  </td></tr>
+  <tr><td style="padding:28px 32px;">
+    <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">From</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#1a1a2e;">${name ? name + " · " : ""}<a href="mailto:${email}" style="color:#1a1a2e;">${email}</a></p>
+    <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Subject</p>
+    <p style="margin:0 0 18px;font-size:16px;color:#1a1a2e;font-weight:600;">${subject}</p>
+    <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Message</p>
+    <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;font-size:14px;color:#1a1a2e;line-height:1.6;margin:0 0 22px;">${message}</div>
+    ${ctxRows ? `<p style="margin:0 0 6px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Context</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:0 0 22px;">${ctxRows}</table>` : ""}
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="padding-right:8px;">
+        <a href="mailto:${email}?subject=Re:%20${encodeURIComponent(data.subject || "Brandie support")}%20[${ticket}]" style="display:inline-block;background:#1a1a2e;color:#ffffff;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;text-decoration:none;">Reply via email</a>
+      </td>
+      <td>
+        <a href="${APP_URL}/admin" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;text-decoration:none;">Open in Admin</a>
+      </td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:14px 32px 28px;">
+    <p style="margin:0;font-size:12px;color:#9ca3af;">Sent to Brandie admins.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 async function resolveAdminEmails(): Promise<string[]> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -994,6 +1104,9 @@ Deno.serve(async (req) => {
       if (type === "affiliate_application_admin_notify") {
         subject = "New Affiliate Application — Review Needed 📋";
         html = affiliateApplicationAdminNotifyHtml(data || {});
+      } else if (type === "support_new_ticket") {
+        subject = `🛟 [${data?.ticket_number || "ticket"}] ${data?.category || "Support"} — ${data?.subject || "New ticket"}`;
+        html = supportNewTicketHtml(data || {});
       } else {
         return new Response(JSON.stringify({ error: `__admins__ not supported for type: ${type}` }), {
           status: 400,
@@ -1046,6 +1159,10 @@ Deno.serve(async (req) => {
     let html: string;
 
     switch (type) {
+      case "support_confirmation":
+        subject = `We received your message — ${data?.ticket_number || "Brandie support"}`;
+        html = supportConfirmationHtml(data || {});
+        break;
       case "welcome":
         subject = "Welcome to Brandie — your brand studio is ready ✨";
         html = welcomeHtml(data?.name || "");

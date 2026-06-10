@@ -69,15 +69,18 @@ import {
   Wallet,
   Users2,
   CreditCard,
+  LifeBuoy,
 } from "lucide-react";
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
 import AdminTracesTab from "@/components/admin/AdminTracesTab";
 import RewardsTab from "@/components/admin/RewardsTab";
 import SubscriptionsTab from "@/components/admin/SubscriptionsTab";
+import SupportTab from "@/components/admin/SupportTab";
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
+  { key: "support", label: "Support", icon: LifeBuoy },
   { key: "email_crm", label: "Email CRM", icon: Mail },
   { key: "profiles", label: "Users", icon: Users },
   { key: "brands", label: "Brands", icon: Palette },
@@ -2765,6 +2768,10 @@ export default function Admin() {
             <OverviewTab />
           </TabsContent>
 
+          <TabsContent value="support">
+            <SupportTab />
+          </TabsContent>
+
           <TabsContent value="email_crm">
             <EmailCRMTab />
           </TabsContent>
@@ -2816,7 +2823,7 @@ export default function Admin() {
             <SubscriptionsTab />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","email_crm","designs","ai_traces","affiliates","rewards","subscriptions"].includes(t.key)).map((t) => (
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions"].includes(t.key)).map((t) => (
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>

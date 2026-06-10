@@ -1,45 +1,100 @@
-# Why nothing arrived today
+# Support Module Plan
 
-I traced your account (`desksolutions.expert@gmail.com`, brand "Solutions expert") through the autopilot system. Here's what happened:
+A native-feeling support flow with a user-facing form, admin triage tab, and email notifications to both the requester and the support team.
 
-**Timeline**
-- `autopilot_settings` for your brand was set to `enabled=true, mode=autonomous, delivery_time=morning` at **16:18 UTC today** (≈ 5:18 PM Lagos).
-- The autopilot's **morning sweep ran at 06:00 UTC today** (≈ 7:00 AM Lagos) — *before* you flipped the switch. At that point your brand wasn't enabled, so it wasn't picked up.
-- The afternoon (12:00 UTC) and evening (17:00 UTC) sweeps only process brands whose `delivery_time` matches that window — yours is `morning`, so they correctly skipped you.
-- Result: today's idea (`Moving Beyond the Manual Logbook`, scheduled_for `2026-06-09`) is still sitting at `status=suggested, autopilot_status=NULL`. Nothing was rendered, nothing was emailed.
+## 1. Entry points
 
-**Secondary bug I uncovered while looking**
-Even tomorrow's 7 AM run won't pick up today's missed idea. The query in `content-autopilot` only matches:
-- ideas scheduled for *local today* with `autopilot_status` null/pending, **or**
-- ideas from the last 3 days **only if** their `autopilot_status` is `failed_no_credits` / `failed_error`.
+- **Hamburger menu** (`NewAppHeader.tsx`) — new "Support" item with `LifeBuoy` icon, placed above Settings.
+- **Dedicated route** `/support` — full page using `NewAppHeader` + warm neutral design language (Beige/Charcoal/Gold).
 
-An idea that was simply never attempted (status NULL, date in the past) falls into a dead zone and is permanently skipped. This will silently affect anyone who turns on autopilot after their delivery window, or anyone whose brand was added mid-week.
+## 2. `/support` page UX
 
-# The plan
+Two-column on desktop, stacked on mobile:
 
-### 1. Recover today's post for you (one-off)
-Manually invoke `content-autopilot` for `delivery_time=morning` after temporarily marking today's idea as eligible — or simpler, directly call the rendering path for that one idea so you get today's email within minutes.
+**Left — "Get help" form card**
+- Category select: Bug, Billing, Feature request, Account, Other
+- Subject (max 120 chars)
+- Message (textarea, 20–2000 chars)
+- Submit button with loading state, success toast + inline confirmation panel ("We've received your request — ticket #ABC123. Check your inbox.")
+- Auto-attached (hidden, sent server-side): user_id, email, brand_id, current plan, app version, user-agent
 
-### 2. Fix the catch-up gap (code change)
-In `supabase/functions/content-autopilot/index.ts`, extend the retry branch of the `content_ideas` query so missed ideas are caught on the next run:
+**Right — "Before you write" helper**
+- 4–6 quick FAQ accordions (account, credits, autopilot, billing, design quality)
+- "Email us directly" fallback line
+- Response time expectation ("Usually within 24h")
+
+Uses zod validation client + server. Sanitises message via `_shared/sanitise.ts`.
+
+## 3. Database
+
+New migration:
 
 ```text
-scheduled_for >= retryFrom AND scheduled_for <= localToday
-  AND (autopilot_status IN (failed_no_credits, failed_error)
-       OR autopilot_status IS NULL)
-  AND status IN (suggested, scheduled)
+support_tickets
+  id uuid pk
+  ticket_number text unique  (e.g. BRD-7F3A2)
+  user_id uuid (nullable for safety)
+  email text
+  category text
+  subject text
+  message text
+  status text default 'open'  -- open | in_progress | resolved | closed
+  priority text default 'normal'
+  context jsonb               -- brand_id, plan, user_agent, route
+  admin_notes text
+  created_at, updated_at timestamptz
+
+support_ticket_replies   (for future two-way; out of scope UI now but table created)
+  id, ticket_id, author_role, body, created_at
 ```
 
-This way, if a user enables autopilot late in the day, the next morning sweep will still render the missed post (up to 3 days back) instead of orphaning it.
+RLS:
+- authenticated INSERT own ticket; SELECT own tickets
+- admin SELECT/UPDATE all (via `has_role`)
+- GRANTs for authenticated + service_role
 
-### 3. Immediate-trigger on enabling Autonomous (small UX win)
-When the user flips the Engine to Autonomous in `src/pages/v2/Engine.tsx`, if today's scheduled idea exists and the delivery window has already passed for today, fire `content-autopilot` once with `{ delivery_time: <their window>, brand_id: <theirs>, force: true }`. Add an optional `brand_id` + `force` path to the edge function that bypasses the hour-window check for a single brand.
+## 4. Edge function `support-submit`
 
-### Files touched
-- `supabase/functions/content-autopilot/index.ts` — relax retry query; add optional `{ brand_id, force }` single-brand path.
-- `src/pages/v2/Engine.tsx` — when toggling to Autonomous, call the force path so today isn't lost.
+- Validates payload (zod)
+- Inserts ticket, generates ticket_number
+- Invokes `send-transactional-email` twice:
+  - **User confirmation** → `support-confirmation` template (we received your request)
+  - **Admin notification** → `support-new-ticket` template to admin recipient
+- Idempotency key: `support-${ticket.id}`
 
-### What you'll see after this ships
-- I'll trigger the recovery call for your brand so today's post lands in your inbox.
-- Tomorrow's morning sweep will now catch any same-week ideas that were missed for any reason.
-- Future users enabling Autonomous mid-day will get today's post immediately instead of waiting until tomorrow.
+## 5. Email templates (React Email, in `_shared/transactional-email-templates/`)
+
+- `support-confirmation.tsx` — warm neutral, gold CTA, ticket number, message echo
+- `support-new-ticket.tsx` — admin view: requester email, category, full message, context block, link to admin tab
+
+Registered in `registry.ts`. Sends through existing Lovable Emails infra.
+
+**Admin recipient**: stored as Supabase secret `SUPPORT_ADMIN_EMAIL` (asked for during build).
+
+## 6. Admin panel
+
+New tab in `/admin` — "Support":
+- Table of tickets (newest first): #, requester, category, subject preview, status badge, created_at
+- Filters: status, category, search
+- Row click → drawer with full message, context JSON, status dropdown (open/in_progress/resolved/closed), admin notes textarea, "Reply via email" mailto link prefilled
+- Status updates write to `support_tickets`
+
+## 7. Files touched
+
+**New**
+- `src/pages/v2/Support.tsx`
+- `src/components/admin/SupportTab.tsx`
+- `supabase/functions/support-submit/index.ts`
+- `supabase/functions/_shared/transactional-email-templates/support-confirmation.tsx`
+- `supabase/functions/_shared/transactional-email-templates/support-new-ticket.tsx`
+- DB migration for `support_tickets` + `support_ticket_replies`
+
+**Edited**
+- `src/components/v2/NewAppHeader.tsx` — add Support menu item
+- `src/App.tsx` — register `/support` route
+- `src/pages/Admin.tsx` — register Support tab
+- `supabase/functions/_shared/transactional-email-templates/registry.ts` — register 2 templates
+
+## Open question
+
+What email should receive admin notifications? I'll store it as `SUPPORT_ADMIN_EMAIL`. If you don't specify, I'll default to `support@trybrandie.com` and you can update the secret later.

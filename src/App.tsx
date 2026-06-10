@@ -46,6 +46,7 @@ import V2Engine from "./pages/v2/Engine";
 import V2ContentHub from "./pages/v2/ContentHubV2";
 import V2Studio from "./pages/v2/Studio";
 import V2History from "./pages/v2/History";
+import V2Support from "./pages/v2/Support";
 import V2Hub from "./pages/v2/Hub";
 import V2Pricing from "./pages/v2/Pricing";
 import BrandsPage from "./pages/Brands";
@@ -230,6 +231,7 @@ const App = () => (
           {/* Shared / utility surfaces (no v2 equivalent yet) */}
           <Route path="/studio" element={<ProtectedRoute><V2Studio /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><V2History /></ProtectedRoute>} />
+          <Route path="/support" element={<ProtectedRoute><V2Support /></ProtectedRoute>} />
           <Route path="/legacy/library" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
           <Route path="/content" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
           <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />

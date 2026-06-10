@@ -2038,6 +2038,54 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          admin_notes: string | null
+          category: string
+          context: Json
+          created_at: string
+          email: string
+          id: string
+          message: string
+          priority: string
+          status: string
+          subject: string
+          ticket_number: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          category: string
+          context?: Json
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          priority?: string
+          status?: string
+          subject: string
+          ticket_number: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          category?: string
+          context?: Json
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          priority?: string
+          status?: string
+          subject?: string
+          ticket_number?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       target_audiences: {
         Row: {
           brand_id: string
