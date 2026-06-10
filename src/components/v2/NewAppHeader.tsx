@@ -25,6 +25,7 @@ import {
   Cpu,
   Wand2,
   History,
+  LifeBuoy,
 } from "lucide-react";
 
 
