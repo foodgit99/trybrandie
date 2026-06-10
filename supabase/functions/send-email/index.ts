@@ -1104,6 +1104,9 @@ Deno.serve(async (req) => {
       if (type === "affiliate_application_admin_notify") {
         subject = "New Affiliate Application — Review Needed 📋";
         html = affiliateApplicationAdminNotifyHtml(data || {});
+      } else if (type === "support_new_ticket") {
+        subject = `🛟 [${data?.ticket_number || "ticket"}] ${data?.category || "Support"} — ${data?.subject || "New ticket"}`;
+        html = supportNewTicketHtml(data || {});
       } else {
         return new Response(JSON.stringify({ error: `__admins__ not supported for type: ${type}` }), {
           status: 400,
