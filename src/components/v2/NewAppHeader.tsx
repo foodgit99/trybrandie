@@ -90,6 +90,10 @@ const NewAppHeader = () => {
               <BarChart3 className="h-4 w-4" />
               Report
             </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/support")}>
+              <LifeBuoy className="h-4 w-4" />
+              Support
+            </DropdownMenuItem>
 
             {isAdmin && (
               <>

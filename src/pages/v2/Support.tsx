@@ -116,6 +116,7 @@ export default function Support() {
       <SEO
         title="Support — Brandie"
         description="Get help from the Brandie team. Report bugs, ask billing questions, or request features."
+        path="/support"
       />
       <NewAppHeader />
 
