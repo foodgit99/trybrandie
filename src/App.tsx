@@ -241,6 +241,7 @@ const App = () => (
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/admin/google-connect" element={<AdminRoute><AdminGoogleConnect /></AdminRoute>} />
 
           {/* Bookmark shims */}
           <Route path="/dashboard" element={<Navigate to="/cockpit" replace />} />
