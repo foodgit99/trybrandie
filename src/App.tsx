@@ -29,6 +29,7 @@ import AffiliateSignup from "./pages/AffiliateSignup";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import AffiliateMarketing from "./pages/AffiliateMarketing";
 import Admin from "./pages/Admin";
+import AdminGoogleConnect from "./pages/admin/GoogleConnect";
 import ContentHub from "./pages/ContentHub";
 import LegacyCockpit from "./pages/Cockpit";
 import NotFound from "./pages/NotFound";
