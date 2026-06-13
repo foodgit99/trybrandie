@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { getUpcomingHolidays, getCurrentSeason } from "@/lib/holidayCalendar";
+import { getUpcomingHolidays, fetchUpcomingHolidaysLive, getCurrentSeason, type UpcomingHoliday } from "@/lib/holidayCalendar";
 
 interface ContentIdea {
   id: string;
