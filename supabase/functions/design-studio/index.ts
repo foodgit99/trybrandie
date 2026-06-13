@@ -821,7 +821,7 @@ TREND CONTEXT: The brand currently has "${trendPref.selected_trend}" trend activ
         }
       }
 
-      const seasonalContext = getSeasonalContextString(14);
+      const seasonalContext = await getSeasonalContextStringAsync(supabase, 14, brand?.id ? await resolveBrandRegion(supabase, brand.id) : "Global");
       const chatSystemPrompt = `You are Brandie, a senior creative director with deep brand strategy expertise. You help users refine their design ideas before generating. Be confident, professional, calm. Never apologise excessively. Suggest improvements. Keep responses concise (2-3 sentences max). When advising on designs, always recommend photorealistic imagery and clean, modern aesthetics unless the user explicitly wants something different. Prioritise the user's intent and their Brand Centre settings (colours, fonts, tone, personality, inspiration) above all else.${chatBrandContext}${chatAudienceContext}${chatTrendContext}
 
 ${seasonalContext}
