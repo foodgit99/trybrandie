@@ -15,10 +15,19 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const url = new URL(req.url);
-    const brandId = url.searchParams.get("brand_id");
-    const region = url.searchParams.get("region");
-    const daysRaw = Number(url.searchParams.get("days") || "21");
-    const days = Math.max(1, Math.min(60, Number.isFinite(daysRaw) ? daysRaw : 21));
+    let brandId = url.searchParams.get("brand_id");
+    let region = url.searchParams.get("region");
+    let daysRaw: number | string | null = url.searchParams.get("days");
+    if (req.method !== "GET") {
+      try {
+        const body = await req.json();
+        brandId = brandId || body?.brand_id || null;
+        region = region || body?.region || null;
+        daysRaw = daysRaw ?? body?.days ?? null;
+      } catch { /* noop */ }
+    }
+    const daysNum = Number(daysRaw ?? 21);
+    const days = Math.max(1, Math.min(60, Number.isFinite(daysNum) ? daysNum : 21));
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
