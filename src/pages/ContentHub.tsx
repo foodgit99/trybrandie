@@ -1121,7 +1121,7 @@ const ContentHub = () => {
     const monday = getWeekMonday(weekOffset);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    const upcoming = getUpcomingHolidays(21);
+    const upcoming = liveHolidays;
     for (const h of upcoming) {
       if (h.date >= monday && h.date <= sunday) {
         const dayIndex = (h.date.getDay() + 6) % 7;
