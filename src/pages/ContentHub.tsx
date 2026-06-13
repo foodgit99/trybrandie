@@ -84,7 +84,7 @@ import { CategoryBadge, CategoryBadgeList, CategoryDot } from "@/components/cont
 import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
-import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
+import { getUpcomingHolidays, fetchUpcomingHolidaysLive, type UpcomingHoliday } from "@/lib/holidayCalendar";
 import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory, getLastSortOption, setLastSortOption, type ContentHubSortOption } from "@/lib/lastCategoryPref";
 import FeatureInfoButton from "@/components/content/FeatureInfoButton";
 import CarouselPreviewDialog from "@/components/content/CarouselPreviewDialog";
