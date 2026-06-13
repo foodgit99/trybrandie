@@ -1,6 +1,11 @@
-// Client-side holiday calendar utility (mirrors the shared edge function version)
-// Floating/lunar holidays use per-year exact dates. Years without an entry
-// are skipped on purpose — never schedule Eid/Diwali/etc. on a wrong day.
+// Client-side holiday calendar utility.
+// PREFERRED: use `fetchUpcomingHolidaysLive` which calls the `holiday-feed`
+// edge function (Firecrawl-sourced, weekly-cached, brand-region aware).
+// The hardcoded `getUpcomingHolidays` is kept ONLY as a synchronous
+// fallback for initial render and offline scenarios.
+
+import { supabase } from "@/integrations/supabase/client";
+
 
 export interface Holiday {
   month: number;
