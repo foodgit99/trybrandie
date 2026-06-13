@@ -128,3 +128,39 @@ export function getCurrentSeason(): string {
   if (month >= 8 && month <= 10) return "Autumn";
   return "Winter";
 }
+
+/**
+ * Live, brand-region-aware holiday feed sourced from Firecrawl (cached
+ * weekly server-side). Falls back to the hardcoded list on any error.
+ */
+export async function fetchUpcomingHolidaysLive(
+  opts: { brandId?: string; days?: number } = {},
+): Promise<UpcomingHoliday[]> {
+  const days = Math.max(1, Math.min(60, opts.days ?? 21));
+  try {
+    const params = new URLSearchParams({ days: String(days) });
+    if (opts.brandId) params.set("brand_id", opts.brandId);
+    const { data, error } = await supabase.functions.invoke("holiday-feed", {
+      method: "GET" as any,
+      // supabase-js doesn't pass query string via invoke; use body fallback
+      body: { brand_id: opts.brandId, days },
+    });
+    if (error) throw error;
+    const events = (data?.events || []) as Array<{
+      name: string; date: string; daysUntil: number; region: string;
+      content_type: string; description?: string;
+    }>;
+    if (events.length === 0) throw new Error("empty");
+    return events.map((e) => ({
+      name: e.name,
+      date: new Date(e.date),
+      daysUntil: e.daysUntil,
+      region: e.region,
+      content_type: e.content_type,
+      month: new Date(e.date).getMonth() + 1,
+      day: new Date(e.date).getDate(),
+    }));
+  } catch {
+    return getUpcomingHolidays(days);
+  }
+}
