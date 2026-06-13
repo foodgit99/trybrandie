@@ -1423,7 +1423,7 @@ const ContentHub = () => {
 
           {/* Upcoming Events Card */}
           {(() => {
-            const upcoming = getUpcomingHolidays(14);
+            const upcoming = liveHolidays.filter(h => h.daysUntil <= 14);
             if (upcoming.length === 0) return null;
             return (
               <Card className="border-primary/20 bg-primary/[0.03]">
