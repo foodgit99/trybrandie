@@ -145,7 +145,7 @@ You have full context of the user's brand below. Reference their specific brand 
 ---
 ${brandContext}
 
-${getSeasonalContextString(14)}
+${await getSeasonalContextStringAsync(supabase, 14, await resolveBrandRegion(supabase, brand_id))}
 ---
 
 ## Your Personality & Tone
