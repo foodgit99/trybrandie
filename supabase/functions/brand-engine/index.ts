@@ -289,7 +289,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const pillars = pillarsRes.data || [];
       const ideas = ideasRes.data || [];
       const autopilot = autopilotRes.data;
-      const upcomingHolidays = getUpcomingHolidays(14);
+      const region = await resolveBrandRegion(supabase, brand_id);
+      const upcomingHolidays = await fetchHolidayFeed(supabase, { region, days: 14 });
 
       const failedIdeas = ideas.filter((i: any) =>
         i.autopilot_status === "failed_no_credits" || i.autopilot_status === "failed_error"
