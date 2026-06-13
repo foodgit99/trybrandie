@@ -670,11 +670,12 @@ Each campaign should target a specific content category. Vary categories across 
         return { day: d, date: date.toISOString().split("T")[0] };
       });
 
-      // --- Holiday detection (using shared calendar) ---
-      const weekHolidays = getWeekHolidays(monday);
+      // --- Holiday detection (live Firecrawl feed, brand-region aware) ---
+      const brandRegion = await resolveBrandRegion(supabase, brand_id);
+      const weekHolidays = await getWeekHolidaysAsync(supabase, monday, brandRegion);
 
       const holidayContext = weekHolidays.length > 0
-        ? `\n\nHOLIDAYS THIS WEEK:\n${weekHolidays.map(h => `- ${h.name} (${h.month}/${h.day}, ${h.region}) — ${h.content_type} content`).join("\n")}\nIMPORTANT: Generate at least one idea themed around each holiday. Tag holiday ideas with idea_type "holiday".`
+        ? `\n\nHOLIDAYS THIS WEEK:\n${weekHolidays.map(h => `- ${h.name} (${h.date.toISOString().split("T")[0]}, ${h.region}) — ${h.content_type} content`).join("\n")}\nIMPORTANT: Generate at least one idea themed around each holiday. Tag holiday ideas with idea_type "holiday".`
         : "";
 
       // Inject trend intel if available
