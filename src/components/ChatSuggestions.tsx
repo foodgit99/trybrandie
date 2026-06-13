@@ -100,7 +100,7 @@ const ChatSuggestions = ({
 
     const shuffled = pool.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 4);
-  }, [brandName, brandVibe, brandDescription, hasMessages, hasImage, contentIdeas]);
+  }, [brandName, brandVibe, brandDescription, hasMessages, hasImage, contentIdeas, liveHolidays]);
 
   return (
     <motion.div
