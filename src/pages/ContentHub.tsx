@@ -298,6 +298,19 @@ const ContentHub = () => {
 
   const brandId = brand?.id;
 
+  // Live (Firecrawl-sourced, weekly-cached) upcoming holidays for this brand.
+  // Falls back to hardcoded list synchronously during initial render.
+  const [liveHolidays, setLiveHolidays] = useState<UpcomingHoliday[]>(() => getUpcomingHolidays(21));
+  useEffect(() => {
+    let cancelled = false;
+    fetchUpcomingHolidaysLive({ brandId, days: 21 }).then((list) => {
+      if (!cancelled && list.length > 0) setLiveHolidays(list);
+    });
+    return () => { cancelled = true; };
+  }, [brandId]);
+
+
+
   // Autopilot settings from database
   const { data: autopilotSettings } = useQuery({
     queryKey: ["autopilot-settings", brandId],
