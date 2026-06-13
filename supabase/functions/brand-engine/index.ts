@@ -903,7 +903,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const missing = CONTENT_CATEGORY_ENUM.filter((c) => recentCounts[c] === 0);
 
       // Holidays for the week — bias empty days that match a holiday
-      const weekHolidays = getWeekHolidays(monday);
+      const weekHolidays = await getWeekHolidaysAsync(supabase, monday, await resolveBrandRegion(supabase, brand_id));
       const holidayByDay: Record<string, string> = {};
       for (const h of weekHolidays) {
         const d = new Date(h.date);
