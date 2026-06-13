@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
+import { getSeasonalContextStringAsync, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { sanitise } from "../_shared/sanitise.ts";
 
 const corsHeaders = {
@@ -145,7 +145,7 @@ You have full context of the user's brand below. Reference their specific brand 
 ---
 ${brandContext}
 
-${getSeasonalContextString(14)}
+${await getSeasonalContextStringAsync(supabase, 14, await resolveBrandRegion(supabase, brand_id))}
 ---
 
 ## Your Personality & Tone

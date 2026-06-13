@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
-import { getSeasonalContextString } from "../_shared/holiday-calendar.ts";
+import { getSeasonalContextStringAsync, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { sanitise } from "../_shared/sanitise.ts";
 import { Tracer } from "../_shared/tracer.ts";
 import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
@@ -821,7 +821,7 @@ TREND CONTEXT: The brand currently has "${trendPref.selected_trend}" trend activ
         }
       }
 
-      const seasonalContext = getSeasonalContextString(14);
+      const seasonalContext = await getSeasonalContextStringAsync(supabase, 14, brand?.id ? await resolveBrandRegion(supabase, brand.id) : "Global");
       const chatSystemPrompt = `You are Brandie, a senior creative director with deep brand strategy expertise. You help users refine their design ideas before generating. Be confident, professional, calm. Never apologise excessively. Suggest improvements. Keep responses concise (2-3 sentences max). When advising on designs, always recommend photorealistic imagery and clean, modern aesthetics unless the user explicitly wants something different. Prioritise the user's intent and their Brand Centre settings (colours, fonts, tone, personality, inspiration) above all else.${chatBrandContext}${chatAudienceContext}${chatTrendContext}
 
 ${seasonalContext}

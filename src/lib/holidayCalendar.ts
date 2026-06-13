@@ -1,6 +1,11 @@
-// Client-side holiday calendar utility (mirrors the shared edge function version)
-// Floating/lunar holidays use per-year exact dates. Years without an entry
-// are skipped on purpose — never schedule Eid/Diwali/etc. on a wrong day.
+// Client-side holiday calendar utility.
+// PREFERRED: use `fetchUpcomingHolidaysLive` which calls the `holiday-feed`
+// edge function (Firecrawl-sourced, weekly-cached, brand-region aware).
+// The hardcoded `getUpcomingHolidays` is kept ONLY as a synchronous
+// fallback for initial render and offline scenarios.
+
+import { supabase } from "@/integrations/supabase/client";
+
 
 export interface Holiday {
   month: number;
@@ -122,4 +127,36 @@ export function getCurrentSeason(): string {
   if (month >= 5 && month <= 7) return "Summer";
   if (month >= 8 && month <= 10) return "Autumn";
   return "Winter";
+}
+
+/**
+ * Live, brand-region-aware holiday feed sourced from Firecrawl (cached
+ * weekly server-side). Falls back to the hardcoded list on any error.
+ */
+export async function fetchUpcomingHolidaysLive(
+  opts: { brandId?: string; days?: number } = {},
+): Promise<UpcomingHoliday[]> {
+  const days = Math.max(1, Math.min(60, opts.days ?? 21));
+  try {
+    const { data, error } = await supabase.functions.invoke("holiday-feed", {
+      body: { brand_id: opts.brandId, days },
+    });
+    if (error) throw error;
+    const events = (data?.events || []) as Array<{
+      name: string; date: string; daysUntil: number; region: string;
+      content_type: string; description?: string;
+    }>;
+    if (events.length === 0) throw new Error("empty");
+    return events.map((e) => ({
+      name: e.name,
+      date: new Date(e.date),
+      daysUntil: e.daysUntil,
+      region: e.region,
+      content_type: e.content_type,
+      month: new Date(e.date).getMonth() + 1,
+      day: new Date(e.date).getDate(),
+    }));
+  } catch {
+    return getUpcomingHolidays(days);
+  }
 }

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getWeekHolidays, getUpcomingHolidays } from "../_shared/holiday-calendar.ts";
+import { getWeekHolidaysAsync, fetchHolidayFeed, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 
 const corsHeaders = {
@@ -289,7 +289,8 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       const pillars = pillarsRes.data || [];
       const ideas = ideasRes.data || [];
       const autopilot = autopilotRes.data;
-      const upcomingHolidays = getUpcomingHolidays(14);
+      const region = await resolveBrandRegion(supabase, brand_id);
+      const upcomingHolidays = await fetchHolidayFeed(supabase, { region, days: 14 });
 
       const failedIdeas = ideas.filter((i: any) =>
         i.autopilot_status === "failed_no_credits" || i.autopilot_status === "failed_error"
@@ -669,11 +670,12 @@ Each campaign should target a specific content category. Vary categories across 
         return { day: d, date: date.toISOString().split("T")[0] };
       });
 
-      // --- Holiday detection (using shared calendar) ---
-      const weekHolidays = getWeekHolidays(monday);
+      // --- Holiday detection (live Firecrawl feed, brand-region aware) ---
+      const brandRegion = await resolveBrandRegion(supabase, brand_id);
+      const weekHolidays = await getWeekHolidaysAsync(supabase, monday, brandRegion);
 
       const holidayContext = weekHolidays.length > 0
-        ? `\n\nHOLIDAYS THIS WEEK:\n${weekHolidays.map(h => `- ${h.name} (${h.month}/${h.day}, ${h.region}) — ${h.content_type} content`).join("\n")}\nIMPORTANT: Generate at least one idea themed around each holiday. Tag holiday ideas with idea_type "holiday".`
+        ? `\n\nHOLIDAYS THIS WEEK:\n${weekHolidays.map(h => `- ${h.name} (${h.date.toISOString().split("T")[0]}, ${h.region}) — ${h.content_type} content`).join("\n")}\nIMPORTANT: Generate at least one idea themed around each holiday. Tag holiday ideas with idea_type "holiday".`
         : "";
 
       // Inject trend intel if available
@@ -901,7 +903,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const missing = CONTENT_CATEGORY_ENUM.filter((c) => recentCounts[c] === 0);
 
       // Holidays for the week — bias empty days that match a holiday
-      const weekHolidays = getWeekHolidays(monday);
+      const weekHolidays = await getWeekHolidaysAsync(supabase, monday, await resolveBrandRegion(supabase, brand_id));
       const holidayByDay: Record<string, string> = {};
       for (const h of weekHolidays) {
         const d = new Date(h.date);

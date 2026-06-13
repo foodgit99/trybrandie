@@ -84,7 +84,7 @@ import { CategoryBadge, CategoryBadgeList, CategoryDot } from "@/components/cont
 import CategoryCoveragePanel from "@/components/content/CategoryCoveragePanel";
 import { CONTENT_CATEGORIES, parseCategoryIds, type ContentCategoryId } from "@/lib/contentCategories";
 const validCategoryIds: readonly string[] = CONTENT_CATEGORIES.map((c) => c.id);
-import { getUpcomingHolidays, type UpcomingHoliday } from "@/lib/holidayCalendar";
+import { getUpcomingHolidays, fetchUpcomingHolidaysLive, type UpcomingHoliday } from "@/lib/holidayCalendar";
 import { getLastCategory, setLastCategory, clearLastCategory, hydrateLastCategoriesForBrand, getLastFilterCategory, setLastFilterCategory, getLastSortOption, setLastSortOption, type ContentHubSortOption } from "@/lib/lastCategoryPref";
 import FeatureInfoButton from "@/components/content/FeatureInfoButton";
 import CarouselPreviewDialog from "@/components/content/CarouselPreviewDialog";
@@ -297,6 +297,19 @@ const ContentHub = () => {
   };
 
   const brandId = brand?.id;
+
+  // Live (Firecrawl-sourced, weekly-cached) upcoming holidays for this brand.
+  // Falls back to hardcoded list synchronously during initial render.
+  const [liveHolidays, setLiveHolidays] = useState<UpcomingHoliday[]>(() => getUpcomingHolidays(21));
+  useEffect(() => {
+    let cancelled = false;
+    fetchUpcomingHolidaysLive({ brandId, days: 21 }).then((list) => {
+      if (!cancelled && list.length > 0) setLiveHolidays(list);
+    });
+    return () => { cancelled = true; };
+  }, [brandId]);
+
+
 
   // Autopilot settings from database
   const { data: autopilotSettings } = useQuery({
@@ -1108,7 +1121,7 @@ const ContentHub = () => {
     const monday = getWeekMonday(weekOffset);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    const upcoming = getUpcomingHolidays(21);
+    const upcoming = liveHolidays;
     for (const h of upcoming) {
       if (h.date >= monday && h.date <= sunday) {
         const dayIndex = (h.date.getDay() + 6) % 7;
@@ -1410,7 +1423,7 @@ const ContentHub = () => {
 
           {/* Upcoming Events Card */}
           {(() => {
-            const upcoming = getUpcomingHolidays(14);
+            const upcoming = liveHolidays.filter(h => h.daysUntil <= 14);
             if (upcoming.length === 0) return null;
             return (
               <Card className="border-primary/20 bg-primary/[0.03]">

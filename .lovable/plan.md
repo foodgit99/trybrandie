@@ -1,81 +1,50 @@
-## Owner-only Google OAuth (offline) — get a refresh token for Gmail + Analytics
+## Goal
 
-You're the only user that will ever connect. So we don't need a per-user tokens table or admin UI — we just need a one-time "Connect Google" flow that captures your refresh token and stores it as a secret. After that, any edge function can mint fresh access tokens on demand.
+Pull holidays and current cultural events from the live web via Firecrawl Search, scoped to each brand's region, instead of relying on the hardcoded `HOLIDAYS` list. Keep the existing hardcoded list strictly as a safety-net fallback.
 
-### Scopes
-- `https://www.googleapis.com/auth/gmail.send`
-- `https://www.googleapis.com/auth/gmail.readonly`
-- `https://www.googleapis.com/auth/analytics.readonly`
-- `openid email` (so we can verify it's your account during callback)
+## Approach
 
-### Flow
+1. **New shared module** `supabase/functions/_shared/holiday-feed.ts`
+   - `fetchHolidaysForBrand(supabase, brand, days = 30)` → returns `UpcomingHoliday[]` shaped exactly like today's `getUpcomingHolidays` so call sites don't change.
+   - Reads `brand.country` (and `audience.region` if present) to build a region-aware Firecrawl query, e.g.:
+     `"public holidays and cultural observances in {Country} from {today} to {today+30d}"`.
+   - Calls Firecrawl `/v2/search` (REST, server-side, `FIRECRAWL_API_KEY`) with `limit: 5` and `scrapeOptions.formats: ['markdown']`.
+   - Pipes the scraped markdown into Lovable AI Gateway (Gemini Flash-Lite) with a strict JSON schema:
+     `[{ name, date (YYYY-MM-DD), region, content_type: 'promotional'|'engagement'|'inspirational' }]`.
+   - Validates dates, drops anything outside the requested window, dedupes by `name+date`.
 
-```text
-/admin/google-connect   →  click "Connect Google"
-        │
-        ▼
-google-oauth-start  (edge fn)
-        │  builds Google authorize URL with
-        │  access_type=offline, prompt=consent, scope=...
-        ▼
-accounts.google.com/oauth  →  you approve
-        │
-        ▼
-google-oauth-callback  (edge fn, public)
-        │  exchanges ?code for tokens
-        │  verifies email == OWNER_EMAIL (hardcoded admin allowlist via has_role)
-        │  stores refresh_token + access_token + expiry in `google_oauth_tokens`
-        ▼
-redirect back to /admin/google-connect?status=ok  → shows "Connected as you@…"
-```
+2. **Caching in `research_cache`**
+   - Cache key: `holiday-feed:{country}:{isoWeek}`.
+   - TTL: 7 days. One Firecrawl call per brand-region per week.
+   - On cache hit, skip Firecrawl entirely.
 
-### Database — one row, owner-only
+3. **Fallback**
+   - If Firecrawl errors, AI parse fails, or returns 0 events → fall back to the existing hardcoded `HOLIDAYS` resolver (`holiday-calendar.ts`). Log a warning trace.
 
-```text
-google_oauth_tokens
-  id uuid pk
-  user_id uuid          -- the admin who connected (you)
-  google_email text
-  refresh_token text    -- the prize
-  access_token text
-  expires_at timestamptz
-  scopes text[]
-  created_at, updated_at timestamptz
-```
+4. **Call-site updates** (signature-compatible, no behaviour change beyond data source)
+   - `supabase/functions/brand-engine/index.ts`
+   - `supabase/functions/brand-strategist/index.ts`
+   - `supabase/functions/design-studio/index.ts`
+   - `supabase/functions/_shared/category-recipes.ts` (if it imports the calendar)
+   - Each switches from `getUpcomingHolidays(days)` to `await fetchHolidaysForBrand(supabase, brand, days)`.
 
-RLS: only `has_role(auth.uid(), 'admin')` can `SELECT`. No inserts/updates from client — edge functions use service role. (Refresh tokens never reach the browser.)
+5. **Client (`src/lib/holidayCalendar.ts` + `ChatSuggestions.tsx`, `ContentHub.tsx`)**
+   - Add a thin edge function `holiday-feed` (GET, `verify_jwt = true`) that takes `brand_id` and returns the cached feed for that brand.
+   - `holidayCalendar.ts` keeps the current hardcoded version as a synchronous fallback and exports a new `getUpcomingHolidaysForBrand(brandId)` async helper that calls the edge function.
+   - `ChatSuggestions` + `ContentHub` switch to the async helper with the sync version as the initial render fallback.
 
-### Edge functions
+6. **Hardcoded list stays in place** in both `src/lib/holidayCalendar.ts` and `supabase/functions/_shared/holiday-calendar.ts` purely as offline fallback. No further maintenance of year-by-year `dates` maps is required — Firecrawl handles correctness.
 
-1. **`google-oauth-start`** (admin-only, verifies JWT + admin role) — returns `{ url }` with the Google authorize URL, includes a signed `state` (random nonce stored in a short-lived row or HMAC of user_id+timestamp) to prevent CSRF.
-2. **`google-oauth-callback`** (public, `verify_jwt = false` because Google redirects here without our session) — validates `state`, POSTs `code` to `https://oauth2.googleapis.com/token`, decodes the ID token to confirm the email matches your owner email, upserts the row, redirects to `/admin/google-connect?status=ok|error`.
-3. **`google-access-token`** (admin-only helper) — internal utility other edge functions call to get a fresh access token. Reads the row, if `expires_at < now()+60s` calls Google's refresh endpoint with `refresh_token`, updates the row, returns the new `access_token`. This is the function every future Gmail/Analytics call will use.
+## Technical notes
 
-### Secrets to add
+- Firecrawl already linked (`FIRECRAWL_API_KEY` present). Use REST `https://api.firecrawl.dev/v2/search` per the firecrawl guide; server-side only.
+- AI parse uses existing Lovable AI Gateway (no new secrets). Model: `google/gemini-2.5-flash-lite` style call already used elsewhere in the project.
+- `research_cache` table already exists — reuse it (key, value JSONB, expires_at).
+- Brand region resolution priority: `brands.country` → audience profile region → `'global'`.
+- Schema unchanged except for cache rows; no migration needed if `research_cache` already supports arbitrary keys.
 
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `GOOGLE_OAUTH_CLIENT_SECRET`
-- `GOOGLE_OAUTH_REDIRECT_URI` — the deployed callback URL of `google-oauth-callback`. I'll generate the exact value after the function is scaffolded and tell you what to paste into your Google Cloud Console "Authorized redirect URIs".
-- `GOOGLE_OWNER_EMAIL` — the Gmail address allowed to complete the flow (safety net so nobody else can connect).
+## Out of scope
 
-### Frontend
-
-One page: **`/admin/google-connect`** (guarded by `useAdminRole`). Shows:
-- Current status (connected as `you@gmail.com`, scopes, last refresh) or a "Connect Google" button.
-- Connect button calls `google-oauth-start`, then `window.location = data.url`.
-- After callback redirect, reads `?status=` and toasts success/error.
-- "Disconnect" button (clears the row + revokes via `https://oauth2.googleapis.com/revoke`).
-- "Copy refresh token" button (admin-only, since you specifically asked to obtain it) — fetches it via a tiny `google-token-reveal` admin edge function so we don't bake the secret into the bundle.
-
-### Order of operations
-
-1. You add the three Google secrets + owner email.
-2. I run the migration for `google_oauth_tokens`.
-3. I scaffold the three edge functions + the admin page.
-4. I tell you the exact `redirect_uri` to paste into Google Cloud Console.
-5. You click "Connect Google" → grant consent → refresh token lands in DB → you can copy it from the page.
-
-### Out of scope (we can add later)
-- Per-user Google connections.
-- Actual Gmail send / Analytics report code (this plan only covers obtaining and storing the refresh token + a reusable access-token helper).
-- Multi-account support.
+- Removing the hardcoded calendar files (kept as fallback).
+- Holidays older than today or further than the requested window.
+- Per-user holiday preferences (still inferred from brand region only).

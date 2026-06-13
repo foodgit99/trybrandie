@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { getUpcomingHolidays, getCurrentSeason } from "@/lib/holidayCalendar";
+import { getUpcomingHolidays, fetchUpcomingHolidaysLive, getCurrentSeason, type UpcomingHoliday } from "@/lib/holidayCalendar";
 
 interface ContentIdea {
   id: string;
@@ -28,9 +28,18 @@ const ChatSuggestions = ({
   hasImage,
   contentIdeas,
 }: ChatSuggestionsProps) => {
+  const [liveHolidays, setLiveHolidays] = useState<UpcomingHoliday[]>(() => getUpcomingHolidays(14));
+  useEffect(() => {
+    let cancelled = false;
+    fetchUpcomingHolidaysLive({ days: 14 }).then((list) => {
+      if (!cancelled && list.length > 0) setLiveHolidays(list);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const suggestions = useMemo(() => {
     const season = getCurrentSeason();
-    const upcoming = getUpcomingHolidays(14);
+    const upcoming = liveHolidays;
     const name = brandName || "my brand";
 
     // Pick a real upcoming event name, or fall back to season
@@ -91,7 +100,7 @@ const ChatSuggestions = ({
 
     const shuffled = pool.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 4);
-  }, [brandName, brandVibe, brandDescription, hasMessages, hasImage, contentIdeas]);
+  }, [brandName, brandVibe, brandDescription, hasMessages, hasImage, contentIdeas, liveHolidays]);
 
   return (
     <motion.div
