@@ -28,9 +28,18 @@ const ChatSuggestions = ({
   hasImage,
   contentIdeas,
 }: ChatSuggestionsProps) => {
+  const [liveHolidays, setLiveHolidays] = useState<UpcomingHoliday[]>(() => getUpcomingHolidays(14));
+  useEffect(() => {
+    let cancelled = false;
+    fetchUpcomingHolidaysLive({ days: 14 }).then((list) => {
+      if (!cancelled && list.length > 0) setLiveHolidays(list);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const suggestions = useMemo(() => {
     const season = getCurrentSeason();
-    const upcoming = getUpcomingHolidays(14);
+    const upcoming = liveHolidays;
     const name = brandName || "my brand";
 
     // Pick a real upcoming event name, or fall back to season
