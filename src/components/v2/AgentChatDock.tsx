@@ -214,6 +214,13 @@ export default function AgentChatDock({
                   Working on: {context.label}
                 </div>
               </div>
+              <a
+                href="/agent"
+                title="Open autonomous agent cockpit"
+                className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted"
+              >
+                Agent ↗
+              </a>
               <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
                 <X className="h-4 w-4" />
               </Button>
