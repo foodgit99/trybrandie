@@ -248,6 +248,228 @@ export type Database = {
           },
         ]
       }
+      agent_actions: {
+        Row: {
+          brand_id: string | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          input: Json
+          is_reversible: boolean
+          mode: string
+          output: Json | null
+          reverse_payload: Json | null
+          spend_units: number
+          status: string
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          brand_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          input?: Json
+          is_reversible?: boolean
+          mode?: string
+          output?: Json | null
+          reverse_payload?: Json | null
+          spend_units?: number
+          status?: string
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          input?: Json
+          is_reversible?: boolean
+          mode?: string
+          output?: Json | null
+          reverse_payload?: Json | null
+          spend_units?: number
+          status?: string
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_actions_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "agent_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_api_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          last_used_at: string | null
+          revoked_at: string | null
+          token_hash: string
+          token_prefix: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          token_hash: string
+          token_prefix: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+          token_prefix?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      agent_conversations: {
+        Row: {
+          brand_id: string | null
+          channel: string
+          created_at: string
+          external_thread_id: string | null
+          id: string
+          last_message_at: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          brand_id?: string | null
+          channel?: string
+          created_at?: string
+          external_thread_id?: string | null
+          id?: string
+          last_message_at?: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          brand_id?: string | null
+          channel?: string
+          created_at?: string
+          external_thread_id?: string | null
+          id?: string
+          last_message_at?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_conversations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          parts: Json
+          role: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          parts?: Json
+          role: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          parts?: Json
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "agent_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_settings: {
+        Row: {
+          autonomy_enabled: boolean
+          brand_id: string
+          created_at: string
+          daily_spend_ceiling: number
+          daily_tool_ceiling: number
+          forbidden_topics: string[]
+          id: string
+          persona_notes: string | null
+          tool_modes: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          autonomy_enabled?: boolean
+          brand_id: string
+          created_at?: string
+          daily_spend_ceiling?: number
+          daily_tool_ceiling?: number
+          forbidden_topics?: string[]
+          id?: string
+          persona_notes?: string | null
+          tool_modes?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          autonomy_enabled?: boolean
+          brand_id?: string
+          created_at?: string
+          daily_spend_ceiling?: number
+          daily_tool_ceiling?: number
+          forbidden_topics?: string[]
+          id?: string
+          persona_notes?: string | null
+          tool_modes?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_settings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       autopilot_run_events: {
         Row: {
           brand_id: string
