@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
@@ -29,12 +28,20 @@ export default function AgentCockpit() {
   const { brand } = useBrand(user);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [autonomyEnabled, setAutonomyEnabled] = useState<boolean | null>(null);
-  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [initialMessages, setInitialMessages] = useState<any[]>([]);
   const [loadingThread, setLoadingThread] = useState(false);
-  const [pendingApprovals, setPendingApprovals] = useState<string[]>([]);
+  const pendingApprovalsRef = useRef<string[]>([]);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const [tokenReady, setTokenReady] = useState<string | null>(null);
 
-  // Load conversations + autonomy flag
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setTokenReady(session?.access_token ?? null);
+    });
+    const sub = supabase.auth.onAuthStateChange((_e, s) => setTokenReady(s?.access_token ?? null));
+    return () => { sub.data.subscription.unsubscribe(); };
+  }, []);
+
   useEffect(() => {
     if (!user || !brand?.id) return;
     (async () => {
@@ -50,66 +57,62 @@ export default function AgentCockpit() {
     })();
   }, [user, brand?.id]);
 
-  // Load thread messages when threadId changes
   useEffect(() => {
     if (!threadId || !user) { setInitialMessages([]); return; }
     setLoadingThread(true);
     supabase.from("agent_messages").select("id,role,parts,created_at")
       .eq("conversation_id", threadId).eq("user_id", user.id).order("created_at")
       .then(({ data }) => {
-        const msgs: UIMessage[] = (data ?? []).map((m: any) => ({
-          id: m.id, role: m.role, parts: m.parts ?? [],
-        }));
+        const msgs = (data ?? []).map((m: any) => {
+          const textPart = (m.parts ?? []).find((p: any) => p.type === "text");
+          return {
+            id: m.id,
+            role: m.role,
+            content: textPart?.text ?? "",
+            parts: m.parts ?? [{ type: "text", text: textPart?.text ?? "" }],
+          };
+        });
         setInitialMessages(msgs);
         setLoadingThread(false);
       });
   }, [threadId, user]);
 
-  const transport = useRef(new DefaultChatTransport({
-    api: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/strategist-agent`,
-    headers: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      return {
-        Authorization: `Bearer ${session?.access_token ?? ""}`,
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
-      };
-    },
-    body: () => ({
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/strategist-agent`;
+
+  const { messages, append, isLoading, error, setMessages } = useChat({
+    id: threadId,
+    api: apiUrl,
+    initialMessages,
+    headers: tokenReady ? {
+      Authorization: `Bearer ${tokenReady}`,
+      apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+    } : undefined,
+    body: {
       brand_id: brand?.id,
       conversation_id: threadId,
-      approved_action_ids: pendingApprovals,
+    },
+    experimental_prepareRequestBody: ({ messages }) => ({
+      messages,
+      brand_id: brand?.id,
+      conversation_id: threadId,
+      approved_action_ids: pendingApprovalsRef.current,
     }),
-  })).current;
-
-  const { messages, sendMessage, status, error, setMessages } = useChat({
-    id: threadId,
-    messages: initialMessages,
-    transport,
-    onFinish: async ({ message }) => {
+    onFinish: async (message) => {
       if (!threadId || !user) return;
-      // Persist assistant message
       await supabase.from("agent_messages").insert({
-        conversation_id: threadId,
-        user_id: user.id,
-        role: "assistant",
-        parts: message.parts,
+        conversation_id: threadId, user_id: user.id, role: "assistant",
+        parts: (message as any).parts ?? [{ type: "text", text: message.content }],
       });
       await supabase.from("agent_conversations").update({
         last_message_at: new Date().toISOString(),
       }).eq("id", threadId);
-      setPendingApprovals([]);
+      pendingApprovalsRef.current = [];
       composerRef.current?.focus();
     },
-    onError: (err) => {
-      const msg = err?.message || "Strategist hit an error";
-      toast.error(msg);
-    },
+    onError: (err) => toast.error(err?.message || "Strategist hit an error"),
   });
 
-  useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages, setMessages]);
-
+  useEffect(() => { setMessages(initialMessages as any); }, [initialMessages, setMessages]);
   useEffect(() => { composerRef.current?.focus(); }, [threadId]);
 
   const handleNewThread = async () => {
@@ -118,7 +121,10 @@ export default function AgentCockpit() {
       user_id: user.id, brand_id: brand.id, title: "New conversation",
     }).select("id").single();
     if (data?.id) {
-      setConversations((prev) => [{ id: data.id, title: "New conversation", last_message_at: new Date().toISOString() }, ...prev]);
+      setConversations((prev) => [
+        { id: data.id, title: "New conversation", last_message_at: new Date().toISOString() },
+        ...prev,
+      ]);
       navigate(`/agent/${data.id}`);
     }
   };
@@ -127,13 +133,7 @@ export default function AgentCockpit() {
   const handleSend = async () => {
     const text = input.trim();
     if (!text) return;
-    if (!threadId) {
-      await handleNewThread();
-      // queue send after navigation; simplest: tell user to send again
-      setInput(text);
-      return;
-    }
-    // Persist user message
+    if (!threadId) { await handleNewThread(); setInput(text); return; }
     if (user) {
       await supabase.from("agent_messages").insert({
         conversation_id: threadId, user_id: user.id, role: "user",
@@ -141,11 +141,11 @@ export default function AgentCockpit() {
       });
     }
     setInput("");
-    await sendMessage({ text });
+    await append({ role: "user", content: text });
   };
 
-  const approveAction = useCallback(async (actionId: string) => {
-    setPendingApprovals((prev) => [...prev, actionId]);
+  const approveAction = useCallback((actionId: string) => {
+    pendingApprovalsRef.current = [...pendingApprovalsRef.current, actionId];
     toast.success("Approved. Send any message to resume the agent.");
   }, []);
 
@@ -156,7 +156,7 @@ export default function AgentCockpit() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.access_token}`,
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+        apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
       },
       body: JSON.stringify({ action_id: actionId }),
     });
@@ -193,12 +193,9 @@ export default function AgentCockpit() {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin" /></div>;
   }
 
-  const isStreaming = status === "submitted" || status === "streaming";
-
   return (
     <div className="min-h-screen flex bg-background pb-24 md:pb-0">
-      {/* Thread sidebar */}
-      <aside className="hidden md:flex md:w-72 border-r border-border flex-col">
+      <aside className="hidden md:flex md:w-72 border-r border-border flex-col max-h-screen">
         <div className="p-4 border-b border-border flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-foreground" />
           <h1 className="font-semibold flex-1">Strategist</h1>
@@ -229,7 +226,6 @@ export default function AgentCockpit() {
         </ScrollArea>
       </aside>
 
-      {/* Main chat */}
       <main className="flex-1 flex flex-col min-h-screen max-h-screen">
         <header className="md:hidden p-4 border-b border-border flex items-center gap-3">
           <Link to="/hub"><ArrowLeft className="w-5 h-5" /></Link>
@@ -247,10 +243,10 @@ export default function AgentCockpit() {
               </div>
             )}
             {loadingThread && <Loader2 className="w-4 h-4 animate-spin mx-auto" />}
-            {messages.map((m) => (
+            {messages.map((m: any) => (
               <MessageBubble key={m.id} message={m} onApprove={approveAction} onUndo={undoAction} />
             ))}
-            {isStreaming && (
+            {isLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 <span>Strategist is working…</span>
@@ -276,10 +272,10 @@ export default function AgentCockpit() {
               placeholder={threadId ? "Tell the strategist what to do…" : "Start a new conversation to begin"}
               rows={1}
               className="resize-none min-h-[44px] max-h-32"
-              disabled={isStreaming}
+              disabled={isLoading}
             />
-            <Button onClick={handleSend} disabled={isStreaming || !input.trim()} size="icon" className="h-11 w-11 shrink-0">
-              {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="icon" className="h-11 w-11 shrink-0">
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
           </div>
         </footer>
@@ -289,15 +285,19 @@ export default function AgentCockpit() {
 }
 
 function MessageBubble({ message, onApprove, onUndo }: {
-  message: UIMessage;
+  message: any;
   onApprove: (id: string) => void;
   onUndo: (id: string) => void;
 }) {
   const isUser = message.role === "user";
+  const parts = message.parts && Array.isArray(message.parts) && message.parts.length > 0
+    ? message.parts
+    : [{ type: "text", text: message.content ?? "" }];
+
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${isUser ? "bg-foreground text-background" : "bg-muted"}`}>
-        {message.parts.map((part: any, idx) => {
+        {parts.map((part: any, idx: number) => {
           if (part.type === "text") {
             return (
               <div key={idx} className="prose prose-sm max-w-none dark:prose-invert">
@@ -305,10 +305,10 @@ function MessageBubble({ message, onApprove, onUndo }: {
               </div>
             );
           }
-          if (part.type?.startsWith("tool-")) {
-            const toolName = part.toolName ?? part.type.replace("tool-", "");
-            const state = part.state ?? part.output ? "result" : "call";
-            const output = part.output ?? part.result;
+          if (part.type === "tool-invocation" || part.type?.startsWith("tool-")) {
+            const ti = part.toolInvocation ?? part;
+            const toolName = ti.toolName ?? part.type?.replace("tool-", "");
+            const output = ti.result ?? ti.output;
             const requiresApproval = output?.requires_approval;
             return (
               <div key={idx} className="my-2 p-3 rounded-lg bg-background/60 border border-border text-xs space-y-2">
