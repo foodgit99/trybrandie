@@ -230,6 +230,9 @@ const App = () => (
           <Route path="/engine" element={<ProtectedRoute><V2Engine /></ProtectedRoute>} />
           <Route path="/content-hub" element={<ProtectedRoute><V2ContentHub /></ProtectedRoute>} />
           <Route path="/hub" element={<ProtectedRoute><V2Hub /></ProtectedRoute>} />
+          <Route path="/agent" element={<ProtectedRoute><AgentCockpit /></ProtectedRoute>} />
+          <Route path="/agent/settings" element={<ProtectedRoute><AgentSettings /></ProtectedRoute>} />
+          <Route path="/agent/:threadId" element={<ProtectedRoute><AgentCockpit /></ProtectedRoute>} />
 
           {/* Shared / utility surfaces (no v2 equivalent yet) */}
           <Route path="/studio" element={<ProtectedRoute><V2Studio /></ProtectedRoute>} />
