@@ -45,6 +45,41 @@ function clampSlideCount(raw: any): number {
   return Math.min(10, Math.max(2, Math.round(n)));
 }
 
+// Strategic Arc — Mon..Sun narrative roles (Blueprint plan-of-record).
+const WEEK_ARC = ["Hook", "Educate", "Proof", "Offer", "Urgency", "Lifestyle", "Community"];
+
+// Ensure a weekly_blueprints row exists for (brand, week_start) and return its id.
+// Idempotent via the (brand_id, week_start_date) UNIQUE constraint.
+async function ensureBlueprint(client: any, brandId: string, userId: string, weekStart: string): Promise<string | null> {
+  try {
+    const { data: existing } = await client
+      .from("weekly_blueprints")
+      .select("id")
+      .eq("brand_id", brandId)
+      .eq("week_start_date", weekStart)
+      .maybeSingle();
+    if (existing?.id) return existing.id;
+    const { data: created, error } = await client
+      .from("weekly_blueprints")
+      .upsert(
+        { brand_id: brandId, user_id: userId, week_start_date: weekStart, status: "draft", source: "autopilot" },
+        { onConflict: "brand_id,week_start_date" },
+      )
+      .select("id")
+      .single();
+    if (error) {
+      console.warn("[brand-engine] ensureBlueprint upsert warn:", error.message);
+      return null;
+    }
+    return created?.id ?? null;
+  } catch (e) {
+    console.warn("[brand-engine] ensureBlueprint failed:", e);
+    return null;
+  }
+}
+
+
+
 
 
 serve(async (req) => {
@@ -788,6 +823,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const seriesMap = new Map(series.map((s: any) => [s.name.toLowerCase(), s.id]));
       const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
       const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
+      const dayIndex = new Map(weekDates.map((d, i) => [d.day, i])); // monday=0..sunday=6
 
       // Auto-enrol into autopilot if brand has autopilot enabled
       const { data: apSettings } = await serviceClient
@@ -797,12 +833,18 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         .maybeSingle();
       const autopilotOn = !!apSettings?.enabled;
 
+      // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
+      const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
+
       const ideasToInsert = result.data.ideas.map((idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
+        const dIdx = dayIndex.get(idea.day);
+        const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
         return {
           brand_id,
           user_id: userId,
+          blueprint_id: blueprintId,
           pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
           series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
           campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
@@ -814,6 +856,9 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
           status: "suggested",
           scheduled_for: dateMap.get(idea.day) || null,
+          day_of_week: typeof dIdx === "number" ? dIdx : null,
+          strategic_arc: arc,
+          playbook_role: arc,
           autopilot: autopilotOn,
         };
       });
@@ -963,6 +1008,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
       const seriesMap = new Map(series.map((s: any) => [s.name.toLowerCase(), s.id]));
       const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
       const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
+      const dayIndex = new Map(weekDates.map((d, i) => [d.day, i]));
       const allowedDays = new Set(emptyDays.map((d) => d.day));
 
       const { data: apSettings } = await serviceClient
@@ -972,14 +1018,19 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
         .maybeSingle();
       const autopilotOn = !!apSettings?.enabled;
 
+      const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
+
       const ideasToInsert = (result.data.ideas || [])
         .filter((idea: any) => allowedDays.has(idea.day))
         .map((idea: any) => {
           const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
           const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
+          const dIdx = dayIndex.get(idea.day);
+          const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
           return {
             brand_id,
             user_id: userId,
+            blueprint_id: blueprintId,
             pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
             series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
             campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
@@ -991,6 +1042,9 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
             content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
             status: "suggested",
             scheduled_for: dateMap.get(idea.day) || null,
+            day_of_week: typeof dIdx === "number" ? dIdx : null,
+            strategic_arc: arc,
+            playbook_role: arc,
             autopilot: autopilotOn,
           };
         });

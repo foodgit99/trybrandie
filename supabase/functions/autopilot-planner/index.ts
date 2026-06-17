@@ -203,25 +203,45 @@ Deno.serve(async (req) => {
 
   try {
     const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setUTCHours(0, 0, 0, 0);
-    startOfWeek.setUTCDate(startOfWeek.getUTCDate() - startOfWeek.getUTCDay()); // Sunday 00:00
+    const startOfThisWeek = new Date(now);
+    startOfThisWeek.setUTCHours(0, 0, 0, 0);
+    startOfThisWeek.setUTCDate(startOfThisWeek.getUTCDate() - startOfThisWeek.getUTCDay()); // Sunday 00:00
 
-    // 1. Find all autonomous brands due for planning this week
+    // Compute NEXT week's Monday (UTC) — the week the planner is filling.
+    const nextMonday = new Date(now);
+    nextMonday.setUTCHours(0, 0, 0, 0);
+    const dow = nextMonday.getUTCDay(); // 0=Sun..6=Sat
+    const daysUntilMonday = ((1 - dow) + 7) % 7 || 7; // always next Monday (1..7 days ahead)
+    nextMonday.setUTCDate(nextMonday.getUTCDate() + daysUntilMonday);
+    const nextWeekStart = isoDate(nextMonday);
+    const nextWeekEnd = (() => {
+      const d = new Date(nextMonday);
+      d.setUTCDate(d.getUTCDate() + 6);
+      return isoDate(d);
+    })();
+    const nextWeekDates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(nextMonday);
+      d.setUTCDate(d.getUTCDate() + i);
+      nextWeekDates.push(isoDate(d));
+    }
+
+    // 1. Find all brands with autopilot enabled (assisted OR autonomous; skip manual)
     const { data: settings, error: settingsErr } = await supabase
       .from("autopilot_settings")
-      .select("brand_id, user_id, min_queue_threshold, weekly_plan_last_run")
-      .eq("mode", "autonomous");
+      .select("brand_id, user_id, min_queue_threshold, weekly_plan_last_run, mode")
+      .eq("enabled", true)
+      .neq("mode", "manual");
 
     if (settingsErr) throw settingsErr;
     if (!settings || settings.length === 0) {
-      console.log("[autopilot-planner] no autonomous brands");
+      console.log("[autopilot-planner] no eligible brands");
       return jsonResponse({ planned: 0, skipped: 0, total: 0 });
     }
 
     const eligible = settings.filter((s: any) => {
       if (!s.weekly_plan_last_run) return true;
-      return new Date(s.weekly_plan_last_run) < startOfWeek;
+      return new Date(s.weekly_plan_last_run) < startOfThisWeek;
     });
 
     let planned = 0;
@@ -230,7 +250,17 @@ Deno.serve(async (req) => {
 
     for (const s of eligible) {
       try {
-        // Count pending (non-created) ideas
+        // Coverage check: does the queue already cover every day of NEXT week?
+        const { data: nextWeekIdeas } = await supabase
+          .from("content_ideas")
+          .select("scheduled_for")
+          .eq("brand_id", s.brand_id)
+          .gte("scheduled_for", nextWeekStart)
+          .lte("scheduled_for", nextWeekEnd);
+        const filledDates = new Set((nextWeekIdeas || []).map((r: any) => r.scheduled_for));
+        const fullyCovered = nextWeekDates.every((d) => filledDates.has(d));
+
+        // Count pending (non-created) ideas across all upcoming work
         const { count: pendingCount } = await supabase
           .from("content_ideas")
           .select("id", { count: "exact", head: true })
@@ -238,10 +268,10 @@ Deno.serve(async (req) => {
           .neq("status", "created");
 
         const threshold = s.min_queue_threshold ?? 5;
-        if ((pendingCount ?? 0) >= threshold) {
-          console.log(`[autopilot-planner] brand ${s.brand_id} skipped — queue ${pendingCount} >= ${threshold}`);
+        if ((pendingCount ?? 0) >= threshold && fullyCovered) {
+          console.log(`[autopilot-planner] brand ${s.brand_id} skipped — queue ${pendingCount} >= ${threshold} and next week fully covered`);
           skipped++;
-          // Still mark as planned this week so we don't re-check daily
+          // Only stamp when next-week coverage is real, so we don't get stuck.
           await supabase
             .from("autopilot_settings")
             .update({ weekly_plan_last_run: now.toISOString() })
@@ -249,7 +279,21 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Invoke brand-engine in service mode
+        // Ensure blueprint exists for next week (plan-of-record).
+        await supabase
+          .from("weekly_blueprints")
+          .upsert(
+            {
+              brand_id: s.brand_id,
+              user_id: s.user_id,
+              week_start_date: nextWeekStart,
+              status: "draft",
+              source: "autopilot",
+            },
+            { onConflict: "brand_id,week_start_date" },
+          );
+
+        // Invoke brand-engine in service mode, planning NEXT week.
         const res = await fetch(`${supabaseUrl}/functions/v1/brand-engine`, {
           method: "POST",
           headers: {
@@ -261,6 +305,7 @@ Deno.serve(async (req) => {
             brand_id: s.brand_id,
             user_id: s.user_id,
             skip_credit_check: true,
+            week_offset: 1,
           }),
         });
 
@@ -271,13 +316,42 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Backfill any empty days so the Blueprint is never ragged.
+        try {
+          const { data: afterIdeas } = await supabase
+            .from("content_ideas")
+            .select("scheduled_for")
+            .eq("brand_id", s.brand_id)
+            .gte("scheduled_for", nextWeekStart)
+            .lte("scheduled_for", nextWeekEnd);
+          const have = new Set((afterIdeas || []).map((r: any) => r.scheduled_for));
+          if (nextWeekDates.some((d) => !have.has(d))) {
+            await fetch(`${supabaseUrl}/functions/v1/brand-engine`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({
+                action: "fill_empty_days",
+                brand_id: s.brand_id,
+                user_id: s.user_id,
+                skip_credit_check: true,
+                week_offset: 1,
+              }),
+            });
+          }
+        } catch (fillErr) {
+          console.warn(`[autopilot-planner] fill_empty_days non-fatal for ${s.brand_id}:`, fillErr);
+        }
+
         await supabase
           .from("autopilot_settings")
           .update({ weekly_plan_last_run: now.toISOString() })
           .eq("brand_id", s.brand_id);
 
         planned++;
-        console.log(`[autopilot-planner] brand ${s.brand_id} planned successfully`);
+        console.log(`[autopilot-planner] brand ${s.brand_id} planned successfully (week ${nextWeekStart})`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[autopilot-planner] brand ${s.brand_id} threw:`, msg);
