@@ -45,6 +45,41 @@ function clampSlideCount(raw: any): number {
   return Math.min(10, Math.max(2, Math.round(n)));
 }
 
+// Strategic Arc — Mon..Sun narrative roles (Blueprint plan-of-record).
+const WEEK_ARC = ["Hook", "Educate", "Proof", "Offer", "Urgency", "Lifestyle", "Community"];
+
+// Ensure a weekly_blueprints row exists for (brand, week_start) and return its id.
+// Idempotent via the (brand_id, week_start_date) UNIQUE constraint.
+async function ensureBlueprint(client: any, brandId: string, userId: string, weekStart: string): Promise<string | null> {
+  try {
+    const { data: existing } = await client
+      .from("weekly_blueprints")
+      .select("id")
+      .eq("brand_id", brandId)
+      .eq("week_start_date", weekStart)
+      .maybeSingle();
+    if (existing?.id) return existing.id;
+    const { data: created, error } = await client
+      .from("weekly_blueprints")
+      .upsert(
+        { brand_id: brandId, user_id: userId, week_start_date: weekStart, status: "draft", source: "autopilot" },
+        { onConflict: "brand_id,week_start_date" },
+      )
+      .select("id")
+      .single();
+    if (error) {
+      console.warn("[brand-engine] ensureBlueprint upsert warn:", error.message);
+      return null;
+    }
+    return created?.id ?? null;
+  } catch (e) {
+    console.warn("[brand-engine] ensureBlueprint failed:", e);
+    return null;
+  }
+}
+
+
+
 
 
 serve(async (req) => {
