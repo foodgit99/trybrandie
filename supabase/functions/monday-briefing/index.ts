@@ -206,6 +206,10 @@ Deno.serve(async (req) => {
               week_label: `Week of ${weekLabel}`,
               ideas: ideaSummaries,
               blueprint_id: blueprintId,
+              blueprint_status: blueprintStatus,
+              approve_url: blueprintId
+                ? `${supabaseUrl.replace(".supabase.co", "")}/blueprint?bp=${blueprintId}`
+                : null,
             },
           }),
         });
