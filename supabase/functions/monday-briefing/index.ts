@@ -139,29 +139,23 @@ Deno.serve(async (req) => {
         }
 
 
-        // Ensure blueprint row exists for this week
-        const { data: existingBp } = await supabase
+        // Ensure blueprint row exists for this week (upsert is race-safe via UNIQUE(brand_id, week_start_date))
+        const { data: bpRow } = await supabase
           .from("weekly_blueprints")
-          .select("id, status")
-          .eq("brand_id", brand.id)
-          .eq("week_start_date", weekStart)
-          .maybeSingle();
-
-        let blueprintId = existingBp?.id;
-        if (!blueprintId) {
-          const { data: newBp } = await supabase
-            .from("weekly_blueprints")
-            .insert({
+          .upsert(
+            {
               user_id: p.user_id,
               brand_id: brand.id,
               week_start_date: weekStart,
               status: "draft",
               source: "autopilot",
-            })
-            .select("id")
-            .single();
-          blueprintId = newBp?.id;
-        }
+            },
+            { onConflict: "brand_id,week_start_date", ignoreDuplicates: false },
+          )
+          .select("id, status")
+          .single();
+        const blueprintId = bpRow?.id;
+        const blueprintStatus = bpRow?.status || "draft";
 
         // Fetch ideas scheduled this week (Mon..Sun)
         const sundayDate = new Date(weekStart + "T00:00:00Z");
