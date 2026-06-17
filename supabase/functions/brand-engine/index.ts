@@ -788,6 +788,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const seriesMap = new Map(series.map((s: any) => [s.name.toLowerCase(), s.id]));
       const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
       const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
+      const dayIndex = new Map(weekDates.map((d, i) => [d.day, i])); // monday=0..sunday=6
 
       // Auto-enrol into autopilot if brand has autopilot enabled
       const { data: apSettings } = await serviceClient
@@ -797,12 +798,18 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         .maybeSingle();
       const autopilotOn = !!apSettings?.enabled;
 
+      // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
+      const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
+
       const ideasToInsert = result.data.ideas.map((idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
+        const dIdx = dayIndex.get(idea.day);
+        const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
         return {
           brand_id,
           user_id: userId,
+          blueprint_id: blueprintId,
           pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
           series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
           campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
@@ -814,6 +821,9 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
           status: "suggested",
           scheduled_for: dateMap.get(idea.day) || null,
+          day_of_week: typeof dIdx === "number" ? dIdx : null,
+          strategic_arc: arc,
+          playbook_role: arc,
           autopilot: autopilotOn,
         };
       });
