@@ -58,8 +58,36 @@ Deno.serve(async (req) => {
 
     for (const p of profiles) {
       try {
-        const tz = p.posting_timezone || "Africa/Lagos";
-        const target = p.daily_push_hour ?? 8;
+        // Find primary brand first so we can prefer its autopilot timing config.
+        const { data: brand } = await supabase
+          .from("brands")
+          .select("id")
+          .eq("user_id", p.user_id)
+          .eq("onboarding_complete", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (!brand) {
+          skipped++;
+          continue;
+        }
+
+        // Prefer autopilot_settings (timezone + delivery_time) when present;
+        // fall back to profiles for legacy/manual users.
+        const { data: apSettings } = await supabase
+          .from("autopilot_settings")
+          .select("timezone, delivery_time, enabled")
+          .eq("brand_id", brand.id)
+          .maybeSingle();
+
+        const DELIVERY_HOUR: Record<string, number> = { morning: 8, afternoon: 13, evening: 18 };
+        const useAutopilotTiming = !!(apSettings && apSettings.enabled);
+        const tz = (useAutopilotTiming && apSettings?.timezone) || p.posting_timezone || "Africa/Lagos";
+        const target = useAutopilotTiming
+          ? (DELIVERY_HOUR[apSettings?.delivery_time || "morning"] ?? 8)
+          : (p.daily_push_hour ?? 8);
+
         if (!testUserId && localHour(now, tz) !== target) {
           skipped++;
           continue;
@@ -75,25 +103,10 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Find primary brand
-        const { data: brand } = await supabase
-          .from("brands")
-          .select("id")
-          .eq("user_id", p.user_id)
-          .eq("onboarding_complete", true)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (!brand) {
-          skipped++;
-          continue;
-        }
-
-        // Find today's approved idea with a design ready
+        // Find today's approved idea with a design + image ready
         const { data: idea } = await supabase
           .from("content_ideas")
-          .select("id, title, design_id, designs:design_id(image_url, caption)")
+          .select("id, title, design_id, autopilot, autopilot_status, blueprint_id, designs:design_id(image_url, caption)")
           .eq("brand_id", brand.id)
           .eq("scheduled_for", todayISO)
           .eq("approval_status", "approved")
@@ -105,6 +118,37 @@ Deno.serve(async (req) => {
         if (!idea) {
           skipped++;
           continue;
+        }
+
+        // Hard guard: design must have a usable image. Otherwise the email is empty.
+        const designImage = (idea as any).designs?.image_url;
+        if (!designImage) {
+          // If autopilot is still working, do NOT advance last_daily_push_at — let the next sweep retry.
+          const apStatus = (idea as any).autopilot_status;
+          const stillWorking =
+            (idea as any).autopilot === true &&
+            (apStatus === null ||
+              apStatus === "pending" ||
+              apStatus === "processing" ||
+              (typeof apStatus === "string" && apStatus.startsWith("failed_")));
+          if (stillWorking) {
+            console.log(`[daily-push] skip ${p.user_id}/${idea.id}: design not ready (status=${apStatus}) — will retry`);
+            skipped++;
+            continue;
+          }
+          skipped++;
+          continue;
+        }
+
+        // Fetch blueprint status for the email payload
+        let blueprintStatus: string | null = null;
+        if ((idea as any).blueprint_id) {
+          const { data: bp } = await supabase
+            .from("weekly_blueprints")
+            .select("status")
+            .eq("id", (idea as any).blueprint_id)
+            .maybeSingle();
+          blueprintStatus = bp?.status ?? null;
         }
 
         const { data: authUser } = await supabase.auth.admin.getUserById(p.user_id);
@@ -128,10 +172,11 @@ Deno.serve(async (req) => {
             data: {
               idea_title: idea.title,
               hook: (idea as any).designs?.caption,
-              image_url: (idea as any).designs?.image_url,
+              image_url: designImage,
               idea_id: idea.id,
               design_id: idea.id, // back-compat
               day_label: dayLabel,
+              blueprint_status: blueprintStatus,
             },
           }),
         });
