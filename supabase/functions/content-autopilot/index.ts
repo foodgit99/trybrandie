@@ -420,6 +420,7 @@ async function processIdea(
         image_url: designData.image_url,
         canvas_size: "1080x1080",
         vote: 0,
+        content_idea_id: idea.id,
         ...(designData.genome && { genome: designData.genome }),
         ...(designData.caption && { caption: designData.caption }),
         ...(designData.copy_structure && { copy_structure: designData.copy_structure }),
@@ -427,9 +428,10 @@ async function processIdea(
           trend_used: trendPref.selected_trend,
           trend_intensity: trendPref.default_trend_intensity,
         }),
-      })
+      } as any)
       .select("id")
       .single();
+
 
     if (saveErr) {
       console.error(`[autopilot] Failed to save design for idea ${idea.id}:`, saveErr);
