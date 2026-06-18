@@ -306,6 +306,7 @@ async function processIdea(
     user_id: idea.user_id,
     action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: "1080x1080",
+    content_idea_id: idea.id,
     ...(isCarousel && { slide_count: slideCount }),
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
@@ -326,6 +327,7 @@ async function processIdea(
       special_instructions: brand.special_instructions,
     },
   };
+
 
   if (audience?.jtbd_profile) {
     designPayload.audience_id = audience.label || "primary";
