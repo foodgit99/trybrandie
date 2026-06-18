@@ -3269,8 +3269,10 @@ Return structured JSON.`;
               slide_index: i,
               genome: genomeData,
               vote: 0,
+              ...(contentIdeaId && { content_idea_id: contentIdeaId }),
               ...(trend && trend !== "none" && { trend_used: trend, trend_intensity }),
             } as any).select("id").single();
+
 
             return {
               image_url: urlData.publicUrl,
