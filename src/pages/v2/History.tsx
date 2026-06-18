@@ -463,13 +463,14 @@ const HistoryV2 = () => {
 
                         <div className="p-3 space-y-2">
                           <p className="text-sm font-medium line-clamp-1">
-                            {d.title || (isCarousel ? "Untitled carousel" : "Untitled")}
+                            {item.idea_title || d.title || (isCarousel ? "Untitled carousel" : "Untitled")}
                           </p>
                           {d.caption && (
                             <p className="text-xs text-muted-foreground line-clamp-2 italic">
                               {d.caption}
                             </p>
                           )}
+
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[10px] text-muted-foreground">
                               {isCarousel
