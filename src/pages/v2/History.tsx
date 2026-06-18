@@ -27,18 +27,23 @@ type Design = {
   canvas_size: string;
   carousel_id: string | null;
   slide_index: number | null;
+  content_idea_id: string | null;
+  idea?: { title: string | null; scheduled_for: string | null } | null;
 };
 
 // A grouped item: either a single design or a carousel (multiple slides).
 type HistoryItem =
-  | { kind: "single"; key: string; cover: Design; created_at: string }
+  | { kind: "single"; key: string; cover: Design; created_at: string; sort_at: string; idea_title: string | null }
   | {
       kind: "carousel";
       key: string;
       cover: Design;
       slides: Design[];
       created_at: string;
+      sort_at: string;
+      idea_title: string | null;
     };
+
 
 function groupLabel(d: Date) {
   if (isToday(d)) return "Today";
