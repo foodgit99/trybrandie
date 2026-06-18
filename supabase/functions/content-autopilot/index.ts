@@ -42,7 +42,8 @@ Deno.serve(async (req) => {
         .from("content_ideas")
         .select("id, brand_id, content_format")
         .eq("autopilot_status", "processing")
-        .lt("updated_at", cutoff);
+        .lt("created_at", cutoff);
+
       const stuckRows = (stuck || []) as any[];
       if (stuckRows.length > 0) console.log(`[autopilot:reconcile] inspecting ${stuckRows.length} stuck idea(s)`);
       for (const row of stuckRows) {
