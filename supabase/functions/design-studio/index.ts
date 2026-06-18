@@ -3325,6 +3325,28 @@ Return structured JSON.`;
 
       console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}`);
 
+      // Defensive finalisation: if this carousel was generated for a content_idea
+      // (autopilot path), stamp design_id + completed status NOW so the link
+      // survives even if the upstream caller times out before its own update.
+      if (contentIdeaId) {
+        try {
+          const cover = slides.find((s: any) => s.slide_index === 0) || slides[0];
+          if (cover?.design_id) {
+            await supabase
+              .from("content_ideas")
+              .update({
+                design_id: cover.design_id,
+                status: "created",
+                autopilot_status: "completed",
+              } as any)
+              .eq("id", contentIdeaId);
+          }
+        } catch (e) {
+          console.error("Failed to finalise content_idea from carousel:", e);
+        }
+      }
+
+
       // All slides rendered successfully — deduct credits now.
       if (pendingCarouselDeduction) {
         try {
