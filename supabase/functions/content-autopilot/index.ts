@@ -22,12 +22,62 @@ Deno.serve(async (req) => {
     let deliveryWindow = "morning";
     let forceBrandId: string | null = null;
     let force = false;
+    let reconcileOnly = false;
     try {
       const body = await req.json();
       if (body?.delivery_time) deliveryWindow = body.delivery_time;
       if (body?.brand_id) forceBrandId = String(body.brand_id);
       if (body?.force) force = !!body.force;
+      if (body?.reconcile_only) reconcileOnly = !!body.reconcile_only;
     } catch { /* no body — use default */ }
+
+    // ── Reconciliation pass ──
+    // Any idea stuck in autopilot_status='processing' for >1h almost always means
+    // the upstream design-studio call finished writing slides but content-autopilot
+    // was interrupted before updating the idea. Recover by inspecting designs and
+    // either finalising (completed) or marking failed_error so retry can pick it up.
+    try {
+      const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { data: stuck } = await supabase
+        .from("content_ideas")
+        .select("id, brand_id, content_format")
+        .eq("autopilot_status", "processing")
+        .lt("created_at", cutoff);
+
+      const stuckRows = (stuck || []) as any[];
+      if (stuckRows.length > 0) console.log(`[autopilot:reconcile] inspecting ${stuckRows.length} stuck idea(s)`);
+      for (const row of stuckRows) {
+        const { data: linked } = await supabase
+          .from("designs")
+          .select("id, carousel_id, slide_index, created_at")
+          .eq("content_idea_id", row.id)
+          .order("slide_index", { ascending: true, nullsFirst: false });
+        const designs = (linked || []) as any[];
+        if (designs.length === 0) {
+          await supabase
+            .from("content_ideas")
+            .update({ autopilot_status: "failed_error" } as any)
+            .eq("id", row.id);
+          continue;
+        }
+        const cover = designs.find((d) => d.slide_index === 0) || designs[0];
+        await supabase
+          .from("content_ideas")
+          .update({
+            design_id: cover.id,
+            status: "created",
+            autopilot_status: "completed",
+          } as any)
+          .eq("id", row.id);
+      }
+    } catch (e) {
+      console.error("[autopilot:reconcile] failed", e);
+    }
+
+    if (reconcileOnly) {
+      return jsonResponse({ reconciled: true });
+    }
+
 
     if (!VALID_DELIVERY_TIMES.includes(deliveryWindow)) {
       return new Response(JSON.stringify({ error: `Invalid delivery_time. Must be one of: ${VALID_DELIVERY_TIMES.join(", ")}` }), {
@@ -306,6 +356,7 @@ async function processIdea(
     user_id: idea.user_id,
     action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: "1080x1080",
+    content_idea_id: idea.id,
     ...(isCarousel && { slide_count: slideCount }),
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
@@ -326,6 +377,7 @@ async function processIdea(
       special_instructions: brand.special_instructions,
     },
   };
+
 
   if (audience?.jtbd_profile) {
     designPayload.audience_id = audience.label || "primary";
@@ -418,6 +470,7 @@ async function processIdea(
         image_url: designData.image_url,
         canvas_size: "1080x1080",
         vote: 0,
+        content_idea_id: idea.id,
         ...(designData.genome && { genome: designData.genome }),
         ...(designData.caption && { caption: designData.caption }),
         ...(designData.copy_structure && { copy_structure: designData.copy_structure }),
@@ -425,9 +478,10 @@ async function processIdea(
           trend_used: trendPref.selected_trend,
           trend_intensity: trendPref.default_trend_intensity,
         }),
-      })
+      } as any)
       .select("id")
       .single();
+
 
     if (saveErr) {
       console.error(`[autopilot] Failed to save design for idea ${idea.id}:`, saveErr);

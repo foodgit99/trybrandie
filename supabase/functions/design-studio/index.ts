@@ -654,6 +654,8 @@ async function runFullHandler(req: Request): Promise<Response> {
     const _parsedReqBody = (req as any)._parsedBody || await req.json();
     const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
+    const contentIdeaId: string | null = _parsedReqBody?.content_idea_id ?? null;
+
     // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
     // + category bias outcomes are reproducible per job — easier debugging + fair A/B.
     const _rngSeed: string = _parsedReqBody?.job_id || `${user.id}:${Date.now()}`;
@@ -3267,8 +3269,10 @@ Return structured JSON.`;
               slide_index: i,
               genome: genomeData,
               vote: 0,
+              ...(contentIdeaId && { content_idea_id: contentIdeaId }),
               ...(trend && trend !== "none" && { trend_used: trend, trend_intensity }),
             } as any).select("id").single();
+
 
             return {
               image_url: urlData.publicUrl,
@@ -3320,6 +3324,28 @@ Return structured JSON.`;
       }
 
       console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}`);
+
+      // Defensive finalisation: if this carousel was generated for a content_idea
+      // (autopilot path), stamp design_id + completed status NOW so the link
+      // survives even if the upstream caller times out before its own update.
+      if (contentIdeaId) {
+        try {
+          const cover = slides.find((s: any) => s.slide_index === 0) || slides[0];
+          if (cover?.design_id) {
+            await supabase
+              .from("content_ideas")
+              .update({
+                design_id: cover.design_id,
+                status: "created",
+                autopilot_status: "completed",
+              } as any)
+              .eq("id", contentIdeaId);
+          }
+        } catch (e) {
+          console.error("Failed to finalise content_idea from carousel:", e);
+        }
+      }
+
 
       // All slides rendered successfully — deduct credits now.
       if (pendingCarouselDeduction) {

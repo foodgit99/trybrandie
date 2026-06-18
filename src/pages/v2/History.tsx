@@ -27,18 +27,23 @@ type Design = {
   canvas_size: string;
   carousel_id: string | null;
   slide_index: number | null;
+  content_idea_id: string | null;
+  idea?: { title: string | null; scheduled_for: string | null } | null;
 };
 
 // A grouped item: either a single design or a carousel (multiple slides).
 type HistoryItem =
-  | { kind: "single"; key: string; cover: Design; created_at: string }
+  | { kind: "single"; key: string; cover: Design; created_at: string; sort_at: string; idea_title: string | null }
   | {
       kind: "carousel";
       key: string;
       cover: Design;
       slides: Design[];
       created_at: string;
+      sort_at: string;
+      idea_title: string | null;
     };
+
 
 function groupLabel(d: Date) {
   if (isToday(d)) return "Today";
@@ -68,7 +73,7 @@ const HistoryV2 = () => {
       const { data, error } = await supabase
         .from("designs")
         .select(
-          "id, title, prompt, image_url, caption, created_at, canvas_size, carousel_id, slide_index",
+          "id, title, prompt, image_url, caption, created_at, canvas_size, carousel_id, slide_index, content_idea_id, idea:content_idea_id(title, scheduled_for)",
         )
         .eq("user_id", user!.id)
         .not("image_url", "is", null)
@@ -80,7 +85,8 @@ const HistoryV2 = () => {
   });
 
   // Collapse carousel slides into single items; preserve singles.
-  // Ordering: newest activity first (max created_at across the carousel).
+  // Ordering: prefer the idea's scheduled_for date (so a carousel rendered after
+  // midnight still shows up under its Blueprint day), fall back to created_at.
   const items: HistoryItem[] = useMemo(() => {
     const carouselMap = new Map<string, Design[]>();
     const singles: Design[] = [];
@@ -96,28 +102,41 @@ const HistoryV2 = () => {
 
     const result: HistoryItem[] = [];
 
+    const sortKey = (d: Design) =>
+      d.idea?.scheduled_for
+        ? new Date(d.idea.scheduled_for).toISOString()
+        : d.created_at;
+
     for (const [cid, slides] of carouselMap.entries()) {
-      // Sort slides by slide_index (nulls last)
       slides.sort((a, b) => {
         const ai = a.slide_index ?? 999;
         const bi = b.slide_index ?? 999;
         return ai - bi;
       });
       const cover = slides[0];
-      // Most recent created_at in the group drives ordering
       const created_at = slides.reduce(
         (max, s) => (s.created_at > max ? s.created_at : max),
         slides[0].created_at,
       );
-      result.push({ kind: "carousel", key: `c:${cid}`, cover, slides, created_at });
+      const sort_at = sortKey(cover);
+      const idea_title = cover.idea?.title ?? null;
+      result.push({ kind: "carousel", key: `c:${cid}`, cover, slides, created_at, sort_at, idea_title });
     }
     for (const d of singles) {
-      result.push({ kind: "single", key: `s:${d.id}`, cover: d, created_at: d.created_at });
+      result.push({
+        kind: "single",
+        key: `s:${d.id}`,
+        cover: d,
+        created_at: d.created_at,
+        sort_at: sortKey(d),
+        idea_title: d.idea?.title ?? null,
+      });
     }
 
-    result.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
+    result.sort((a, b) => (b.sort_at > a.sort_at ? 1 : -1));
     return result;
   }, [designs]);
+
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -148,7 +167,7 @@ const HistoryV2 = () => {
   const grouped = useMemo(() => {
     const map = new Map<string, HistoryItem[]>();
     for (const item of filtered) {
-      const key = groupLabel(new Date(item.created_at));
+      const key = groupLabel(new Date(item.sort_at));
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(item);
     }
@@ -444,13 +463,14 @@ const HistoryV2 = () => {
 
                         <div className="p-3 space-y-2">
                           <p className="text-sm font-medium line-clamp-1">
-                            {d.title || (isCarousel ? "Untitled carousel" : "Untitled")}
+                            {item.idea_title || d.title || (isCarousel ? "Untitled carousel" : "Untitled")}
                           </p>
                           {d.caption && (
                             <p className="text-xs text-muted-foreground line-clamp-2 italic">
                               {d.caption}
                             </p>
                           )}
+
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[10px] text-muted-foreground">
                               {isCarousel
