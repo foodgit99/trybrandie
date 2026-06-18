@@ -1469,6 +1469,7 @@ export type Database = {
           canvas_size: string
           caption: string | null
           carousel_id: string | null
+          content_idea_id: string | null
           copy_structure: Json | null
           created_at: string
           creative_director_version: string | null
@@ -1490,6 +1491,7 @@ export type Database = {
           canvas_size?: string
           caption?: string | null
           carousel_id?: string | null
+          content_idea_id?: string | null
           copy_structure?: Json | null
           created_at?: string
           creative_director_version?: string | null
@@ -1511,6 +1513,7 @@ export type Database = {
           canvas_size?: string
           caption?: string | null
           carousel_id?: string | null
+          content_idea_id?: string | null
           copy_structure?: Json | null
           created_at?: string
           creative_director_version?: string | null
@@ -1533,6 +1536,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designs_content_idea_id_fkey"
+            columns: ["content_idea_id"]
+            isOneToOne: false
+            referencedRelation: "content_ideas"
             referencedColumns: ["id"]
           },
           {
