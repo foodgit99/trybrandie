@@ -167,7 +167,7 @@ const HistoryV2 = () => {
   const grouped = useMemo(() => {
     const map = new Map<string, HistoryItem[]>();
     for (const item of filtered) {
-      const key = groupLabel(new Date(item.created_at));
+      const key = groupLabel(new Date(item.sort_at));
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(item);
     }
