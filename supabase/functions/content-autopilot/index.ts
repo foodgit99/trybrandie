@@ -348,7 +348,10 @@ async function processIdea(
   idea: any,
   supabaseUrl: string,
   serviceRoleKey: string,
-): Promise<{ success: boolean; status?: string; error?: string }> {
+  runId?: string,
+  baseMeta?: Record<string, any>,
+): Promise<{ success: boolean; status?: string; error?: string; design_id?: string; carousel_id?: string }> {
+
   // Load brand
   const { data: brand } = await supabase
     .from("brands")
