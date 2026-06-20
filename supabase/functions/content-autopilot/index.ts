@@ -605,5 +605,5 @@ async function processIdea(
   }).catch((e) => console.error(`[autopilot] Push failed for idea ${idea.id}:`, e));
 
   console.log(`[autopilot] ✅ Processed idea ${idea.id} → design ${coverDesignId}${isCarousel ? ` (carousel ${designData.carousel_id})` : ""}`);
-  return { success: true };
+  return { success: true, design_id: coverDesignId, carousel_id: isCarousel ? designData.carousel_id : undefined };
 }
