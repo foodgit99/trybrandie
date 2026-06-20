@@ -58,6 +58,11 @@ Deno.serve(async (req) => {
             .from("content_ideas")
             .update({ autopilot_status: "failed_error" } as any)
             .eq("id", row.id);
+          await logEvent(supabase, run?.id, row.id, row.brand_id, "reconcile_failed", "no_linked_designs", {
+            action: "update",
+            table: "content_ideas",
+            changes: { autopilot_status: "failed_error" },
+          });
           continue;
         }
         const cover = designs.find((d) => d.slide_index === 0) || designs[0];
@@ -69,10 +74,18 @@ Deno.serve(async (req) => {
             autopilot_status: "completed",
           } as any)
           .eq("id", row.id);
+        await logEvent(supabase, run?.id, row.id, row.brand_id, "reconcile_completed", undefined, {
+          action: "update",
+          table: "content_ideas",
+          design_id: cover.id,
+          linked_design_count: designs.length,
+          changes: { design_id: cover.id, status: "created", autopilot_status: "completed" },
+        });
       }
     } catch (e) {
       console.error("[autopilot:reconcile] failed", e);
     }
+
 
     if (reconcileOnly) {
       return jsonResponse({ reconciled: true });
