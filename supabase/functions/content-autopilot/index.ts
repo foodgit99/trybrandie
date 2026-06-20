@@ -293,6 +293,18 @@ function getLocalDate(date: Date, tz: string): string {
   return formatter.format(date); // returns YYYY-MM-DD
 }
 
+// Compute the Monday (ISO week start) of the week containing `dateStr` (YYYY-MM-DD), return YYYY-MM-DD.
+function blueprintWeekOf(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.getUTCDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+
 function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
