@@ -195,7 +195,7 @@ const AffiliateMarketing = () => {
                 {
                   icon: Sparkles,
                   title: "A product people stick with",
-                  body: "Brandie is an AI Brand Studio used by founders, creators and agencies for daily on-brand content. High retention = high lifetime commissions for you.",
+                  body: "Brandie is an Content Engine used by founders, creators and agencies for daily on-brand content. High retention = high lifetime commissions for you.",
                 },
                 {
                   icon: TrendingUp,

@@ -28,7 +28,7 @@ export const SWIPE_POSTS: SwipePost[] = [
     label: "Promotional, Direct ask",
     channel: "general",
     body:
-      "Brandie is the AI Brand Studio I wish I had years ago. It learns your brand and creates social graphics that actually look professional.\n\nGet started → {LINK}",
+      "Brandie is the Content Engine I wish I had years ago. It learns your brand and creates social graphics that actually look professional.\n\nGet started → {LINK}",
   },
   {
     id: "story-1",
