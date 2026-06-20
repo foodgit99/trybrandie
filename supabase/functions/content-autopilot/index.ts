@@ -31,12 +31,20 @@ Deno.serve(async (req) => {
       if (body?.reconcile_only) reconcileOnly = !!body.reconcile_only;
     } catch { /* no body — use default */ }
 
+    // Create durable run record up-front so reconcile + processing events share one run.
+    const { data: run } = await supabase
+      .from("autopilot_runs")
+      .insert({ delivery_time: deliveryWindow })
+      .select("id")
+      .single();
+
     // ── Reconciliation pass ──
     // Any idea stuck in autopilot_status='processing' for >1h almost always means
     // the upstream design-studio call finished writing slides but content-autopilot
     // was interrupted before updating the idea. Recover by inspecting designs and
     // either finalising (completed) or marking failed_error so retry can pick it up.
     try {
+
       const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { data: stuck } = await supabase
         .from("content_ideas")
