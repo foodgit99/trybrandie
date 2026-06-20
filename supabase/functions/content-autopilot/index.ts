@@ -109,13 +109,8 @@ Deno.serve(async (req) => {
 
     console.log(`[autopilot] Running for delivery_time=${deliveryWindow}${forceBrandId ? ` brand=${forceBrandId} force=${force}` : ""}`);
 
-    // Create durable run record
-    const { data: run } = await supabase
-      .from("autopilot_runs")
-      .insert({ delivery_time: deliveryWindow })
-      .select("id")
-      .single();
     const runId = run?.id;
+
 
     // Fetch autopilot_settings where enabled = true and delivery_time matches.
     // When forceBrandId is supplied, scope to that brand only (bypass delivery_time match).
