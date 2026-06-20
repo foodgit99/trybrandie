@@ -24,7 +24,7 @@ function welcomeHtml(name: string): string {
       Hey ${name || "there"},
     </p>
     <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
-      Your brand studio is ready. Brandie will remember your colours, fonts, tone, and personality — so every design feels unmistakably <strong>you</strong>.
+      Your Content Engine is ready. Brandie will remember your colours, fonts, tone, and personality — so every design feels unmistakably <strong>you</strong>.
     </p>
     <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
       Head to the Design Studio and create your first graphic. Just describe what you need in plain English.
@@ -1164,7 +1164,7 @@ Deno.serve(async (req) => {
         html = supportConfirmationHtml(data || {});
         break;
       case "welcome":
-        subject = "Welcome to Brandie — your brand studio is ready ✨";
+        subject = "Welcome to Brandie — your Content Engine is ready ✨";
         html = welcomeHtml(data?.name || "");
         break;
       case "referral_reward":
