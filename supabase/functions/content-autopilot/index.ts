@@ -492,6 +492,16 @@ async function processIdea(
       return { success: false, status: "failed_error", error: "no_cover_design_id" };
     }
 
+    await logEvent(supabase, runId, idea.id, idea.brand_id, "designs_inserted", undefined, {
+      ...(baseMeta || {}),
+      action: "insert",
+      table: "designs",
+      carousel_id: designData?.carousel_id,
+      slide_count: sorted.length,
+      design_ids: sorted.map((s: any) => s.design_id).filter(Boolean),
+      cover_design_id: coverDesignId,
+    });
+
     // Defense-in-depth: ensure caption is persisted on cover slide for the post page.
     if (designData?.caption) {
       try {
@@ -542,6 +552,13 @@ async function processIdea(
 
     coverImageUrl = designData.image_url;
     coverDesignId = savedDesign.id;
+
+    await logEvent(supabase, runId, idea.id, idea.brand_id, "design_inserted", undefined, {
+      ...(baseMeta || {}),
+      action: "insert",
+      table: "designs",
+      design_id: coverDesignId,
+    });
   }
 
   // Update content_ideas
@@ -549,6 +566,15 @@ async function processIdea(
     .from("content_ideas")
     .update({ design_id: coverDesignId, status: "created", autopilot_status: "completed" } as any)
     .eq("id", idea.id);
+
+  await logEvent(supabase, runId, idea.id, idea.brand_id, "idea_finalized", undefined, {
+    ...(baseMeta || {}),
+    action: "update",
+    table: "content_ideas",
+    changes: { design_id: coverDesignId, status: "created", autopilot_status: "completed" },
+  });
+
+
 
   // Send email notification
   if (userEmail && coverImageUrl) {
