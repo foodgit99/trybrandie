@@ -221,7 +221,16 @@ Deno.serve(async (req) => {
     const errorDetails: any[] = [];
 
     for (const idea of allIdeas) {
+      const baseMeta = {
+        scheduled_for: idea.scheduled_for,
+        blueprint_week: blueprintWeekOf(idea.scheduled_for),
+        idea_title: idea.title,
+        format: idea.content_format || "graphic",
+        slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null,
+      };
       try {
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "picked_up", undefined, baseMeta);
+
         // Duplicate-run guard: atomic lock via SQL function (bypasses PostgREST NULL filter issues)
         const { data: lockResult, error: lockErr } = await supabase
           .rpc("lock_autopilot_idea", { p_idea_id: idea.id })
@@ -230,18 +239,28 @@ Deno.serve(async (req) => {
         if (lockErr || !lockResult) {
           console.log(`[autopilot] Skipping idea ${idea.id} — already processing or completed`);
           skipped++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, "skipped_locked");
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "skipped_locked", lockErr?.message, baseMeta);
           continue;
         }
 
-        const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey);
-        const meta = { format: idea.content_format || "graphic", slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null };
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "lock_acquired", undefined, {
+          ...baseMeta,
+          action: "update",
+          table: "content_ideas",
+          changes: { autopilot_status: "processing" },
+        });
+
+        const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey, runId, baseMeta);
         if (result.success) {
           processed++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, meta);
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, {
+            ...baseMeta,
+            design_id: result.design_id,
+            carousel_id: result.carousel_id,
+          });
         } else {
           skipped++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, meta);
+          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, baseMeta);
         }
       } catch (ideaErr) {
         console.error(`[autopilot] Error processing idea ${idea.id}:`, ideaErr);
@@ -251,9 +270,10 @@ Deno.serve(async (req) => {
           .eq("id", idea.id);
         errors++;
         errorDetails.push({ idea_id: idea.id, error: (ideaErr as Error).message });
-        await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message);
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message, baseMeta);
       }
     }
+
 
     await finalizeRun(supabase, runId, allIdeas.length, processed, skipped, errors, errorDetails);
 
