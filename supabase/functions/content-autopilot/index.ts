@@ -31,12 +31,20 @@ Deno.serve(async (req) => {
       if (body?.reconcile_only) reconcileOnly = !!body.reconcile_only;
     } catch { /* no body — use default */ }
 
+    // Create durable run record up-front so reconcile + processing events share one run.
+    const { data: run } = await supabase
+      .from("autopilot_runs")
+      .insert({ delivery_time: deliveryWindow })
+      .select("id")
+      .single();
+
     // ── Reconciliation pass ──
     // Any idea stuck in autopilot_status='processing' for >1h almost always means
     // the upstream design-studio call finished writing slides but content-autopilot
     // was interrupted before updating the idea. Recover by inspecting designs and
     // either finalising (completed) or marking failed_error so retry can pick it up.
     try {
+
       const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { data: stuck } = await supabase
         .from("content_ideas")
@@ -58,6 +66,11 @@ Deno.serve(async (req) => {
             .from("content_ideas")
             .update({ autopilot_status: "failed_error" } as any)
             .eq("id", row.id);
+          await logEvent(supabase, run?.id, row.id, row.brand_id, "reconcile_failed", "no_linked_designs", {
+            action: "update",
+            table: "content_ideas",
+            changes: { autopilot_status: "failed_error" },
+          });
           continue;
         }
         const cover = designs.find((d) => d.slide_index === 0) || designs[0];
@@ -69,10 +82,18 @@ Deno.serve(async (req) => {
             autopilot_status: "completed",
           } as any)
           .eq("id", row.id);
+        await logEvent(supabase, run?.id, row.id, row.brand_id, "reconcile_completed", undefined, {
+          action: "update",
+          table: "content_ideas",
+          design_id: cover.id,
+          linked_design_count: designs.length,
+          changes: { design_id: cover.id, status: "created", autopilot_status: "completed" },
+        });
       }
     } catch (e) {
       console.error("[autopilot:reconcile] failed", e);
     }
+
 
     if (reconcileOnly) {
       return jsonResponse({ reconciled: true });
@@ -88,13 +109,8 @@ Deno.serve(async (req) => {
 
     console.log(`[autopilot] Running for delivery_time=${deliveryWindow}${forceBrandId ? ` brand=${forceBrandId} force=${force}` : ""}`);
 
-    // Create durable run record
-    const { data: run } = await supabase
-      .from("autopilot_runs")
-      .insert({ delivery_time: deliveryWindow })
-      .select("id")
-      .single();
     const runId = run?.id;
+
 
     // Fetch autopilot_settings where enabled = true and delivery_time matches.
     // When forceBrandId is supplied, scope to that brand only (bypass delivery_time match).
@@ -205,7 +221,16 @@ Deno.serve(async (req) => {
     const errorDetails: any[] = [];
 
     for (const idea of allIdeas) {
+      const baseMeta = {
+        scheduled_for: idea.scheduled_for,
+        blueprint_week: blueprintWeekOf(idea.scheduled_for),
+        idea_title: idea.title,
+        format: idea.content_format || "graphic",
+        slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null,
+      };
       try {
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "picked_up", undefined, baseMeta);
+
         // Duplicate-run guard: atomic lock via SQL function (bypasses PostgREST NULL filter issues)
         const { data: lockResult, error: lockErr } = await supabase
           .rpc("lock_autopilot_idea", { p_idea_id: idea.id })
@@ -214,18 +239,28 @@ Deno.serve(async (req) => {
         if (lockErr || !lockResult) {
           console.log(`[autopilot] Skipping idea ${idea.id} — already processing or completed`);
           skipped++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, "skipped_locked");
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "skipped_locked", lockErr?.message, baseMeta);
           continue;
         }
 
-        const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey);
-        const meta = { format: idea.content_format || "graphic", slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null };
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "lock_acquired", undefined, {
+          ...baseMeta,
+          action: "update",
+          table: "content_ideas",
+          changes: { autopilot_status: "processing" },
+        });
+
+        const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey, runId, baseMeta);
         if (result.success) {
           processed++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, meta);
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, {
+            ...baseMeta,
+            design_id: result.design_id,
+            carousel_id: result.carousel_id,
+          });
         } else {
           skipped++;
-          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, meta);
+          await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, baseMeta);
         }
       } catch (ideaErr) {
         console.error(`[autopilot] Error processing idea ${idea.id}:`, ideaErr);
@@ -235,9 +270,10 @@ Deno.serve(async (req) => {
           .eq("id", idea.id);
         errors++;
         errorDetails.push({ idea_id: idea.id, error: (ideaErr as Error).message });
-        await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message);
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message, baseMeta);
       }
     }
+
 
     await finalizeRun(supabase, runId, allIdeas.length, processed, skipped, errors, errorDetails);
 
@@ -256,6 +292,18 @@ function getLocalDate(date: Date, tz: string): string {
   const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
   return formatter.format(date); // returns YYYY-MM-DD
 }
+
+// Compute the Monday (ISO week start) of the week containing `dateStr` (YYYY-MM-DD), return YYYY-MM-DD.
+function blueprintWeekOf(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.getUTCDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
 
 function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -300,7 +348,10 @@ async function processIdea(
   idea: any,
   supabaseUrl: string,
   serviceRoleKey: string,
-): Promise<{ success: boolean; status?: string; error?: string }> {
+  runId?: string,
+  baseMeta?: Record<string, any>,
+): Promise<{ success: boolean; status?: string; error?: string; design_id?: string; carousel_id?: string }> {
+
   // Load brand
   const { data: brand } = await supabase
     .from("brands")
@@ -441,6 +492,16 @@ async function processIdea(
       return { success: false, status: "failed_error", error: "no_cover_design_id" };
     }
 
+    await logEvent(supabase, runId, idea.id, idea.brand_id, "designs_inserted", undefined, {
+      ...(baseMeta || {}),
+      action: "insert",
+      table: "designs",
+      carousel_id: designData?.carousel_id,
+      slide_count: sorted.length,
+      design_ids: sorted.map((s: any) => s.design_id).filter(Boolean),
+      cover_design_id: coverDesignId,
+    });
+
     // Defense-in-depth: ensure caption is persisted on cover slide for the post page.
     if (designData?.caption) {
       try {
@@ -491,6 +552,13 @@ async function processIdea(
 
     coverImageUrl = designData.image_url;
     coverDesignId = savedDesign.id;
+
+    await logEvent(supabase, runId, idea.id, idea.brand_id, "design_inserted", undefined, {
+      ...(baseMeta || {}),
+      action: "insert",
+      table: "designs",
+      design_id: coverDesignId,
+    });
   }
 
   // Update content_ideas
@@ -498,6 +566,15 @@ async function processIdea(
     .from("content_ideas")
     .update({ design_id: coverDesignId, status: "created", autopilot_status: "completed" } as any)
     .eq("id", idea.id);
+
+  await logEvent(supabase, runId, idea.id, idea.brand_id, "idea_finalized", undefined, {
+    ...(baseMeta || {}),
+    action: "update",
+    table: "content_ideas",
+    changes: { design_id: coverDesignId, status: "created", autopilot_status: "completed" },
+  });
+
+
 
   // Send email notification
   if (userEmail && coverImageUrl) {
@@ -528,5 +605,5 @@ async function processIdea(
   }).catch((e) => console.error(`[autopilot] Push failed for idea ${idea.id}:`, e));
 
   console.log(`[autopilot] ✅ Processed idea ${idea.id} → design ${coverDesignId}${isCarousel ? ` (carousel ${designData.carousel_id})` : ""}`);
-  return { success: true };
+  return { success: true, design_id: coverDesignId, carousel_id: isCarousel ? designData.carousel_id : undefined };
 }
