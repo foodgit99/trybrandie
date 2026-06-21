@@ -280,6 +280,9 @@ Deno.serve(async (req) => {
         }
 
         // Ensure blueprint exists for next week (plan-of-record).
+        // For mode='autonomous', auto-approve immediately so content-autopilot
+        // can render without waiting on user approval. mode='assisted' stays draft.
+        const autoApprove = s.mode === "autonomous";
         await supabase
           .from("weekly_blueprints")
           .upsert(
@@ -287,11 +290,13 @@ Deno.serve(async (req) => {
               brand_id: s.brand_id,
               user_id: s.user_id,
               week_start_date: nextWeekStart,
-              status: "draft",
+              status: autoApprove ? "approved" : "draft",
+              approved_at: autoApprove ? new Date().toISOString() : null,
               source: "autopilot",
             },
             { onConflict: "brand_id,week_start_date" },
           );
+
 
         // Invoke brand-engine in service mode, planning NEXT week.
         const res = await fetch(`${supabaseUrl}/functions/v1/brand-engine`, {

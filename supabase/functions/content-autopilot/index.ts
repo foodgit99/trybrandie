@@ -180,31 +180,52 @@ Deno.serve(async (req) => {
       const localToday = getLocalDate(nowUtc, tz);
       const retryFrom = getLocalDate(new Date(nowUtc.getTime() - 3 * 86400000), tz);
 
-      const { data: ideas, error: ideasErr } = await supabase
-        .from("content_ideas")
-        .select("*")
-        .eq("brand_id", brandId)
-        .eq("autopilot", true)
-        .in("status", ["suggested", "scheduled"])
-        .or(
-          `and(scheduled_for.eq.${localToday},autopilot_status.is.null),` +
-          `and(scheduled_for.eq.${localToday},autopilot_status.eq.pending),` +
-          `and(scheduled_for.gte.${retryFrom},scheduled_for.lte.${localToday},autopilot_status.in.(failed_no_credits,failed_error)),` +
-          // Catch-up: ideas scheduled in the past 3 days that were never attempted
-          // (autopilot_status NULL/pending). Prevents orphaned posts when a user
-          // enables Autonomous after their delivery window has already passed.
-          `and(scheduled_for.gte.${retryFrom},scheduled_for.lt.${localToday},autopilot_status.is.null),` +
-          `and(scheduled_for.gte.${retryFrom},scheduled_for.lt.${localToday},autopilot_status.eq.pending)`
-        );
+      // Ideas must originate from a Blueprint AND be approved — either the
+      // whole weekly_blueprints row is approved (mode='autonomous' auto-approves;
+      // user can also approve all) OR the user approved this specific idea card
+      // on /v2/Blueprint (content_ideas.approval_status='approved').
+      const baseFilter = (q: any) =>
+        q.eq("brand_id", brandId)
+          .eq("autopilot", true)
+          .not("blueprint_id", "is", null)
+          .in("status", ["suggested", "scheduled"])
+          .or(
+            `and(scheduled_for.eq.${localToday},autopilot_status.is.null),` +
+            `and(scheduled_for.eq.${localToday},autopilot_status.eq.pending),` +
+            `and(scheduled_for.gte.${retryFrom},scheduled_for.lte.${localToday},autopilot_status.in.(failed_no_credits,failed_error)),` +
+            `and(scheduled_for.gte.${retryFrom},scheduled_for.lt.${localToday},autopilot_status.is.null),` +
+            `and(scheduled_for.gte.${retryFrom},scheduled_for.lt.${localToday},autopilot_status.eq.pending)`
+          );
 
+      const [{ data: blueprintApproved, error: bErr }, { data: ideaApproved, error: iErr }] = await Promise.all([
+        baseFilter(
+          supabase
+            .from("content_ideas")
+            .select("*, weekly_blueprints!inner(id, status)")
+            .eq("weekly_blueprints.status", "approved"),
+        ),
+        baseFilter(
+          supabase
+            .from("content_ideas")
+            .select("*, weekly_blueprints(id, status)")
+            .eq("approval_status", "approved"),
+        ),
+      ]);
 
-      if (ideasErr) {
-        console.error(`[autopilot] Failed to fetch ideas for brand ${brandId}:`, ideasErr);
+      if (bErr || iErr) {
+        console.error(`[autopilot] Failed to fetch ideas for brand ${brandId}:`, bErr || iErr);
         continue;
       }
-      if (ideas && ideas.length > 0) {
-        allIdeas = allIdeas.concat(ideas);
+
+      const merged = new Map<string, any>();
+      for (const row of [...(blueprintApproved || []), ...(ideaApproved || [])]) {
+        merged.set(row.id, row);
       }
+      if (merged.size > 0) {
+        allIdeas = allIdeas.concat(Array.from(merged.values()));
+      }
+
+
     }
 
     if (allIdeas.length === 0) {
@@ -224,10 +245,13 @@ Deno.serve(async (req) => {
       const baseMeta = {
         scheduled_for: idea.scheduled_for,
         blueprint_week: blueprintWeekOf(idea.scheduled_for),
+        blueprint_id: idea.blueprint_id ?? null,
+        blueprint_status: idea.weekly_blueprints?.status ?? null,
         idea_title: idea.title,
         format: idea.content_format || "graphic",
         slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null,
       };
+
       try {
         await logEvent(supabase, runId, idea.id, idea.brand_id, "picked_up", undefined, baseMeta);
 
