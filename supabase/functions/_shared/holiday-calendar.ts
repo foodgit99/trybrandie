@@ -93,9 +93,8 @@ export const HOLIDAYS: Holiday[] = [
   { month: 12, day: 1, name: "Cyber Monday", region: "US", content_type: "promotional", dates: CYBER_MONDAY },
 
   // UK
-  { month: 3, day: 1, name: "Mother's Day (UK)", region: "UK", content_type: "engagement", dates: MOTHERS_UK },
-  { month: 4, day: 23, name: "St George's Day", region: "UK", content_type: "engagement" },
   { month: 3, day: 1, name: "Mothering Sunday (UK)", region: "UK", content_type: "engagement", dates: MOTHERS_UK },
+  { month: 4, day: 23, name: "St George's Day", region: "UK", content_type: "engagement" },
   { month: 11, day: 5, name: "Bonfire Night", region: "UK", content_type: "engagement" },
   { month: 12, day: 26, name: "Boxing Day", region: "UK", content_type: "promotional" },
 
