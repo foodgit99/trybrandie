@@ -182,9 +182,11 @@ Deno.serve(async (req) => {
 
       const { data: ideas, error: ideasErr } = await supabase
         .from("content_ideas")
-        .select("*")
+        .select("*, weekly_blueprints!inner(id, status)")
         .eq("brand_id", brandId)
         .eq("autopilot", true)
+        .not("blueprint_id", "is", null)
+        .eq("weekly_blueprints.status", "approved")
         .in("status", ["suggested", "scheduled"])
         .or(
           `and(scheduled_for.eq.${localToday},autopilot_status.is.null),` +
@@ -205,6 +207,7 @@ Deno.serve(async (req) => {
       if (ideas && ideas.length > 0) {
         allIdeas = allIdeas.concat(ideas);
       }
+
     }
 
     if (allIdeas.length === 0) {
