@@ -82,8 +82,8 @@ export const HOLIDAYS: Holiday[] = [
   // US (floating)
   { month: 1, day: 1,  name: "Martin Luther King Jr. Day", region: "US", content_type: "inspirational", dates: MLK_DAY },
   { month: 2, day: 1,  name: "Presidents' Day", region: "US", content_type: "engagement", dates: PRESIDENTS_DAY },
-  { month: 5, day: 1,  name: "Mother's Day (US)", region: "US", content_type: "engagement", dates: MOTHERS_US },
-  { month: 6, day: 1,  name: "Father's Day (US)", region: "US", content_type: "engagement", dates: FATHERS_US },
+  { month: 5, day: 1,  name: "Mother's Day",  region: "global", content_type: "engagement", dates: MOTHERS_US },
+  { month: 6, day: 1,  name: "Father's Day",  region: "global", content_type: "engagement", dates: FATHERS_US },
   { month: 7, day: 4,  name: "Independence Day (US)", region: "US", content_type: "promotional" },
   { month: 9, day: 1,  name: "Labor Day (US)", region: "US", content_type: "engagement", dates: LABOR_DAY_US },
   { month: 10, day: 31, name: "Halloween", region: "US", content_type: "engagement" },
@@ -93,9 +93,8 @@ export const HOLIDAYS: Holiday[] = [
   { month: 12, day: 1, name: "Cyber Monday", region: "US", content_type: "promotional", dates: CYBER_MONDAY },
 
   // UK
-  { month: 3, day: 1, name: "Mother's Day (UK)", region: "UK", content_type: "engagement", dates: MOTHERS_UK },
+  { month: 3, day: 1, name: "Mothering Sunday (UK)", region: "UK", content_type: "engagement", dates: MOTHERS_UK },
   { month: 4, day: 23, name: "St George's Day", region: "UK", content_type: "engagement" },
-  { month: 6, day: 1, name: "Father's Day (UK)", region: "UK", content_type: "engagement", dates: FATHERS_US },
   { month: 11, day: 5, name: "Bonfire Night", region: "UK", content_type: "engagement" },
   { month: 12, day: 26, name: "Boxing Day", region: "UK", content_type: "promotional" },
 

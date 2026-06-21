@@ -61,8 +61,8 @@ const HOLIDAYS: Holiday[] = [
   { month: 12, day: 25, name: "Christmas Day", region: "global", content_type: "promotional" },
   { month: 12, day: 31, name: "New Year's Eve", region: "global", content_type: "engagement" },
   // US
-  { month: 5, day: 1, name: "Mother's Day (US)", region: "US", content_type: "engagement", dates: MOTHERS_US },
-  { month: 6, day: 1, name: "Father's Day (US)", region: "US", content_type: "engagement", dates: FATHERS_US },
+  { month: 5, day: 1, name: "Mother's Day", region: "global", content_type: "engagement", dates: MOTHERS_US },
+  { month: 6, day: 1, name: "Father's Day", region: "global", content_type: "engagement", dates: FATHERS_US },
   { month: 7, day: 4, name: "Independence Day (US)", region: "US", content_type: "promotional" },
   { month: 10, day: 31, name: "Halloween", region: "US", content_type: "engagement" },
   { month: 11, day: 1, name: "Thanksgiving (US)", region: "US", content_type: "promotional", dates: THANKSGIVING_US },
