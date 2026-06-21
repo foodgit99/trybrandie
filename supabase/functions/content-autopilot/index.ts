@@ -227,10 +227,13 @@ Deno.serve(async (req) => {
       const baseMeta = {
         scheduled_for: idea.scheduled_for,
         blueprint_week: blueprintWeekOf(idea.scheduled_for),
+        blueprint_id: idea.blueprint_id ?? null,
+        blueprint_status: idea.weekly_blueprints?.status ?? null,
         idea_title: idea.title,
         format: idea.content_format || "graphic",
         slide_count: idea.content_format === "carousel" ? (Number(idea.slide_count) || 5) : null,
       };
+
       try {
         await logEvent(supabase, runId, idea.id, idea.brand_id, "picked_up", undefined, baseMeta);
 
