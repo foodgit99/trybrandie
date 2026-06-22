@@ -550,6 +550,52 @@ const Cockpit = () => {
             </>
           )}
         </section>
+
+        {/* HISTORY CAROUSEL */}
+        {recentDesigns.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-2 text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+                  History
+                </div>
+                <h3 className="font-serif text-2xl tracking-tight mt-1">Recently shipped</h3>
+              </div>
+              <Link
+                to="/history"
+                className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+              >
+                View all <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+              <ol className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-none">
+                {recentDesigns.map((d: any) => (
+                  <li key={d.id} className="snap-start shrink-0 w-[160px] sm:w-[180px]">
+                    <Link
+                      to={d.content_idea_id ? `/post/${d.content_idea_id}` : "/history"}
+                      className="group block rounded-2xl overflow-hidden border border-border bg-card transition-all hover:border-foreground/40"
+                    >
+                      <div className="aspect-square bg-muted overflow-hidden">
+                        <img
+                          src={d.image_url}
+                          alt={d.title ?? "Design"}
+                          loading="lazy"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]"
+                        />
+                      </div>
+                      {d.title && (
+                        <div className="p-2.5">
+                          <p className="text-xs font-medium line-clamp-2">{d.title}</p>
+                        </div>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
