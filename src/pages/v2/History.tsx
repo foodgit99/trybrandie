@@ -56,6 +56,7 @@ const HistoryV2 = () => {
   const { brand, isLoading: brandLoading } = useBrand(user);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [query, setQuery] = useState("");
   const [viewerOpen, setViewerOpen] = useState(false);
