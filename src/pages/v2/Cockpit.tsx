@@ -573,7 +573,7 @@ const Cockpit = () => {
                 {recentDesigns.map((d: any) => (
                   <li key={d.id} className="snap-start shrink-0 w-[160px] sm:w-[180px]">
                     <Link
-                      to={d.content_idea_id ? `/post/${d.content_idea_id}` : "/history"}
+                      to={`/history?design=${d.id}`}
                       className="group block rounded-2xl overflow-hidden border border-border bg-card transition-all hover:border-foreground/40"
                     >
                       <div className="aspect-square bg-muted overflow-hidden">

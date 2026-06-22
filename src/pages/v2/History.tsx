@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +56,7 @@ const HistoryV2 = () => {
   const { brand, isLoading: brandLoading } = useBrand(user);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [query, setQuery] = useState("");
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -163,6 +164,30 @@ const HistoryV2 = () => {
         .map((i) => i.cover),
     [filtered],
   );
+
+  // Auto-open viewer/carousel when navigated with ?design=<id>
+  useEffect(() => {
+    const designId = searchParams.get("design");
+    if (!designId || designs.length === 0) return;
+    const target = designs.find((d) => d.id === designId);
+    if (!target) return;
+    if (target.carousel_id) {
+      // Find the cover slide (index 0) for this carousel
+      const cover = designs
+        .filter((d) => d.carousel_id === target.carousel_id)
+        .sort((a, b) => (a.slide_index ?? 999) - (b.slide_index ?? 999))[0];
+      setCarouselDesignId(cover?.id ?? target.id);
+      setCarouselTitle(cover?.title || undefined);
+    } else {
+      const idx = singleDesignsFlat.findIndex((x) => x.id === designId);
+      setViewerIndex(Math.max(0, idx));
+      setViewerOpen(true);
+    }
+    // Clear the param so re-opens don't re-trigger
+    const next = new URLSearchParams(searchParams);
+    next.delete("design");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, designs, singleDesignsFlat, setSearchParams]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, HistoryItem[]>();
