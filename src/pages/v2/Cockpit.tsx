@@ -91,6 +91,23 @@ const Cockpit = () => {
     enabled: !!brand?.id,
   });
 
+  const { data: recentDesigns = [] } = useQuery({
+    queryKey: ["v2-cockpit-recent-designs", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("designs")
+        .select("id, title, image_url, caption, created_at, content_idea_id")
+        .eq("user_id", user.id)
+        .not("image_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
   // Group ideas by day index (0=Mon..6=Sun)
   const byDay = useMemo(() => {
     const map = new Map<number, Idea[]>();
