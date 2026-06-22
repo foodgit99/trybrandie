@@ -165,6 +165,30 @@ const HistoryV2 = () => {
     [filtered],
   );
 
+  // Auto-open viewer/carousel when navigated with ?design=<id>
+  useEffect(() => {
+    const designId = searchParams.get("design");
+    if (!designId || designs.length === 0) return;
+    const target = designs.find((d) => d.id === designId);
+    if (!target) return;
+    if (target.carousel_id) {
+      // Find the cover slide (index 0) for this carousel
+      const cover = designs
+        .filter((d) => d.carousel_id === target.carousel_id)
+        .sort((a, b) => (a.slide_index ?? 999) - (b.slide_index ?? 999))[0];
+      setCarouselDesignId(cover?.id ?? target.id);
+      setCarouselTitle(cover?.title || undefined);
+    } else {
+      const idx = singleDesignsFlat.findIndex((x) => x.id === designId);
+      setViewerIndex(Math.max(0, idx));
+      setViewerOpen(true);
+    }
+    // Clear the param so re-opens don't re-trigger
+    const next = new URLSearchParams(searchParams);
+    next.delete("design");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, designs, singleDesignsFlat, setSearchParams]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, HistoryItem[]>();
     for (const item of filtered) {
