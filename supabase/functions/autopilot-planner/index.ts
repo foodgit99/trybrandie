@@ -3,6 +3,7 @@
 // `min_queue_threshold` and that hasn't been planned this calendar week,
 // drafts next week's ideas via brand-engine. Idempotent on weekly_plan_last_run.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
