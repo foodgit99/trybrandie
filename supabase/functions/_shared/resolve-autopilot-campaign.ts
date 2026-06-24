@@ -149,11 +149,12 @@ export async function resolveAutopilotCampaign(args: ResolveArgs): Promise<Resol
 
 async function healDefault(supabase: SupabaseLike, brandId: string, campaignId: string) {
   try {
+    // Caller only invokes this after determining the user's stored default is
+    // missing or stale, so it's safe to overwrite with the resolved campaign.
     await supabase
       .from("autopilot_settings")
       .update({ default_campaign_id: campaignId })
-      .eq("brand_id", brandId)
-      .or("default_campaign_id.is.null,default_campaign_id.neq." + campaignId);
+      .eq("brand_id", brandId);
   } catch {
     // best-effort; never block insertion
   }
