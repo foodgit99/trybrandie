@@ -122,6 +122,80 @@ const DailyPost = () => {
     enabled: !!design,
   });
 
+  // All past generations for this idea, grouped into "versions" (carousels collapse to their cover slide).
+  type HistoryVersion = {
+    key: string;
+    coverId: string;
+    image_url: string;
+    created_at: string;
+    isCarousel: boolean;
+    slideCount: number;
+  };
+  const { data: history } = useQuery({
+    queryKey: ["v2-daily-history", idea?.id],
+    queryFn: async (): Promise<HistoryVersion[]> => {
+      if (!idea?.id) return [];
+      const { data, error } = await supabase
+        .from("designs")
+        .select("id, image_url, carousel_id, slide_index, created_at")
+        .eq("content_idea_id", idea.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{
+        id: string;
+        image_url: string;
+        carousel_id: string | null;
+        slide_index: number | null;
+        created_at: string;
+      }>;
+      const groups = new Map<string, HistoryVersion>();
+      for (const r of rows) {
+        const key = r.carousel_id ?? r.id;
+        const existing = groups.get(key);
+        if (!existing) {
+          groups.set(key, {
+            key,
+            coverId: r.id,
+            image_url: r.image_url,
+            created_at: r.created_at,
+            isCarousel: !!r.carousel_id,
+            slideCount: 1,
+          });
+        } else {
+          existing.slideCount += 1;
+          // Prefer slide_index 0 as the cover image.
+          if ((r.slide_index ?? 99) === 0) {
+            existing.coverId = r.id;
+            existing.image_url = r.image_url;
+          }
+          if (new Date(r.created_at) > new Date(existing.created_at)) {
+            existing.created_at = r.created_at;
+          }
+        }
+      }
+      return Array.from(groups.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    },
+    enabled: !!idea?.id,
+  });
+
+  const switchToVersion = async (coverId: string) => {
+    if (!idea || coverId === idea.design_id) return;
+    const { error } = await supabase
+      .from("content_ideas")
+      .update({ design_id: coverId })
+      .eq("id", idea.id);
+    if (error) {
+      toast({ title: "Couldn't switch version", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchIdea();
+    queryClient.invalidateQueries({ queryKey: ["v2-daily-design"] });
+    queryClient.invalidateQueries({ queryKey: ["v2-daily-slides"] });
+  };
+
+
   const allSlides = slides ?? (design ? [design] : []);
   const isCarousel = allSlides.length > 1;
   const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
