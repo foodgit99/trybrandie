@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star, Globe, Search, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import AppHeader from "@/components/AppHeader";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import BrandUpdates from "@/components/BrandUpdates";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
@@ -807,9 +807,9 @@ const BrandCentre = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Brand Centre, Brandie" description="Manage your brand identity, products, audience, and visual style genome." path="/brand" noindex />
-      <AppHeader />
+      <NewAppHeader />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
