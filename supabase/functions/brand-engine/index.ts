@@ -668,18 +668,28 @@ Each campaign should target a specific content category. Vary categories across 
       }
 
       const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes] = await Promise.all([
-        supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
+        // Order least-recently-used pillars first so the AI naturally rotates them.
+        supabase
+          .from("content_pillars")
+          .select("*")
+          .eq("brand_id", brand_id)
+          .order("last_used_at", { ascending: true, nullsFirst: true })
+          .order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
         supabase.from("campaigns").select("*").eq("brand_id", brand_id),
         supabase.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brand_id).maybeSingle(),
         (() => {
+          // Widen to 28 days and pull title + prompt so the planner can avoid
+          // repeating recent topics — not just recent categories.
           const since = new Date();
-          since.setDate(since.getDate() - 14);
+          since.setDate(since.getDate() - 28);
           return supabase
             .from("content_ideas")
-            .select("content_category, scheduled_for, created_at")
+            .select("title, prompt, content_category, scheduled_for, created_at, pillar_id")
             .eq("brand_id", brand_id)
-            .gte("created_at", since.toISOString());
+            .gte("created_at", since.toISOString())
+            .order("created_at", { ascending: false })
+            .limit(60);
         })(),
       ]);
 
@@ -687,9 +697,15 @@ Each campaign should target a specific content category. Vary categories across 
       const series = seriesRes.data || [];
       const campaigns = campaignsRes.data || [];
 
-      const pillarContext = pillars.map((p: any) => `${p.icon_emoji} ${p.name}: ${p.description}`).join("\n");
+      const pillarContext = pillars
+        .map((p: any) => {
+          const lu = p.last_used_at ? ` (last used ${new Date(p.last_used_at).toISOString().split("T")[0]})` : " (never used — PRIORITISE)";
+          return `${p.icon_emoji} ${p.name}: ${p.description}${lu}`;
+        })
+        .join("\n");
       const seriesContext = series.map((s: any) => `${s.name} (${s.recurrence}, ${s.preferred_day}): ${s.description}`).join("\n");
       const campaignContext = campaigns.map((c: any) => `${c.name}: ${c.description} (${c.post_count} posts)`).join("\n");
+
 
       const today = new Date();
       const dayOfWeek = today.getDay(); // 0=Sun
