@@ -3232,7 +3232,7 @@ Arc structure:
 Continuity rules:
 - Define ONE visual_motif (a short, concrete visual signature, e.g. "centred product hero on warm beige with thin gold rule"). EVERY slide must obey it.
 - Define ONE narrative_thread (one sentence) and echo it across slides.
-- Per-slide copy: short headline (3-8 words), optional subheadline (0-10 words), optional supporting body (0-25 words) for value-beat detail.
+- Per-slide copy: short headline (3-8 words), optional subheadline (0-10 words), and a concise supporting body on EVERY slide (6-18 words) so the carousel has a clear narrative arc.
 
 Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return more, do not return fewer.`;
 
@@ -3259,7 +3259,7 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
                     arc_role: { type: "string", enum: ["hook", "value", "proof", "cta"] },
                     headline: { type: "string", description: "Main headline (3-8 words)." },
                     subheadline: { type: "string", description: "Supporting line (0-10 words). Empty string if not needed." },
-                    body: { type: "string", description: "Optional supporting copy for value beats (0-25 words). Empty string if not needed." },
+                    body: { type: "string", description: "Concise supporting copy required on every slide (6-18 words). Never return an empty string." },
                     cta: { type: "string", description: "CTA text (0-5 words). MUST be non-empty on the final slide." },
                     scene_description: { type: "string", description: "What this slide shows visually (1-2 sentences) — must obey the shared visual_motif." },
                   },
@@ -3402,7 +3402,16 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
           // slides are missing an optional field the rest of the arc uses.
           if (canonical.subheadline && !s.subheadline) s.subheadline = s.headline;
           if (canonical.body && !s.body) {
-            issues.push(`slide ${i + 1}: missing body (arc structure expects body on every slide)`);
+            const role = String(s.arc_role || "value");
+            const headline = s.headline || s.slide_label || `Slide ${i + 1}`;
+            const thread = clean(carouselPlan.narrative_thread, 120) || `Show why ${brand?.name || "this brand"} matters now.`;
+            if (role === "hook") {
+              s.body = clean(s.subheadline || `Here is the gap your audience needs to see before they act.`, BODY_MAX);
+            } else if (role === "cta") {
+              s.body = clean(`Turn ${headline.toLowerCase()} into the next clear action today.`, BODY_MAX);
+            } else {
+              s.body = clean(s.subheadline || thread, BODY_MAX);
+            }
           }
           if (s.arc_role === "cta" && !s.cta) issues.push(`slide ${i + 1}: cta slide missing cta text`);
 
