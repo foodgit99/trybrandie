@@ -1067,6 +1067,7 @@ export type Database = {
           blueprint_id: string | null
           brand_id: string
           campaign_id: string | null
+          canvas_size: string | null
           content_category: string | null
           content_format: string
           created_at: string
@@ -1093,6 +1094,7 @@ export type Database = {
           blueprint_id?: string | null
           brand_id: string
           campaign_id?: string | null
+          canvas_size?: string | null
           content_category?: string | null
           content_format?: string
           created_at?: string
@@ -1119,6 +1121,7 @@ export type Database = {
           blueprint_id?: string | null
           brand_id?: string
           campaign_id?: string | null
+          canvas_size?: string | null
           content_category?: string | null
           content_format?: string
           created_at?: string
@@ -1191,6 +1194,7 @@ export type Database = {
           description: string
           icon_emoji: string
           id: string
+          last_used_at: string | null
           name: string
           sort_order: number
           updated_at: string
@@ -1203,6 +1207,7 @@ export type Database = {
           description?: string
           icon_emoji?: string
           id?: string
+          last_used_at?: string | null
           name: string
           sort_order?: number
           updated_at?: string
@@ -1215,6 +1220,7 @@ export type Database = {
           description?: string
           icon_emoji?: string
           id?: string
+          last_used_at?: string | null
           name?: string
           sort_order?: number
           updated_at?: string
