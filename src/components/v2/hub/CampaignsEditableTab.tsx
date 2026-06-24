@@ -237,11 +237,7 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
   );
 };
 
-function toastErr(msg: string) {
-  // Lightweight toast import scope: use window event so we don't need useToast at this layer
-  // Falls back to console
-  console.error(msg);
-}
+
 
 /* -------------------- Campaign editor (create / rename) -------------------- */
 
