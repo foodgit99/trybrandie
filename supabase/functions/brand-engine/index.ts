@@ -800,7 +800,7 @@ Choose the format that best serves the content's PURPOSE, not just its pillar la
 HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday" and content_category "holidays". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
 
 TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.`,
-        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}`,
+        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
         tool: {
           name: "create_weekly_ideas",
           description: "Create post ideas for the week",
