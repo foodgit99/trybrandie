@@ -44,6 +44,12 @@ const FUNNEL_STAGE_OPTIONS = [
   { id: "retention", label: "Retention", hint: "Keep them back" },
 ];
 
+const CANVAS_SIZE_OPTIONS = [
+  { id: "1080x1080", label: "Square", hint: "1080 × 1080" },
+  { id: "1080x1350", label: "Portrait", hint: "1080 × 1350" },
+  { id: "1080x1920", label: "Story / Reel", hint: "1080 × 1920" },
+];
+
 const Section: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
   children,
