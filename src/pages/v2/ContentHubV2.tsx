@@ -30,6 +30,8 @@ import AgentChatDock, { AgentContext } from "@/components/v2/AgentChatDock";
 import { CONTENT_CATEGORIES, type ContentCategoryId, getCategoryMeta } from "@/lib/contentCategories";
 import { cn } from "@/lib/utils";
 import IdeaThumb from "@/components/v2/IdeaThumb";
+import FunnelsEditableTab from "@/components/v2/hub/FunnelsEditableTab";
+import CampaignsEditableTab from "@/components/v2/hub/CampaignsEditableTab";
 
 /* ------------------------------ Funnel model ------------------------------ */
 
