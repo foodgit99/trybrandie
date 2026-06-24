@@ -552,6 +552,8 @@ export type Database = {
           auto_fill_mode: string
           brand_id: string
           created_at: string
+          default_campaign_id: string | null
+          default_funnel_stage: string | null
           delivery_time: string
           enabled: boolean
           id: string
@@ -566,6 +568,8 @@ export type Database = {
           auto_fill_mode?: string
           brand_id: string
           created_at?: string
+          default_campaign_id?: string | null
+          default_funnel_stage?: string | null
           delivery_time?: string
           enabled?: boolean
           id?: string
@@ -580,6 +584,8 @@ export type Database = {
           auto_fill_mode?: string
           brand_id?: string
           created_at?: string
+          default_campaign_id?: string | null
+          default_funnel_stage?: string | null
           delivery_time?: string
           enabled?: boolean
           id?: string
@@ -596,6 +602,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: true
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autopilot_settings_default_campaign_id_fkey"
+            columns: ["default_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
