@@ -857,10 +857,12 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       // Auto-enrol into autopilot if brand has autopilot enabled
       const { data: apSettings } = await serviceClient
         .from("autopilot_settings")
-        .select("enabled")
+        .select("enabled, default_funnel_stage, default_campaign_id")
         .eq("brand_id", brand_id)
         .maybeSingle();
       const autopilotOn = !!apSettings?.enabled;
+      const defaultFunnelStage = (apSettings as any)?.default_funnel_stage || null;
+      const defaultCampaignId = (apSettings as any)?.default_campaign_id || null;
 
       // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
@@ -874,13 +876,17 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         const canvas = allowedCanvas.has(idea.canvas_size)
           ? idea.canvas_size
           : (format === "carousel" ? "1080x1080" : "1080x1350");
+        const resolvedCampaignId =
+          (idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) : null) ||
+          defaultCampaignId ||
+          null;
         return {
           brand_id,
           user_id: userId,
           blueprint_id: blueprintId,
           pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
           series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
-          campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
+          campaign_id: resolvedCampaignId,
           title: idea.title,
           prompt: idea.prompt,
           idea_type: idea.idea_type,
@@ -893,6 +899,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           day_of_week: typeof dIdx === "number" ? dIdx : null,
           strategic_arc: arc,
           playbook_role: arc,
+          funnel_stage: defaultFunnelStage,
           autopilot: autopilotOn,
         };
       });
