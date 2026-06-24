@@ -332,6 +332,7 @@ const DailyPost = () => {
           })
           .eq("id", idea.id);
         await refetchIdea();
+        queryClient.invalidateQueries({ queryKey: ["v2-daily-history", idea.id] });
       } finally {
         generation.clearResult();
       }
