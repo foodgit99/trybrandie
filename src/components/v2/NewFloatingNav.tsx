@@ -64,6 +64,7 @@ const primaryPrefixes = [
   "/history",
   "/plans",
   "/support",
+  "/brands",
 ];
 
 const moreActivePrefixes = moreItems.map((i) => i.to);
