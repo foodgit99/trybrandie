@@ -616,13 +616,22 @@ const Cockpit = () => {
                       to={`/history?design=${d.id}`}
                       className="group block rounded-2xl overflow-hidden border border-border bg-card transition-all hover:border-foreground/40"
                     >
-                      <div className="aspect-square bg-muted overflow-hidden">
+                      <div className="relative aspect-square bg-muted overflow-hidden">
                         <img
                           src={d.image_url}
                           alt={d.title ?? "Design"}
                           loading="lazy"
                           className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]"
                         />
+                        {d.carousel_id && d.slide_count > 1 && (
+                          <span
+                            className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-foreground shadow-sm"
+                            aria-label={`Carousel, ${d.slide_count} slides`}
+                          >
+                            <Layers className="h-3 w-3" />
+                            {d.slide_count}
+                          </span>
+                        )}
                       </div>
                       {d.title && (
                         <div className="p-2.5">
