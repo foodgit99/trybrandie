@@ -3053,9 +3053,16 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           ...(layoutSchema ? { layout_schema: layoutSchema, creative_director_version: CD_VERSION } : {}),
           ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
           ...(updatesUsed.length ? { updates_used: summariseForClient(updatesUsed) } : {}),
+          ...(winnerScoreResult
+            ? {
+                quality_score: { ...winnerScoreResult.scores, verdict: winnerScoreResult.verdict },
+                quality_signals: winnerScoreResult.signals,
+              }
+            : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+
     }
 
     // === CAROUSEL ACTION ===
