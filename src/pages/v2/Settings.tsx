@@ -26,6 +26,7 @@ type AutopilotSettings = {
   timezone: string;
   default_funnel_stage: string | null;
   default_campaign_id: string | null;
+  default_canvas_size: string | null;
 };
 
 type CampaignOption = { id: string; name: string };
