@@ -234,6 +234,76 @@ const SettingsV2 = () => {
               })}
             </div>
           </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-sm">Default funnel stage</p>
+            <p className="text-xs text-muted-foreground">
+              New autopilot posts get routed into this stage on the Funnels board.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {FUNNEL_STAGE_OPTIONS.map((opt) => {
+                const active = autopilot?.default_funnel_stage === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() =>
+                      saveAutopilot({
+                        default_funnel_stage: active ? null : opt.id,
+                      })
+                    }
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-background hover:border-foreground/40"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p
+                      className={`text-[10px] tracking-wider uppercase ${
+                        active ? "text-background/70" : "text-muted-foreground"
+                      }`}
+                    >
+                      {opt.hint}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            {autopilot?.default_funnel_stage && (
+              <button
+                onClick={() => saveAutopilot({ default_funnel_stage: null })}
+                className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              >
+                Clear — let category decide
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-sm">Default campaign</p>
+            <p className="text-xs text-muted-foreground">
+              Auto-assign new posts to this campaign bucket.
+            </p>
+            <select
+              value={autopilot?.default_campaign_id ?? ""}
+              onChange={(e) =>
+                saveAutopilot({ default_campaign_id: e.target.value || null })
+              }
+              className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
+            >
+              <option value="">None — leave uncategorised</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {campaigns.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Create a campaign on the Content Hub to pick one here.
+              </p>
+            )}
+          </div>
         </Section>
 
         <Section label="Daily nudge">
