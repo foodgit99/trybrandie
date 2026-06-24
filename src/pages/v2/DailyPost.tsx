@@ -588,6 +588,23 @@ const DailyPost = () => {
             </div>
           )}
 
+          {/* Recovery: idea is a carousel but the rendered design is a single image. */}
+          {design && !isCarousel && detectCarouselIntent(idea).isCarousel && !generating && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-foreground/80">
+                This post was meant to be a {detectCarouselIntent(idea).slides}-slide carousel, but a single image was generated.
+              </p>
+              <Button
+                onClick={() => handleGenerate(true)}
+                variant="outline"
+                size="sm"
+                className="rounded-full shrink-0"
+              >
+                Regenerate as carousel
+              </Button>
+            </div>
+          )}
+
           {/* TRAIN BRANDIE */}
           {design && (
             <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5">
