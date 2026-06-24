@@ -284,9 +284,43 @@ const Blueprint = () => {
           >
             <ArrowLeft className="h-3 w-3" /> Cockpit
           </Link>
-          <h1 className="font-serif text-4xl sm:text-5xl tracking-tight leading-[1]">
-            This week, as a story.
-          </h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-serif text-4xl sm:text-5xl tracking-tight leading-[1]">
+              This week, as a story.
+            </h1>
+            {ideas.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={resetting}
+                    className="rounded-full h-9 px-3 gap-1.5 shrink-0"
+                  >
+                    {resetting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    )}
+                    Reset week
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset this week?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This clears every post Brandie planned for this week — approved or not.
+                      You can then ask Brandie to plan a fresh arc. This can't be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep week</AlertDialogCancel>
+                    <AlertDialogAction onClick={resetWeek}>Reset week</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
           <p className="text-muted-foreground max-w-xl">
             {ideas.length === 0
               ? 'Nothing planned this week yet. Tell Brandie below — try "plan this week" — and she\'ll draft the full arc.'
