@@ -112,7 +112,7 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("autopilot_settings")
-        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id")
+        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id, default_canvas_size")
         .eq("brand_id", brand.id)
         .maybeSingle();
       if (data) setAutopilot(data as AutopilotSettings);
@@ -125,6 +125,7 @@ const SettingsV2 = () => {
             Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos",
           default_funnel_stage: null,
           default_campaign_id: null,
+          default_canvas_size: null,
         });
 
       const { data: camps } = await supabase
