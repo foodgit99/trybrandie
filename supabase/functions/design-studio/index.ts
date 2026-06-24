@@ -3167,81 +3167,204 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
         } catch {}
       }
 
-      // Step 1: Generate unified creative brief + narrative arc for all slides
-      const arcPrompt = `You are a senior creative director planning an Instagram carousel with ${numSlides} slides.
+      // ----- Step 0a: fetch products & inspiration UP-FRONT so the arc planner -----
+      // can weave concrete product names / features into the narrative thread.
+      let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
+        try {
+          const { data: inspirationData } = await adminClient
+            .from("brand_inspiration")
+            .select("image_url")
+            .eq("brand_id", brand.id)
+            .limit(10);
+          if (inspirationData && inspirationData.length > 0) {
+            inspirationUrls = inspirationData.map((i: any) => i.image_url);
+          }
+        } catch (e) {
+          console.log("[carousel] inspiration fetch failed:", e);
+        }
+      }
 
-${brandContext}${audienceContext}
+      let productImageUrls: string[] = [];
+      const productSummaries: string[] = [];
+      if (brand?.id) {
+        try {
+          const { data: productData } = await adminClient
+            .from("brand_products")
+            .select("label, description, features, product_type, price, image_url, gallery_images")
+            .eq("brand_id", brand.id)
+            .order("created_at", { ascending: true })
+            .limit(6);
+          if (productData && productData.length > 0) {
+            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
+            for (const p of productData.slice(0, 4) as any[]) {
+              const feats = Array.isArray(p.features) ? p.features.slice(0, 3).join(", ") : "";
+              const summary = `- ${p.label || p.product_type || "Product"}${p.price ? ` (${p.price})` : ""}${p.description ? `: ${String(p.description).slice(0, 120)}` : ""}${feats ? ` | features: ${feats}` : ""}`;
+              productSummaries.push(summary);
+            }
+          }
+        } catch (e) {
+          console.log("[carousel] product fetch failed:", e);
+        }
+      }
+      const productsContext = productSummaries.length
+        ? `\nPRODUCTS / SERVICES (use these as concrete anchors in interior slides):\n${productSummaries.join("\n")}`
+        : "";
+
+      const trendContextArc = trend && trend !== "none"
+        ? `\nTREND STYLING: ${trend}${trend_intensity ? ` @ intensity ${trend_intensity}` : ""} — apply as styling overlay, do not let it overpower brand identity.`
+        : "";
+
+      // ----- Step 1: Arc plan (Pro reasoning model, structured, validated) -----
+      const arcSystem = `You are a senior creative director planning an Instagram carousel with exactly ${numSlides} slides.
+
+${brandContext}${audienceContext}${productsContext}${trendContextArc}
 
 User request: "${userPrompt}"
 
-Create a unified creative direction and per-slide copy following this narrative arc:
-- Slide 1: HOOK — attention-grabbing opening
-- Slides 2-${numSlides - 1}: VALUE — key benefits, insights, or story beats
-- Slide ${numSlides}: CTA — clear call to action
+Plan a tight, cohesive narrative arc. Every slide must reinforce ONE through-line (the narrative_thread). Interior "value" slides must lean on concrete products / features / proof points from the brand context above — do NOT invent generic filler.
 
-Return structured JSON.`;
+Arc structure:
+- Slide 1 → arc_role: "hook" — attention-grabbing opener that introduces the through-line.
+- Slides 2..${numSlides - 1} → arc_role: "value" or "proof" — each slide advances one new beat (benefit, step, insight, testimonial). No repeated angles.
+- Slide ${numSlides} → arc_role: "cta" — clear, single call-to-action. The "cta" field MUST be non-empty (e.g. "Shop now", "Book a call", "DM us 'BRIEF'").
 
-      const arcResponse = await retryFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [{ role: "system", content: arcPrompt }, { role: "user", content: "Generate the carousel plan now." }],
-          tools: [{
-            type: "function",
-            function: {
-              name: "set_carousel_plan",
-              description: "Set the carousel creative plan",
-              parameters: {
-                type: "object",
-                properties: {
-                  creative_direction: { type: "string", description: "Overall visual direction for the carousel (3-4 sentences)" },
-                  explanation: { type: "string", description: "Brief explanation for the user (1-2 sentences)" },
-                  slides: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        slide_label: { type: "string", description: "e.g. 'Hook', 'Benefit 1', 'CTA'" },
-                        headline: { type: "string", description: "Main headline (3-8 words)" },
-                        subheadline: { type: "string", description: "Supporting text (0-10 words, empty if not needed)" },
-                        cta: { type: "string", description: "CTA text (0-5 words, empty if not needed)" },
-                        scene_description: { type: "string", description: "What this specific slide shows visually (1-2 sentences)" },
-                      },
-                      required: ["slide_label", "headline", "subheadline", "cta", "scene_description"],
-                    },
-                    description: `Exactly ${numSlides} slides`,
+Continuity rules:
+- Define ONE visual_motif (a short, concrete visual signature, e.g. "centred product hero on warm beige with thin gold rule"). EVERY slide must obey it.
+- Define ONE narrative_thread (one sentence) and echo it across slides.
+- Per-slide copy: short headline (3-8 words), optional subheadline (0-10 words), optional supporting body (0-25 words) for value-beat detail.
+
+Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return more, do not return fewer.`;
+
+      const arcTool = {
+        type: "function",
+        function: {
+          name: "set_carousel_plan",
+          description: "Set the carousel creative plan with arc roles and shared anchors.",
+          parameters: {
+            type: "object",
+            properties: {
+              creative_direction: { type: "string", description: "Overall visual direction (3-4 sentences)." },
+              visual_motif: { type: "string", description: "One short, concrete visual signature locked across ALL slides (e.g. 'centred product hero on warm beige with thin gold rule')." },
+              narrative_thread: { type: "string", description: "One-sentence through-line every slide reinforces." },
+              explanation: { type: "string", description: "Brief explanation for the user (1-2 sentences)." },
+              slides: {
+                type: "array",
+                minItems: numSlides,
+                maxItems: numSlides,
+                items: {
+                  type: "object",
+                  properties: {
+                    slide_label: { type: "string", description: "Short tag e.g. 'Hook', 'Benefit 1', 'Proof', 'CTA'." },
+                    arc_role: { type: "string", enum: ["hook", "value", "proof", "cta"] },
+                    headline: { type: "string", description: "Main headline (3-8 words)." },
+                    subheadline: { type: "string", description: "Supporting line (0-10 words). Empty string if not needed." },
+                    body: { type: "string", description: "Optional supporting copy for value beats (0-25 words). Empty string if not needed." },
+                    cta: { type: "string", description: "CTA text (0-5 words). MUST be non-empty on the final slide." },
+                    scene_description: { type: "string", description: "What this slide shows visually (1-2 sentences) — must obey the shared visual_motif." },
                   },
+                  required: ["slide_label", "arc_role", "headline", "subheadline", "body", "cta", "scene_description"],
+                  additionalProperties: false,
                 },
-                required: ["creative_direction", "explanation", "slides"],
-                additionalProperties: false,
               },
             },
-          }],
-          tool_choice: { type: "function", function: { name: "set_carousel_plan" } },
-        }),
-      });
+            required: ["creative_direction", "visual_motif", "narrative_thread", "explanation", "slides"],
+            additionalProperties: false,
+          },
+        },
+      };
 
-      if (!arcResponse.ok) {
-        if (arcResponse.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (arcResponse.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        throw new Error("Failed to plan carousel");
+      async function callArcPlanner(extraSystem = ""): Promise<any | null> {
+        try {
+          const { response: arcRes } = await callWithFallback(
+            MODEL_CHAINS.reasoning,
+            (model) => ({
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: "system", content: arcSystem + (extraSystem ? `\n\n${extraSystem}` : "") },
+                  { role: "user", content: "Generate the carousel plan now." },
+                ],
+                tools: [arcTool],
+                tool_choice: { type: "function", function: { name: "set_carousel_plan" } },
+              }),
+            }),
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            LOVABLE_API_KEY,
+          );
+          if (!arcRes.ok) {
+            if (arcRes.status === 429 || arcRes.status === 402) throw new Error(`ARC_HTTP_${arcRes.status}`);
+            return null;
+          }
+          const arcJson = await arcRes.json();
+          const tc = arcJson.choices?.[0]?.message?.tool_calls?.[0];
+          if (!tc?.function?.arguments) return null;
+          return JSON.parse(tc.function.arguments);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg === "ARC_HTTP_429") return { __error: 429 };
+          if (msg === "ARC_HTTP_402") return { __error: 402 };
+          console.error("[carousel] arc planner threw:", msg);
+          return null;
+        }
       }
 
-      const arcData = await arcResponse.json();
-      const arcToolCall = arcData.choices?.[0]?.message?.tool_calls?.[0];
-      let carouselPlan: { creative_direction: string; explanation: string; slides: any[] };
-      if (arcToolCall?.function?.arguments) {
-        carouselPlan = JSON.parse(arcToolCall.function.arguments);
+      function validateArcPlan(plan: any): { ok: boolean; reason: string } {
+        if (!plan || !Array.isArray(plan.slides)) return { ok: false, reason: "missing slides array" };
+        if (plan.slides.length !== numSlides) return { ok: false, reason: `expected ${numSlides} slides, got ${plan.slides.length}` };
+        const last = plan.slides[numSlides - 1];
+        if (!last || last.arc_role !== "cta") return { ok: false, reason: "final slide must have arc_role 'cta'" };
+        if (!last.cta || String(last.cta).trim().length === 0) return { ok: false, reason: "final slide cta must be non-empty" };
+        if (plan.slides[0]?.arc_role !== "hook") return { ok: false, reason: "first slide must have arc_role 'hook'" };
+        if (!plan.visual_motif || !plan.narrative_thread) return { ok: false, reason: "missing visual_motif or narrative_thread" };
+        return { ok: true, reason: "" };
+      }
+
+      let carouselPlan: any = await callArcPlanner();
+      if (carouselPlan?.__error === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (carouselPlan?.__error === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+      let validation = validateArcPlan(carouselPlan);
+      if (!validation.ok) {
+        console.warn(`[carousel] arc plan invalid on first try: ${validation.reason} — retrying once`);
+        const retryHint = `Your previous output was invalid: ${validation.reason}. Return EXACTLY ${numSlides} slides. The first slide arc_role MUST be "hook". The final slide arc_role MUST be "cta" with a non-empty cta string. visual_motif and narrative_thread are required.`;
+        const retry = await callArcPlanner(retryHint);
+        if (retry && !retry.__error) {
+          const v2 = validateArcPlan(retry);
+          carouselPlan = retry;
+          validation = v2;
+        }
+      }
+
+      if (!carouselPlan || !Array.isArray(carouselPlan.slides) || carouselPlan.slides.length === 0) {
+        throw new Error("Failed to plan carousel — no slides returned after retry");
+      }
+      // Deterministic safety net: repair anchors + roles + CTA without injecting role-less filler.
+      carouselPlan.visual_motif = carouselPlan.visual_motif || `${brand?.vibe || "modern"} editorial composition on brand colours, consistent type lockup and breathing room across all slides`;
+      carouselPlan.narrative_thread = carouselPlan.narrative_thread || `How ${brand?.name || "the brand"} helps with "${userPrompt}".`;
+      if (carouselPlan.slides.length > numSlides) {
+        carouselPlan.slides = carouselPlan.slides.slice(0, numSlides);
       } else {
-        throw new Error("Failed to parse carousel plan");
+        while (carouselPlan.slides.length < numSlides) {
+          const seed = carouselPlan.slides[Math.max(0, carouselPlan.slides.length - 1)] || {};
+          carouselPlan.slides.push({
+            slide_label: `Beat ${carouselPlan.slides.length + 1}`,
+            arc_role: "value",
+            headline: seed.headline ? `More on ${String(seed.headline).split(" ").slice(0, 4).join(" ")}` : (brand?.name || "Keep going"),
+            subheadline: "",
+            body: "",
+            cta: "",
+            scene_description: seed.scene_description ? `Continue the visual motif from the previous slide. ${seed.scene_description}` : `Visual motif: ${carouselPlan.visual_motif}.`,
+          });
+        }
+      }
+      carouselPlan.slides[0].arc_role = "hook";
+      const lastIdx = numSlides - 1;
+      carouselPlan.slides[lastIdx].arc_role = "cta";
+      if (!carouselPlan.slides[lastIdx].cta || String(carouselPlan.slides[lastIdx].cta).trim().length === 0) {
+        carouselPlan.slides[lastIdx].cta = "DM us to get started";
       }
 
-      // Ensure we have the right number of slides
-      while (carouselPlan.slides.length < numSlides) {
-        carouselPlan.slides.push({ slide_label: `Slide ${carouselPlan.slides.length + 1}`, headline: brand?.name || "More", subheadline: "", cta: "", scene_description: "Continuation slide" });
-      }
-      carouselPlan.slides = carouselPlan.slides.slice(0, numSlides);
 
       // Step 2: Compose shared genome (reuse existing logic)
       const brandVibeLower = (brand?.vibe || "").toLowerCase();
@@ -3261,127 +3384,261 @@ Return structured JSON.`;
 
       const genomeData = JSON.parse(JSON.stringify(GENOME_PRESETS[basePresetId] || GENOME_PRESETS["bold-startup"]));
 
-      // Step 3: Render slides in parallel batches of 2
+      // ----- Step 3: render slides SEQUENTIALLY with per-slide continuity -----
+      // Inspiration + products were already fetched up-front for the arc planner.
       const size = canvas_size || "1080x1080";
       const canvas = resolveCanvas(size);
       const w = canvas.w;
       const h = canvas.h;
-      const sizeLabel = `${canvas.platform} ${canvas.label} (${w}x${h})`;
 
       const genomeContext = `VISUAL STYLE GENOME: ${genomeData.color.palette_type} palette, ${genomeData.color.temperature} temp, ${genomeData.color.contrast} contrast, ${genomeData.typography.font_personality} typography, ${genomeData.layout.grid_type} grid, ${genomeData.emotion} emotion.`;
-
       const dimensionEnforcement = buildDimensionEnforcement(w, h, canvas.label);
 
-      const slides: { image_url: string; slide_index: number; copy_structure: any; design_id: string }[] = [];
+      type SlideResult = {
+        image_url: string;
+        slide_index: number;
+        copy_structure: any;
+        design_id: string;
+        arc_role: string;
+        slide_label: string;
+        quality_score?: any;
+        quality_signals?: string[];
+      };
+      const slides: SlideResult[] = [];
 
-      // Load inspiration + product references for the carousel.
-      let inspirationUrls: string[] = brand?.inspiration_examples || [];
-      if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
+      const brandColourSig = (brand?.primary_colors || []).join(", ");
+      const fontSig = `${brand?.typography_primary || "sans-serif"}${brand?.typography_secondary ? `, ${brand.typography_secondary}` : ""}`;
+
+      // Cleanup helper: if mid-carousel render fails irrecoverably, wipe any
+      // slide rows + storage objects already written for this carouselId so we
+      // never leave an orphan partial carousel in the DB.
+      async function cleanupCarousel() {
         try {
-          const { data: inspirationData } = await adminClient
-            .from("brand_inspiration")
-            .select("image_url")
-            .eq("brand_id", brand.id)
-            .limit(10);
-          if (inspirationData && inspirationData.length > 0) {
-            inspirationUrls = inspirationData.map((i: any) => i.image_url);
+          const { data: rows } = await adminClient.from("designs").select("id, image_url").eq("carousel_id", carouselId);
+          if (rows && rows.length > 0) {
+            const paths = rows
+              .map((r: any) => {
+                try {
+                  const url = String(r.image_url || "");
+                  const marker = "/designs/";
+                  const idx = url.indexOf(marker);
+                  return idx >= 0 ? url.slice(idx + marker.length) : null;
+                } catch { return null; }
+              })
+              .filter((p): p is string => !!p);
+            if (paths.length > 0) {
+              await adminClient.storage.from("designs").remove(paths).catch(() => {});
+            }
+            await adminClient.from("designs").delete().eq("carousel_id", carouselId);
           }
         } catch (e) {
-          console.log("[carousel] inspiration fetch failed:", e);
+          console.error("[carousel] cleanup failed:", e);
         }
       }
 
-      let productImageUrls: string[] = [];
-      if (brand?.id) {
-        try {
-          const { data: productData } = await adminClient
-            .from("brand_products")
-            .select("image_url, gallery_images")
-            .eq("brand_id", brand.id)
-            .order("created_at", { ascending: true })
-            .limit(6);
-          if (productData && productData.length > 0) {
-            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
+      // Per-slide render — returns SlideResult or throws.
+      async function renderSlide(
+        i: number,
+        previousImageUrl: string | null,
+        previousSlide: any | null,
+        nextSlide: any | null,
+        attempt: number,
+      ): Promise<SlideResult> {
+        const slide = carouselPlan.slides[i];
+        const copyInjection = `EXACT TEXT TO RENDER ON THE SLIDE (use these EXACT words, do NOT modify, rephrase, or add ANY other text):
+- Headline: "${slide.headline}"${slide.subheadline ? `\n- Subheadline: "${slide.subheadline}"` : ""}${slide.body ? `\n- Supporting body: "${slide.body}"` : ""}${slide.cta ? `\n- CTA: "${slide.cta}"` : ""}
+Render ONLY the text listed above. Every word on the graphic must match exactly.`;
+
+        const continuityBlock = previousSlide
+          ? `\nCONTINUITY (slide ${i} — previous slide just shown to the viewer):
+- Previous arc role: ${previousSlide.arc_role}
+- Previous headline: "${previousSlide.headline}"
+- Inherit its palette, lighting, type lockup and background motif from the attached previous-slide reference image. Do NOT restart the visual system.${nextSlide ? `\n- The NEXT slide will be a "${nextSlide.arc_role}" beat — set up that hand-off, do not resolve the story yet.` : ""}`
+          : `\nCONTINUITY: This is the COVER slide — establish the visual system every subsequent slide will inherit (palette, type, motif, background).`;
+
+        const roleSpecificBlock =
+          slide.arc_role === "cta"
+            ? `\nFINAL CTA SLIDE — the CTA "${slide.cta}" MUST be the single dominant visual element. Make it unmissable. Resolve the through-line: "${carouselPlan.narrative_thread}".`
+            : slide.arc_role === "hook"
+            ? `\nHOOK SLIDE — open with the through-line: "${carouselPlan.narrative_thread}". Make viewers want slide 2.`
+            : `\nVALUE BEAT — advance the through-line one concrete step. Do not repeat prior slides.`;
+
+        const slidePrompt = `${dimensionEnforcement}
+
+PRIMARY CREATIVE INTENT: Slide ${i + 1} of ${numSlides} in a single carousel — "${slide.slide_label}" (arc_role: ${slide.arc_role}). Through-line: "${carouselPlan.narrative_thread}".${brand?.special_instructions ? `\n\nSPECIAL BRAND INSTRUCTIONS (ALWAYS OBEY):\n${brand.special_instructions}` : ""}
+${roleSpecificBlock}
+${continuityBlock}
+
+SHARED VISUAL MOTIF (locked across ALL slides — every slide must obey this):
+${carouselPlan.visual_motif}
+
+OVERALL CREATIVE DIRECTION:
+${carouselPlan.creative_direction}
+
+THIS SLIDE'S SCENE:
+${slide.scene_description}
+
+${copyInjection}
+
+${genomeContext}
+
+MANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, tasteful glassmorphism on overlay panels. Studio-grade, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.
+
+BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.tone_of_voice || "Professional"}. Every slide in this carousel MUST share the same palette, type lockup, and motif.${attempt > 0 ? `\n\nRETRY NOTE: The previous render of this slide was rejected by the quality critic. Pay extra attention to text legibility, contrast, and faithfulness to the visual motif.` : ""}`;
+
+        // Per-slide refs include the previous slide as a continuity anchor.
+        const { refs: slideRefs } = await collectRenderRefs({
+          logoUrl: brand?.logo_url,
+          inspirationUrls: inspirationUrls,
+          userImageUrl: user_image_url,
+          productImageUrls: productImageUrls,
+          previousImageUrl: previousImageUrl,
+        });
+        const slideRefLegend = buildRefLegend(slideRefs);
+        const slidePromptWithRefs = slideRefLegend ? `${slidePrompt}\n\n${slideRefLegend}` : slidePrompt;
+
+        const { b64: imageBase64 } = await renderWithGptImageEdits(slidePromptWithRefs, slideRefs, w, h);
+        let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
+        binaryData = await enforceCanvasDimensions(binaryData, w, h);
+
+        const filePath = `${user.id}/${crypto.randomUUID()}.png`;
+        const { error: uploadErr } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
+        if (uploadErr) throw new Error(`slide ${i + 1} upload failed: ${uploadErr.message}`);
+        const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
+
+        const copyStructureForSlide = {
+          headline: slide.headline,
+          subheadline: slide.subheadline || "",
+          cta: slide.cta || "",
+          supporting_text: slide.body || "",
+        };
+
+        const { data: designRow, error: saveErr } = await adminClient.from("designs").insert({
+          user_id: user.id,
+          brand_id: brand?.id,
+          title: `${slide.slide_label} — ${slide.headline}`.slice(0, 100),
+          prompt: carouselPlan.creative_direction,
+          image_url: urlData.publicUrl,
+          canvas_size: size,
+          carousel_id: carouselId,
+          slide_index: i,
+          genome: genomeData,
+          copy_structure: copyStructureForSlide,
+          arc_role: slide.arc_role,
+          slide_label: slide.slide_label,
+          narrative_thread: carouselPlan.narrative_thread,
+          vote: 0,
+          ...(contentIdeaId && { content_idea_id: contentIdeaId }),
+          ...(trend && trend !== "none" && { trend_used: trend, trend_intensity }),
+        } as any).select("id").single();
+
+        if (saveErr || !designRow?.id) {
+          await adminClient.storage.from("designs").remove([filePath]).catch(() => {});
+          throw new Error(`slide ${i + 1} DB insert failed: ${saveErr?.message || "no row id"}`);
+        }
+
+        return {
+          image_url: urlData.publicUrl,
+          slide_index: i,
+          copy_structure: copyStructureForSlide,
+          design_id: designRow.id,
+          arc_role: slide.arc_role,
+          slide_label: slide.slide_label,
+        };
+      }
+
+      try {
+        let prevImageUrl: string | null = null;
+        let prevSlide: any | null = null;
+        for (let i = 0; i < numSlides; i++) {
+          const nextSlide = i + 1 < numSlides ? carouselPlan.slides[i + 1] : null;
+          let result: SlideResult;
+          try {
+            result = await renderSlide(i, prevImageUrl, prevSlide, nextSlide, 0);
+          } catch (firstErr) {
+            console.warn(`[carousel] slide ${i + 1} failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
+            result = await renderSlide(i, prevImageUrl, prevSlide, nextSlide, 1);
           }
-        } catch (e) {
-          console.log("[carousel] product fetch failed:", e);
+
+          // Quality score this slide. On a fail verdict, retry once.
+          try {
+            const slidePlan = carouselPlan.slides[i];
+            const score = await scoreDesignImage({
+              imageUrl: result.image_url,
+              brief: `${carouselPlan.narrative_thread} | ${slidePlan.scene_description}`.slice(0, 1200),
+              brandName: brand?.name ?? null,
+              brandColors: [...(brand?.primary_colors || []), ...(brand?.accent_colors || [])].slice(0, 3),
+              copy: { headline: slidePlan.headline, subheadline: slidePlan.subheadline, cta: slidePlan.cta },
+              category: `carousel-${slidePlan.arc_role}`,
+              apiKey: LOVABLE_API_KEY,
+            });
+            if (score) {
+              result.quality_score = { ...score.scores, verdict: score.verdict };
+              result.quality_signals = score.signals;
+
+              if (score.verdict === "fail") {
+                console.warn(`[carousel] slide ${i + 1} scored "fail" (${score.scores.overall}) — single retry`);
+                try {
+                  await adminClient.from("designs").delete().eq("id", result.design_id);
+                  try {
+                    const url = String(result.image_url || "");
+                    const idx = url.indexOf("/designs/");
+                    if (idx >= 0) await adminClient.storage.from("designs").remove([url.slice(idx + "/designs/".length)]);
+                  } catch {}
+                  const retryResult = await renderSlide(i, prevImageUrl, prevSlide, nextSlide, 1);
+                  const retryScore = await scoreDesignImage({
+                    imageUrl: retryResult.image_url,
+                    brief: `${carouselPlan.narrative_thread} | ${slidePlan.scene_description}`.slice(0, 1200),
+                    brandName: brand?.name ?? null,
+                    brandColors: [...(brand?.primary_colors || []), ...(brand?.accent_colors || [])].slice(0, 3),
+                    copy: { headline: slidePlan.headline, subheadline: slidePlan.subheadline, cta: slidePlan.cta },
+                    category: `carousel-${slidePlan.arc_role}`,
+                    apiKey: LOVABLE_API_KEY,
+                  }).catch(() => null);
+                  result = retryResult;
+                  if (retryScore) {
+                    result.quality_score = { ...retryScore.scores, verdict: retryScore.verdict };
+                    result.quality_signals = retryScore.signals;
+                  }
+                } catch (retryErr) {
+                  console.error(`[carousel] slide ${i + 1} retry after fail-verdict threw:`, retryErr);
+                }
+              }
+
+              await adminClient.from("designs").update({
+                quality_score: result.quality_score,
+                quality_signals: result.quality_signals,
+              } as any).eq("id", result.design_id).catch(() => {});
+            }
+          } catch (scoreErr) {
+            console.warn(`[carousel] slide ${i + 1} scoring failed (non-fatal):`, scoreErr);
+          }
+
+          slides.push(result);
+          prevImageUrl = result.image_url;
+          prevSlide = carouselPlan.slides[i];
         }
+      } catch (renderErr) {
+        console.error("[carousel] hard render failure — cleaning up partial carousel:", renderErr);
+        await cleanupCarousel();
+        return new Response(
+          JSON.stringify({ error: `Carousel render failed: ${renderErr instanceof Error ? renderErr.message : "unknown"}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
 
-      // Fetch reference image blobs ONCE for the whole carousel; reuse for every slide
-      // so the brand logo / inspiration / user image stays pixel-consistent across slides.
-      const { refs: carouselRefs, skipped: carouselSkippedRefs } = await collectRenderRefs({
-        logoUrl: brand?.logo_url,
-        inspirationUrls: inspirationUrls,
-        userImageUrl: user_image_url,
-        productImageUrls: productImageUrls,
-        previousImageUrl: null,
-      });
+      // Aggregate carousel quality: min overall = the weakest slide.
+      const slideOveralls = slides.map((s) => s.quality_score?.overall).filter((x: any) => typeof x === "number") as number[];
+      const carouselQuality = slideOveralls.length > 0
+        ? {
+            min: Math.min(...slideOveralls),
+            avg: Math.round(slideOveralls.reduce((a, b) => a + b, 0) / slideOveralls.length),
+            slide_count: slideOveralls.length,
+          }
+        : null;
 
-      if (carouselSkippedRefs.length > 0) {
-        console.log(`[carousel] skipped ${carouselSkippedRefs.length} ref(s):`, carouselSkippedRefs.map((s) => s.role).join(","));
-      }
-      const carouselRefLegend = buildRefLegend(carouselRefs);
-
-      // Render in batches of 2
-      for (let batchStart = 0; batchStart < numSlides; batchStart += 2) {
-        const batchEnd = Math.min(batchStart + 2, numSlides);
-        const batchPromises = [];
-
-        for (let i = batchStart; i < batchEnd; i++) {
-          const slide = carouselPlan.slides[i];
-          const copyInjection = `EXACT TEXT TO RENDER:\n- Headline: "${slide.headline}"${slide.subheadline ? `\n- Subheadline: "${slide.subheadline}"` : ""}${slide.cta ? `\n- CTA: "${slide.cta}"` : ""}\nRender ONLY the text listed above.`;
-
-          const slidePrompt = `${dimensionEnforcement}\n\nCreate a PHOTOREALISTIC, clean, modern professional social media graphic (${sizeLabel}, slide ${i + 1} of ${numSlides} in a carousel). This is the "${slide.slide_label}" slide. ${carouselPlan.creative_direction}\n\nScene: ${slide.scene_description}\n\n${copyInjection}\n\n${genomeContext}\n\nMANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — soft specular highlights, gentle depth-of-field, subtle reflective sheen, crisp edges, micro-contrast, and tasteful glassmorphism on overlay panels (translucent frosted layers with delicate inner highlights and soft outer shadows). Studio-grade, sharp, magazine-quality. No muddy gradients, blur, or low-resolution artefacts.\n\nIMPORTANT: All slides in this carousel must share the same visual style, colour palette, and typography. Brand colours: ${(brand?.primary_colors || []).join(", ")}. Fonts: ${brand?.typography_primary || "sans-serif"}.${brand?.special_instructions ? ` SPECIAL INSTRUCTIONS: ${brand.special_instructions}` : ""}`;
-
-          const slidePromptWithRefs = carouselRefLegend
-            ? `${slidePrompt}\n\n${carouselRefLegend}`
-            : slidePrompt;
-
-          batchPromises.push((async () => {
-            const { b64: imageBase64 } = await renderWithGptImageEdits(slidePromptWithRefs, carouselRefs, w, h);
-            let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
-            // Strict platform-aspect enforcement on each slide.
-            binaryData = await enforceCanvasDimensions(binaryData, w, h);
-            const filePath = `${user.id}/${crypto.randomUUID()}.png`;
-            const { error: uploadErr } = await adminClient.storage.from("designs").upload(filePath, binaryData, { contentType: "image/png" });
-            if (uploadErr) throw new Error(`Slide ${i + 1} upload failed`);
-            const { data: urlData } = adminClient.storage.from("designs").getPublicUrl(filePath);
-
-            // Save design row
-            const { data: designRow, error: saveErr } = await adminClient.from("designs").insert({
-              user_id: user.id,
-              brand_id: brand?.id,
-              title: `${slide.slide_label} — ${slide.headline}`.slice(0, 100),
-              prompt: carouselPlan.creative_direction,
-              image_url: urlData.publicUrl,
-              canvas_size: size,
-              carousel_id: carouselId,
-              slide_index: i,
-              genome: genomeData,
-              vote: 0,
-              ...(contentIdeaId && { content_idea_id: contentIdeaId }),
-              ...(trend && trend !== "none" && { trend_used: trend, trend_intensity }),
-            } as any).select("id").single();
-
-
-            return {
-              image_url: urlData.publicUrl,
-              slide_index: i,
-              copy_structure: { headline: slide.headline, subheadline: slide.subheadline || "", cta: slide.cta || "", supporting_text: "" },
-              design_id: saveErr ? "" : designRow?.id || "",
-            };
-          })());
-        }
-
-        const batchResults = await Promise.all(batchPromises);
-        slides.push(...batchResults);
-
-        // Small delay between batches to avoid rate limits
-        if (batchEnd < numSlides) await new Promise(r => setTimeout(r, 1000));
-      }
-
-      // Generate caption for the carousel
+      // Generate caption for the carousel — echo through-line + CTA so the post
+      // copy doesn't drift from the carousel's story.
       let captionText: string | null = null;
       try {
         const captionResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -3390,8 +3647,8 @@ Return structured JSON.`;
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: `You are a social media caption writer. Write a caption for an Instagram carousel post. Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}.` },
-              { role: "user", content: `Write a caption for a ${numSlides}-slide carousel about: "${userPrompt}". Include 5-8 hashtags.` },
+              { role: "system", content: `You are a social media caption writer. Write a caption for an Instagram carousel post. Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}. The carousel's through-line: "${carouselPlan.narrative_thread}". The final CTA is: "${carouselPlan.slides[lastIdx].cta}".` },
+              { role: "user", content: `Write a caption for a ${numSlides}-slide carousel about: "${userPrompt}". Echo the through-line. End with the CTA. Include 5-8 hashtags.` },
             ],
           }),
         });
@@ -3401,10 +3658,10 @@ Return structured JSON.`;
         }
       } catch {}
 
-      // Persist caption onto the cover slide so the post page can render it.
       if (captionText) {
         try {
-          await supabase
+          await adminClient
+
             .from("designs")
             .update({ caption: captionText })
             .eq("carousel_id", carouselId)
@@ -3414,16 +3671,14 @@ Return structured JSON.`;
         }
       }
 
-      console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}`);
+      console.log(`Carousel generated: ${slides.length} slides, carousel_id=${carouselId}, quality=${JSON.stringify(carouselQuality)}`);
 
-      // Defensive finalisation: if this carousel was generated for a content_idea
-      // (autopilot path), stamp design_id + completed status NOW so the link
-      // survives even if the upstream caller times out before its own update.
       if (contentIdeaId) {
         try {
-          const cover = slides.find((s: any) => s.slide_index === 0) || slides[0];
+          const cover = slides.find((s) => s.slide_index === 0) || slides[0];
           if (cover?.design_id) {
-            await supabase
+            await adminClient
+
               .from("content_ideas")
               .update({
                 design_id: cover.design_id,
@@ -3437,8 +3692,6 @@ Return structured JSON.`;
         }
       }
 
-
-      // All slides rendered successfully — deduct credits now.
       if (pendingCarouselDeduction) {
         try {
           await pendingCarouselDeduction();
@@ -3455,7 +3708,11 @@ Return structured JSON.`;
         genome: genomeData,
         genome_scores: computeGenomeScores(genomeData, brand, trend, trend_intensity, null),
         design_prompt: carouselPlan.creative_direction,
+        narrative_thread: carouselPlan.narrative_thread,
+        visual_motif: carouselPlan.visual_motif,
+        ...(carouselQuality ? { carousel_quality: carouselQuality } : {}),
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
     }
 
     return new Response(JSON.stringify({ error: "Invalid action" }), {

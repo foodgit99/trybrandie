@@ -1471,6 +1471,7 @@ export type Database = {
       }
       designs: {
         Row: {
+          arc_role: string | null
           brand_id: string
           canvas_size: string
           caption: string | null
@@ -1483,10 +1484,12 @@ export type Database = {
           id: string
           image_url: string
           layout_schema: Json | null
+          narrative_thread: string | null
           prompt: string
           quality_score: Json | null
           quality_signals: Json | null
           slide_index: number | null
+          slide_label: string | null
           title: string | null
           trend_intensity: number | null
           trend_used: string | null
@@ -1495,6 +1498,7 @@ export type Database = {
           vote: number | null
         }
         Insert: {
+          arc_role?: string | null
           brand_id: string
           canvas_size?: string
           caption?: string | null
@@ -1507,10 +1511,12 @@ export type Database = {
           id?: string
           image_url: string
           layout_schema?: Json | null
+          narrative_thread?: string | null
           prompt: string
           quality_score?: Json | null
           quality_signals?: Json | null
           slide_index?: number | null
+          slide_label?: string | null
           title?: string | null
           trend_intensity?: number | null
           trend_used?: string | null
@@ -1519,6 +1525,7 @@ export type Database = {
           vote?: number | null
         }
         Update: {
+          arc_role?: string | null
           brand_id?: string
           canvas_size?: string
           caption?: string | null
@@ -1531,10 +1538,12 @@ export type Database = {
           id?: string
           image_url?: string
           layout_schema?: Json | null
+          narrative_thread?: string | null
           prompt?: string
           quality_score?: Json | null
           quality_signals?: Json | null
           slide_index?: number | null
+          slide_label?: string | null
           title?: string | null
           trend_intensity?: number | null
           trend_used?: string | null

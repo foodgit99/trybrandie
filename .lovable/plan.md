@@ -1,73 +1,99 @@
-# Blueprint Audit — Findings & Fix Plan
+# Carousel Story Arc — Audit & Fix Plan
 
 ## What I found
 
-The Blueprint pipeline has two real, separate problems. Both are fixable without changing the architecture.
+Carousels feel disjointed and incomplete for two distinct reasons. The arc planner produces a thin, isolated plan, and the per-slide renderer has no shared anchors or error isolation. Both are fixable without changing the user-facing flow.
 
-### 1. Why the weekly plan repeats
+### 1. Why slides feel disjointed (low cohesion)
 
-The Sunday planner (`brand-engine` → `generate_weekly_ideas`) does look at history, but only at the **category level**. It reads the last 14 days of `content_ideas` and tells the AI "you've used `educational` 3 times, `bts` 0 times" — but it never shows the AI the **titles or prompts** of those past ideas. So week after week the AI happily re-invents "Tip of the week" or "Today's special" because, structurally, those are different ideas with the right category mix.
+`design-studio` plans the carousel once with Gemini Flash (`set_carousel_plan`, lines 3171–3238) and then renders each slide independently with no visual or narrative reference to the others.
 
-Contributing factors:
-- No `last_used_at` tracking on `content_pillars` or `post_series`, so the same pillar anchors the same day-role every week.
-- The onboarding `PLAYBOOK_SEEDS` are fully static (7 hard-coded ideas per vertical). They only run once at onboarding (idempotent), so they explain *week 1* feeling templated, not perpetual repetition.
-- The interesting bit: the `fill_empty_days` handler in the same file already does the right thing — it loads recent `title`s and tells the AI "do NOT repeat these". `generate_weekly_ideas` just doesn't.
+The biggest cohesion leaks:
 
-### 2. Why Blueprint designs look lower quality than Studio
+- **No previous-slide image passed to the renderer.** Each slide starts from a blank canvas — the model re-invents background, lighting, palette intensity and composition every time. `previousImageUrl: null` is hardcoded at line 3318.
+- **No previous-slide copy in the render prompt.** The renderer can't write a headline that continues from the prior slide.
+- **The arc plan is invisible to the renderer.** Each slide prompt only contains its own scene plus a free-text `creative_direction` paragraph — the renderer never sees the other slides' headlines or scenes.
+- **The plan schema has no body/supporting copy field.** Interior "value" slides only carry a 3–8 word headline plus a 1–2 sentence scene. The model invents the rest at render time without a plan anchor.
+- **The arc planner is starved of context.** It doesn't get products, recent brand updates, trend context, or seasonal/holiday context — all of which exist in the single-graphic path. So interior slides have nothing concrete to thread through.
+- **The Flash-tier model plans the arc** (`gemini-3-flash-preview`), not Pro. Narrative coherence is the most reasoning-heavy step but uses the lightest model.
 
-Yes, both paths call the same `design-studio` function — but **`content-autopilot` sends a broken payload** that silently strips the most important context.
+### 2. Why some carousels feel incomplete (missing or empty slides)
 
-| Field | Studio sends | content-autopilot sends | Effect |
-|---|---|---|---|
-| `audience_id` | UUID from `target_audiences.id` | the audience **label string** (e.g. `"Young Professionals"`) | `design-studio` does `.eq("id", audience_id)` → returns null → **JTBD profile is completely dropped**. Brief Agent falls back to `"general audience — broad appeal"`. This is the biggest quality gap. |
-| `canvas_size` | user-selected platform preset | hardcoded `"1080x1080"` | No portrait/story support from Blueprint. |
-| `messages` | full conversation | single message with `idea.prompt` | Expected for automation; quality then depends entirely on how rich `idea.prompt` is. |
-
-Brand object, inspiration images, products, and RAG preference context all flow through correctly because `design-studio` re-fetches them from the DB using `brand.id`/`user.id`. So the *only* substantive quality leak is the audience.
+- **Pad-loop creates ghost slides.** If the planner returns fewer slides than requested, lines 3241–3244 silently top up with `headline: brand.name`, `scene_description: "Continuation slide"`, and no arc role. These render as real slides but read as filler.
+- **No per-slide error isolation.** A single render or upload failure inside `Promise.all` (lines 3341–3377) collapses the batch and aborts the rest of the carousel. Already-saved slides become orphans with no cleanup, and the autopilot only validates the cover slide's `design_id`.
+- **Silent empty `design_id`.** When a DB insert fails for a slide, the loop swallows the error and returns `design_id: ""` (line 3372). The carousel response includes the broken slide, and the autopilot path only checks the cover.
+- **No CTA enforcement on slide N.** The arc prompt asks for a CTA, but there's no schema constraint, no post-plan validation, and no special render-prompt injection — if the model emits an empty `cta` for the last slide, it silently disappears.
+- **No quality gate on carousels.** The `scoreDesignImage` critic that catches blank/failed renders in the single-graphic path is not called on carousel slides.
+- **No per-slide arc metadata persisted.** `slide_label` (Hook, Benefit, CTA) is only embedded in the `title` text. We can't query for arc completeness or detect missing CTAs after the fact.
 
 ---
 
 ## Proposed fixes
 
-### Fix A — Stop the JTBD context from being dropped (biggest quality win)
-In `supabase/functions/content-autopilot/index.ts` (~line 457):
-- Change `designPayload.audience_id = audience.label || "primary"` → pass the actual `audience.id` (UUID).
-- Load the audience by querying `target_audiences` for the brand (preferring the primary/most-recent one) and pass its `id`.
+Ordered by impact. Each fix is small and contained.
 
-### Fix B — Make `generate_weekly_ideas` topic-aware (biggest repetition win)
-In `supabase/functions/brand-engine/index.ts` (`generate_weekly_ideas`, ~lines 675-810):
-- Extend the recent-history query to also select `title` and `prompt` (currently only `content_category, scheduled_for`).
-- Build a `recentTitles` block (mirroring what `fill_empty_days` already does at line 941) covering the last 21–28 days.
-- Inject it into the AI system prompt as a "do NOT repeat these topics or near-duplicates — vary the angle" constraint.
+### Fix 1 — Enrich the arc planner (cohesion + completeness foundation)
+File: `supabase/functions/design-studio/index.ts` around lines 3155–3238.
 
-### Fix C — Pillar rotation signal (secondary repetition win)
-- Add `last_used_at timestamptz` to `content_pillars` (migration).
-- In `generate_weekly_ideas`, after inserting ideas, stamp `last_used_at = now()` on the pillars referenced.
-- Order pillars surfaced to the AI by `last_used_at ASC NULLS FIRST` and label least-recently-used ones as "prioritise these".
+- Use Pro-tier reasoning for the arc plan: switch from `gemini-3-flash-preview` to the `MODEL_CHAINS.reasoning` fallback chain that the single-graphic path already uses.
+- Inject the same context the single path enjoys: products list (names + key features), recent brand updates (RAG), trend context, seasonal/holiday context.
+- Extend the `set_carousel_plan` schema:
+  - Add `body` (10–25 words) per slide so interior value beats have anchored supporting copy.
+  - Add `arc_role` enum (`hook` / `value` / `proof` / `cta`) per slide.
+  - Add `narrative_thread` at the plan level — one sentence describing the through-line every slide must reinforce.
+  - Add `visual_motif` at the plan level — one short string (e.g. "centred product hero on warm beige with thin gold rule") locked across all slides.
+- Validate the returned plan: enforce exactly `numSlides` slides (no padding), require `arc_role: "cta"` and non-empty `cta` on the last slide; if missing, do a single targeted retry asking the model to fix only those fields.
 
-### Fix D — Let the planner choose a canvas size (small quality/variety win)
-- Either: pass `canvas_size: "1080x1350"` (portrait) by default in `content-autopilot` since portrait performs better on IG, **or**
-- Add an optional `canvas_size` column on `content_ideas` that the planner can set per idea (e.g. carousels stay 1:1, single-image posts go 4:5). Then `content-autopilot` forwards it.
+### Fix 2 — Lock visual continuity across slides
+File: `supabase/functions/design-studio/index.ts` around lines 3326–3382.
 
-I'd recommend starting with the simple default switch (portrait 1080×1350) unless you want per-idea control.
+- Pass the previous slide's rendered image as a reference into the next slide's render call (use the existing `previousImageUrl` field that the single-graphic edit path already supports). This forces the renderer to inherit palette, lighting, type lockup and background motif from slide N-1.
+- Render slides **sequentially** instead of in batches of 2, so each slide can see the previous one's pixels. (Cost is identical; latency rises modestly. Acceptable for an automated background job and a small UX cost for Studio.)
+- Inject the plan's `visual_motif` and `narrative_thread` into every slide's render prompt.
+- Show the renderer a compact "what came before / what's next" map: prior slide's headline and the next slide's `arc_role`, so copy can lead into the following beat.
+- Special-case the first and last slides: cover slide gets a "this is the cover — establish the visual system" instruction; final slide gets a "this is the CTA — make `{cta}` the dominant element" instruction.
+
+### Fix 3 — Per-slide error isolation + completeness guarantee
+File: `supabase/functions/design-studio/index.ts` around lines 3341–3382, and `supabase/functions/content-autopilot/index.ts` around lines 515–541.
+
+- Wrap each slide render+upload+insert in a try/catch so one failure doesn't kill the batch.
+- On a slide failure, do one targeted retry (re-render that single slide). If still failing, abort the whole carousel with a clear error and clean up any slides already saved for that `carousel_id` (so we never leave orphan partials in the DB).
+- Stop emitting `design_id: ""` — treat a DB save error as a slide failure and trigger the retry/abort path.
+- In `content-autopilot`, validate that every returned slide has a non-empty `design_id`, not just the cover.
+
+### Fix 4 — Score and gate carousels too
+File: `supabase/functions/design-studio/index.ts` (carousel block) and `_shared/design-scorer.ts` (existing).
+
+- After all slides render, score each slide with the existing critic. Persist `quality_score` and `quality_signals` on every carousel slide row.
+- Compute a `carousel_quality` aggregate (overall = min of slide scores so a single weak slide is visible). Return it in the response so the cockpit can surface it.
+- If any slide scores `verdict: "fail"`, retry that one slide once before returning. Same best-of-N pattern as single graphics, but capped at 1 retry per slide to control cost.
+
+### Fix 5 — Persist arc metadata on slide rows
+Schema change: add columns to `designs`.
+
+- `arc_role text` — `hook` | `value` | `proof` | `cta`.
+- `slide_label text` — verbatim from the plan ("Benefit 1", "How it works", etc.) so the title field stops carrying mixed concerns.
+- `narrative_thread text` — copied onto every slide of the same `carousel_id` so the through-line is queryable.
+- Also persist `copy_structure` on carousel slide rows (currently only single graphics get it).
 
 ---
 
 ## Implications
 
-- **Fix A** is a one-line behavioural change but will visibly lift design quality for every autopilot post immediately — Brief Agent will start using real struggling moments, emotional drivers and conversion levers instead of "general audience".
-- **Fix B** doesn't increase token cost much (titles are short) and the AI will start producing genuinely different weekly arcs. Combined with Fix C, repetition should largely disappear.
-- **Fix C** requires a small DB migration and a write-back in the planner. Low risk.
-- **Fix D** (portrait default) is a one-character change with a noticeable visual upgrade on IG/feeds.
-- None of this touches the Studio path, the design-studio function itself, or the user-facing `/blueprint` UI.
+- **Fix 1** is the biggest cohesion lift. Cost: one Pro call per carousel (already paid in the single-graphic path). Latency: +2–3s on plan.
+- **Fix 2** is the biggest "feels like one piece" lift. Cost: zero extra renders. Latency: ~Nx instead of ~(N/2)x because slides become sequential. For a 5-slide carousel that's roughly +20–30s — acceptable for background jobs and tolerable in Studio.
+- **Fix 3** eliminates the silent partial-carousel failure mode entirely. No new model cost.
+- **Fix 4** adds one critic call per slide (cheap Flash multimodal) plus an occasional single-slide retry. Same per-slide cost shape as the single-graphic best-of-N.
+- **Fix 5** is a small migration; downstream UI work to surface arc role can come later. None of these changes touch the public API shape — clients keep working as-is and just get richer fields.
 
 ---
 
 ## Order of operations
 
-1. Fix A (audience UUID) — biggest quality lift, smallest change.
-2. Fix B (recent titles in planner prompt) — biggest repetition lift.
-3. Fix C (pillar `last_used_at` + migration) — reinforces variety.
-4. Fix D (portrait default or per-idea canvas) — polish.
+1. Fix 1 (richer plan + Pro model + validation) — biggest cohesion + completeness lift.
+2. Fix 2 (previous-slide image reference, sequential render, motif/thread injection, cover/CTA branching).
+3. Fix 3 (per-slide try/catch, retry, partial cleanup, full design_id validation in autopilot).
+4. Fix 5 (migration for arc_role / slide_label / narrative_thread / copy_structure on carousels).
+5. Fix 4 (scoring + per-slide retry gate). Last because it depends on the other fixes producing recoverable inputs.
 
-Want me to proceed with all four, or start with A + B only?
+Want me to proceed with all five, or start with 1 + 2 + 3 (the core quality + reliability fixes) and defer 4 + 5?
