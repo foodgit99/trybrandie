@@ -25,6 +25,8 @@ import {
   buildBlankCanvasBlob,
   type CollectedRef,
 } from "../_shared/render-refs.ts";
+import { scoreDesignImage, weightedOverall, type QualityResult } from "../_shared/design-scorer.ts";
+
 
 
 // --- PLATFORM CANVAS PRESETS ---
