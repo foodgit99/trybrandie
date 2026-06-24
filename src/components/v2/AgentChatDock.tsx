@@ -43,6 +43,11 @@ const QUICK_PROMPTS: Record<AgentContext["scope"], string[]> = {
     "Give me 3 hook variations.",
     "Turn this into a carousel outline.",
   ],
+  trends: [
+    "Which trend should I act on first?",
+    "Turn the top trend into a 3-post arc.",
+    "What's overhyped and not worth chasing?",
+  ],
 };
 
 export default function AgentChatDock({
