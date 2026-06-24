@@ -3386,7 +3386,7 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
         const canonical = {
           headline: true,
           subheadline: usage("subheadline") >= majority,
-          body: usage("body") >= majority,
+          body: true,
         };
 
         const issues: string[] = [];
