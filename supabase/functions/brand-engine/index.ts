@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWeekHolidaysAsync, fetchHolidayFeed, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
+import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -867,7 +868,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
-      const ideasToInsert = result.data.ideas.map((idea: any) => {
+      const ideasToInsert = await Promise.all(result.data.ideas.map(async (idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
         const dIdx = dayIndex.get(idea.day);
@@ -876,10 +877,21 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         const canvas = allowedCanvas.has(idea.canvas_size)
           ? idea.canvas_size
           : (format === "carousel" ? "1080x1080" : "1080x1350");
-        const resolvedCampaignId =
-          (idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) : null) ||
-          defaultCampaignId ||
-          null;
+        const aiResolvedCampaignId = idea.campaign_name
+          ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
+          : null;
+        let resolvedCampaignId: string | null = aiResolvedCampaignId || defaultCampaignId || null;
+        if (autopilotOn) {
+          const r = await resolveAutopilotCampaign({
+            supabase: serviceClient,
+            brandId: brand_id,
+            userId,
+            defaultCampaignId,
+            defaultFunnelStage,
+            aiResolvedCampaignId,
+          });
+          resolvedCampaignId = r.campaignId;
+        }
         return {
           brand_id,
           user_id: userId,
@@ -902,7 +914,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           funnel_stage: defaultFunnelStage,
           autopilot: autopilotOn,
         };
-      });
+      }));
 
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
@@ -1076,17 +1088,28 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
 
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
-      const ideasToInsert = (result.data.ideas || [])
+      const ideasToInsert = await Promise.all((result.data.ideas || [])
         .filter((idea: any) => allowedDays.has(idea.day))
-        .map((idea: any) => {
+        .map(async (idea: any) => {
           const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
           const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
           const dIdx = dayIndex.get(idea.day);
           const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
-          const resolvedCampaignId =
-            (idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) : null) ||
-            defaultCampaignId ||
-            null;
+          const aiResolvedCampaignId = idea.campaign_name
+            ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
+            : null;
+          let resolvedCampaignId: string | null = aiResolvedCampaignId || defaultCampaignId || null;
+          if (autopilotOn) {
+            const r = await resolveAutopilotCampaign({
+              supabase: serviceClient,
+              brandId: brand_id,
+              userId,
+              defaultCampaignId,
+              defaultFunnelStage,
+              aiResolvedCampaignId,
+            });
+            resolvedCampaignId = r.campaignId;
+          }
           return {
             brand_id,
             user_id: userId,
@@ -1108,7 +1131,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
             funnel_stage: defaultFunnelStage,
             autopilot: autopilotOn,
           };
-        });
+        }));
 
       let inserted: any[] = [];
       if (ideasToInsert.length > 0) {

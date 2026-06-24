@@ -3,6 +3,7 @@
 // `min_queue_threshold` and that hasn't been planned this calendar week,
 // drafts next week's ideas via brand-engine. Idempotent on weekly_plan_last_run.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -160,6 +161,15 @@ Deno.serve(async (req) => {
         const defaultFunnelStage = (apDefaults as any)?.default_funnel_stage || null;
         const defaultCampaignId = (apDefaults as any)?.default_campaign_id || null;
 
+        // Resolve a guaranteed-valid campaign for the seed batch (Autonomous Mode).
+        const { campaignId: seedCampaignId } = await resolveAutopilotCampaign({
+          supabase,
+          brandId: brand.id,
+          userId: brand.user_id,
+          defaultCampaignId,
+          defaultFunnelStage,
+        });
+
         const rows = ordered.map((s, i) => {
           const d = new Date(today);
           d.setDate(d.getDate() + i);
@@ -178,7 +188,7 @@ Deno.serve(async (req) => {
             scheduled_for: isoDate(d),
             autopilot: true, // seed mode flips autopilot ON below, so auto-enrol
             funnel_stage: defaultFunnelStage,
-            campaign_id: defaultCampaignId,
+            campaign_id: seedCampaignId,
           };
         });
         const { error: insertErr } = await supabase.from("content_ideas").insert(rows);

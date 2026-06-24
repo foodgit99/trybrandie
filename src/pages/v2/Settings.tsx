@@ -291,16 +291,22 @@ const SettingsV2 = () => {
               }
               className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
             >
-              <option value="">None — leave uncategorised</option>
+              <option value="">None — auto-route by funnel stage</option>
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
+            {autopilot?.default_campaign_id &&
+              !campaigns.some((c) => c.id === autopilot.default_campaign_id) && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Previous campaign was deleted. Autonomous Mode will route new posts using your default funnel stage until you pick a new one.
+                </p>
+              )}
             {campaigns.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Create a campaign on the Content Hub to pick one here.
+                No campaigns yet — Autonomous Mode will auto-create one named after your selected funnel stage.
               </p>
             )}
           </div>
