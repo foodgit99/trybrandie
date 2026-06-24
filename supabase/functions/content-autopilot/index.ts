@@ -439,7 +439,11 @@ async function processIdea(
     action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: canvasSize,
     content_idea_id: idea.id,
+    // Best-of-N: render two candidates and let the critic pick the stronger one.
+    // Carousels skip this (already multi-image and cost-sensitive).
+    ...(isCarousel ? {} : { candidate_count: 2 }),
     ...(isCarousel && { slide_count: slideCount }),
+
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
       id: brand.id,
