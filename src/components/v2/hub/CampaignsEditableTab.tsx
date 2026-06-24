@@ -80,6 +80,7 @@ type Props = {
 
 const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateKeys = [] }: Props) => {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<CampaignRow | null>(null);
   const [assignFor, setAssignFor] = useState<CampaignRow | null>(null);
@@ -219,8 +220,9 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
                 await supabase.from("content_ideas").update({ campaign_id: null } as never).eq("campaign_id", deleteFor.id);
                 const { error } = await supabase.from("campaigns").delete().eq("id", deleteFor.id);
                 if (error) {
-                  toastErr(error.message);
+                  toast({ title: "Couldn't delete", description: error.message, variant: "destructive" });
                 } else {
+                  toast({ title: "Campaign deleted" });
                   invalidate();
                 }
                 setDeleteFor(null);
