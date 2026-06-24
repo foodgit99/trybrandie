@@ -697,7 +697,67 @@ const DailyPost = () => {
             </div>
           )}
 
+          {/* GENERATION HISTORY */}
+          {history && history.length > 1 && (
+            <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">Generation history</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Switch between previous renders for this idea.
+                  </p>
+                </div>
+                <span className="text-xs text-muted-foreground">{history.length} versions</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+                {history.map((v, i) => {
+                  const active = v.coverId === idea?.design_id;
+                  return (
+                    <button
+                      key={v.key}
+                      type="button"
+                      onClick={() => switchToVersion(v.coverId)}
+                      className={`group relative shrink-0 w-24 text-left rounded-lg overflow-hidden border transition-all ${
+                        active
+                          ? "border-foreground ring-2 ring-foreground/20"
+                          : "border-border hover:border-foreground/40"
+                      }`}
+                      aria-label={`Switch to version ${history.length - i}`}
+                    >
+                      <img
+                        src={v.image_url}
+                        alt={`Version ${history.length - i}`}
+                        className="w-full aspect-square object-cover"
+                        loading="lazy"
+                      />
+                      <div className="px-1.5 py-1 bg-card">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            v{history.length - i}
+                          </span>
+                          {v.isCarousel && <span>{v.slideCount}↪</span>}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {new Date(v.created_at).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </div>
+                      </div>
+                      {active && (
+                        <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-foreground grid place-items-center">
+                          <Check className="h-2.5 w-2.5 text-background" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* TRAIN BRANDIE */}
+
           {design && (
             <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5">
               <div className="flex items-center gap-2">
