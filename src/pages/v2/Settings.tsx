@@ -24,12 +24,23 @@ type AutopilotSettings = {
   enabled: boolean;
   delivery_time: string;
   timezone: string;
+  default_funnel_stage: string | null;
+  default_campaign_id: string | null;
 };
+
+type CampaignOption = { id: string; name: string };
 
 const DELIVERY_OPTIONS = [
   { id: "morning", label: "Morning", hint: "~8am" },
   { id: "afternoon", label: "Afternoon", hint: "~1pm" },
   { id: "evening", label: "Evening", hint: "~6pm" },
+];
+
+const FUNNEL_STAGE_OPTIONS = [
+  { id: "awareness", label: "Awareness", hint: "Top of funnel" },
+  { id: "consideration", label: "Consideration", hint: "Build trust" },
+  { id: "conversion", label: "Conversion", hint: "Drive sales" },
+  { id: "retention", label: "Retention", hint: "Keep them back" },
 ];
 
 const Section: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -93,12 +104,14 @@ const SettingsV2 = () => {
     })();
   }, [user]);
 
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
+
   useEffect(() => {
     if (!brand?.id) return;
     (async () => {
       const { data } = await supabase
         .from("autopilot_settings")
-        .select("brand_id, enabled, delivery_time, timezone")
+        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id")
         .eq("brand_id", brand.id)
         .maybeSingle();
       if (data) setAutopilot(data as AutopilotSettings);
@@ -109,7 +122,16 @@ const SettingsV2 = () => {
           delivery_time: "morning",
           timezone:
             Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos",
+          default_funnel_stage: null,
+          default_campaign_id: null,
         });
+
+      const { data: camps } = await supabase
+        .from("campaigns")
+        .select("id, name")
+        .eq("brand_id", brand.id)
+        .order("created_at", { ascending: false });
+      setCampaigns((camps as CampaignOption[]) || []);
     })();
   }, [brand?.id]);
 
@@ -211,6 +233,76 @@ const SettingsV2 = () => {
                 );
               })}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-sm">Default funnel stage</p>
+            <p className="text-xs text-muted-foreground">
+              New autopilot posts get routed into this stage on the Funnels board.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {FUNNEL_STAGE_OPTIONS.map((opt) => {
+                const active = autopilot?.default_funnel_stage === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() =>
+                      saveAutopilot({
+                        default_funnel_stage: active ? null : opt.id,
+                      })
+                    }
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-background hover:border-foreground/40"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p
+                      className={`text-[10px] tracking-wider uppercase ${
+                        active ? "text-background/70" : "text-muted-foreground"
+                      }`}
+                    >
+                      {opt.hint}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            {autopilot?.default_funnel_stage && (
+              <button
+                onClick={() => saveAutopilot({ default_funnel_stage: null })}
+                className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              >
+                Clear — let category decide
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-sm">Default campaign</p>
+            <p className="text-xs text-muted-foreground">
+              Auto-assign new posts to this campaign bucket.
+            </p>
+            <select
+              value={autopilot?.default_campaign_id ?? ""}
+              onChange={(e) =>
+                saveAutopilot({ default_campaign_id: e.target.value || null })
+              }
+              className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
+            >
+              <option value="">None — leave uncategorised</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {campaigns.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Create a campaign on the Content Hub to pick one here.
+              </p>
+            )}
           </div>
         </Section>
 
