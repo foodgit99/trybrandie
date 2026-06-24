@@ -1,45 +1,41 @@
 
-# Autonomous Mode — Campaign Fallback
+# Default Design Size Preference (Cockpit + Autonomous Mode)
 
-## Goal
-When Autonomous Mode generates an idea, it must always land in **a valid campaign** that matches the user's **default funnel stage**, even if:
-- `default_campaign_id` was never set, OR
-- the referenced campaign was deleted, OR
-- the AI couldn't resolve a campaign name from the idea.
+## Decision
+Add a **Default design size** preference in Settings that controls the canvas used for all Cockpit and Autonomous Mode generations. Studio keeps its existing per-generation size picker.
 
-No idea should ever be saved with a `NULL`/orphaned `campaign_id` when Autonomous Mode is on.
+## Options Offered
+Curated to safe, universally-usable sizes:
+- **Square 1080×1080** (default — safest cross-platform)
+- **Portrait 1080×1350** (IG/FB feed portrait)
+- **Story / Reel 1080×1920** (vertical 9:16)
 
-## Resolution Order (deterministic)
-For each generated idea, resolve `campaign_id` in this order:
+Carousels remain forced to square regardless of this preference (multi-slide UX requirement).
 
-1. **AI-resolved campaign** — if the LLM matched the idea to an existing campaign name for this brand, use it (must still exist).
-2. **User default** — `autopilot_settings.default_campaign_id`, but only if the row still exists in `campaigns` for this brand.
-3. **Stage-matched existing campaign** — first campaign for this brand whose `funnel_stage` (or primary category mapped via `funnelStages.ts`) equals the user's `default_funnel_stage`. Ordered by `created_at ASC` for stability.
-4. **Auto-create stage campaign** — create a campaign named after the stage (e.g. "Awareness", "Consideration", "Conversion", "Retention") for this brand, tagged with that funnel stage, then use it. Idempotent: re-use if one with that name already exists.
-5. **Last resort** — create/use a brand-level "General" campaign so the idea is never orphaned.
+## Schema
+- `autopilot_settings.default_canvas_size text` — nullable, check constraint on the three values above. Defaults to `'1080x1080'` when null.
 
-Steps 4–5 also **self-heal** `autopilot_settings.default_campaign_id`: if it was null or pointed to a deleted campaign, update it to the resolved/created one so future runs short-circuit at step 2.
+## Server (Autonomous Mode + Cockpit ideation)
+`supabase/functions/brand-engine/index.ts`
+- In `generate_weekly_ideas` and `fill_empty_days`, read `default_canvas_size` from `autopilot_settings` alongside the other autopilot defaults.
+- Resolution order for `canvas_size` per idea:
+  1. If `content_format === "carousel"` → `1080x1080`
+  2. Else if user has a `default_canvas_size` → use it
+  3. Else fall back to current behaviour (AI-suggested → format default)
 
-## Where to Apply
-A single shared helper, used everywhere Autonomous Mode writes ideas:
+Any other Cockpit-side idea inserter (`autopilot-planner` seeding) applies the same default.
 
-- New file: `supabase/functions/_shared/resolve-autopilot-campaign.ts`
-  - `resolveAutopilotCampaign({ supabase, brandId, defaultCampaignId, defaultFunnelStage, aiResolvedCampaignName? }) → { campaignId, funnelStage }`
-  - Handles lookup, stage matching, auto-create, and self-heal of `autopilot_settings`.
-
-Call sites updated to use the helper instead of trusting `default_campaign_id` directly:
-- `supabase/functions/brand-engine/index.ts` — `generate_weekly_ideas` and `fill_empty_days`
-- `supabase/functions/autopilot-planner/index.ts` — seeding logic
-- `supabase/functions/content-autopilot/index.ts` — any idea inserts during scheduled runs
-
-## Frontend (light touch)
-- `src/pages/v2/Settings.tsx`: if the currently selected `default_campaign_id` no longer exists in the campaigns list, show a small inline hint under the dropdown ("Previous campaign was deleted — Autonomous Mode will use your default funnel stage until you pick a new one") and reset the local select value to "None". No forced DB write from the client — the edge helper self-heals on the next run.
+## Frontend
+- `src/pages/v2/Settings.tsx`: new "Default design size" row inside the existing Autonomous Mode section — three-pill toggle (Square / Portrait / Story), persists to `autopilot_settings.default_canvas_size`. Subtitle: "Used for Cockpit and Autonomous Mode posts. You can still override per-design in Studio."
+- No changes to `/studio` — the existing size picker stays.
+- `src/integrations/supabase/types.ts` regenerates after the migration.
 
 ## Out of Scope
-- No schema changes (columns from the previous migration are sufficient).
-- No changes to manual/Assisted Mode flows.
-- No change to funnel-stage logic itself.
+- No changes to Studio UI/flow.
+- No backfill of existing `content_ideas.canvas_size`.
+- No new sizes beyond the three above (keeps the UI a clean 3-pill toggle).
 
 ## Verification
-- Unit-style check via `supabase--read_query`: confirm no `content_ideas` rows are inserted with `campaign_id IS NULL` after an Autonomous Mode run.
-- Manually trigger `brand-engine` with `default_campaign_id` set to a deleted UUID and confirm: (a) ideas land in a stage-matched campaign, (b) `autopilot_settings.default_campaign_id` is updated to the resolved one.
+- Set preference to Portrait → trigger Autonomous Mode generation → confirm new non-carousel ideas have `canvas_size = '1080x1350'` and carousels are still `1080x1080`.
+- Set preference to Square → confirm everything generates square.
+- Open Studio → confirm the per-generation size picker still works and isn't affected.
