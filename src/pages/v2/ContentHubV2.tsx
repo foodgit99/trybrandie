@@ -30,6 +30,8 @@ import AgentChatDock, { AgentContext } from "@/components/v2/AgentChatDock";
 import { CONTENT_CATEGORIES, type ContentCategoryId, getCategoryMeta } from "@/lib/contentCategories";
 import { cn } from "@/lib/utils";
 import IdeaThumb from "@/components/v2/IdeaThumb";
+import FunnelsEditableTab from "@/components/v2/hub/FunnelsEditableTab";
+import CampaignsEditableTab from "@/components/v2/hub/CampaignsEditableTab";
 
 /* ------------------------------ Funnel model ------------------------------ */
 
@@ -93,6 +95,7 @@ type Idea = {
   approval_status: string;
   scheduled_for: string | null;
   content_category: string | null;
+  funnel_stage: string | null;
   campaign_id: string | null;
   design_id: string | null;
   design?: { image_url: string | null; caption: string | null } | null;
@@ -102,7 +105,7 @@ type Idea = {
 type Campaign = {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   post_count: number;
   content_category: string | null;
   created_at: string;
@@ -155,7 +158,7 @@ const ContentHubV2 = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("content_ideas")
-        .select("id,title,prompt,status,approval_status,scheduled_for,content_category,campaign_id,design_id,created_at,design:design_id(image_url,caption)")
+        .select("id,title,prompt,status,approval_status,scheduled_for,content_category,funnel_stage,campaign_id,design_id,created_at,design:design_id(image_url,caption)")
         .eq("brand_id", brand!.id)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -368,9 +371,24 @@ const ContentHubV2 = () => {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
           >
-            {tab === "funnels" && <FunnelsTab stageBuckets={stageBuckets} onOpenIdea={(id) => { const next = new URLSearchParams(params); next.set("tab", "content"); next.set("item", id); setParams(next); }} />}
+            {tab === "funnels" && (
+              <FunnelsEditableTab
+                ideas={ideas}
+                brand={brand}
+                onOpenPost={(id) => { const next = new URLSearchParams(params); next.set("tab", "content"); next.set("item", id); setParams(next); }}
+                invalidateKeys={[["hubv2-ideas", brand.id], ["brands-and-memberships"]]}
+              />
+            )}
             {tab === "strategy" && <StrategyTab blueprints={blueprints} ideas={ideas} onOpenBlueprint={() => navigate("/blueprint")} />}
-            {tab === "campaigns" && <CampaignsTab campaigns={campaigns} ideas={ideas} />}
+            {tab === "campaigns" && (
+              <CampaignsEditableTab
+                campaigns={campaigns}
+                ideas={ideas}
+                brand={brand}
+                onOpenPost={(id) => { const next = new URLSearchParams(params); next.set("tab", "content"); next.set("item", id); setParams(next); }}
+                invalidateKeys={[["hubv2-campaigns", brand.id], ["hubv2-ideas", brand.id]]}
+              />
+            )}
             {tab === "content" && (
               <ContentTab
                 ideas={ideas}
