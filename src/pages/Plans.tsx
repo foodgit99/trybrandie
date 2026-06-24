@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, CheckCircle2, ArrowRight, Zap, CreditCard, Sparkles } from "lucide-react";
-import AppHeader from "@/components/AppHeader";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 import SubscriptionTiers from "@/components/SubscriptionTiers";
 import { supabase } from "@/integrations/supabase/client";
 
