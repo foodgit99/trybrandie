@@ -870,6 +870,10 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
         const dIdx = dayIndex.get(idea.day);
         const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
+        const allowedCanvas = new Set(["1080x1080", "1080x1350", "1080x1920"]);
+        const canvas = allowedCanvas.has(idea.canvas_size)
+          ? idea.canvas_size
+          : (format === "carousel" ? "1080x1080" : "1080x1350");
         return {
           brand_id,
           user_id: userId,
@@ -883,6 +887,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           content_format: format,
           slide_count: slides,
           content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+          canvas_size: canvas,
           status: "suggested",
           scheduled_for: dateMap.get(idea.day) || null,
           day_of_week: typeof dIdx === "number" ? dIdx : null,
@@ -895,9 +900,22 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
 
+      // Stamp last_used_at on every pillar referenced this week so next week's
+      // planner naturally rotates to less-recently-used pillars.
+      const usedPillarIds = Array.from(new Set(
+        (ideasToInsert as any[]).map((i) => i.pillar_id).filter((id) => !!id)
+      ));
+      if (usedPillarIds.length > 0) {
+        await serviceClient
+          .from("content_pillars")
+          .update({ last_used_at: new Date().toISOString() } as any)
+          .in("id", usedPillarIds);
+      }
+
       if (creditProfile) await deductAndTrackGeneration(creditProfile, creditCheck?.rewardRows);
 
       return jsonResponse({ ideas: inserted });
+
     }
 
     if (action === "fill_empty_days") {
