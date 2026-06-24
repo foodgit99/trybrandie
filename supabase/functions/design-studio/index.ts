@@ -655,6 +655,10 @@ async function runFullHandler(req: Request): Promise<Response> {
     const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
     const contentIdeaId: string | null = _parsedReqBody?.content_idea_id ?? null;
+    // Best-of-N quality selection. Default 1 (Studio path), Blueprint/autopilot
+    // bumps this to 2 so the critic can pick the stronger of two renders.
+    const candidateCount: number = Math.max(1, Math.min(3, Number(_parsedReqBody?.candidate_count) || 1));
+
 
     // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
     // + category bias outcomes are reproducible per job — easier debugging + fair A/B.
