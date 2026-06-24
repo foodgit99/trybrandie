@@ -406,10 +406,10 @@ async function processIdea(
   const { data: authUser } = await supabase.auth.admin.getUserById(idea.user_id);
   const userEmail = authUser?.user?.email;
 
-  // Load audience (optional)
+  // Load audience (optional) — select id so design-studio can join the JTBD profile.
   const { data: audience } = await supabase
     .from("target_audiences")
-    .select("jtbd_profile, label")
+    .select("id, jtbd_profile, label")
     .eq("brand_id", idea.brand_id)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -426,11 +426,18 @@ async function processIdea(
   const slideCount = isCarousel ? Math.min(10, Math.max(2, Number(idea.slide_count) || 5)) : 0;
   console.log(`[autopilot] idea ${idea.id} format=${isCarousel ? "carousel" : "graphic"}${isCarousel ? ` slides=${slideCount}` : ""}`);
 
+  // Canvas size: per-idea override (planner can set portrait/square per idea),
+  // else portrait 1080x1350 for single graphics (best IG feed performance),
+  // else 1080x1080 for carousels.
+  const canvasSize: string = (typeof (idea as any).canvas_size === "string" && (idea as any).canvas_size)
+    ? (idea as any).canvas_size
+    : (isCarousel ? "1080x1080" : "1080x1350");
+
   // Build design payload
   const designPayload: Record<string, any> = {
     user_id: idea.user_id,
     action: isCarousel ? "generate_carousel" : "generate",
-    canvas_size: "1080x1080",
+    canvas_size: canvasSize,
     content_idea_id: idea.id,
     ...(isCarousel && { slide_count: slideCount }),
     messages: [{ role: "user", content: idea.prompt }],
@@ -453,10 +460,13 @@ async function processIdea(
     },
   };
 
-
-  if (audience?.jtbd_profile) {
-    designPayload.audience_id = audience.label || "primary";
+  // Pass the actual UUID so design-studio's `.eq("id", audience_id)` resolves
+  // and the JTBD profile flows into the Brief Agent. Previously a label string
+  // was sent here, which silently dropped the entire audience context.
+  if (audience?.id) {
+    designPayload.audience_id = audience.id;
   }
+
 
   if (trendPref?.trend_enabled && trendPref.selected_trend && trendPref.selected_trend !== "none") {
     designPayload.trend = trendPref.selected_trend;
