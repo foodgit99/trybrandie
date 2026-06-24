@@ -104,12 +104,14 @@ const SettingsV2 = () => {
     })();
   }, [user]);
 
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
+
   useEffect(() => {
     if (!brand?.id) return;
     (async () => {
       const { data } = await supabase
         .from("autopilot_settings")
-        .select("brand_id, enabled, delivery_time, timezone")
+        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id")
         .eq("brand_id", brand.id)
         .maybeSingle();
       if (data) setAutopilot(data as AutopilotSettings);
@@ -120,7 +122,16 @@ const SettingsV2 = () => {
           delivery_time: "morning",
           timezone:
             Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos",
+          default_funnel_stage: null,
+          default_campaign_id: null,
         });
+
+      const { data: camps } = await supabase
+        .from("campaigns")
+        .select("id, name")
+        .eq("brand_id", brand.id)
+        .order("created_at", { ascending: false });
+      setCampaigns((camps as CampaignOption[]) || []);
     })();
   }, [brand?.id]);
 
