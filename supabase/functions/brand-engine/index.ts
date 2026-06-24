@@ -867,7 +867,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
-      const ideasToInsert = result.data.ideas.map((idea: any) => {
+      const ideasToInsert = await Promise.all(result.data.ideas.map(async (idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
         const dIdx = dayIndex.get(idea.day);
@@ -879,8 +879,18 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         const aiResolvedCampaignId = idea.campaign_name
           ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
           : null;
-        // Fallback resolver guarantees campaign_id is never null in Autonomous Mode.
-        // For Assisted Mode (autopilot off) we keep the legacy behaviour.
+        let resolvedCampaignId: string | null = aiResolvedCampaignId || defaultCampaignId || null;
+        if (autopilotOn) {
+          const r = await resolveAutopilotCampaign({
+            supabase: serviceClient,
+            brandId: brand_id,
+            userId,
+            defaultCampaignId,
+            defaultFunnelStage,
+            aiResolvedCampaignId,
+          });
+          resolvedCampaignId = r.campaignId;
+        }
         return {
           brand_id,
           user_id: userId,
@@ -903,7 +913,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           funnel_stage: defaultFunnelStage,
           autopilot: autopilotOn,
         };
-      });
+      }));
 
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
