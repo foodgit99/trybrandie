@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import AutopilotStatusBanner from "@/components/v2/AutopilotStatusBanner";
 import DayOverview from "@/components/v2/DayOverview";
 import CEOBriefingPreview from "@/components/v2/CEOBriefingPreview";
 import PushOptInCard from "@/components/PushOptInCard";
@@ -275,6 +276,7 @@ const Cockpit = () => {
 
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-24 space-y-12">
+        <AutopilotStatusBanner brandId={brand?.id} />
         {/* HERO BRIEFING */}
         <header className="space-y-3">
           <p className="text-xs tracking-[0.22em] uppercase text-muted-foreground">

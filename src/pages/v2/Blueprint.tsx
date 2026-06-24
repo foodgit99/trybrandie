@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import AutopilotStatusBanner from "@/components/v2/AutopilotStatusBanner";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 import IdeaThumb from "@/components/v2/IdeaThumb";
 
@@ -286,6 +287,7 @@ const Blueprint = () => {
 
 
       <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
+        <AutopilotStatusBanner brandId={brand?.id} showApproveAll />
         <header className="space-y-3">
           <Link
             to="/cockpit"
