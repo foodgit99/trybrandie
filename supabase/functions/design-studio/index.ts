@@ -3365,6 +3365,64 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
         carouselPlan.slides[lastIdx].cta = "DM us to get started";
       }
 
+      // ----- Validate & normalise carousel copy_structure BEFORE rendering -----
+      // Every slide must follow the same copy_structure shape (same set of
+      // populated fields), match arc_role expectations, and stay within sane
+      // length bounds. Deterministic repairs are applied where safe; anything
+      // we cannot repair throws so the caller surfaces a clear failure rather
+      // than persisting disjointed slides.
+      {
+        const HEADLINE_MAX = 90;
+        const SUBHEAD_MAX = 140;
+        const BODY_MAX = 220;
+        const CTA_MAX = 40;
+        const clean = (s: any, max: number) => {
+          const t = typeof s === "string" ? s.trim().replace(/\s+/g, " ") : "";
+          return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;
+        };
+        const usage = (field: string) =>
+          carouselPlan.slides.filter((s: any) => s && typeof s[field] === "string" && s[field].trim().length > 0).length;
+        const majority = Math.ceil(numSlides / 2);
+        const canonical = {
+          headline: true,
+          subheadline: usage("subheadline") >= majority,
+          body: usage("body") >= majority,
+        };
+
+        const issues: string[] = [];
+        for (let i = 0; i < carouselPlan.slides.length; i++) {
+          const s = carouselPlan.slides[i];
+          s.headline = clean(s.headline, HEADLINE_MAX);
+          s.subheadline = clean(s.subheadline, SUBHEAD_MAX);
+          s.body = clean(s.body, BODY_MAX);
+          s.cta = clean(s.cta, CTA_MAX);
+
+          if (!s.headline) issues.push(`slide ${i + 1}: missing headline`);
+          // Keep structure uniform — safe fallback when only a minority of
+          // slides are missing an optional field the rest of the arc uses.
+          if (canonical.subheadline && !s.subheadline) s.subheadline = s.headline;
+          if (canonical.body && !s.body) {
+            issues.push(`slide ${i + 1}: missing body (arc structure expects body on every slide)`);
+          }
+          if (s.arc_role === "cta" && !s.cta) issues.push(`slide ${i + 1}: cta slide missing cta text`);
+
+          // No two slides may share the same headline — that's a repetition smell.
+          for (let j = 0; j < i; j++) {
+            const other = carouselPlan.slides[j]?.headline;
+            if (s.headline && other && s.headline.toLowerCase() === String(other).toLowerCase()) {
+              issues.push(`slide ${i + 1}: duplicate headline of slide ${j + 1}`);
+            }
+          }
+        }
+        if (issues.length > 0) {
+          console.warn("[carousel] copy validation issues:", issues);
+          throw new Error(`Carousel copy validation failed: ${issues.join("; ")}`);
+        }
+        carouselPlan.__canonical_structure = canonical;
+      }
+
+
+
 
       // Step 2: Compose shared genome (reuse existing logic)
       const brandVibeLower = (brand?.vibe || "").toLowerCase();
