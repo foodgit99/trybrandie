@@ -155,11 +155,13 @@ Deno.serve(async (req) => {
         // Load any autopilot defaults the user has already configured for this brand
         const { data: apDefaults } = await supabase
           .from("autopilot_settings")
-          .select("default_funnel_stage, default_campaign_id")
+          .select("default_funnel_stage, default_campaign_id, default_canvas_size")
           .eq("brand_id", brand.id)
           .maybeSingle();
         const defaultFunnelStage = (apDefaults as any)?.default_funnel_stage || null;
         const defaultCampaignId = (apDefaults as any)?.default_campaign_id || null;
+        const defaultCanvasSize = (apDefaults as any)?.default_canvas_size || null;
+        const allowedCanvas = new Set(["1080x1080", "1080x1350", "1080x1920"]);
 
         // Resolve a guaranteed-valid campaign for the seed batch (Autonomous Mode).
         const { campaignId: seedCampaignId } = await resolveAutopilotCampaign({
@@ -189,6 +191,9 @@ Deno.serve(async (req) => {
             autopilot: true, // seed mode flips autopilot ON below, so auto-enrol
             funnel_stage: defaultFunnelStage,
             campaign_id: seedCampaignId,
+            canvas_size: format === "carousel"
+              ? "1080x1080"
+              : (defaultCanvasSize && allowedCanvas.has(defaultCanvasSize) ? defaultCanvasSize : "1080x1350"),
           };
         });
         const { error: insertErr } = await supabase.from("content_ideas").insert(rows);

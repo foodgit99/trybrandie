@@ -553,6 +553,7 @@ export type Database = {
           brand_id: string
           created_at: string
           default_campaign_id: string | null
+          default_canvas_size: string | null
           default_funnel_stage: string | null
           delivery_time: string
           enabled: boolean
@@ -569,6 +570,7 @@ export type Database = {
           brand_id: string
           created_at?: string
           default_campaign_id?: string | null
+          default_canvas_size?: string | null
           default_funnel_stage?: string | null
           delivery_time?: string
           enabled?: boolean
@@ -585,6 +587,7 @@ export type Database = {
           brand_id?: string
           created_at?: string
           default_campaign_id?: string | null
+          default_canvas_size?: string | null
           default_funnel_stage?: string | null
           delivery_time?: string
           enabled?: boolean

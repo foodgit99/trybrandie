@@ -26,6 +26,7 @@ type AutopilotSettings = {
   timezone: string;
   default_funnel_stage: string | null;
   default_campaign_id: string | null;
+  default_canvas_size: string | null;
 };
 
 type CampaignOption = { id: string; name: string };
@@ -41,6 +42,12 @@ const FUNNEL_STAGE_OPTIONS = [
   { id: "consideration", label: "Consideration", hint: "Build trust" },
   { id: "conversion", label: "Conversion", hint: "Drive sales" },
   { id: "retention", label: "Retention", hint: "Keep them back" },
+];
+
+const CANVAS_SIZE_OPTIONS = [
+  { id: "1080x1080", label: "Square", hint: "1080 × 1080" },
+  { id: "1080x1350", label: "Portrait", hint: "1080 × 1350" },
+  { id: "1080x1920", label: "Story / Reel", hint: "1080 × 1920" },
 ];
 
 const Section: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -111,7 +118,7 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("autopilot_settings")
-        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id")
+        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id, default_canvas_size")
         .eq("brand_id", brand.id)
         .maybeSingle();
       if (data) setAutopilot(data as AutopilotSettings);
@@ -124,6 +131,7 @@ const SettingsV2 = () => {
             Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos",
           default_funnel_stage: null,
           default_campaign_id: null,
+          default_canvas_size: null,
         });
 
       const { data: camps } = await supabase
@@ -309,6 +317,39 @@ const SettingsV2 = () => {
                 No campaigns yet — Autonomous Mode will auto-create one named after your selected funnel stage.
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-sm">Default design size</p>
+            <p className="text-xs text-muted-foreground">
+              Used for Cockpit and Autonomous Mode posts. You can still override per-design in Studio. Carousels are always square.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {CANVAS_SIZE_OPTIONS.map((opt) => {
+                const current = autopilot?.default_canvas_size ?? "1080x1080";
+                const active = current === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => saveAutopilot({ default_canvas_size: opt.id })}
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-background hover:border-foreground/40"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p
+                      className={`text-[10px] tracking-wider uppercase ${
+                        active ? "text-background/70" : "text-muted-foreground"
+                      }`}
+                    >
+                      {opt.hint}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </Section>
 
