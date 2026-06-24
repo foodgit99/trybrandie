@@ -213,16 +213,25 @@ const Blueprint = () => {
     if (!brand?.id) return;
     setResetting(true);
     try {
-      const { error } = await supabase
+      const { error: delErr } = await supabase
         .from("content_ideas")
         .delete()
         .eq("brand_id", brand.id)
         .gte("scheduled_for", weekStart.toISOString())
         .lt("scheduled_for", weekEnd.toISOString());
-      if (error) throw error;
+      if (delErr) throw delErr;
+      invalidate();
       toast({
-        title: "Week reset",
-        description: "All posts for this week were cleared. Ask Brandie to plan a fresh arc.",
+        title: "Replanning your week…",
+        description: "Brandie is drafting a fresh arc. This takes a few seconds.",
+      });
+      const { error: genErr } = await supabase.functions.invoke("brand-engine", {
+        body: { action: "generate_weekly_ideas", brand_id: brand.id },
+      });
+      if (genErr) throw genErr;
+      toast({
+        title: "Fresh week ready",
+        description: "Review the new arc and approve the days you like.",
       });
       invalidate();
     } catch (err: any) {
