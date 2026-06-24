@@ -668,18 +668,28 @@ Each campaign should target a specific content category. Vary categories across 
       }
 
       const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes] = await Promise.all([
-        supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
+        // Order least-recently-used pillars first so the AI naturally rotates them.
+        supabase
+          .from("content_pillars")
+          .select("*")
+          .eq("brand_id", brand_id)
+          .order("last_used_at", { ascending: true, nullsFirst: true })
+          .order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
         supabase.from("campaigns").select("*").eq("brand_id", brand_id),
         supabase.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brand_id).maybeSingle(),
         (() => {
+          // Widen to 28 days and pull title + prompt so the planner can avoid
+          // repeating recent topics — not just recent categories.
           const since = new Date();
-          since.setDate(since.getDate() - 14);
+          since.setDate(since.getDate() - 28);
           return supabase
             .from("content_ideas")
-            .select("content_category, scheduled_for, created_at")
+            .select("title, prompt, content_category, scheduled_for, created_at, pillar_id")
             .eq("brand_id", brand_id)
-            .gte("created_at", since.toISOString());
+            .gte("created_at", since.toISOString())
+            .order("created_at", { ascending: false })
+            .limit(60);
         })(),
       ]);
 
@@ -687,9 +697,15 @@ Each campaign should target a specific content category. Vary categories across 
       const series = seriesRes.data || [];
       const campaigns = campaignsRes.data || [];
 
-      const pillarContext = pillars.map((p: any) => `${p.icon_emoji} ${p.name}: ${p.description}`).join("\n");
+      const pillarContext = pillars
+        .map((p: any) => {
+          const lu = p.last_used_at ? ` (last used ${new Date(p.last_used_at).toISOString().split("T")[0]})` : " (never used — PRIORITISE)";
+          return `${p.icon_emoji} ${p.name}: ${p.description}${lu}`;
+        })
+        .join("\n");
       const seriesContext = series.map((s: any) => `${s.name} (${s.recurrence}, ${s.preferred_day}): ${s.description}`).join("\n");
       const campaignContext = campaigns.map((c: any) => `${c.name}: ${c.description} (${c.post_count} posts)`).join("\n");
+
 
       const today = new Date();
       const dayOfWeek = today.getDay(); // 0=Sun
@@ -737,6 +753,17 @@ Each campaign should target a specific content category. Vary categories across 
 
       const coverageContext = `\n\nLAST 2 WEEKS — CATEGORY COVERAGE:\n${CONTENT_CATEGORY_ENUM.map(c => `- ${c}: ${recentCounts[c]}`).join("\n")}\n${missingCategories.length > 0 ? `\nMISSING (0 posts in last 14 days — PRIORITIZE THESE): ${missingCategories.join(", ")}` : ""}${underusedCategories.length > 0 ? `\nUNDERUSED (1 post in last 14 days — favor these): ${underusedCategories.join(", ")}` : ""}${overusedCategories.length > 0 ? `\nOVERUSED (3+ posts in last 14 days — minimize these): ${overusedCategories.join(", ")}` : ""}`;
 
+      // Topic-level repetition guard: surface the most recent idea titles so the
+      // AI doesn't re-invent the same concept week after week with a new wrapper.
+      const recentTitles = recentIdeas
+        .slice(0, 30)
+        .map((r: any) => `- "${r.title}"${r.content_category ? ` [${r.content_category}]` : ""}`)
+        .join("\n");
+      const recentTitlesContext = recentTitles
+        ? `\n\nRECENT IDEAS (last 28 days) — DO NOT REPEAT OR PARAPHRASE THESE TOPICS. Pick fresh angles, different hooks, different formats:\n${recentTitles}`
+        : "";
+
+
       const result = await callAI(lovableKey, {
         system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
 
@@ -773,7 +800,7 @@ Choose the format that best serves the content's PURPOSE, not just its pillar la
 HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday" and content_category "holidays". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
 
 TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.`,
-        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}`,
+        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
         tool: {
           name: "create_weekly_ideas",
           description: "Create post ideas for the week",
@@ -795,8 +822,10 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
                     slide_count: { type: "integer", minimum: 2, maximum: 10, description: "Use when content_format is 'carousel' (default 5)." },
                     content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
+                    canvas_size: { type: "string", enum: ["1080x1080", "1080x1350", "1080x1920"], description: "Pick 1080x1350 (portrait) for most single graphics — best feed performance. 1080x1080 (square) for carousels. 1080x1920 (story) only when the idea is explicitly a story." },
                   },
                   required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format", "content_category"],
+
                   additionalProperties: false,
                 },
               },
@@ -841,6 +870,10 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
         const dIdx = dayIndex.get(idea.day);
         const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
+        const allowedCanvas = new Set(["1080x1080", "1080x1350", "1080x1920"]);
+        const canvas = allowedCanvas.has(idea.canvas_size)
+          ? idea.canvas_size
+          : (format === "carousel" ? "1080x1080" : "1080x1350");
         return {
           brand_id,
           user_id: userId,
@@ -854,6 +887,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           content_format: format,
           slide_count: slides,
           content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+          canvas_size: canvas,
           status: "suggested",
           scheduled_for: dateMap.get(idea.day) || null,
           day_of_week: typeof dIdx === "number" ? dIdx : null,
@@ -866,9 +900,22 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
 
+      // Stamp last_used_at on every pillar referenced this week so next week's
+      // planner naturally rotates to less-recently-used pillars.
+      const usedPillarIds = Array.from(new Set(
+        (ideasToInsert as any[]).map((i) => i.pillar_id).filter((id) => !!id)
+      ));
+      if (usedPillarIds.length > 0) {
+        await serviceClient
+          .from("content_pillars")
+          .update({ last_used_at: new Date().toISOString() } as any)
+          .in("id", usedPillarIds);
+      }
+
       if (creditProfile) await deductAndTrackGeneration(creditProfile, creditCheck?.rewardRows);
 
       return jsonResponse({ ideas: inserted });
+
     }
 
     if (action === "fill_empty_days") {
