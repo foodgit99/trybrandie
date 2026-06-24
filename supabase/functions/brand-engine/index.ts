@@ -1067,10 +1067,12 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
 
       const { data: apSettings } = await serviceClient
         .from("autopilot_settings")
-        .select("enabled")
+        .select("enabled, default_funnel_stage, default_campaign_id")
         .eq("brand_id", brand_id)
         .maybeSingle();
       const autopilotOn = !!apSettings?.enabled;
+      const defaultFunnelStage = (apSettings as any)?.default_funnel_stage || null;
+      const defaultCampaignId = (apSettings as any)?.default_campaign_id || null;
 
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
@@ -1081,13 +1083,17 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
           const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
           const dIdx = dayIndex.get(idea.day);
           const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
+          const resolvedCampaignId =
+            (idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) : null) ||
+            defaultCampaignId ||
+            null;
           return {
             brand_id,
             user_id: userId,
             blueprint_id: blueprintId,
             pillar_id: pillarMap.get((idea.pillar_name || "").toLowerCase()) || null,
             series_id: idea.series_name ? seriesMap.get(idea.series_name.toLowerCase()) || null : null,
-            campaign_id: idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) || null : null,
+            campaign_id: resolvedCampaignId,
             title: idea.title,
             prompt: idea.prompt,
             idea_type: idea.idea_type,
@@ -1099,6 +1105,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
             day_of_week: typeof dIdx === "number" ? dIdx : null,
             strategic_arc: arc,
             playbook_role: arc,
+            funnel_stage: defaultFunnelStage,
             autopilot: autopilotOn,
           };
         });
