@@ -2924,7 +2924,85 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       tracer.setMetric("creative_director_fired", layoutSchema !== null);
       if (layoutSchema?.regions) tracer.setMetric("layout_schema_regions", layoutSchema.regions.length);
 
-      const singleResult = await renderVariation(genomeData, genomeScores, "A");
+      // --- BEST-OF-N QUALITY SELECTION ---
+      // For Blueprint/autopilot calls (candidate_count > 1), render N variants in
+      // parallel, score each with the multimodal critic, and keep the highest-scoring
+      // one. For Studio (N=1) we still score the single render so the client can
+      // surface actionable signals to the user.
+      const variantLabels = ["A", "B", "C"].slice(0, candidateCount);
+      const renderedVariants = await Promise.all(
+        variantLabels.map((lbl) => renderVariation(genomeData, genomeScores, lbl)),
+      );
+      tracer.setMetric("candidate_count", candidateCount);
+
+      const briefForScorer = (designPrompt || userPrompt || "").slice(0, 1200);
+      const brandColors = [
+        ...((brand?.primary_colors as string[]) || []),
+        ...((brand?.accent_colors as string[]) || []),
+      ].slice(0, 3);
+      const scoreResults: (QualityResult | null)[] = await Promise.all(
+        renderedVariants.map((v) =>
+          scoreDesignImage({
+            imageUrl: v.image_url,
+            brief: briefForScorer,
+            brandName: brand?.name ?? null,
+            brandColors,
+            copy: copyStructure
+              ? {
+                  headline: copyStructure.headline,
+                  subheadline: copyStructure.subheadline,
+                  cta: copyStructure.cta,
+                }
+              : null,
+            category: resolvedCategory,
+            apiKey: LOVABLE_API_KEY,
+          }).catch(() => null),
+        ),
+      );
+
+      // Pick the winner. Prefer the AI's `overall`; break ties on a weighted
+      // composite that favours brief faithfulness + brand fidelity + readability.
+      // If scoring failed entirely, fall back to variant A.
+      let winnerIdx = 0;
+      let winnerScore = -1;
+      let winnerTieBreak = -1;
+      scoreResults.forEach((s, i) => {
+        if (!s) return;
+        const tie = weightedOverall(s.scores);
+        if (
+          s.scores.overall > winnerScore ||
+          (s.scores.overall === winnerScore && tie > winnerTieBreak)
+        ) {
+          winnerScore = s.scores.overall;
+          winnerTieBreak = tie;
+          winnerIdx = i;
+        }
+      });
+
+      const singleResult = renderedVariants[winnerIdx];
+      const winnerScoreResult = scoreResults[winnerIdx];
+
+      // Telemetry: keep all candidate scores so we can monitor critic agreement
+      // and how often best-of-N beats first-render.
+      tracer.setMetric(
+        "candidate_scores",
+        scoreResults.map((s, i) => ({
+          label: variantLabels[i],
+          image_url: renderedVariants[i].image_url,
+          overall: s?.scores.overall ?? null,
+          verdict: s?.verdict ?? null,
+        })),
+      );
+      tracer.setMetric("quality_winner_label", variantLabels[winnerIdx]);
+      tracer.setMetric("quality_winner_overall", winnerScoreResult?.scores.overall ?? null);
+      tracer.setMetric("quality_signal_count", winnerScoreResult?.signals.length ?? 0);
+      if (candidateCount > 1 && winnerIdx !== 0 && scoreResults[0]?.scores.overall != null) {
+        tracer.setMetric(
+          "best_of_n_uplift",
+          (winnerScoreResult?.scores.overall ?? 0) - (scoreResults[0]?.scores.overall ?? 0),
+        );
+      }
+
 
 
       // Render succeeded — now deduct credits.
