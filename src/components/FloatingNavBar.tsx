@@ -18,7 +18,7 @@ const FloatingNavBar = () => {
 
   // Only render on legacy + shared utility surfaces. The primary v2 experience
   // uses NewFloatingNav. Studio is excluded because it has its own chrome.
-  const allowedPrefixes = ["/legacy", "/plans", "/affiliate", "/admin"];
+  const allowedPrefixes = ["/legacy", "/affiliate", "/admin"];
   const isLegacyContent = location.pathname === "/content" || location.pathname.startsWith("/content/");
   const visible =
     !!user && (isLegacyContent || allowedPrefixes.some((p) => location.pathname.startsWith(p)));
