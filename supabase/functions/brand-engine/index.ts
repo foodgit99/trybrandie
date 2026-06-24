@@ -1083,12 +1083,14 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
 
       const { data: apSettings } = await serviceClient
         .from("autopilot_settings")
-        .select("enabled, default_funnel_stage, default_campaign_id")
+        .select("enabled, default_funnel_stage, default_campaign_id, default_canvas_size")
         .eq("brand_id", brand_id)
         .maybeSingle();
       const autopilotOn = !!apSettings?.enabled;
       const defaultFunnelStage = (apSettings as any)?.default_funnel_stage || null;
       const defaultCampaignId = (apSettings as any)?.default_campaign_id || null;
+      const defaultCanvasSize = (apSettings as any)?.default_canvas_size || null;
+      const allowedCanvas = new Set(["1080x1080", "1080x1350", "1080x1920"]);
 
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
