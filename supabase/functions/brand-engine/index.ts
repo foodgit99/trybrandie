@@ -875,9 +875,12 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         const dIdx = dayIndex.get(idea.day);
         const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
         const allowedCanvas = new Set(["1080x1080", "1080x1350", "1080x1920"]);
-        const canvas = allowedCanvas.has(idea.canvas_size)
-          ? idea.canvas_size
-          : (format === "carousel" ? "1080x1080" : "1080x1350");
+        // Carousels must be square. Otherwise honour user's autopilot default, then AI hint, then format default.
+        const canvas = format === "carousel"
+          ? "1080x1080"
+          : (defaultCanvasSize && allowedCanvas.has(defaultCanvasSize)
+              ? defaultCanvasSize
+              : (allowedCanvas.has(idea.canvas_size) ? idea.canvas_size : "1080x1350"));
         const aiResolvedCampaignId = idea.campaign_name
           ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
           : null;
