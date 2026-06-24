@@ -753,6 +753,17 @@ Each campaign should target a specific content category. Vary categories across 
 
       const coverageContext = `\n\nLAST 2 WEEKS — CATEGORY COVERAGE:\n${CONTENT_CATEGORY_ENUM.map(c => `- ${c}: ${recentCounts[c]}`).join("\n")}\n${missingCategories.length > 0 ? `\nMISSING (0 posts in last 14 days — PRIORITIZE THESE): ${missingCategories.join(", ")}` : ""}${underusedCategories.length > 0 ? `\nUNDERUSED (1 post in last 14 days — favor these): ${underusedCategories.join(", ")}` : ""}${overusedCategories.length > 0 ? `\nOVERUSED (3+ posts in last 14 days — minimize these): ${overusedCategories.join(", ")}` : ""}`;
 
+      // Topic-level repetition guard: surface the most recent idea titles so the
+      // AI doesn't re-invent the same concept week after week with a new wrapper.
+      const recentTitles = recentIdeas
+        .slice(0, 30)
+        .map((r: any) => `- "${r.title}"${r.content_category ? ` [${r.content_category}]` : ""}`)
+        .join("\n");
+      const recentTitlesContext = recentTitles
+        ? `\n\nRECENT IDEAS (last 28 days) — DO NOT REPEAT OR PARAPHRASE THESE TOPICS. Pick fresh angles, different hooks, different formats:\n${recentTitles}`
+        : "";
+
+
       const result = await callAI(lovableKey, {
         system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
 
