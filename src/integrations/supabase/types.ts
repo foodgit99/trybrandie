@@ -881,6 +881,7 @@ export type Database = {
           client_folder_id: string | null
           created_at: string
           description: string | null
+          funnel_stages: Json
           gene_lock_policy: Json | null
           id: string
           is_archived: boolean
@@ -907,6 +908,7 @@ export type Database = {
           client_folder_id?: string | null
           created_at?: string
           description?: string | null
+          funnel_stages?: Json
           gene_lock_policy?: Json | null
           id?: string
           is_archived?: boolean
@@ -933,6 +935,7 @@ export type Database = {
           client_folder_id?: string | null
           created_at?: string
           description?: string | null
+          funnel_stages?: Json
           gene_lock_policy?: Json | null
           id?: string
           is_archived?: boolean
@@ -969,7 +972,7 @@ export type Database = {
           brand_id: string
           content_category: string | null
           created_at: string
-          description: string
+          description: string | null
           id: string
           name: string
           post_count: number
@@ -979,7 +982,7 @@ export type Database = {
           brand_id: string
           content_category?: string | null
           created_at?: string
-          description?: string
+          description?: string | null
           id?: string
           name: string
           post_count?: number
@@ -989,7 +992,7 @@ export type Database = {
           brand_id?: string
           content_category?: string | null
           created_at?: string
-          description?: string
+          description?: string | null
           id?: string
           name?: string
           post_count?: number
@@ -1073,6 +1076,7 @@ export type Database = {
           created_at: string
           day_of_week: number | null
           design_id: string | null
+          funnel_stage: string | null
           id: string
           idea_type: string
           pillar_id: string | null
@@ -1100,6 +1104,7 @@ export type Database = {
           created_at?: string
           day_of_week?: number | null
           design_id?: string | null
+          funnel_stage?: string | null
           id?: string
           idea_type?: string
           pillar_id?: string | null
@@ -1127,6 +1132,7 @@ export type Database = {
           created_at?: string
           day_of_week?: number | null
           design_id?: string | null
+          funnel_stage?: string | null
           id?: string
           idea_type?: string
           pillar_id?: string | null
