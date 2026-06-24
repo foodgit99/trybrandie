@@ -144,12 +144,13 @@ const Cockpit = () => {
     if (!brand?.id) return;
     setSeeding(true);
     try {
-      const { error } = await supabase.functions.invoke("autopilot-planner", {
-        body: { brand_id: brand.id, playbook_id: (brand as any).playbook_id ?? "general", seed: true },
+      toast({ title: "Drafting your week…", description: "Brandie is sketching the arc. A few seconds." });
+      const { error } = await supabase.functions.invoke("brand-engine", {
+        body: { action: "generate_weekly_ideas", brand_id: brand.id },
       });
       if (error) throw error;
-      toast({ title: "Brewing your week", description: "Refresh in a moment." });
-      setTimeout(() => refetch(), 4000);
+      await refetch();
+      toast({ title: "Week ready", description: "Review the arc and approve the days you like." });
     } catch (err: any) {
       toast({ title: "Couldn't plan the week", description: err.message, variant: "destructive" });
     } finally {
