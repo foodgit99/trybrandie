@@ -122,6 +122,80 @@ const DailyPost = () => {
     enabled: !!design,
   });
 
+  // All past generations for this idea, grouped into "versions" (carousels collapse to their cover slide).
+  type HistoryVersion = {
+    key: string;
+    coverId: string;
+    image_url: string;
+    created_at: string;
+    isCarousel: boolean;
+    slideCount: number;
+  };
+  const { data: history } = useQuery({
+    queryKey: ["v2-daily-history", idea?.id],
+    queryFn: async (): Promise<HistoryVersion[]> => {
+      if (!idea?.id) return [];
+      const { data, error } = await supabase
+        .from("designs")
+        .select("id, image_url, carousel_id, slide_index, created_at")
+        .eq("content_idea_id", idea.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{
+        id: string;
+        image_url: string;
+        carousel_id: string | null;
+        slide_index: number | null;
+        created_at: string;
+      }>;
+      const groups = new Map<string, HistoryVersion>();
+      for (const r of rows) {
+        const key = r.carousel_id ?? r.id;
+        const existing = groups.get(key);
+        if (!existing) {
+          groups.set(key, {
+            key,
+            coverId: r.id,
+            image_url: r.image_url,
+            created_at: r.created_at,
+            isCarousel: !!r.carousel_id,
+            slideCount: 1,
+          });
+        } else {
+          existing.slideCount += 1;
+          // Prefer slide_index 0 as the cover image.
+          if ((r.slide_index ?? 99) === 0) {
+            existing.coverId = r.id;
+            existing.image_url = r.image_url;
+          }
+          if (new Date(r.created_at) > new Date(existing.created_at)) {
+            existing.created_at = r.created_at;
+          }
+        }
+      }
+      return Array.from(groups.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    },
+    enabled: !!idea?.id,
+  });
+
+  const switchToVersion = async (coverId: string) => {
+    if (!idea || coverId === idea.design_id) return;
+    const { error } = await supabase
+      .from("content_ideas")
+      .update({ design_id: coverId })
+      .eq("id", idea.id);
+    if (error) {
+      toast({ title: "Couldn't switch version", description: error.message, variant: "destructive" });
+      return;
+    }
+    await refetchIdea();
+    queryClient.invalidateQueries({ queryKey: ["v2-daily-design"] });
+    queryClient.invalidateQueries({ queryKey: ["v2-daily-slides"] });
+  };
+
+
   const allSlides = slides ?? (design ? [design] : []);
   const isCarousel = allSlides.length > 1;
   const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
@@ -258,6 +332,7 @@ const DailyPost = () => {
           })
           .eq("id", idea.id);
         await refetchIdea();
+        queryClient.invalidateQueries({ queryKey: ["v2-daily-history", idea.id] });
       } finally {
         generation.clearResult();
       }
@@ -623,7 +698,67 @@ const DailyPost = () => {
             </div>
           )}
 
+          {/* GENERATION HISTORY */}
+          {history && history.length > 1 && (
+            <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">Generation history</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Switch between previous renders for this idea.
+                  </p>
+                </div>
+                <span className="text-xs text-muted-foreground">{history.length} versions</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+                {history.map((v, i) => {
+                  const active = v.coverId === idea?.design_id;
+                  return (
+                    <button
+                      key={v.key}
+                      type="button"
+                      onClick={() => switchToVersion(v.coverId)}
+                      className={`group relative shrink-0 w-24 text-left rounded-lg overflow-hidden border transition-all ${
+                        active
+                          ? "border-foreground ring-2 ring-foreground/20"
+                          : "border-border hover:border-foreground/40"
+                      }`}
+                      aria-label={`Switch to version ${history.length - i}`}
+                    >
+                      <img
+                        src={v.image_url}
+                        alt={`Version ${history.length - i}`}
+                        className="w-full aspect-square object-cover"
+                        loading="lazy"
+                      />
+                      <div className="px-1.5 py-1 bg-card">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            v{history.length - i}
+                          </span>
+                          {v.isCarousel && <span>{v.slideCount}↪</span>}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {new Date(v.created_at).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </div>
+                      </div>
+                      {active && (
+                        <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-foreground grid place-items-center">
+                          <Check className="h-2.5 w-2.5 text-background" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* TRAIN BRANDIE */}
+
           {design && (
             <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5">
               <div className="flex items-center gap-2">
