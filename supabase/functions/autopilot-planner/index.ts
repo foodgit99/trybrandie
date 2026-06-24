@@ -151,6 +151,15 @@ Deno.serve(async (req) => {
           pool.splice(pick, 1);
           if (!pool.length) break;
         }
+        // Load any autopilot defaults the user has already configured for this brand
+        const { data: apDefaults } = await supabase
+          .from("autopilot_settings")
+          .select("default_funnel_stage, default_campaign_id")
+          .eq("brand_id", brand.id)
+          .maybeSingle();
+        const defaultFunnelStage = (apDefaults as any)?.default_funnel_stage || null;
+        const defaultCampaignId = (apDefaults as any)?.default_campaign_id || null;
+
         const rows = ordered.map((s, i) => {
           const d = new Date(today);
           d.setDate(d.getDate() + i);
@@ -168,6 +177,8 @@ Deno.serve(async (req) => {
             status: "suggested",
             scheduled_for: isoDate(d),
             autopilot: true, // seed mode flips autopilot ON below, so auto-enrol
+            funnel_stage: defaultFunnelStage,
+            campaign_id: defaultCampaignId,
           };
         });
         const { error: insertErr } = await supabase.from("content_ideas").insert(rows);
