@@ -163,9 +163,9 @@ const Plans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO title="Plans & Credits, Brandie" description="Top up credits and manage your Brandie plan." path="/plans" noindex />
-      <AppHeader />
+      <NewAppHeader />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <AnimatePresence mode="wait">
