@@ -1087,17 +1087,28 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
 
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
-      const ideasToInsert = (result.data.ideas || [])
+      const ideasToInsert = await Promise.all((result.data.ideas || [])
         .filter((idea: any) => allowedDays.has(idea.day))
-        .map((idea: any) => {
+        .map(async (idea: any) => {
           const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
           const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
           const dIdx = dayIndex.get(idea.day);
           const arc = typeof dIdx === "number" ? WEEK_ARC[dIdx] : null;
-          const resolvedCampaignId =
-            (idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) : null) ||
-            defaultCampaignId ||
-            null;
+          const aiResolvedCampaignId = idea.campaign_name
+            ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
+            : null;
+          let resolvedCampaignId: string | null = aiResolvedCampaignId || defaultCampaignId || null;
+          if (autopilotOn) {
+            const r = await resolveAutopilotCampaign({
+              supabase: serviceClient,
+              brandId: brand_id,
+              userId,
+              defaultCampaignId,
+              defaultFunnelStage,
+              aiResolvedCampaignId,
+            });
+            resolvedCampaignId = r.campaignId;
+          }
           return {
             brand_id,
             user_id: userId,
@@ -1119,7 +1130,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
             funnel_stage: defaultFunnelStage,
             autopilot: autopilotOn,
           };
-        });
+        }));
 
       let inserted: any[] = [];
       if (ideasToInsert.length > 0) {
