@@ -208,6 +208,30 @@ const Blueprint = () => {
     invalidate();
   };
 
+  const [resetting, setResetting] = useState(false);
+  const resetWeek = async () => {
+    if (!brand?.id) return;
+    setResetting(true);
+    try {
+      const { error } = await supabase
+        .from("content_ideas")
+        .delete()
+        .eq("brand_id", brand.id)
+        .gte("scheduled_for", weekStart.toISOString())
+        .lt("scheduled_for", weekEnd.toISOString());
+      if (error) throw error;
+      toast({
+        title: "Week reset",
+        description: "All posts for this week were cleared. Ask Brandie to plan a fresh arc.",
+      });
+      invalidate();
+    } catch (err: any) {
+      toast({ title: "Couldn't reset week", description: err.message, variant: "destructive" });
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const removeOne = async (id: string) => {
     const { error } = await supabase.from("content_ideas").delete().eq("id", id);
     if (error) {
