@@ -318,6 +318,39 @@ const SettingsV2 = () => {
               </p>
             )}
           </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-sm">Default design size</p>
+            <p className="text-xs text-muted-foreground">
+              Used for Cockpit and Autonomous Mode posts. You can still override per-design in Studio. Carousels are always square.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {CANVAS_SIZE_OPTIONS.map((opt) => {
+                const current = autopilot?.default_canvas_size ?? "1080x1080";
+                const active = current === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => saveAutopilot({ default_canvas_size: opt.id })}
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-background hover:border-foreground/40"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p
+                      className={`text-[10px] tracking-wider uppercase ${
+                        active ? "text-background/70" : "text-muted-foreground"
+                      }`}
+                    >
+                      {opt.hint}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </Section>
 
         <Section label="Daily nudge">
