@@ -371,9 +371,24 @@ const ContentHubV2 = () => {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
           >
-            {tab === "funnels" && <FunnelsTab stageBuckets={stageBuckets} onOpenIdea={(id) => { const next = new URLSearchParams(params); next.set("tab", "content"); next.set("item", id); setParams(next); }} />}
+            {tab === "funnels" && (
+              <FunnelsEditableTab
+                ideas={ideas}
+                brand={brand}
+                onOpenPost={(id) => { const next = new URLSearchParams(params); next.set("tab", "content"); next.set("item", id); setParams(next); }}
+                invalidateKeys={[["hubv2-ideas", brand.id], ["brands-and-memberships"]]}
+              />
+            )}
             {tab === "strategy" && <StrategyTab blueprints={blueprints} ideas={ideas} onOpenBlueprint={() => navigate("/blueprint")} />}
-            {tab === "campaigns" && <CampaignsTab campaigns={campaigns} ideas={ideas} />}
+            {tab === "campaigns" && (
+              <CampaignsEditableTab
+                campaigns={campaigns}
+                ideas={ideas}
+                brand={brand}
+                onOpenPost={(id) => { const next = new URLSearchParams(params); next.set("tab", "content"); next.set("item", id); setParams(next); }}
+                invalidateKeys={[["hubv2-campaigns", brand.id], ["hubv2-ideas", brand.id]]}
+              />
+            )}
             {tab === "content" && (
               <ContentTab
                 ideas={ideas}
