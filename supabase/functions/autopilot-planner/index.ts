@@ -191,6 +191,9 @@ Deno.serve(async (req) => {
             autopilot: true, // seed mode flips autopilot ON below, so auto-enrol
             funnel_stage: defaultFunnelStage,
             campaign_id: seedCampaignId,
+            canvas_size: format === "carousel"
+              ? "1080x1080"
+              : (defaultCanvasSize && allowedCanvas.has(defaultCanvasSize) ? defaultCanvasSize : "1080x1350"),
           };
         });
         const { error: insertErr } = await supabase.from("content_ideas").insert(rows);
