@@ -195,26 +195,44 @@ const DailyPost = () => {
     return id ? getCategoryMeta(id) : undefined;
   }, [idea?.content_category]);
 
-  const handleGenerate = () => {
+  // Detect carousel intent robustly: explicit content_format, slide_count >= 2,
+  // or natural-language clues in the title/prompt ("N-slide", "carousel").
+  const detectCarouselIntent = (i: Idea | null | undefined): { isCarousel: boolean; slides: number } => {
+    if (!i) return { isCarousel: false, slides: 1 };
+    const blob = `${i.title || ""} ${i.prompt || ""}`.toLowerCase();
+    const nSlideMatch = blob.match(/(\d+)\s*[-\s]*slide/);
+    const inferredSlides = nSlideMatch ? Math.min(10, Math.max(2, parseInt(nSlideMatch[1], 10))) : null;
+    const mentionsCarousel = /carousel/.test(blob);
+    const declared = i.content_format === "carousel";
+    const fromCount = (i.slide_count ?? 0) >= 2;
+    const isCarousel = declared || fromCount || mentionsCarousel || !!inferredSlides;
+    if (!isCarousel) return { isCarousel: false, slides: 1 };
+    const slides = Math.min(10, Math.max(2, i.slide_count || inferredSlides || 5));
+    return { isCarousel: true, slides };
+  };
+
+  const handleGenerate = (forceCarousel = false) => {
     if (!idea || !brand || !user) return;
     const msg = { role: "user", content: idea.prompt || idea.title };
-    const isCarousel = idea.content_format === "carousel";
-    const slides = isCarousel ? Math.min(10, Math.max(2, idea.slide_count || 5)) : undefined;
+    const detected = detectCarouselIntent(idea);
+    const isCarouselGen = forceCarousel || detected.isCarousel;
+    const slides = isCarouselGen ? detected.slides : undefined;
     generation.startGeneration({
-      action: isCarousel ? "generate_carousel" : "generate",
+      action: isCarouselGen ? "generate_carousel" : "generate",
       canvas_size: "1080x1080",
-      ...(isCarousel ? { slide_count: slides } : {}),
+      ...(isCarouselGen ? { slide_count: slides } : {}),
       messages: [msg],
       full_messages: [msg],
       brand,
       user_id: user.id,
       brand_id: brand.id,
       title: idea.title,
+      content_idea_id: idea.id,
       user_email: user.email || undefined,
     });
     toast({
       title: "On it.",
-      description: isCarousel
+      description: isCarouselGen
         ? `Brandie is rendering ${slides} carousel slides. This takes a couple of minutes.`
         : "Brandie is rendering your post. It usually takes about a minute.",
     });
@@ -563,10 +581,27 @@ const DailyPost = () => {
                 <p className="text-sm text-muted-foreground">
                   No render yet. Tap below and Brandie will draft this post now.
                 </p>
-                <Button onClick={handleGenerate} className="rounded-full" size="sm">
+                <Button onClick={() => handleGenerate()} className="rounded-full" size="sm">
                   Generate now
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* Recovery: idea is a carousel but the rendered design is a single image. */}
+          {design && !isCarousel && detectCarouselIntent(idea).isCarousel && !generating && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-foreground/80">
+                This post was meant to be a {detectCarouselIntent(idea).slides}-slide carousel, but a single image was generated.
+              </p>
+              <Button
+                onClick={() => handleGenerate(true)}
+                variant="outline"
+                size="sm"
+                className="rounded-full shrink-0"
+              >
+                Regenerate as carousel
+              </Button>
             </div>
           )}
 

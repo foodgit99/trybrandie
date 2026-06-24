@@ -1,46 +1,31 @@
-# Add Trends tab to /hub
+Investigation found the latest `/post/238b1767-103c-45e9-aed2-d57a1347a4f5` render was enqueued as a single design, not a carousel:
 
-Add a new "Trends" tab to the Content Hub that surfaces a live feed of what's trending in the brand's industry and with the brand's target audience. Powered by the existing `trend-scout` edge function and `brand_trend_intel` cache (no new backend work).
+- The content idea is marked as `content_format = carousel` with `slide_count = 4`.
+- The latest design job still has `action = generate`, `kind = single`, and no `slide_count`.
+- The saved design has no `carousel_id` or `slide_index`, so `/post` can only show one image.
+- This was not a renderer failure; the carousel renderer was never called for that job.
 
-## What the user sees
+Plan to fix:
 
-New tab appears alongside Today / This Week / Funnels / Campaigns:
+1. Harden `/post` carousel detection
+   - Treat a post as carousel when any of these are true:
+     - `content_format === "carousel"`
+     - `slide_count >= 2`
+     - the prompt/title clearly says carousel or `N-slide`
+   - This prevents strict field mismatch/stale data from silently falling back to a single image.
 
-```text
-[☀ Today] [📅 This Week] [≡ Funnels] [📣 Campaigns] [📈 Trends]
-```
+2. Pass the content idea ID into generation
+   - Include `content_idea_id` in the `/post` generation request.
+   - The backend carousel path already knows how to save all slide rows and link the cover slide back to the content idea when this ID is present.
 
-Tab content (`TrendsTab`):
-- Header row: "What's trending now" + small "Updated 3h ago · Refreshes weekly" line + `Refresh` button (calls trend-scout with `force_refresh: true`; first refresh per ISO week is free, subsequent cost 2 credits — surfaced via existing `check_only` flow with a confirm dialog).
-- Live feed of trend cards (one per trend returned by trend-scout):
-  - Trend title (serif, large)
-  - 2–3 sentence summary
-  - "Why this matters for {brand.name}" pulled from `relevance_to_brand`
-  - 3–4 `content_angles` as chips
-  - Per-card action: **"Turn into a post"** → navigates to `/studio?prompt=<angle or trend>&category=trending` so the angle seeds a Studio generation
-- Empty / first-load state: friendly card with a single "Scan trends" button (free first run of the week).
-- Loading: 3 skeleton cards.
-- Error: inline message + retry.
+3. Improve result linking on `/post`
+   - When a carousel result completes, link the cover slide to the content idea, invalidate/refetch the design and slide queries, and show the slide carousel immediately.
+   - Keep single-image behavior unchanged for normal posts.
 
-Live-feed feel: subtle pulse dot in the header ("Live · scanned weekly"), staggered fade-in on cards, optimistic UI on refresh.
+4. Add recovery for mistaken single renders
+   - If an idea is a carousel but the linked design has no `carousel_id`, show a “Regenerate carousel” action so the user can replace the mistaken single image with proper separate slides.
+   - This directly fixes the current affected post without needing manual database cleanup.
 
-## Technical details
-
-- **No DB or edge-function changes.** Reuse:
-  - `supabase.functions.invoke('trend-scout', { body: { brand_id, check_only: true } })` to read cost.
-  - `supabase.functions.invoke('trend-scout', { body: { brand_id, force_refresh } })` to fetch/refresh.
-  - Cache is the `brand_trend_intel` row already maintained by trend-scout.
-- Initial load: read `brand_trend_intel` directly via `supabase.from('brand_trend_intel').select('trends_data, generated_at').eq('brand_id', brand.id).maybeSingle()` — if present, render immediately; if absent, show empty state with "Scan trends" CTA that invokes trend-scout.
-- New file: `src/components/v2/hub/TrendsTab.tsx` containing the tab UI, react-query hooks, and refresh confirm dialog. Uses existing shadcn `Button`, `Badge`, `AlertDialog`, `Skeleton`.
-- Edit `src/pages/v2/Hub.tsx`:
-  - Extend `TabId` to include `"trends"`.
-  - Add `{ id: "trends", label: "Trends", icon: TrendingUp }` to `TABS`.
-  - Add `{tab === "trends" && <TrendsTab brand={brand} onSeedStudio={(prompt) => navigate('/studio?prompt=' + encodeURIComponent(prompt) + '&category=trending')} />}` inside the existing `AnimatePresence` block.
-  - Extend `agentContext` switch: `tab === "trends"` → `{ scope: "trends", label: "Industry trends" }`.
-- Studio already accepts a `prompt` query param; if `category` is not yet read by Studio, the prompt seeding is still useful — no Studio change required for this scope.
-
-## Out of scope
-
-- No changes to `trend-scout`, no new tables, no new credit logic.
-- No new "trend feeds" beyond what `trend-scout` already returns (industry + audience-aligned trends in one synthesis).
-- No autopilot integration changes.
+5. Validate with the affected record
+   - Confirm the next click enqueues `action = generate_carousel` with the expected `slide_count` and `content_idea_id`.
+   - Confirm the resulting designs have the same `carousel_id`, ordered `slide_index`, and `/post` displays slide navigation/download-all.

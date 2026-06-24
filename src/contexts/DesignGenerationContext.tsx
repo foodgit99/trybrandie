@@ -38,7 +38,7 @@ export interface GenerationParams {
   trend?: string;
   trend_intensity?: number;
   user_image_url?: string;
-  
+  content_idea_id?: string;
   previous_prompt?: string;
   previous_image_url?: string;
   user_id: string;
