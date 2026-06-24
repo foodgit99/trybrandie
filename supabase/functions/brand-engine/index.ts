@@ -822,7 +822,8 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
                     slide_count: { type: "integer", minimum: 2, maximum: 10, description: "Use when content_format is 'carousel' (default 5)." },
                     content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
-                  },
+                    canvas_size: { type: "string", enum: ["1080x1080", "1080x1350", "1080x1920"], description: "Pick 1080x1350 (portrait) for most single graphics — best feed performance. 1080x1080 (square) for carousels. 1080x1920 (story) only when the idea is explicitly a story." },
+
                   required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format", "content_category"],
                   additionalProperties: false,
                 },
