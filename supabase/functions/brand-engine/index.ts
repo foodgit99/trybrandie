@@ -876,10 +876,11 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
         const canvas = allowedCanvas.has(idea.canvas_size)
           ? idea.canvas_size
           : (format === "carousel" ? "1080x1080" : "1080x1350");
-        const resolvedCampaignId =
-          (idea.campaign_name ? campaignMap.get(idea.campaign_name.toLowerCase()) : null) ||
-          defaultCampaignId ||
-          null;
+        const aiResolvedCampaignId = idea.campaign_name
+          ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
+          : null;
+        // Fallback resolver guarantees campaign_id is never null in Autonomous Mode.
+        // For Assisted Mode (autopilot off) we keep the legacy behaviour.
         return {
           brand_id,
           user_id: userId,
