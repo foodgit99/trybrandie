@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 type Msg = { role: "user" | "assistant"; content: string };
 
 export type AgentContext = {
-  scope: "funnel" | "strategy" | "campaign" | "content" | "hub";
+  scope: "funnel" | "strategy" | "campaign" | "content" | "hub" | "trends";
   label: string;
   /** Free-form selection payload sent to the strategist as system context. */
   selection?: Record<string, any>;
