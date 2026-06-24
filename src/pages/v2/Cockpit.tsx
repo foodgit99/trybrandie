@@ -128,7 +128,7 @@ const Cockpit = () => {
       const carousels: Item[] = [];
       for (const [cid, slides] of groups.entries()) {
         const sorted = [...slides].sort(
-          (a, b) => (a.slide_index ?? 0) - (b.slide_index ?? 0),
+          (a: any, b: any) => (a.slide_index ?? 0) - (b.slide_index ?? 0),
         );
         const cover = sorted[0];
         carousels.push({
