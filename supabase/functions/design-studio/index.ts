@@ -3660,7 +3660,8 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
 
       if (captionText) {
         try {
-          await supabase
+          await adminClient
+
             .from("designs")
             .update({ caption: captionText })
             .eq("carousel_id", carouselId)
@@ -3676,7 +3677,8 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         try {
           const cover = slides.find((s) => s.slide_index === 0) || slides[0];
           if (cover?.design_id) {
-            await supabase
+            await adminClient
+
               .from("content_ideas")
               .update({
                 design_id: cover.design_id,
