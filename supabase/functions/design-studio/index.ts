@@ -3571,6 +3571,29 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           supporting_text: slide.body || "",
         };
 
+        // Pre-save guard: the persisted copy_structure MUST match the planned
+        // arc fields AND the carousel's canonical structure. This catches any
+        // drift introduced after planning (e.g. trimming, manual fixes) and
+        // prevents persisting slides that break the arc shape.
+        {
+          const expected = (carouselPlan as any).__canonical_structure || { headline: true, subheadline: false, body: false };
+          const mismatches: string[] = [];
+          if (!copyStructureForSlide.headline) mismatches.push("headline empty");
+          if (copyStructureForSlide.headline !== (slide.headline || "")) mismatches.push("headline drifted from plan");
+          if (copyStructureForSlide.supporting_text !== (slide.body || "")) mismatches.push("body drifted from plan");
+          if (copyStructureForSlide.cta !== (slide.cta || "")) mismatches.push("cta drifted from plan");
+          if (expected.subheadline && !copyStructureForSlide.subheadline) mismatches.push("subheadline expected by arc structure");
+          if (expected.body && !copyStructureForSlide.supporting_text) mismatches.push("body expected by arc structure");
+          if (slide.arc_role === "cta" && !copyStructureForSlide.cta) mismatches.push("final cta slide requires non-empty cta");
+          if (slide.arc_role === "hook" && !copyStructureForSlide.headline) mismatches.push("hook slide requires headline");
+          if (mismatches.length > 0) {
+            await adminClient.storage.from("designs").remove([filePath]).catch(() => {});
+            throw new Error(`slide ${i + 1} copy_structure mismatch: ${mismatches.join(", ")}`);
+          }
+        }
+
+
+
         const { data: designRow, error: saveErr } = await adminClient.from("designs").insert({
           user_id: user.id,
           brand_id: brand?.id,
