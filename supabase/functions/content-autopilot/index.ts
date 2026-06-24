@@ -439,7 +439,11 @@ async function processIdea(
     action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: canvasSize,
     content_idea_id: idea.id,
+    // Best-of-N: render two candidates and let the critic pick the stronger one.
+    // Carousels skip this (already multi-image and cost-sensitive).
+    ...(isCarousel ? {} : { candidate_count: 2 }),
     ...(isCarousel && { slide_count: slideCount }),
+
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
       id: brand.id,
@@ -563,16 +567,21 @@ async function processIdea(
         title: idea.title.slice(0, 100),
         prompt: designData.design_prompt || idea.prompt,
         image_url: designData.image_url,
-        canvas_size: "1080x1080",
+        canvas_size: canvasSize,
         vote: 0,
         content_idea_id: idea.id,
         ...(designData.genome && { genome: designData.genome }),
         ...(designData.caption && { caption: designData.caption }),
         ...(designData.copy_structure && { copy_structure: designData.copy_structure }),
+        ...(designData.quality_score && { quality_score: designData.quality_score }),
+        ...(Array.isArray(designData.quality_signals) && designData.quality_signals.length > 0 && {
+          quality_signals: designData.quality_signals,
+        }),
         ...(trendPref?.trend_enabled && trendPref.selected_trend !== "none" && {
           trend_used: trendPref.selected_trend,
           trend_intensity: trendPref.default_trend_intensity,
         }),
+
       } as any)
       .select("id")
       .single();
