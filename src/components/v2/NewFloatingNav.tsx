@@ -62,6 +62,7 @@ const primaryPrefixes = [
   "/hub",
   "/content-hub",
   "/history",
+  "/plans",
 ];
 
 const moreActivePrefixes = moreItems.map((i) => i.to);
