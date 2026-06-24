@@ -529,6 +529,14 @@ async function processIdea(
       await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
       return { success: false, status: "failed_error", error: "no_cover_design_id" };
     }
+    // Reject partial carousels: every slide must carry a non-empty design_id.
+    const incomplete = sorted.find((s: any) => !s?.design_id);
+    if (incomplete) {
+      console.error(`[autopilot] Carousel slide ${incomplete?.slide_index} missing design_id for idea ${idea.id}`);
+      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
+      return { success: false, status: "failed_error", error: "incomplete_carousel" };
+    }
+
 
     await logEvent(supabase, runId, idea.id, idea.brand_id, "designs_inserted", undefined, {
       ...(baseMeta || {}),
