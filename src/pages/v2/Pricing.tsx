@@ -17,7 +17,7 @@ import {
   Sparkles,
   Check,
 } from "lucide-react";
-import AppHeader from "@/components/AppHeader";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 import SubscriptionTiers from "@/components/SubscriptionTiers";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -184,14 +184,14 @@ const V2Pricing = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background lg:pl-20 pb-24">
       <SEO
         title="Pricing, Brandie"
         description="Pay only for what you create. ₦5,000 per 20 credits. No subscription, no expiry."
         path="/pricing"
       />
       {user ? (
-        <AppHeader />
+        <NewAppHeader />
       ) : (
         <header className="border-b border-border/60">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
