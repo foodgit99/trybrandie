@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Copy,
   Download,
+  RefreshCw,
   Info,
   Loader2,
   MessageCircle,
@@ -587,6 +588,23 @@ const DailyPost = () => {
               </div>
             </div>
           )}
+
+          {/* Regenerate */}
+          {design && !generating && (
+            <div className="flex items-center justify-end">
+              <Button
+                onClick={() => handleGenerate(detectCarouselIntent(idea).isCarousel)}
+                variant="outline"
+                size="sm"
+                className="rounded-full gap-2"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Regenerate
+              </Button>
+            </div>
+          )}
+
+
 
           {/* Recovery: idea is a carousel but the rendered design is a single image. */}
           {design && !isCarousel && detectCarouselIntent(idea).isCarousel && !generating && (
