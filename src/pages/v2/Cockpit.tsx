@@ -14,6 +14,7 @@ import {
   Power,
   Sparkles,
   Calendar as CalendarIcon,
+  Layers,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
