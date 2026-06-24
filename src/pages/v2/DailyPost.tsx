@@ -581,7 +581,7 @@ const DailyPost = () => {
                 <p className="text-sm text-muted-foreground">
                   No render yet. Tap below and Brandie will draft this post now.
                 </p>
-                <Button onClick={handleGenerate} className="rounded-full" size="sm">
+                <Button onClick={() => handleGenerate()} className="rounded-full" size="sm">
                   Generate now
                 </Button>
               </div>
