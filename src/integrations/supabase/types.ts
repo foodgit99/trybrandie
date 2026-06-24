@@ -1484,6 +1484,8 @@ export type Database = {
           image_url: string
           layout_schema: Json | null
           prompt: string
+          quality_score: Json | null
+          quality_signals: Json | null
           slide_index: number | null
           title: string | null
           trend_intensity: number | null
@@ -1506,6 +1508,8 @@ export type Database = {
           image_url: string
           layout_schema?: Json | null
           prompt: string
+          quality_score?: Json | null
+          quality_signals?: Json | null
           slide_index?: number | null
           title?: string | null
           trend_intensity?: number | null
@@ -1528,6 +1532,8 @@ export type Database = {
           image_url?: string
           layout_schema?: Json | null
           prompt?: string
+          quality_score?: Json | null
+          quality_signals?: Json | null
           slide_index?: number | null
           title?: string | null
           trend_intensity?: number | null
