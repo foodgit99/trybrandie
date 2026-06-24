@@ -41,6 +41,8 @@ type Idea = {
   design_id: string | null;
   whatsapp_dm: string | null;
   brand_id: string;
+  content_format: string | null;
+  slide_count: number | null;
 };
 
 type Design = {
@@ -76,7 +78,7 @@ const DailyPost = () => {
       const { data, error } = await supabase
         .from("content_ideas")
         .select(
-          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id, whatsapp_dm, brand_id",
+          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id, whatsapp_dm, brand_id, content_format, slide_count",
         )
         .eq("id", dayId)
         .maybeSingle();
@@ -196,9 +198,12 @@ const DailyPost = () => {
   const handleGenerate = () => {
     if (!idea || !brand || !user) return;
     const msg = { role: "user", content: idea.prompt || idea.title };
+    const isCarousel = idea.content_format === "carousel";
+    const slides = isCarousel ? Math.min(10, Math.max(2, idea.slide_count || 5)) : undefined;
     generation.startGeneration({
-      action: "generate",
+      action: isCarousel ? "generate_carousel" : "generate",
       canvas_size: "1080x1080",
+      ...(isCarousel ? { slide_count: slides } : {}),
       messages: [msg],
       full_messages: [msg],
       brand,
@@ -209,7 +214,9 @@ const DailyPost = () => {
     });
     toast({
       title: "On it.",
-      description: "Brandie is rendering your post. It usually takes about a minute.",
+      description: isCarousel
+        ? `Brandie is rendering ${slides} carousel slides. This takes a couple of minutes.`
+        : "Brandie is rendering your post. It usually takes about a minute.",
     });
   };
 
