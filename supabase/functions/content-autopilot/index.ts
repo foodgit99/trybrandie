@@ -241,7 +241,7 @@ Deno.serve(async (req) => {
     let errors = 0;
     const errorDetails: any[] = [];
 
-    for (const idea of allIdeas) {
+    const handleIdea = async (idea: any) => {
       const baseMeta = {
         scheduled_for: idea.scheduled_for,
         blueprint_week: blueprintWeekOf(idea.scheduled_for),
@@ -255,7 +255,6 @@ Deno.serve(async (req) => {
       try {
         await logEvent(supabase, runId, idea.id, idea.brand_id, "picked_up", undefined, baseMeta);
 
-        // Duplicate-run guard: atomic lock via SQL function (bypasses PostgREST NULL filter issues)
         const { data: lockResult, error: lockErr } = await supabase
           .rpc("lock_autopilot_idea", { p_idea_id: idea.id })
           .maybeSingle();
@@ -264,7 +263,7 @@ Deno.serve(async (req) => {
           console.log(`[autopilot] Skipping idea ${idea.id} — already processing or completed`);
           skipped++;
           await logEvent(supabase, runId, idea.id, idea.brand_id, "skipped_locked", lockErr?.message, baseMeta);
-          continue;
+          return;
         }
 
         await logEvent(supabase, runId, idea.id, idea.brand_id, "lock_acquired", undefined, {
@@ -296,10 +295,20 @@ Deno.serve(async (req) => {
         errorDetails.push({ idea_id: idea.id, error: (ideaErr as Error).message });
         await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message, baseMeta);
       }
+    };
+
+    // Bounded concurrency so one slow idea doesn't starve the whole window.
+    // design-studio takes 60-90s per idea; running 3 in parallel keeps us well
+    // under the Edge Function wall-clock while clearing the queue ~3x faster.
+    const CONCURRENCY = 3;
+    try {
+      for (let i = 0; i < allIdeas.length; i += CONCURRENCY) {
+        const batch = allIdeas.slice(i, i + CONCURRENCY);
+        await Promise.allSettled(batch.map(handleIdea));
+      }
+    } finally {
+      await finalizeRun(supabase, runId, allIdeas.length, processed, skipped, errors, errorDetails);
     }
-
-
-    await finalizeRun(supabase, runId, allIdeas.length, processed, skipped, errors, errorDetails);
 
     console.log(`[autopilot] Done (${deliveryWindow}). Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
 
