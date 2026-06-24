@@ -318,20 +318,22 @@ const Blueprint = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reset this week?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This clears every post Brandie planned for this week — approved or not.
-                      You can then ask Brandie to plan a fresh arc. This can't be undone.
+                      This clears every post Brandie planned for this week — approved or not —
+                      and immediately drafts a fresh arc in its place. This can't be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Keep week</AlertDialogCancel>
-                    <AlertDialogAction onClick={resetWeek}>Reset week</AlertDialogAction>
+                    <AlertDialogAction onClick={resetWeek}>Reset & replan</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
           </div>
           <p className="text-muted-foreground max-w-xl">
-            {ideas.length === 0
+            {resetting
+              ? "Brandie is drafting a fresh arc for this week. Hang tight — this takes a few seconds."
+              : ideas.length === 0
               ? 'Nothing planned this week yet. Tell Brandie below — try "plan this week" — and she\'ll draft the full arc.'
               : approvedAll
               ? 'All approved. Edit any day, or say "refresh the entire week" to start over.'
