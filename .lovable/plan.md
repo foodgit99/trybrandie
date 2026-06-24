@@ -1,41 +1,46 @@
+# Add Trends tab to /hub
 
-# Default Design Size Preference (Cockpit + Autonomous Mode)
+Add a new "Trends" tab to the Content Hub that surfaces a live feed of what's trending in the brand's industry and with the brand's target audience. Powered by the existing `trend-scout` edge function and `brand_trend_intel` cache (no new backend work).
 
-## Decision
-Add a **Default design size** preference in Settings that controls the canvas used for all Cockpit and Autonomous Mode generations. Studio keeps its existing per-generation size picker.
+## What the user sees
 
-## Options Offered
-Curated to safe, universally-usable sizes:
-- **Square 1080×1080** (default — safest cross-platform)
-- **Portrait 1080×1350** (IG/FB feed portrait)
-- **Story / Reel 1080×1920** (vertical 9:16)
+New tab appears alongside Today / This Week / Funnels / Campaigns:
 
-Carousels remain forced to square regardless of this preference (multi-slide UX requirement).
+```text
+[☀ Today] [📅 This Week] [≡ Funnels] [📣 Campaigns] [📈 Trends]
+```
 
-## Schema
-- `autopilot_settings.default_canvas_size text` — nullable, check constraint on the three values above. Defaults to `'1080x1080'` when null.
+Tab content (`TrendsTab`):
+- Header row: "What's trending now" + small "Updated 3h ago · Refreshes weekly" line + `Refresh` button (calls trend-scout with `force_refresh: true`; first refresh per ISO week is free, subsequent cost 2 credits — surfaced via existing `check_only` flow with a confirm dialog).
+- Live feed of trend cards (one per trend returned by trend-scout):
+  - Trend title (serif, large)
+  - 2–3 sentence summary
+  - "Why this matters for {brand.name}" pulled from `relevance_to_brand`
+  - 3–4 `content_angles` as chips
+  - Per-card action: **"Turn into a post"** → navigates to `/studio?prompt=<angle or trend>&category=trending` so the angle seeds a Studio generation
+- Empty / first-load state: friendly card with a single "Scan trends" button (free first run of the week).
+- Loading: 3 skeleton cards.
+- Error: inline message + retry.
 
-## Server (Autonomous Mode + Cockpit ideation)
-`supabase/functions/brand-engine/index.ts`
-- In `generate_weekly_ideas` and `fill_empty_days`, read `default_canvas_size` from `autopilot_settings` alongside the other autopilot defaults.
-- Resolution order for `canvas_size` per idea:
-  1. If `content_format === "carousel"` → `1080x1080`
-  2. Else if user has a `default_canvas_size` → use it
-  3. Else fall back to current behaviour (AI-suggested → format default)
+Live-feed feel: subtle pulse dot in the header ("Live · scanned weekly"), staggered fade-in on cards, optimistic UI on refresh.
 
-Any other Cockpit-side idea inserter (`autopilot-planner` seeding) applies the same default.
+## Technical details
 
-## Frontend
-- `src/pages/v2/Settings.tsx`: new "Default design size" row inside the existing Autonomous Mode section — three-pill toggle (Square / Portrait / Story), persists to `autopilot_settings.default_canvas_size`. Subtitle: "Used for Cockpit and Autonomous Mode posts. You can still override per-design in Studio."
-- No changes to `/studio` — the existing size picker stays.
-- `src/integrations/supabase/types.ts` regenerates after the migration.
+- **No DB or edge-function changes.** Reuse:
+  - `supabase.functions.invoke('trend-scout', { body: { brand_id, check_only: true } })` to read cost.
+  - `supabase.functions.invoke('trend-scout', { body: { brand_id, force_refresh } })` to fetch/refresh.
+  - Cache is the `brand_trend_intel` row already maintained by trend-scout.
+- Initial load: read `brand_trend_intel` directly via `supabase.from('brand_trend_intel').select('trends_data, generated_at').eq('brand_id', brand.id).maybeSingle()` — if present, render immediately; if absent, show empty state with "Scan trends" CTA that invokes trend-scout.
+- New file: `src/components/v2/hub/TrendsTab.tsx` containing the tab UI, react-query hooks, and refresh confirm dialog. Uses existing shadcn `Button`, `Badge`, `AlertDialog`, `Skeleton`.
+- Edit `src/pages/v2/Hub.tsx`:
+  - Extend `TabId` to include `"trends"`.
+  - Add `{ id: "trends", label: "Trends", icon: TrendingUp }` to `TABS`.
+  - Add `{tab === "trends" && <TrendsTab brand={brand} onSeedStudio={(prompt) => navigate('/studio?prompt=' + encodeURIComponent(prompt) + '&category=trending')} />}` inside the existing `AnimatePresence` block.
+  - Extend `agentContext` switch: `tab === "trends"` → `{ scope: "trends", label: "Industry trends" }`.
+- Studio already accepts a `prompt` query param; if `category` is not yet read by Studio, the prompt seeding is still useful — no Studio change required for this scope.
 
-## Out of Scope
-- No changes to Studio UI/flow.
-- No backfill of existing `content_ideas.canvas_size`.
-- No new sizes beyond the three above (keeps the UI a clean 3-pill toggle).
+## Out of scope
 
-## Verification
-- Set preference to Portrait → trigger Autonomous Mode generation → confirm new non-carousel ideas have `canvas_size = '1080x1350'` and carousels are still `1080x1080`.
-- Set preference to Square → confirm everything generates square.
-- Open Studio → confirm the per-generation size picker still works and isn't affected.
+- No changes to `trend-scout`, no new tables, no new credit logic.
+- No new "trend feeds" beyond what `trend-scout` already returns (industry + audience-aligned trends in one synthesis).
+- No autopilot integration changes.

@@ -23,7 +23,9 @@ import {
   Sun,
   CalendarDays,
   Gauge,
+  TrendingUp,
 } from "lucide-react";
+
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import AgentChatDock, { AgentContext } from "@/components/v2/AgentChatDock";
@@ -32,6 +34,7 @@ import { cn } from "@/lib/utils";
 import IdeaThumb from "@/components/v2/IdeaThumb";
 import FunnelsEditableTab from "@/components/v2/hub/FunnelsEditableTab";
 import CampaignsEditableTab from "@/components/v2/hub/CampaignsEditableTab";
+import TrendsTab from "@/components/v2/hub/TrendsTab";
 
 /* ------------------------------ Funnel model ------------------------------ */
 
@@ -93,13 +96,14 @@ type Blueprint = {
 
 type EngineSettings = { enabled: boolean; delivery_time: string } | null;
 
-type TabId = "today" | "week" | "funnels" | "campaigns";
+type TabId = "today" | "week" | "funnels" | "campaigns" | "trends";
 
 const TABS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: "today", label: "Today", icon: Sun },
   { id: "week", label: "This Week", icon: CalendarDays },
   { id: "funnels", label: "Funnels", icon: Layers },
   { id: "campaigns", label: "Campaigns", icon: Megaphone },
+  { id: "trends", label: "Trends", icon: TrendingUp },
 ];
 
 function isSameDay(a: Date, b: Date) {
@@ -208,6 +212,7 @@ const Hub = () => {
     if (tab === "week") return { scope: "strategy", label: "Weekly strategic arc" };
     if (tab === "funnels") return { scope: "funnel", label: "Funnel overview" };
     if (tab === "campaigns") return { scope: "campaign", label: "Campaign library" };
+    if (tab === "trends") return { scope: "trends", label: "Industry trends" };
     return { scope: "hub", label: "Content Hub" };
   }, [tab]);
 
@@ -377,6 +382,12 @@ const Hub = () => {
                 brand={brand}
                 onOpenPost={(id) => navigate(`/post/${id}`)}
                 invalidateKeys={[["hub-campaigns", brand.id], ["hub-ideas", brand.id]]}
+              />
+            )}
+            {tab === "trends" && (
+              <TrendsTab
+                brand={brand}
+                onSeedStudio={(prompt) => navigate(`/studio?prompt=${encodeURIComponent(prompt)}&category=trending`)}
               />
             )}
           </motion.div>
