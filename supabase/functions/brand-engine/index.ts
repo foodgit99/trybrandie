@@ -1129,6 +1129,9 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
             content_format: format,
             slide_count: slides,
             content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
+            canvas_size: format === "carousel"
+              ? "1080x1080"
+              : (defaultCanvasSize && allowedCanvas.has(defaultCanvasSize) ? defaultCanvasSize : "1080x1350"),
             status: "suggested",
             scheduled_for: dateMap.get(idea.day) || null,
             day_of_week: typeof dIdx === "number" ? dIdx : null,
