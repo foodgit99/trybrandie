@@ -24,12 +24,23 @@ type AutopilotSettings = {
   enabled: boolean;
   delivery_time: string;
   timezone: string;
+  default_funnel_stage: string | null;
+  default_campaign_id: string | null;
 };
+
+type CampaignOption = { id: string; name: string };
 
 const DELIVERY_OPTIONS = [
   { id: "morning", label: "Morning", hint: "~8am" },
   { id: "afternoon", label: "Afternoon", hint: "~1pm" },
   { id: "evening", label: "Evening", hint: "~6pm" },
+];
+
+const FUNNEL_STAGE_OPTIONS = [
+  { id: "awareness", label: "Awareness", hint: "Top of funnel" },
+  { id: "consideration", label: "Consideration", hint: "Build trust" },
+  { id: "conversion", label: "Conversion", hint: "Drive sales" },
+  { id: "retention", label: "Retention", hint: "Keep them back" },
 ];
 
 const Section: React.FC<{ label: string; children: React.ReactNode }> = ({
