@@ -1083,6 +1083,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
                     slide_count: { type: "integer", minimum: 2, maximum: 10, description: "Use when content_format is 'carousel' (default 5)." },
                     content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
+                    product_ref: { type: "string", description: `Optional product roster key (e.g. "P1") when the idea is anchored on ONE specific product/service. Empty string for brand-level ideas. Valid keys: ${productKeyList.length ? productKeyList.join(", ") : "(none — leave empty)"}` },
                   },
                   required: ["title", "prompt", "day", "idea_type", "content_format", "content_category"],
                   additionalProperties: false,
