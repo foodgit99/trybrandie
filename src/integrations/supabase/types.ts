@@ -1937,6 +1937,7 @@ export type Database = {
           content_hub_gen_reset_at: string
           created_at: string
           daily_push_hour: number
+          email_reminders_enabled: boolean
           full_name: string | null
           generations_count: number
           generations_reset_at: string
@@ -1974,6 +1975,7 @@ export type Database = {
           content_hub_gen_reset_at?: string
           created_at?: string
           daily_push_hour?: number
+          email_reminders_enabled?: boolean
           full_name?: string | null
           generations_count?: number
           generations_reset_at?: string
@@ -2011,6 +2013,7 @@ export type Database = {
           content_hub_gen_reset_at?: string
           created_at?: string
           daily_push_hour?: number
+          email_reminders_enabled?: boolean
           full_name?: string | null
           generations_count?: number
           generations_reset_at?: string
