@@ -547,6 +547,93 @@ const ProfilePage = () => {
           </div>
         </Section>
 
+        <Section label="Data & account">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1 max-w-md">
+              <p className="text-sm font-medium">Export your data</p>
+              <p className="text-[12px] text-muted-foreground">
+                Download a JSON archive of your profile, brands, content, designs, and billing
+                history.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="rounded-full"
+              onClick={exportMyData}
+              disabled={exporting}
+            >
+              {exporting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Export data
+            </Button>
+          </div>
+
+          <div className="h-px bg-border" />
+
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1 max-w-md">
+              <p className="text-sm font-medium">Request account deletion</p>
+              <p className="text-[12px] text-muted-foreground">
+                We'll permanently remove your account, brands, and content within 3 business days.
+                This can't be undone.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full text-destructive hover:text-destructive"
+                  disabled={requestingDelete}
+                >
+                  <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                  Request deletion
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete your Brandie account?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This submits a deletion request to our team. Once processed, your account and
+                    all associated data will be permanently removed. Consider exporting your data
+                    first.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="delete_reason" className="text-xs">
+                    Reason (optional)
+                  </Label>
+                  <Textarea
+                    id="delete_reason"
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Help us improve — what's prompting this?"
+                    maxLength={500}
+                    rows={3}
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={requestDeletion}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {requestingDelete ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    ) : null}
+                    Submit request
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </Section>
+
+
         <div className="flex justify-end pb-12">
           <Button
             variant="ghost"
