@@ -1560,15 +1560,41 @@ TREND RULES:
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("image_url, label, description, product_type, price, features, duration, pricing_model, is_featured, gallery_images")
+            .select("id, image_url, label, description, product_type, price, features, duration, pricing_model, is_featured, gallery_images")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
             .limit(6);
           if (productData && productData.length > 0) {
-            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
-            const catalogueLines = productData
-              .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
-              .map((p: any, i: number) => {
+            // If this design was launched from a content idea anchored on a
+            // specific product, surface that product's images FIRST and add a
+            // strong directive so the renderer doesn't ignore it.
+            let pinnedProductId: string | null = null;
+            let pinnedProductLabel: string | null = null;
+            if (contentIdeaId) {
+              try {
+                const { data: ideaRow } = await adminClient
+                  .from("content_ideas")
+                  .select("product_ref")
+                  .eq("id", contentIdeaId)
+                  .maybeSingle();
+                pinnedProductId = (ideaRow as any)?.product_ref || null;
+                if (pinnedProductId) {
+                  const match = (productData as any[]).find((p) => p.id === pinnedProductId);
+                  pinnedProductLabel = match?.label || null;
+                }
+              } catch (e) {
+                console.log("[single] idea product_ref fetch failed:", e);
+              }
+            }
+            const sorted = [...productData].sort((a: any, b: any) => {
+              if (pinnedProductId) {
+                if (a.id === pinnedProductId && b.id !== pinnedProductId) return -1;
+                if (b.id === pinnedProductId && a.id !== pinnedProductId) return 1;
+              }
+              return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+            });
+            productImageUrls = sorted.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
+            const catalogueLines = sorted.map((p: any, i: number) => {
               const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
               if (p.price) meta.push(p.price);
@@ -1582,7 +1608,10 @@ TREND RULES:
               }
               return parts.join(" ");
             }).join("\n");
-            productImageContext = `\n\nPRODUCTS & SERVICES:\n${catalogueLines}\n\nPRODUCT/SERVICE IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products/services, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For services, use the image as a portfolio/cover visual. Use specific names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.`;
+            const pinnedDirective = pinnedProductLabel
+              ? `\n\nTHIS DESIGN IS ANCHORED ON "${pinnedProductLabel}" — its reference image is attached FIRST. The product MUST appear as a real, recognisable hero or supporting visual. Honour its actual colours, shape, materials and details. Do NOT invent a different product.`
+              : "";
+            productImageContext = `\n\nPRODUCTS & SERVICES:\n${catalogueLines}\n\nPRODUCT/SERVICE IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products/services, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For services, use the image as a portfolio/cover visual. Use specific names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.${pinnedDirective}`;
           }
         } catch (e) {
           console.log("Product catalogue fetch failed, proceeding without:", e);
