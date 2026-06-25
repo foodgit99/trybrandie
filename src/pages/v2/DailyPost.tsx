@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { useToast } from "@/hooks/use-toast";
+import { stripCaptionLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -216,7 +217,7 @@ const DailyPost = () => {
   // Seed caption draft from design caption, any sibling slide caption, or whatsapp_dm
   useEffect(() => {
     const siblingCaption = (slides ?? []).find((s) => s.caption)?.caption ?? null;
-    const initial = design?.caption ?? siblingCaption ?? idea?.whatsapp_dm ?? "";
+    const initial = stripCaptionLabel(design?.caption ?? siblingCaption ?? idea?.whatsapp_dm ?? "");
     if (initial && !captionDraft) setCaptionDraft(initial);
   }, [design?.caption, slides, idea?.whatsapp_dm]); // eslint-disable-line
 
@@ -355,13 +356,14 @@ const DailyPost = () => {
 
 
   const handleCopyCaption = async () => {
-    if (!captionDraft) return;
-    await navigator.clipboard.writeText(captionDraft);
+    const clean = stripCaptionLabel(captionDraft);
+    if (!clean) return;
+    await navigator.clipboard.writeText(clean);
     toast({ title: "Caption copied." });
   };
 
   const handleWhatsApp = async () => {
-    const caption = captionDraft || idea?.title || "";
+    const caption = stripCaptionLabel(captionDraft) || idea?.title || "";
     const slidesToShare = isCarousel
       ? allSlides.filter((s) => s?.image_url)
       : activeSlide?.image_url
