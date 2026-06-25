@@ -1086,12 +1086,14 @@ export type Database = {
           blueprint_id: string | null
           brand_id: string
           campaign_id: string | null
+          campaign_rationale: string | null
           canvas_size: string | null
           content_category: string | null
           content_format: string
           created_at: string
           day_of_week: number | null
           design_id: string | null
+          funnel_rationale: string | null
           funnel_stage: string | null
           id: string
           idea_type: string
@@ -1115,12 +1117,14 @@ export type Database = {
           blueprint_id?: string | null
           brand_id: string
           campaign_id?: string | null
+          campaign_rationale?: string | null
           canvas_size?: string | null
           content_category?: string | null
           content_format?: string
           created_at?: string
           day_of_week?: number | null
           design_id?: string | null
+          funnel_rationale?: string | null
           funnel_stage?: string | null
           id?: string
           idea_type?: string
@@ -1144,12 +1148,14 @@ export type Database = {
           blueprint_id?: string | null
           brand_id?: string
           campaign_id?: string | null
+          campaign_rationale?: string | null
           canvas_size?: string | null
           content_category?: string | null
           content_format?: string
           created_at?: string
           day_of_week?: number | null
           design_id?: string | null
+          funnel_rationale?: string | null
           funnel_stage?: string | null
           id?: string
           idea_type?: string
