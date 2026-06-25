@@ -1097,6 +1097,7 @@ export type Database = {
           idea_type: string
           pillar_id: string | null
           playbook_role: string | null
+          product_ref: string | null
           prompt: string
           scheduled_for: string | null
           series_id: string | null
@@ -1125,6 +1126,7 @@ export type Database = {
           idea_type?: string
           pillar_id?: string | null
           playbook_role?: string | null
+          product_ref?: string | null
           prompt: string
           scheduled_for?: string | null
           series_id?: string | null
@@ -1153,6 +1155,7 @@ export type Database = {
           idea_type?: string
           pillar_id?: string | null
           playbook_role?: string | null
+          product_ref?: string | null
           prompt?: string
           scheduled_for?: string | null
           series_id?: string | null
@@ -1197,6 +1200,13 @@ export type Database = {
             columns: ["pillar_id"]
             isOneToOne: false
             referencedRelation: "content_pillars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_product_ref_fkey"
+            columns: ["product_ref"]
+            isOneToOne: false
+            referencedRelation: "brand_products"
             referencedColumns: ["id"]
           },
           {

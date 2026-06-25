@@ -1560,15 +1560,41 @@ TREND RULES:
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("image_url, label, description, product_type, price, features, duration, pricing_model, is_featured, gallery_images")
+            .select("id, image_url, label, description, product_type, price, features, duration, pricing_model, is_featured, gallery_images")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
             .limit(6);
           if (productData && productData.length > 0) {
-            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
-            const catalogueLines = productData
-              .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
-              .map((p: any, i: number) => {
+            // If this design was launched from a content idea anchored on a
+            // specific product, surface that product's images FIRST and add a
+            // strong directive so the renderer doesn't ignore it.
+            let pinnedProductId: string | null = null;
+            let pinnedProductLabel: string | null = null;
+            if (contentIdeaId) {
+              try {
+                const { data: ideaRow } = await adminClient
+                  .from("content_ideas")
+                  .select("product_ref")
+                  .eq("id", contentIdeaId)
+                  .maybeSingle();
+                pinnedProductId = (ideaRow as any)?.product_ref || null;
+                if (pinnedProductId) {
+                  const match = (productData as any[]).find((p) => p.id === pinnedProductId);
+                  pinnedProductLabel = match?.label || null;
+                }
+              } catch (e) {
+                console.log("[single] idea product_ref fetch failed:", e);
+              }
+            }
+            const sorted = [...productData].sort((a: any, b: any) => {
+              if (pinnedProductId) {
+                if (a.id === pinnedProductId && b.id !== pinnedProductId) return -1;
+                if (b.id === pinnedProductId && a.id !== pinnedProductId) return 1;
+              }
+              return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+            });
+            productImageUrls = sorted.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
+            const catalogueLines = sorted.map((p: any, i: number) => {
               const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
               if (p.price) meta.push(p.price);
@@ -1582,7 +1608,10 @@ TREND RULES:
               }
               return parts.join(" ");
             }).join("\n");
-            productImageContext = `\n\nPRODUCTS & SERVICES:\n${catalogueLines}\n\nPRODUCT/SERVICE IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products/services, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For services, use the image as a portfolio/cover visual. Use specific names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.`;
+            const pinnedDirective = pinnedProductLabel
+              ? `\n\nTHIS DESIGN IS ANCHORED ON "${pinnedProductLabel}" — its reference image is attached FIRST. The product MUST appear as a real, recognisable hero or supporting visual. Honour its actual colours, shape, materials and details. Do NOT invent a different product.`
+              : "";
+            productImageContext = `\n\nPRODUCTS & SERVICES:\n${catalogueLines}\n\nPRODUCT/SERVICE IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products/services, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For services, use the image as a portfolio/cover visual. Use specific names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.${pinnedDirective}`;
           }
         } catch (e) {
           console.log("Product catalogue fetch failed, proceeding without:", e);
@@ -3185,30 +3214,87 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
         }
       }
 
-      let productImageUrls: string[] = [];
+      let productImageUrls: string[] = []; // fallback flat list (featured-only) for slides w/o product_ref
+      const productRoster: Array<{
+        key: string;
+        id: string;
+        label: string;
+        images: string[];
+        is_featured: boolean;
+      }> = [];
       const productSummaries: string[] = [];
+      // Seed product_ref from a linked content_idea if present, so the arc planner
+      // gets a strong default for at least one slide.
+      let seedProductId: string | null = null;
+      if (contentIdeaId) {
+        try {
+          const { data: ideaRow } = await adminClient
+            .from("content_ideas")
+            .select("product_ref")
+            .eq("id", contentIdeaId)
+            .maybeSingle();
+          seedProductId = (ideaRow as any)?.product_ref || null;
+        } catch (e) {
+          console.log("[carousel] idea product_ref fetch failed:", e);
+        }
+      }
       if (brand?.id) {
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("label, description, features, product_type, price, image_url, gallery_images")
+            .select("id, label, description, features, product_type, price, image_url, gallery_images, is_featured, pricing_model, duration")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
-            .limit(6);
+            .limit(8);
           if (productData && productData.length > 0) {
-            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
-            for (const p of productData.slice(0, 4) as any[]) {
+            // Featured-first, then any product matching the seed idea is bumped to the top.
+            const sorted = [...productData].sort((a: any, b: any) => {
+              if (seedProductId) {
+                if (a.id === seedProductId && b.id !== seedProductId) return -1;
+                if (b.id === seedProductId && a.id !== seedProductId) return 1;
+              }
+              return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+            });
+            sorted.slice(0, 6).forEach((p: any, i: number) => {
+              const key = `P${i + 1}`;
+              const imgs = [p.image_url, ...(p.gallery_images || [])].filter(Boolean);
+              productRoster.push({
+                key,
+                id: p.id,
+                label: p.label || p.product_type || "Product",
+                images: imgs,
+                is_featured: !!p.is_featured,
+              });
               const feats = Array.isArray(p.features) ? p.features.slice(0, 3).join(", ") : "";
-              const summary = `- ${p.label || p.product_type || "Product"}${p.price ? ` (${p.price})` : ""}${p.description ? `: ${String(p.description).slice(0, 120)}` : ""}${feats ? ` | features: ${feats}` : ""}`;
-              productSummaries.push(summary);
-            }
+              const meta = [p.product_type || "physical"];
+              if (p.price) meta.push(p.price);
+              if (p.product_type === "service" && p.pricing_model) meta.push(p.pricing_model);
+              if (p.product_type === "service" && p.duration) meta.push(p.duration);
+              const imgNote = imgs.length > 0 ? ` [has ${imgs.length} reference image${imgs.length > 1 ? "s" : ""}]` : " [no image on file]";
+              productSummaries.push(`- ${key} ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}" (${meta.join(", ")})${imgNote}${p.description ? `: ${String(p.description).slice(0, 120)}` : ""}${feats ? ` | features: ${feats}` : ""}`);
+            });
+            // Featured-only fallback for slides with no explicit product_ref.
+            const featuredImages = productRoster
+              .filter((p) => p.is_featured)
+              .flatMap((p) => p.images.slice(0, 1));
+            productImageUrls = featuredImages.length > 0
+              ? featuredImages.slice(0, 2)
+              : productRoster.slice(0, 1).flatMap((p) => p.images.slice(0, 1));
           }
         } catch (e) {
           console.log("[carousel] product fetch failed:", e);
         }
       }
+      const productKeyToImages: Record<string, string[]> = {};
+      const productKeyToLabel: Record<string, string> = {};
+      for (const p of productRoster) {
+        productKeyToImages[p.key] = p.images.slice(0, 3); // cap per slide
+        productKeyToLabel[p.key] = p.label;
+      }
+      const validProductKeys = productRoster.map((p) => p.key);
+      const seedProductKey = seedProductId ? productRoster.find((p) => p.id === seedProductId)?.key || null : null;
       const productsContext = productSummaries.length
-        ? `\nPRODUCTS / SERVICES (use these as concrete anchors in interior slides):\n${productSummaries.join("\n")}`
+        ? `\nPRODUCTS / SERVICES ROSTER (each prefixed with a key like P1, P2 — use these keys in slide.product_ref to anchor a slide to a specific product):\n${productSummaries.join("\n")}${seedProductKey ? `\n\nThis carousel was launched from an idea anchored on ${seedProductKey} "${productKeyToLabel[seedProductKey]}" — at least one slide MUST set product_ref to "${seedProductKey}".` : ""}`
         : "";
 
       const trendContextArc = trend && trend !== "none"
@@ -3233,6 +3319,7 @@ Continuity rules:
 - Define ONE visual_motif (a short, concrete visual signature, e.g. "centred product hero on warm beige with thin gold rule"). EVERY slide must obey it.
 - Define ONE narrative_thread (one sentence) and echo it across slides.
 - Per-slide copy: short headline (3-8 words), optional subheadline (0-10 words), and a concise supporting body on EVERY slide (6-18 words) so the carousel has a clear narrative arc.
+- Per-slide product_ref: when a slide visibly features, demonstrates, or directly references ONE specific product/service from the roster above, set product_ref to that roster key (e.g. "P1"). The renderer will attach that product's photo as a reference. For abstract / brand-level / general-tip slides, set product_ref to "". NEVER invent a key that isn't in the roster.
 
 Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return more, do not return fewer.`;
 
@@ -3262,8 +3349,9 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
                     body: { type: "string", description: "Concise supporting copy required on every slide (6-18 words). Never return an empty string." },
                     cta: { type: "string", description: "CTA text (0-5 words). MUST be non-empty on the final slide." },
                     scene_description: { type: "string", description: "What this slide shows visually (1-2 sentences) — must obey the shared visual_motif." },
+                    product_ref: { type: "string", description: `Optional roster key (e.g. "P1") of the product this slide is anchored on. Use ONLY when the slide visibly features or talks about one specific product/service from the roster. Use empty string for abstract / brand-level slides. Valid keys: ${validProductKeys.length ? validProductKeys.join(", ") : "(no products in roster)"}` },
                   },
-                  required: ["slide_label", "arc_role", "headline", "subheadline", "body", "cta", "scene_description"],
+                  required: ["slide_label", "arc_role", "headline", "subheadline", "body", "cta", "scene_description", "product_ref"],
                   additionalProperties: false,
                 },
               },
@@ -3364,6 +3452,21 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
       if (!carouselPlan.slides[lastIdx].cta || String(carouselPlan.slides[lastIdx].cta).trim().length === 0) {
         carouselPlan.slides[lastIdx].cta = "DM us to get started";
       }
+      // Sanitise product_ref on every slide — drop unknown keys silently so the
+      // renderer can branch on a clean value. Optionally seed the hook slide
+      // with the idea-linked product if the planner left it empty.
+      const validKeySet = new Set(validProductKeys);
+      for (const s of carouselPlan.slides) {
+        const raw = typeof s.product_ref === "string" ? s.product_ref.trim() : "";
+        s.product_ref = raw && validKeySet.has(raw) ? raw : "";
+      }
+      if (seedProductKey && !carouselPlan.slides.some((s: any) => s.product_ref === seedProductKey)) {
+        // Prefer a value/proof slide; fall back to the hook.
+        const target = carouselPlan.slides.find((s: any) => s.arc_role === "value" || s.arc_role === "proof") || carouselPlan.slides[0];
+        if (target) target.product_ref = seedProductKey;
+      }
+
+
 
       // ----- Validate & normalise carousel copy_structure BEFORE rendering -----
       // Every slide must follow the same copy_structure shape (same set of
@@ -3553,16 +3656,29 @@ MANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — sof
 
 BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.tone_of_voice || "Professional"}. Every slide in this carousel MUST share the same palette, type lockup, and motif.${attempt > 0 ? `\n\nRETRY NOTE: The previous render of this slide was rejected by the quality critic. Pay extra attention to text legibility, contrast, and faithfulness to the visual motif.` : ""}`;
 
+        // Per-slide product targeting: if the planner anchored this slide on a
+        // specific product, attach ONLY that product's photos and tell the model
+        // to honour them. Otherwise fall back to featured-only images so brand
+        // voice is preserved without forcing irrelevant products into every slide.
+        const slideProductKey: string = typeof slide.product_ref === "string" ? slide.product_ref : "";
+        const slideProductImages = slideProductKey && productKeyToImages[slideProductKey]
+          ? productKeyToImages[slideProductKey]
+          : productImageUrls;
+        const productDirective = slideProductKey && productKeyToImages[slideProductKey]?.length
+          ? `\n\nTHIS SLIDE FEATURES PRODUCT "${productKeyToLabel[slideProductKey]}" — the attached product reference image(s) must appear as a real, recognisable hero or supporting visual. Honour the product's actual colours, shape, materials and details. Do NOT invent a different product.`
+          : "";
+        const slidePromptWithProduct = slidePrompt + productDirective;
+
         // Per-slide refs include the previous slide as a continuity anchor.
         const { refs: slideRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
           userImageUrl: user_image_url,
-          productImageUrls: productImageUrls,
+          productImageUrls: slideProductImages,
           previousImageUrl: previousImageUrl,
         });
         const slideRefLegend = buildRefLegend(slideRefs);
-        const slidePromptWithRefs = slideRefLegend ? `${slidePrompt}\n\n${slideRefLegend}` : slidePrompt;
+        const slidePromptWithRefs = slideRefLegend ? `${slidePromptWithProduct}\n\n${slideRefLegend}` : slidePromptWithProduct;
 
         const { b64: imageBase64 } = await renderWithGptImageEdits(slidePromptWithRefs, slideRefs, w, h);
         let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
