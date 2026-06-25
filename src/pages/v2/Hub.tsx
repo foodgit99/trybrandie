@@ -129,7 +129,7 @@ const Hub = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("content_ideas")
-        .select("id,title,prompt,status,approval_status,scheduled_for,content_category,funnel_stage,campaign_id,design_id,created_at,design:design_id(image_url,caption)")
+        .select("id,title,prompt,status,approval_status,scheduled_for,content_category,funnel_stage,campaign_id,campaign_rationale,funnel_rationale,design_id,created_at,design:design_id(image_url,caption)")
         .eq("brand_id", brand!.id)
         .order("scheduled_for", { ascending: true, nullsFirst: false })
         .limit(200);
