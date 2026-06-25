@@ -91,10 +91,6 @@ const NewAppHeader = () => {
               <BarChart3 className="h-4 w-4" />
               Report
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/support")}>
-              <LifeBuoy className="h-4 w-4" />
-              Support
-            </DropdownMenuItem>
 
             {isAdmin && (
               <>
@@ -114,10 +110,15 @@ const NewAppHeader = () => {
               <User className="h-4 w-4" />
               Profile
             </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/support")}>
+              <LifeBuoy className="h-4 w-4" />
+              Support
+            </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/settings")}>
               <Settings className="h-4 w-4" />
               Settings
             </DropdownMenuItem>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="gap-2 rounded-lg cursor-pointer text-destructive focus:text-destructive"
