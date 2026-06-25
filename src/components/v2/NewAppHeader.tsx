@@ -27,7 +27,9 @@ import {
   History,
   LifeBuoy,
   User,
+  Map,
 } from "lucide-react";
+
 
 
 const NewAppHeader = () => {
