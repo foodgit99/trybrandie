@@ -85,6 +85,9 @@ const ProfilePage = () => {
   const [pwConfirm, setPwConfirm] = useState("");
   const [savingPw, setSavingPw] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [requestingDelete, setRequestingDelete] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const timezones = useMemo<string[]>(() => {
     try {
