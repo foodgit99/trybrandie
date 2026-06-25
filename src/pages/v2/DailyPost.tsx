@@ -356,13 +356,14 @@ const DailyPost = () => {
 
 
   const handleCopyCaption = async () => {
-    if (!captionDraft) return;
-    await navigator.clipboard.writeText(captionDraft);
+    const clean = stripCaptionLabel(captionDraft);
+    if (!clean) return;
+    await navigator.clipboard.writeText(clean);
     toast({ title: "Caption copied." });
   };
 
   const handleWhatsApp = async () => {
-    const caption = captionDraft || idea?.title || "";
+    const caption = stripCaptionLabel(captionDraft) || idea?.title || "";
     const slidesToShare = isCarousel
       ? allSlides.filter((s) => s?.image_url)
       : activeSlide?.image_url
