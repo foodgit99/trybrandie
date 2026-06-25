@@ -1,52 +1,18 @@
-## Goal
-Add a dedicated `/profile` route where the user can manage personal profile info, security, contact, and locale, with an avatar uploader backed by a new storage bucket.
+# Fix: "Copy caption" includes "**Caption:**" prefix
 
-## 1. Backend
+## Root cause
+The LLM occasionally returns captions that begin with a label like `**Caption:**`, `Caption:`, or `### Caption`, and we save that verbatim to `designs.caption`. `/post` seeds `captionDraft` directly from `design.caption`, so the label shows up in the textarea and gets copied to the clipboard.
 
-**Migration** — extend `public.profiles`:
-- `avatar_url text`
-- `whatsapp_number text` (already exists per `handle_new_user` — verify; add only if missing)
-- `locale text` (e.g. `en`, `en-NG`)
-- `timezone text` (IANA, e.g. `Africa/Lagos`)
+## Fix (frontend-only, low risk)
+1. Add a tiny helper `stripCaptionLabel(text: string)` in `src/lib/utils.ts` that removes a leading caption label and surrounding whitespace/markdown, e.g. matches:
+   - `**Caption:**`, `*Caption:*`, `Caption:`, `### Caption`, `Caption —`
+   - case-insensitive, only at the very start, also trims a following blank line.
+2. In `src/pages/v2/DailyPost.tsx`:
+   - Apply `stripCaptionLabel` when seeding `captionDraft` from `design.caption` / sibling slide caption (around line 218–220).
+   - Apply it again in `handleCopyCaption` and the WhatsApp share path as a safety net for older drafts already in state.
+3. Backfill cleanup is not required — once the user edits or regenerates, the cleaned value is what gets copied. (Optional follow-up: also strip in `design-studio` before saving, but out of scope for this UI bug.)
 
-No new tables. Existing RLS on `profiles` already restricts to `auth.uid()`.
-
-**Storage** — create public `avatars` bucket via `supabase--storage_create_bucket`. Add RLS on `storage.objects`:
-- Public read for `bucket_id='avatars'`.
-- Authenticated insert/update/delete only when the first path segment equals `auth.uid()::text` (so each user owns `avatars/<uid>/...`).
-
-## 2. Frontend
-
-**New route** `/profile` registered in `src/App.tsx` (auth-guarded like `/settings`). Page file: `src/pages/v2/Profile.tsx`, using `NewAppHeader` + `NewFloatingNav` layout (matches v2 pages) with `lg:pl-20`.
-
-**Sections** (single page, card-grouped):
-1. **Identity** — avatar uploader (preview, replace, remove), full name, read-only email.
-2. **Contact** — WhatsApp number with country-code helper.
-3. **Locale** — language select (subset) + timezone select (IANA list via `Intl.supportedValuesOf('timeZone')`).
-4. **Security** — change password (current + new + confirm via `supabase.auth.updateUser({ password })`), "Sign out of all sessions" (`supabase.auth.signOut({ scope: 'global' })`).
-
-**Form** — `react-hook-form` + `zod` schema (trim, length caps, E.164-ish phone regex, password ≥ 8 chars). Save persists to `profiles` via Supabase upsert keyed on `user_id`.
-
-**Avatar upload flow** — client picks file (≤2 MB, image/*), uploads to `avatars/<uid>/avatar-<ts>.<ext>`, gets public URL, writes to `profiles.avatar_url`. Old object best-effort deleted.
-
-**Settings link** — add a "Manage profile" row at the top of `src/pages/v2/Settings.tsx` (and legacy `src/pages/Settings.tsx`) that navigates to `/profile`.
-
-**Header avatar** (small) — `NewAppHeader` shows the avatar thumbnail next to credits when `avatar_url` exists; click → `/profile`. Falls back to initials.
-
-## 3. Validation & UX
-- Toasts for save success/failure.
-- Disabled save button until form is dirty + valid.
-- Optimistic avatar preview; revert on upload failure.
-- Mobile-first layout, cards stack; matches warm neutral palette tokens.
-
-## 4. Out of scope
-- Email change (Supabase requires re-verification flow — flag as future).
-- 2FA.
-- Deleting account (already covered elsewhere per knowledge base).
-
-## Technical notes
-- Files touched/created:
-  - new: `src/pages/v2/Profile.tsx`
-  - edit: `src/App.tsx`, `src/components/v2/NewAppHeader.tsx`, `src/pages/v2/Settings.tsx`, `src/pages/Settings.tsx`
-  - migration: `profiles` columns + `storage.objects` policies
-  - storage tool: create `avatars` bucket (public)
+## Verification
+- Open `/post/<id>` where the stored caption begins with `**Caption:**` → textarea no longer shows the label.
+- Click **Copy caption** → clipboard text starts directly with the first sentence.
+- WhatsApp share path produces the same clean text.
