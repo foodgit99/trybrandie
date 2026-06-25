@@ -247,6 +247,82 @@ const ProfilePage = () => {
     }
   };
 
+  const exportMyData = async () => {
+    if (!user) return;
+    setExporting(true);
+    try {
+      const tables = [
+        "profiles",
+        "brands",
+        "brand_products",
+        "target_audiences",
+        "content_pillars",
+        "content_ideas",
+        "campaigns",
+        "designs",
+        "weekly_blueprints",
+        "autopilot_settings",
+        "brand_trend_preferences",
+        "subscriptions",
+        "payment_transactions",
+        "support_tickets",
+      ] as const;
+
+      const payload: Record<string, unknown> = {
+        exported_at: new Date().toISOString(),
+        user: { id: user.id, email: user.email },
+      };
+
+      for (const t of tables) {
+        const { data, error } = await supabase.from(t as any).select("*");
+        payload[t] = error ? { error: error.message } : data ?? [];
+      }
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `brandie-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export downloaded." });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!user) return;
+    setRequestingDelete(true);
+    try {
+      const { error } = await supabase.from("support_tickets").insert({
+        user_id: user.id,
+        subject: "Account deletion request",
+        message: `Email: ${user.email}\nUser ID: ${user.id}\n\nReason: ${deleteReason || "(not provided)"}`,
+        status: "open",
+        category: "account_deletion",
+      } as any);
+      if (error) throw error;
+      setDeleteReason("");
+      toast({
+        title: "Deletion requested.",
+        description: "Our team will email you within 3 business days.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Couldn't submit request",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setRequestingDelete(false);
+    }
+  };
+
   const signOutAll = async () => {
     setSigningOutAll(true);
     try {
