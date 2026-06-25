@@ -1,64 +1,52 @@
-# Expand product image usage across carousel + content hub
+# Plan: Blueprint planner becomes funnel- and campaign-aware
 
-Today single designs already use product images well, but carousels and the content-hub ideation lag behind. This plan brings them up to parity, with featured-first ordering and per-slide targeting so product photos land where they actually belong.
+Today, `generate_weekly_ideas` in `brand-engine` plans the 7-day arc from brand, audience, products, trends and history — then stamps every idea with the user's *default* funnel stage and *default* campaign. The LLM never sees the funnel structure or the open campaign quotas, so it can't deliberately spread posts across stages or fill specific campaigns.
 
-## Current gaps
+This plan feeds both structures into the planner so the LLM assigns `funnel_stage` and `campaign_id` *per idea*, with the existing defaults acting only as a safety net.
 
-- **Carousel arc planner** (`design-studio` ~line 3192): selects only `label, description, features, product_type, price, image_url, gallery_images` — missing `is_featured`, `pricing_model`, `duration`, sorted by `created_at` (not featured), and the arc plan has no field telling each slide *which* product it's about.
-- **Carousel renderer** (`design-studio` ~line 3561): passes the **same flat `productImageUrls`** to every slide. The model can't tell which product belongs to which beat, and refs get capped indiscriminately.
-- **Content Hub ideation** (`brand-engine` ~line 146): pulls product text only — no `image_url` / `gallery_images`. Ideas can't flag "uses Product X's photo" so downstream design generation re-discovers it.
-- **Strategist / monday-briefing / trend-scout / video-studio**: not in scope here (user asked for carousel + content hub).
+## What changes
 
-## Changes
+### 1. Context assembly (brand-engine, `generate_weekly_ideas`)
+Pull two new context blocks before the planner call:
 
-### 1. Carousel arc planner — richer product context + per-slide product targeting (`supabase/functions/design-studio/index.ts`)
+- **Funnel stages** — `resolveBrandStages(brand.funnel_stages)` from `src/lib/funnelStages.ts` (replicated server-side). Pass id, label, blurb, and a rolling 4-week coverage count per stage (from `content_ideas` joined to `weekly_blueprints`) so the agent knows which stages are under-served.
+- **Active campaigns + quotas** — for the target brand, fetch open campaigns with: id, name, description, `post_count` target, posts already assigned, posts already scheduled in prior weeks, and remaining slots. Mark campaigns whose `end_date` falls inside or before the planning week as "must-fill this week."
 
-- Expand the product fetch (~L3192) to mirror the single-design fetch: add `is_featured, pricing_model, duration, gallery_images` (already there), and **sort featured-first** before summarising.
-- Build a **keyed product roster** `[{ key: "P1", label, images: [image_url, ...gallery_images], price, features, is_featured }]` and inject it into `productsContext` with explicit keys (`P1 ⭐ "Aso Ebi Set" — ₦45k …`).
-- Extend the arc-plan schema (`carouselPlan.slides[i]`) with an optional `product_ref: "P1" | null` field. Update the arc-planner system prompt to require: for `value` / `proof` slides that lean on a specific product, set `product_ref` to one of the roster keys; leave `null` for abstract slides. Hook and CTA may also reference a product.
-- Build a map `productKeyToImages: Record<string, string[]>` from the roster.
+### 2. Planner prompt + schema
+Extend the `generate_weekly_ideas` system prompt with a "Funnel & Campaign rules" section:
 
-### 2. Carousel per-slide render — targeted product refs (`renderSlide`, ~L3556)
+- The 7 ideas must cover **at least 3 of 4 funnel stages**, weighted toward under-served stages from the coverage counts.
+- Any campaign with `remaining_slots > 0` and `end_date <= week_end` must receive at least one idea this week (up to remaining slots).
+- Each idea must justify its `funnel_stage` in a one-line `stage_rationale` and (if assigned) its `campaign_id` in `campaign_rationale`.
 
-- When `slide.product_ref` is set, pass `productImageUrls: productKeyToImages[slide.product_ref]` (cover image first, then up to 2 gallery shots) to `collectRenderRefs`, and append a line to the slide prompt:  
-  `THIS SLIDE FEATURES PRODUCT "${label}" — the attached product reference image(s) must appear as a real, recognisable hero/supporting visual. Honour its actual colours, shape, and details.`
-- When `slide.product_ref` is null, fall back to **featured product images only** (top 1–2) instead of the current flat list — keeps brand voice without forcing irrelevant products into every slide.
-- Keep user-uploaded image priority unchanged (already enforced by `collectRenderRefs` ordering).
+Update the JSON output schema for each idea to require:
+- `funnel_stage`: one of the resolved stage ids
+- `campaign_id`: uuid of an active campaign, or `null`
+- `stage_rationale`, `campaign_rationale`
 
-### 3. Content Hub ideation — product image awareness (`supabase/functions/brand-engine/index.ts`)
+### 3. Validation + fallback (insert path)
+Before insert in `brand-engine`:
 
-- Expand fetch at L146 to include `id, image_url, gallery_images, is_featured` and sort featured-first.
-- Build the `productContext` with the same `P1 / P2 …` keys used in carousel planner so the schema is consistent across agents.
-- Append a note to each generated idea: extend the idea JSON schema with `product_ref: string | null` (one of the roster keys) and `uses_product_image: boolean`. Update the ideation system prompt to set these when the idea is product-anchored (launches, promos, restocks, "behind-the-build", testimonials of a specific product/service).
-- Persist `product_ref` onto `content_ideas` rows so downstream design generation (single + carousel) can pre-select the right product images without re-classifying.
+- Validate `funnel_stage` against resolved stages; if invalid/missing → fall back to `autopilot_settings.default_funnel_stage`.
+- Validate `campaign_id` belongs to the brand and is active; if invalid/missing → run existing `resolveAutopilotCampaign` with the idea's chosen stage as `funnelStage` input (so fallback respects the planner's intent, not just the user default).
+- Log validation drift to `autopilot_run_events` so we can monitor how often the planner picks valid vs. fallback values.
 
-### 4. Downstream wiring — honour `content_ideas.product_ref`
+### 4. `fill_empty_days` parity
+Mirror the same context + schema in `fill_empty_days` so single-day repairs respect funnel coverage and campaign quotas already established by the rest of the week (pass the existing week's stage/campaign distribution as "already covered" context).
 
-- When `/post` triggers a single design from an idea, if `idea.product_ref` is set, pre-rank that product's images first in `productImageUrls` and add the same `THIS DESIGN FEATURES …` instruction so the renderer doesn't ignore it.
-- Same for carousel regenerate-from-idea: seed `carouselPlan.slides[*].product_ref` defaults from the idea before the arc planner runs (planner may still re-assign per slide).
-
-## Schema
-
-One migration on `content_ideas`:
-
-```sql
-ALTER TABLE public.content_ideas
-  ADD COLUMN IF NOT EXISTS product_ref uuid REFERENCES public.brand_products(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_content_ideas_product_ref ON public.content_ideas(product_ref);
-```
-
-(Keying ideas by `brand_products.id` is more robust than the `P1` shorthand used inside the agent prompt — we translate at the boundary.)
-
-No grant/RLS changes needed; `content_ideas` already has the right policies.
+### 5. UI surface (read-only this round)
+On `/blueprint`, show each idea's resolved `funnel_stage` chip and `campaign` chip on the day card (data already exists post-insert). No editor changes — `FunnelsEditableTab` and `CampaignsEditableTab` already let users move things after the fact.
 
 ## Out of scope
+- No schema migration. `content_ideas.funnel_stage` and `campaign_id` already exist; campaigns already have `post_count`.
+- Trends, products, audience context untouched.
+- Autopilot defaults stay as the last-resort fallback, not the primary signal.
 
-- UI changes on `/brand/editor` (already shows products).
-- Strategist / monday-briefing / video-studio agents — separate ask if you want them on the same roster.
-- Letting users hand-pick a product per design from the UI (could be a follow-up — the `product_ref` field this plan adds makes it trivial).
+## Files touched
+- `supabase/functions/brand-engine/index.ts` — context fetch, prompt, schema, validation, both actions.
+- `supabase/functions/_shared/resolve-autopilot-campaign.ts` — accept an explicit `funnelStage` arg already supported; verify signature.
+- `src/pages/v2/Blueprint.tsx` — render stage + campaign chips on each day card.
 
-## Risks / mitigations
-
-- **More refs per render → cost + token risk:** `collectRenderRefs` already caps total refs; we keep that cap. Per-slide we send at most 3 product images (1 cover + 2 gallery).
-- **Arc planner may set `product_ref` for every slide:** prompt explicitly says "only when the slide leans on a specific product"; we also validate against the roster keys and drop unknowns silently.
-- **Old ideas without `product_ref`:** column is nullable, falls back to today's behaviour.
+## Validation
+- Manual smoke: trigger `generate_weekly_ideas` on a brand with 2 active campaigns and an under-covered "conversion" stage; confirm at least one idea per active campaign and conversion-stage representation.
+- Inspect `autopilot_run_events` for drift counters after the run.
