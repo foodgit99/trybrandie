@@ -1061,7 +1061,7 @@ ${CONTENT_CATEGORIES_REF}
 Each idea MUST include a content_category from: ${CONTENT_CATEGORY_ENUM.join(", ")}.
 Holiday days MUST use idea_type "holiday" and content_category "holidays".
 Use content_format "carousel" only for educational/how-to/listicle/step-by-step ideas; otherwise "graphic". Never "video".`,
-        user: `Brand: ${brand.name}\n\nFILL THESE EMPTY DAYS (one idea per day, in order):\n${targetSpec}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nMISSING CATEGORIES (last 14 days — prioritise): ${missing.join(", ") || "none"}\nRECENT TITLES (do NOT repeat): ${recentTitles || "none"}`,
+        user: `Brand: ${brand.name}\n\nPRODUCTS & SERVICES:\n${productContext}${productKeysHint}\n\nFILL THESE EMPTY DAYS (one idea per day, in order):\n${targetSpec}\n\nPILLARS:\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nMISSING CATEGORIES (last 14 days — prioritise): ${missing.join(", ") || "none"}\nRECENT TITLES (do NOT repeat): ${recentTitles || "none"}`,
         tool: {
           name: "fill_days",
           description: "Create one idea per empty day",
