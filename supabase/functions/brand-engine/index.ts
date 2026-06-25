@@ -690,7 +690,7 @@ Each campaign should target a specific content category. Vary categories across 
         creditProfile = creditCheck.profile;
       }
 
-      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes] = await Promise.all([
+      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes, stageCoverageRes, campaignAssignedRes] = await Promise.all([
         // Order least-recently-used pillars first so the AI naturally rotates them.
         supabase
           .from("content_pillars")
@@ -714,6 +714,22 @@ Each campaign should target a specific content category. Vary categories across 
             .order("created_at", { ascending: false })
             .limit(60);
         })(),
+        // Funnel-stage coverage over the last 4 weeks (for under-served weighting).
+        (() => {
+          const since = new Date();
+          since.setDate(since.getDate() - 28);
+          return supabase
+            .from("content_ideas")
+            .select("funnel_stage, content_category")
+            .eq("brand_id", brand_id)
+            .gte("created_at", since.toISOString());
+        })(),
+        // Existing campaign assignments (any time) so we can compute remaining quota.
+        supabase
+          .from("content_ideas")
+          .select("campaign_id")
+          .eq("brand_id", brand_id)
+          .not("campaign_id", "is", null),
       ]);
 
       const pillars = pillarsRes.data || [];
@@ -727,7 +743,44 @@ Each campaign should target a specific content category. Vary categories across 
         })
         .join("\n");
       const seriesContext = series.map((s: any) => `${s.name} (${s.recurrence}, ${s.preferred_day}): ${s.description}`).join("\n");
-      const campaignContext = campaigns.map((c: any) => `${c.name}: ${c.description} (${c.post_count} posts)`).join("\n");
+
+      // --- Funnel stages (brand-scoped overrides over defaults) ---
+      const resolvedStages = resolveBrandStages((brand as any).funnel_stages);
+      const stageCoverageCounts: Record<FunnelStageId, number> = { awareness: 0, consideration: 0, conversion: 0, retention: 0 };
+      for (const row of (stageCoverageRes.data || []) as any[]) {
+        const explicit = normaliseStageId(row.funnel_stage);
+        let stage: FunnelStageId | null = explicit;
+        if (!stage && row.content_category) {
+          stage = (resolvedStages.find((s) => s.categories.includes(row.content_category))?.id) ?? null;
+        }
+        if (stage) stageCoverageCounts[stage] += 1;
+      }
+      const funnelContext = resolvedStages
+        .map((s) => `- ${s.id} "${s.label}" — ${s.blurb} (last 28d: ${stageCoverageCounts[s.id]} posts)`) 
+        .join("\n");
+      const underServedStages = STAGE_IDS
+        .slice()
+        .sort((a, b) => stageCoverageCounts[a] - stageCoverageCounts[b])
+        .slice(0, 2);
+
+      // --- Campaign quotas: remaining = post_count - already-assigned count ---
+      const assignedCountByCampaign = new Map<string, number>();
+      for (const r of (campaignAssignedRes.data || []) as any[]) {
+        if (r.campaign_id) assignedCountByCampaign.set(r.campaign_id, (assignedCountByCampaign.get(r.campaign_id) || 0) + 1);
+      }
+      const campaignsWithQuota = campaigns.map((c: any) => {
+        const target = Math.max(0, Number(c.post_count) || 0);
+        const assigned = assignedCountByCampaign.get(c.id) || 0;
+        const remaining = Math.max(0, target - assigned);
+        return { ...c, _assigned: assigned, _remaining: remaining };
+      });
+      const campaignContext = campaignsWithQuota.length === 0
+        ? "(no active campaigns)"
+        : campaignsWithQuota
+            .map((c: any) => `- "${c.name}" (id: ${c.id}) — ${c.description || "no description"} | quota ${c._assigned}/${c.post_count} assigned, ${c._remaining} slots remaining`)
+            .join("\n");
+      const urgentCampaigns = campaignsWithQuota.filter((c: any) => c._remaining > 0);
+
 
 
       const today = new Date();
