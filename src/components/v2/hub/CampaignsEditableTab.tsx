@@ -93,12 +93,34 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
   const openNew = () => { setEditing(null); setEditorOpen(true); };
   const openEdit = (c: CampaignRow) => { setEditing(c); setEditorOpen(true); };
 
+  // Overall quota summary across all campaigns
+  const totals = useMemo(() => {
+    let target = 0, assigned = 0;
+    for (const c of campaigns) {
+      const a = ideas.filter((i) => i.campaign_id === c.id).length;
+      target += Math.max(0, c.post_count || 0);
+      assigned += a;
+    }
+    return { target, assigned, remaining: Math.max(0, target - assigned) };
+  }, [campaigns, ideas]);
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-xs text-muted-foreground">
-          Group posts into a launch, restock, seasonal moment, or product story.
-        </p>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">
+            Group posts into a launch, restock, seasonal moment, or product story.
+          </p>
+          {campaigns.length > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Quota across all campaigns: <span className="text-foreground font-medium">{totals.assigned}/{totals.target}</span> assigned
+              {" · "}
+              <span className={cn(totals.remaining > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                {totals.remaining} slot{totals.remaining === 1 ? "" : "s"} open
+              </span>
+            </p>
+          )}
+        </div>
         <Button size="sm" className="rounded-full h-9 gap-1.5" onClick={openNew}>
           <Plus className="h-3.5 w-3.5" /> New campaign
         </Button>
@@ -121,73 +143,34 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
             const cat = getCategoryMeta(c.content_category ?? "");
             const linkedIdeas = ideas.filter((i) => i.campaign_id === c.id);
             const done = linkedIdeas.filter((i) => i.status === "completed" || i.status === "posted").length;
-            const pct = linkedIdeas.length ? Math.round((done / linkedIdeas.length) * 100) : 0;
-            const firstIdea = linkedIdeas[0];
+            const target = Math.max(0, c.post_count || 0);
+            const assigned = linkedIdeas.length;
+            const remaining = Math.max(0, target - assigned);
+            const fillPct = target ? Math.min(100, Math.round((assigned / target) * 100)) : 0;
+            const deliveredPct = assigned ? Math.round((done / assigned) * 100) : 0;
+            const isOver = target > 0 && assigned > target;
             return (
-              <div key={c.id} className="relative rounded-2xl border border-border bg-card/40 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => firstIdea && onOpenPost(firstIdea.id)}
-                    disabled={!firstIdea}
-                    className="text-left min-w-0 flex-1 disabled:cursor-default"
-                  >
-                    <div className="text-sm font-medium truncate">{c.name}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                      {c.description || "No description"}
-                    </div>
-                  </button>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {cat && (
-                      <Badge variant="outline" className={cn("rounded-full text-[10px]", cat.badgeClass)}>
-                        {cat.emoji} {cat.short}
-                      </Badge>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Campaign actions">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onSelect={() => openEdit(c)}>
-                          <Pencil className="h-3.5 w-3.5 mr-2" /> Edit details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setAssignFor(c)}>
-                          <Users className="h-3.5 w-3.5 mr-2" /> Manage posts
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onSelect={() => setDeleteFor(c)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{linkedIdeas.length} posts</span>
-                  <span>{pct}% delivered</span>
-                </div>
-                <div className="mt-1.5 h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-foreground/80" style={{ width: `${pct}%` }} />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setAssignFor(c)}
-                  className="mt-3 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                >
-                  Manage posts <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
+              <CampaignQuotaCard
+                key={c.id}
+                campaign={c}
+                category={cat}
+                linkedIdeas={linkedIdeas}
+                assigned={assigned}
+                target={target}
+                remaining={remaining}
+                fillPct={fillPct}
+                deliveredPct={deliveredPct}
+                isOver={isOver}
+                onOpenPost={onOpenPost}
+                onEdit={() => openEdit(c)}
+                onManage={() => setAssignFor(c)}
+                onDelete={() => setDeleteFor(c)}
+              />
             );
           })}
         </div>
       )}
+
 
       <CampaignEditorDialog
         open={editorOpen}
