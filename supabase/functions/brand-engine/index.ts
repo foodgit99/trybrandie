@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWeekHolidaysAsync, fetchHolidayFeed, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
+import { resolveBrandStages, normaliseStageId, STAGE_IDS, type FunnelStageId } from "../_shared/funnel-stages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
