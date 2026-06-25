@@ -846,12 +846,16 @@ const BrandCentre = () => {
               </div>
             </div>
           ) : (
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate("/brands")}>
+                <Palette className="h-3.5 w-3.5" /> Manage brands
+              </Button>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setWebsiteImportOpen(true)}>
                 <Globe className="h-3.5 w-3.5" /> Import from website
               </Button>
             </div>
           )}
+
 
           {/* Brand Info */}
           {renderSection("Brand Info", "info",
