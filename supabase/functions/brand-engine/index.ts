@@ -1034,6 +1034,14 @@ You will be given a list of active campaigns with their remaining slots. Any cam
           strategic_arc: arc,
           playbook_role: arc,
           funnel_stage: chosenStage,
+          funnel_rationale: typeof idea.funnel_rationale === "string" && idea.funnel_rationale.trim()
+            ? idea.funnel_rationale.trim().slice(0, 280)
+            : null,
+          campaign_rationale: resolvedCampaignId && typeof idea.campaign_rationale === "string" && idea.campaign_rationale.trim()
+            ? idea.campaign_rationale.trim().slice(0, 280)
+            : (resolvedCampaignId && aiResolvedCampaignId !== resolvedCampaignId
+                ? "Routed to default campaign for this funnel stage."
+                : null),
           autopilot: autopilotOn,
           product_ref: (typeof idea.product_ref === "string" && productKeyToId[idea.product_ref]) ? productKeyToId[idea.product_ref] : null,
         };
