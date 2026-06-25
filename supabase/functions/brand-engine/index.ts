@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWeekHolidaysAsync, fetchHolidayFeed, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
+import { resolveBrandStages, normaliseStageId, STAGE_IDS, type FunnelStageId } from "../_shared/funnel-stages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -689,7 +690,7 @@ Each campaign should target a specific content category. Vary categories across 
         creditProfile = creditCheck.profile;
       }
 
-      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes] = await Promise.all([
+      const [pillarsRes, seriesRes, campaignsRes, trendIntelRes, recentIdeasRes, stageCoverageRes, campaignAssignedRes] = await Promise.all([
         // Order least-recently-used pillars first so the AI naturally rotates them.
         supabase
           .from("content_pillars")
@@ -713,6 +714,22 @@ Each campaign should target a specific content category. Vary categories across 
             .order("created_at", { ascending: false })
             .limit(60);
         })(),
+        // Funnel-stage coverage over the last 4 weeks (for under-served weighting).
+        (() => {
+          const since = new Date();
+          since.setDate(since.getDate() - 28);
+          return supabase
+            .from("content_ideas")
+            .select("funnel_stage, content_category")
+            .eq("brand_id", brand_id)
+            .gte("created_at", since.toISOString());
+        })(),
+        // Existing campaign assignments (any time) so we can compute remaining quota.
+        supabase
+          .from("content_ideas")
+          .select("campaign_id")
+          .eq("brand_id", brand_id)
+          .not("campaign_id", "is", null),
       ]);
 
       const pillars = pillarsRes.data || [];
@@ -726,7 +743,44 @@ Each campaign should target a specific content category. Vary categories across 
         })
         .join("\n");
       const seriesContext = series.map((s: any) => `${s.name} (${s.recurrence}, ${s.preferred_day}): ${s.description}`).join("\n");
-      const campaignContext = campaigns.map((c: any) => `${c.name}: ${c.description} (${c.post_count} posts)`).join("\n");
+
+      // --- Funnel stages (brand-scoped overrides over defaults) ---
+      const resolvedStages = resolveBrandStages((brand as any).funnel_stages);
+      const stageCoverageCounts: Record<FunnelStageId, number> = { awareness: 0, consideration: 0, conversion: 0, retention: 0 };
+      for (const row of (stageCoverageRes.data || []) as any[]) {
+        const explicit = normaliseStageId(row.funnel_stage);
+        let stage: FunnelStageId | null = explicit;
+        if (!stage && row.content_category) {
+          stage = (resolvedStages.find((s) => s.categories.includes(row.content_category))?.id) ?? null;
+        }
+        if (stage) stageCoverageCounts[stage] += 1;
+      }
+      const funnelContext = resolvedStages
+        .map((s) => `- ${s.id} "${s.label}" — ${s.blurb} (last 28d: ${stageCoverageCounts[s.id]} posts)`) 
+        .join("\n");
+      const underServedStages = STAGE_IDS
+        .slice()
+        .sort((a, b) => stageCoverageCounts[a] - stageCoverageCounts[b])
+        .slice(0, 2);
+
+      // --- Campaign quotas: remaining = post_count - already-assigned count ---
+      const assignedCountByCampaign = new Map<string, number>();
+      for (const r of (campaignAssignedRes.data || []) as any[]) {
+        if (r.campaign_id) assignedCountByCampaign.set(r.campaign_id, (assignedCountByCampaign.get(r.campaign_id) || 0) + 1);
+      }
+      const campaignsWithQuota = campaigns.map((c: any) => {
+        const target = Math.max(0, Number(c.post_count) || 0);
+        const assigned = assignedCountByCampaign.get(c.id) || 0;
+        const remaining = Math.max(0, target - assigned);
+        return { ...c, _assigned: assigned, _remaining: remaining };
+      });
+      const campaignContext = campaignsWithQuota.length === 0
+        ? "(no active campaigns)"
+        : campaignsWithQuota
+            .map((c: any) => `- "${c.name}" (id: ${c.id}) — ${c.description || "no description"} | quota ${c._assigned}/${c.post_count} assigned, ${c._remaining} slots remaining`)
+            .join("\n");
+      const urgentCampaigns = campaignsWithQuota.filter((c: any) => c._remaining > 0);
+
 
 
       const today = new Date();
@@ -821,8 +875,14 @@ Choose the format that best serves the content's PURPOSE, not just its pillar la
 
 HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday with idea_type "holiday" and content_category "holidays". Holiday ideas should feel authentic to the brand, not generic "Happy [Holiday]" posts.
 
-TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.`,
-        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nCAMPAIGNS:\n${campaignContext}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
+TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.
+
+CRITICAL — FUNNEL STAGE COVERAGE:
+Each idea MUST be assigned a funnel_stage from: ${STAGE_IDS.join(", ")}. The week's 5–7 ideas MUST cover at least 3 of the 4 stages. Weight the mix toward UNDER-SERVED stages (listed below) so the brand's funnel stays balanced over time. Include a one-line stage_rationale for each idea explaining why that stage fits.
+
+CRITICAL — CAMPAIGN QUOTAS:
+You will be given a list of active campaigns with their remaining slots. Any campaign with remaining_slots > 0 should receive at least one idea this week (up to its remaining slots — never exceed). Set campaign_id to the campaign's exact id (uuid), or null when the idea is not tied to a campaign. Include a one-line campaign_rationale when you assign a campaign_id.`,
+        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nFUNNEL STAGES (with last-28-day coverage — favour under-served):\n${funnelContext}\nUNDER-SERVED STAGES TO PRIORITISE: ${underServedStages.join(", ")}\n\nCAMPAIGNS (with quota tracking — fill remaining slots first):\n${campaignContext}${urgentCampaigns.length > 0 ? `\nCAMPAIGNS WITH OPEN SLOTS (must be covered this week): ${urgentCampaigns.map((c: any) => `${c.name} [${c._remaining} left]`).join(", ")}` : ""}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
         tool: {
           name: "create_weekly_ideas",
           description: "Create post ideas for the week",
@@ -839,7 +899,11 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     day: { type: "string", enum: days },
                     pillar_name: { type: "string" },
                     series_name: { type: "string" },
-                    campaign_name: { type: "string" },
+                    campaign_name: { type: "string", description: "Optional — leave empty when campaign_id is set or the idea is standalone." },
+                    campaign_id: { type: "string", description: "Exact uuid of an active campaign from the CAMPAIGNS list, or empty string if not tied to a campaign." },
+                    campaign_rationale: { type: "string", description: "One line explaining why this campaign fits. Empty when no campaign." },
+                    funnel_stage: { type: "string", enum: STAGE_IDS, description: "Which funnel stage this idea serves." },
+                    stage_rationale: { type: "string", description: "One line explaining why this funnel stage fits the idea." },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
                     slide_count: { type: "integer", minimum: 2, maximum: 10, description: "Use when content_format is 'carousel' (default 5)." },
@@ -847,7 +911,8 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
                     canvas_size: { type: "string", enum: ["1080x1080", "1080x1350", "1080x1920"], description: "Pick 1080x1350 (portrait) for most single graphics — best feed performance. 1080x1080 (square) for carousels. 1080x1920 (story) only when the idea is explicitly a story." },
                     product_ref: { type: "string", description: `Optional product roster key (e.g. "P1") when this idea is anchored on ONE specific product/service. Empty string for brand-level or generic ideas. Valid keys: ${productKeyList.length ? productKeyList.join(", ") : "(none — leave empty)"}` },
                   },
-                  required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format", "content_category"],
+                  required: ["title", "prompt", "day", "pillar_name", "idea_type", "content_format", "content_category", "funnel_stage"],
+
 
                   additionalProperties: false,
                 },
@@ -891,6 +956,11 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
       // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
+      // Track per-campaign assignments this run so we never exceed remaining quota.
+      const runAssignedByCampaign = new Map<string, number>();
+      const campaignByIdMap = new Map(campaignsWithQuota.map((c: any) => [c.id, c]));
+      let driftCount = 0;
+
       const ideasToInsert = await Promise.all(result.data.ideas.map(async (idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
@@ -903,9 +973,32 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           : (defaultCanvasSize && allowedCanvas.has(defaultCanvasSize)
               ? defaultCanvasSize
               : (allowedCanvas.has(idea.canvas_size) ? idea.canvas_size : "1080x1350"));
-        const aiResolvedCampaignId = idea.campaign_name
-          ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
-          : null;
+
+        // --- Funnel stage: planner's pick wins; fall back to default; never empty. ---
+        let chosenStage: FunnelStageId | null = normaliseStageId(idea.funnel_stage);
+        if (!chosenStage) {
+          driftCount++;
+          chosenStage = normaliseStageId(defaultFunnelStage) || "awareness";
+        }
+
+        // --- Campaign: prefer planner's explicit id, then campaign_name, then default, then resolver. ---
+        let aiResolvedCampaignId: string | null = null;
+        if (typeof idea.campaign_id === "string" && idea.campaign_id.trim() && campaignByIdMap.has(idea.campaign_id)) {
+          aiResolvedCampaignId = idea.campaign_id;
+        } else if (idea.campaign_name) {
+          aiResolvedCampaignId = campaignMap.get(idea.campaign_name.toLowerCase()) || null;
+          if (idea.campaign_id) driftCount++;
+        }
+        // Quota guard: if planner over-fills a campaign, drop the assignment.
+        if (aiResolvedCampaignId) {
+          const meta: any = campaignByIdMap.get(aiResolvedCampaignId);
+          const usedThisRun = runAssignedByCampaign.get(aiResolvedCampaignId) || 0;
+          if (meta && (meta._remaining - usedThisRun) <= 0) {
+            console.log("[brand-engine] campaign quota exceeded by planner, dropping", { campaignId: aiResolvedCampaignId });
+            aiResolvedCampaignId = null;
+            driftCount++;
+          }
+        }
         let resolvedCampaignId: string | null = aiResolvedCampaignId || defaultCampaignId || null;
         if (autopilotOn) {
           const r = await resolveAutopilotCampaign({
@@ -913,10 +1006,13 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
             brandId: brand_id,
             userId,
             defaultCampaignId,
-            defaultFunnelStage,
+            defaultFunnelStage: chosenStage, // honour planner's stage choice, not just user default
             aiResolvedCampaignId,
           });
           resolvedCampaignId = r.campaignId;
+        }
+        if (resolvedCampaignId) {
+          runAssignedByCampaign.set(resolvedCampaignId, (runAssignedByCampaign.get(resolvedCampaignId) || 0) + 1);
         }
         return {
           brand_id,
@@ -937,11 +1033,20 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           day_of_week: typeof dIdx === "number" ? dIdx : null,
           strategic_arc: arc,
           playbook_role: arc,
-          funnel_stage: defaultFunnelStage,
+          funnel_stage: chosenStage,
           autopilot: autopilotOn,
           product_ref: (typeof idea.product_ref === "string" && productKeyToId[idea.product_ref]) ? productKeyToId[idea.product_ref] : null,
         };
       }));
+
+      console.log("[brand-engine] generate_weekly_ideas planner output", {
+        brand_id,
+        count: ideasToInsert.length,
+        stageDistribution: ideasToInsert.reduce((acc: Record<string, number>, i: any) => { acc[i.funnel_stage] = (acc[i.funnel_stage] || 0) + 1; return acc; }, {}),
+        campaignsAssigned: ideasToInsert.filter((i: any) => i.campaign_id).length,
+        driftCount,
+      });
+
 
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
