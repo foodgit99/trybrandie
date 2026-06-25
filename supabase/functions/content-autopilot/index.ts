@@ -637,7 +637,8 @@ async function processIdea(
 
 
   // Send email notification
-  if (userEmail && coverImageUrl) {
+  const emailRemindersEnabled = (profile as any)?.email_reminders_enabled !== false;
+  if (userEmail && coverImageUrl && emailRemindersEnabled) {
     const emailTitle = isCarousel ? `${idea.title} (carousel, ${slideCount} slides)` : idea.title;
     await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: "POST",
