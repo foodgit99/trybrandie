@@ -3624,16 +3624,29 @@ MANDATORY POLISH & FINISH: Render with a refined, glassy, premium finish — sof
 
 BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.tone_of_voice || "Professional"}. Every slide in this carousel MUST share the same palette, type lockup, and motif.${attempt > 0 ? `\n\nRETRY NOTE: The previous render of this slide was rejected by the quality critic. Pay extra attention to text legibility, contrast, and faithfulness to the visual motif.` : ""}`;
 
+        // Per-slide product targeting: if the planner anchored this slide on a
+        // specific product, attach ONLY that product's photos and tell the model
+        // to honour them. Otherwise fall back to featured-only images so brand
+        // voice is preserved without forcing irrelevant products into every slide.
+        const slideProductKey: string = typeof slide.product_ref === "string" ? slide.product_ref : "";
+        const slideProductImages = slideProductKey && productKeyToImages[slideProductKey]
+          ? productKeyToImages[slideProductKey]
+          : productImageUrls;
+        const productDirective = slideProductKey && productKeyToImages[slideProductKey]?.length
+          ? `\n\nTHIS SLIDE FEATURES PRODUCT "${productKeyToLabel[slideProductKey]}" — the attached product reference image(s) must appear as a real, recognisable hero or supporting visual. Honour the product's actual colours, shape, materials and details. Do NOT invent a different product.`
+          : "";
+        const slidePromptWithProduct = slidePrompt + productDirective;
+
         // Per-slide refs include the previous slide as a continuity anchor.
         const { refs: slideRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
           userImageUrl: user_image_url,
-          productImageUrls: productImageUrls,
+          productImageUrls: slideProductImages,
           previousImageUrl: previousImageUrl,
         });
         const slideRefLegend = buildRefLegend(slideRefs);
-        const slidePromptWithRefs = slideRefLegend ? `${slidePrompt}\n\n${slideRefLegend}` : slidePrompt;
+        const slidePromptWithRefs = slideRefLegend ? `${slidePromptWithProduct}\n\n${slideRefLegend}` : slidePromptWithProduct;
 
         const { b64: imageBase64 } = await renderWithGptImageEdits(slidePromptWithRefs, slideRefs, w, h);
         let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
