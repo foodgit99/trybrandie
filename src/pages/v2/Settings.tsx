@@ -392,9 +392,29 @@ const SettingsV2 = () => {
             </div>
           </Row>
           <Row title="Email reminders" subtitle="Sent each morning with your post.">
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Bell className="h-3.5 w-3.5" /> On
-            </span>
+            <div className="flex items-center gap-2">
+              <Bell className={`h-3.5 w-3.5 ${emailReminders ? "text-foreground" : "text-muted-foreground"}`} />
+              <Switch
+                checked={emailReminders}
+                disabled={savingEmailReminders}
+                onCheckedChange={async (checked) => {
+                  if (!user) return;
+                  setEmailReminders(checked);
+                  setSavingEmailReminders(true);
+                  const { error } = await supabase
+                    .from("profiles")
+                    .update({ email_reminders_enabled: checked } as any)
+                    .eq("user_id", user.id);
+                  setSavingEmailReminders(false);
+                  if (error) {
+                    setEmailReminders(!checked);
+                    toast({ title: "Couldn't update reminders", description: error.message, variant: "destructive" });
+                  } else {
+                    toast({ title: checked ? "Email reminders on" : "Email reminders off" });
+                  }
+                }}
+              />
+            </div>
           </Row>
           <Row
             title="Monday briefing"
