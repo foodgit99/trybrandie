@@ -143,7 +143,7 @@ serve(async (req) => {
       supabase.from("target_audiences").select("jtbd_profile, label").eq("brand_id", brand_id).limit(3),
       supabase.from("designs").select("title, prompt, trend_used").eq("brand_id", brand_id).order("created_at", { ascending: false }).limit(10),
       supabase.from("brand_trend_preferences").select("*").eq("brand_id", brand_id).maybeSingle(),
-      supabase.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
+      supabase.from("brand_products").select("id, label, description, product_type, price, features, duration, pricing_model, is_featured, image_url, gallery_images").eq("brand_id", brand_id).order("created_at", { ascending: true }).limit(10),
       fetchRecentUpdates(supabase, brand_id, { limit: 12, recencyDays: 60 }),
     ]);
 
@@ -175,16 +175,33 @@ Special Instructions: ${brand.special_instructions || "N/A"}
       ? `Active trend: ${trendPrefs.selected_trend}, Preferred: ${(trendPrefs.preferred_trends || []).join(", ")}`
       : "No trend preferences set.";
 
-    const productContext = products.length > 0
-      ? products
-          .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
+    // Featured-first keyed product roster (P1, P2 …) so the ideation agent can
+    // anchor specific ideas on specific products via product_ref.
+    const sortedProducts = [...products].sort(
+      (a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0),
+    );
+    const productKeyToId: Record<string, string> = {};
+    const productKeyList: string[] = [];
+    const productContext = sortedProducts.length > 0
+      ? sortedProducts
           .map((p: any, i: number) => {
-          const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}" (${p.product_type || "physical"}${p.price ? `, ${p.price}` : ""}${p.product_type === "service" && p.pricing_model ? `, ${p.pricing_model}` : ""}${p.product_type === "service" && p.duration ? `, ${p.duration}` : ""})`];
-          if (p.description) parts.push(`— ${p.description}`);
-          const featureLabel = p.product_type === "service" ? "Includes" : "Features";
-          if (p.features?.length > 0) parts.push(`${featureLabel}: ${p.features.join(", ")}`);
-          return parts.join(" ");
-        }).join("\n")
+            const key = `P${i + 1}`;
+            productKeyToId[key] = p.id;
+            productKeyList.push(key);
+            const meta = [p.product_type || "physical"];
+            if (p.price) meta.push(p.price);
+            if (p.product_type === "service" && p.pricing_model) meta.push(p.pricing_model);
+            if (p.product_type === "service" && p.duration) meta.push(p.duration);
+            const imgs = [p.image_url, ...(p.gallery_images || [])].filter(Boolean);
+            const imgNote = imgs.length > 0 ? ` [has ${imgs.length} reference image${imgs.length > 1 ? "s" : ""}]` : " [no image on file]";
+            const parts = [`${key} ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}" (${meta.join(", ")})${imgNote}`];
+            if (p.description) parts.push(`— ${p.description}`);
+            if (p.features?.length > 0) {
+              const featureLabel = p.product_type === "service" ? "Includes" : "Features";
+              parts.push(`${featureLabel}: ${p.features.join(", ")}`);
+            }
+            return parts.join(" ");
+          }).join("\n")
       : "No products or services catalogued yet.";
 
     // Confidence-aware injection. The shared formatter tags each line with
@@ -193,7 +210,11 @@ Special Instructions: ${brand.special_instructions || "N/A"}
     // fetchRecentUpdates (default minTier = "medium").
     const updatesBlock = formatUpdatesForPrompt(recentUpdates);
 
-    const fullContext = `${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}${updatesBlock}`;
+    const productKeysHint = productKeyList.length > 0
+      ? `\n\nPRODUCT REFERENCING: When an idea is anchored on ONE specific product/service from the roster above (launches, promos, restocks, "behind-the-build", testimonials about a specific item), set its product_ref to that roster key (e.g. "P1"). For brand-level, generic, or multi-product ideas leave product_ref as "". Valid keys: ${productKeyList.join(", ")}.`
+      : "";
+
+    const fullContext = `${brandContext}\n\nPRODUCTS & SERVICES:\n${productContext}${productKeysHint}\n\nAUDIENCE INTELLIGENCE:\n${audienceContext}\n\nPAST DESIGNS:\n${pastDesignContext}\n\nTREND PREFERENCES:\n${trendContext}${updatesBlock}`;
 
     // --- WEEKLY GENERATION TRACKING HELPERS ---
     const getISOWeekStart = () => {
