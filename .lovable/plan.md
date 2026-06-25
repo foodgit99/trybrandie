@@ -1,52 +1,52 @@
-# Plan: Blueprint planner becomes funnel- and campaign-aware
+## Goal
+Add a dedicated `/profile` route where the user can manage personal profile info, security, contact, and locale, with an avatar uploader backed by a new storage bucket.
 
-Today, `generate_weekly_ideas` in `brand-engine` plans the 7-day arc from brand, audience, products, trends and history — then stamps every idea with the user's *default* funnel stage and *default* campaign. The LLM never sees the funnel structure or the open campaign quotas, so it can't deliberately spread posts across stages or fill specific campaigns.
+## 1. Backend
 
-This plan feeds both structures into the planner so the LLM assigns `funnel_stage` and `campaign_id` *per idea*, with the existing defaults acting only as a safety net.
+**Migration** — extend `public.profiles`:
+- `avatar_url text`
+- `whatsapp_number text` (already exists per `handle_new_user` — verify; add only if missing)
+- `locale text` (e.g. `en`, `en-NG`)
+- `timezone text` (IANA, e.g. `Africa/Lagos`)
 
-## What changes
+No new tables. Existing RLS on `profiles` already restricts to `auth.uid()`.
 
-### 1. Context assembly (brand-engine, `generate_weekly_ideas`)
-Pull two new context blocks before the planner call:
+**Storage** — create public `avatars` bucket via `supabase--storage_create_bucket`. Add RLS on `storage.objects`:
+- Public read for `bucket_id='avatars'`.
+- Authenticated insert/update/delete only when the first path segment equals `auth.uid()::text` (so each user owns `avatars/<uid>/...`).
 
-- **Funnel stages** — `resolveBrandStages(brand.funnel_stages)` from `src/lib/funnelStages.ts` (replicated server-side). Pass id, label, blurb, and a rolling 4-week coverage count per stage (from `content_ideas` joined to `weekly_blueprints`) so the agent knows which stages are under-served.
-- **Active campaigns + quotas** — for the target brand, fetch open campaigns with: id, name, description, `post_count` target, posts already assigned, posts already scheduled in prior weeks, and remaining slots. Mark campaigns whose `end_date` falls inside or before the planning week as "must-fill this week."
+## 2. Frontend
 
-### 2. Planner prompt + schema
-Extend the `generate_weekly_ideas` system prompt with a "Funnel & Campaign rules" section:
+**New route** `/profile` registered in `src/App.tsx` (auth-guarded like `/settings`). Page file: `src/pages/v2/Profile.tsx`, using `NewAppHeader` + `NewFloatingNav` layout (matches v2 pages) with `lg:pl-20`.
 
-- The 7 ideas must cover **at least 3 of 4 funnel stages**, weighted toward under-served stages from the coverage counts.
-- Any campaign with `remaining_slots > 0` and `end_date <= week_end` must receive at least one idea this week (up to remaining slots).
-- Each idea must justify its `funnel_stage` in a one-line `stage_rationale` and (if assigned) its `campaign_id` in `campaign_rationale`.
+**Sections** (single page, card-grouped):
+1. **Identity** — avatar uploader (preview, replace, remove), full name, read-only email.
+2. **Contact** — WhatsApp number with country-code helper.
+3. **Locale** — language select (subset) + timezone select (IANA list via `Intl.supportedValuesOf('timeZone')`).
+4. **Security** — change password (current + new + confirm via `supabase.auth.updateUser({ password })`), "Sign out of all sessions" (`supabase.auth.signOut({ scope: 'global' })`).
 
-Update the JSON output schema for each idea to require:
-- `funnel_stage`: one of the resolved stage ids
-- `campaign_id`: uuid of an active campaign, or `null`
-- `stage_rationale`, `campaign_rationale`
+**Form** — `react-hook-form` + `zod` schema (trim, length caps, E.164-ish phone regex, password ≥ 8 chars). Save persists to `profiles` via Supabase upsert keyed on `user_id`.
 
-### 3. Validation + fallback (insert path)
-Before insert in `brand-engine`:
+**Avatar upload flow** — client picks file (≤2 MB, image/*), uploads to `avatars/<uid>/avatar-<ts>.<ext>`, gets public URL, writes to `profiles.avatar_url`. Old object best-effort deleted.
 
-- Validate `funnel_stage` against resolved stages; if invalid/missing → fall back to `autopilot_settings.default_funnel_stage`.
-- Validate `campaign_id` belongs to the brand and is active; if invalid/missing → run existing `resolveAutopilotCampaign` with the idea's chosen stage as `funnelStage` input (so fallback respects the planner's intent, not just the user default).
-- Log validation drift to `autopilot_run_events` so we can monitor how often the planner picks valid vs. fallback values.
+**Settings link** — add a "Manage profile" row at the top of `src/pages/v2/Settings.tsx` (and legacy `src/pages/Settings.tsx`) that navigates to `/profile`.
 
-### 4. `fill_empty_days` parity
-Mirror the same context + schema in `fill_empty_days` so single-day repairs respect funnel coverage and campaign quotas already established by the rest of the week (pass the existing week's stage/campaign distribution as "already covered" context).
+**Header avatar** (small) — `NewAppHeader` shows the avatar thumbnail next to credits when `avatar_url` exists; click → `/profile`. Falls back to initials.
 
-### 5. UI surface (read-only this round)
-On `/blueprint`, show each idea's resolved `funnel_stage` chip and `campaign` chip on the day card (data already exists post-insert). No editor changes — `FunnelsEditableTab` and `CampaignsEditableTab` already let users move things after the fact.
+## 3. Validation & UX
+- Toasts for save success/failure.
+- Disabled save button until form is dirty + valid.
+- Optimistic avatar preview; revert on upload failure.
+- Mobile-first layout, cards stack; matches warm neutral palette tokens.
 
-## Out of scope
-- No schema migration. `content_ideas.funnel_stage` and `campaign_id` already exist; campaigns already have `post_count`.
-- Trends, products, audience context untouched.
-- Autopilot defaults stay as the last-resort fallback, not the primary signal.
+## 4. Out of scope
+- Email change (Supabase requires re-verification flow — flag as future).
+- 2FA.
+- Deleting account (already covered elsewhere per knowledge base).
 
-## Files touched
-- `supabase/functions/brand-engine/index.ts` — context fetch, prompt, schema, validation, both actions.
-- `supabase/functions/_shared/resolve-autopilot-campaign.ts` — accept an explicit `funnelStage` arg already supported; verify signature.
-- `src/pages/v2/Blueprint.tsx` — render stage + campaign chips on each day card.
-
-## Validation
-- Manual smoke: trigger `generate_weekly_ideas` on a brand with 2 active campaigns and an under-covered "conversion" stage; confirm at least one idea per active campaign and conversion-stage representation.
-- Inspect `autopilot_run_events` for drift counters after the run.
+## Technical notes
+- Files touched/created:
+  - new: `src/pages/v2/Profile.tsx`
+  - edit: `src/App.tsx`, `src/components/v2/NewAppHeader.tsx`, `src/pages/v2/Settings.tsx`, `src/pages/Settings.tsx`
+  - migration: `profiles` columns + `storage.objects` policies
+  - storage tool: create `avatars` bucket (public)

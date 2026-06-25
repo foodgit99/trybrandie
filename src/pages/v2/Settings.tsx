@@ -15,6 +15,7 @@ import {
   Loader2,
   LogOut,
   Sparkles,
+  User,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
@@ -202,6 +203,26 @@ const SettingsV2 = () => {
             Signed in as <span className="text-foreground">{user.email}</span>
           </p>
         </header>
+
+        <Section label="Account">
+          <button
+            onClick={() => navigate("/profile")}
+            className="w-full flex items-center justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 hover:border-foreground/40 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-full bg-muted grid place-items-center">
+                <User className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium leading-tight">Manage profile</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Photo, name, contact, password, locale.
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </button>
+        </Section>
 
         <Section label="Autopilot">
           <Row

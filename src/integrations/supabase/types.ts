@@ -1947,6 +1947,7 @@ export type Database = {
           last_daily_push_at: string | null
           last_monday_briefing_at: string | null
           last_weekly_recap_at: string | null
+          locale: string | null
           logo_generations_used: number
           monday_briefing_hour: number
           paid_credits: number
@@ -1955,6 +1956,7 @@ export type Database = {
           referral_code: string | null
           referred_by: string | null
           subscription_tier: string
+          timezone: string | null
           trend_intel_gen_count: number
           trend_intel_gen_reset_at: string
           updated_at: string
@@ -1982,6 +1984,7 @@ export type Database = {
           last_daily_push_at?: string | null
           last_monday_briefing_at?: string | null
           last_weekly_recap_at?: string | null
+          locale?: string | null
           logo_generations_used?: number
           monday_briefing_hour?: number
           paid_credits?: number
@@ -1990,6 +1993,7 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
+          timezone?: string | null
           trend_intel_gen_count?: number
           trend_intel_gen_reset_at?: string
           updated_at?: string
@@ -2017,6 +2021,7 @@ export type Database = {
           last_daily_push_at?: string | null
           last_monday_briefing_at?: string | null
           last_weekly_recap_at?: string | null
+          locale?: string | null
           logo_generations_used?: number
           monday_briefing_hour?: number
           paid_credits?: number
@@ -2025,6 +2030,7 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
+          timezone?: string | null
           trend_intel_gen_count?: number
           trend_intel_gen_reset_at?: string
           updated_at?: string

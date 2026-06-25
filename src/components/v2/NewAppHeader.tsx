@@ -26,6 +26,7 @@ import {
   Wand2,
   History,
   LifeBuoy,
+  User,
 } from "lucide-react";
 
 
@@ -108,6 +109,10 @@ const NewAppHeader = () => {
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/plans")}>
               <CreditCard className="h-4 w-4" />
               Buy Credits
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/profile")}>
+              <User className="h-4 w-4" />
+              Profile
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/settings")}>
               <Settings className="h-4 w-4" />
