@@ -8,9 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Camera, Loader2, Lock, LogOut, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, Download, Loader2, Lock, LogOut, ShieldAlert, Trash2 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const LOCALES = [
   { id: "en", label: "English" },
