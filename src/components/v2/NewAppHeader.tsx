@@ -69,6 +69,11 @@ const NewAppHeader = () => {
               <Calendar className="h-4 w-4" />
               Content Hub
             </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/blueprint")}>
+              <Map className="h-4 w-4" />
+              Blueprint
+            </DropdownMenuItem>
+
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/engine")}>
               <Cpu className="h-4 w-4" />
               Engine
