@@ -71,6 +71,8 @@ type Idea = {
   content_category: string | null;
   funnel_stage: string | null;
   campaign_id: string | null;
+  campaign_rationale: string | null;
+  funnel_rationale: string | null;
   design_id: string | null;
   design?: { image_url: string | null; caption: string | null } | null;
   created_at: string;
