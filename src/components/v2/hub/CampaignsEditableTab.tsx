@@ -477,3 +477,177 @@ function ManagePostsDialog({
 }
 
 export default CampaignsEditableTab;
+
+/* -------------------- Campaign Quota Card (per-card view) -------------------- */
+
+function CampaignQuotaCard({
+  campaign,
+  category,
+  linkedIdeas,
+  assigned,
+  target,
+  remaining,
+  fillPct,
+  deliveredPct,
+  isOver,
+  onOpenPost,
+  onEdit,
+  onManage,
+  onDelete,
+}: {
+  campaign: CampaignRow;
+  category: ReturnType<typeof getCategoryMeta>;
+  linkedIdeas: CampaignIdea[];
+  assigned: number;
+  target: number;
+  remaining: number;
+  fillPct: number;
+  deliveredPct: number;
+  isOver: boolean;
+  onOpenPost: (id: string) => void;
+  onEdit: () => void;
+  onManage: () => void;
+  onDelete: () => void;
+}) {
+  const [showReasons, setShowReasons] = useState(false);
+  const firstIdea = linkedIdeas[0];
+
+  return (
+    <div className="relative rounded-2xl border border-border bg-card/40 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => firstIdea && onOpenPost(firstIdea.id)}
+          disabled={!firstIdea}
+          className="text-left min-w-0 flex-1 disabled:cursor-default"
+        >
+          <div className="text-sm font-medium truncate">{campaign.name}</div>
+          <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+            {campaign.description || "No description"}
+          </div>
+        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {category && (
+            <Badge variant="outline" className={cn("rounded-full text-[10px]", category.badgeClass)}>
+              {category.emoji} {category.short}
+            </Badge>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Campaign actions">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={onEdit}>
+                <Pencil className="h-3.5 w-3.5 mr-2" /> Edit details
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onManage}>
+                <Users className="h-3.5 w-3.5 mr-2" /> Manage posts
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={onDelete}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Quota row */}
+      <div className="mt-4 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Quota</div>
+          <div className="text-sm font-medium tabular-nums">
+            {assigned}<span className="text-muted-foreground"> / {target || "∞"}</span>
+            <span className="text-xs text-muted-foreground"> assigned</span>
+          </div>
+        </div>
+        <Badge
+          variant="outline"
+          className={cn(
+            "rounded-full text-[10px]",
+            isOver
+              ? "border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10"
+              : remaining > 0
+                ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+                : "text-muted-foreground"
+          )}
+        >
+          {isOver
+            ? `Over by ${assigned - target}`
+            : remaining > 0
+              ? `${remaining} slot${remaining === 1 ? "" : "s"} left`
+              : "Full"}
+        </Badge>
+      </div>
+      <div
+        className="mt-1.5 h-1.5 rounded-full bg-secondary overflow-hidden"
+        role="progressbar"
+        aria-valuenow={fillPct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${assigned} of ${target || "unlimited"} posts assigned`}
+      >
+        <div
+          className={cn("h-full transition-[width]", isOver ? "bg-amber-500" : "bg-foreground/80")}
+          style={{ width: `${Math.min(100, fillPct)}%` }}
+        />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+        <span>{deliveredPct}% delivered</span>
+        <button
+          type="button"
+          onClick={onManage}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
+          Manage posts <ArrowRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      {/* Why these posts? */}
+      {linkedIdeas.length > 0 && (
+        <div className="mt-3 border-t border-border pt-3">
+          <button
+            type="button"
+            onClick={() => setShowReasons((v) => !v)}
+            className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+            aria-expanded={showReasons}
+          >
+            {showReasons ? "Hide" : "Why these posts?"}
+          </button>
+          {showReasons && (
+            <ul className="mt-2 space-y-2">
+              {linkedIdeas.slice(0, 8).map((i) => (
+                <li key={i.id} className="text-[11px] leading-snug">
+                  <button
+                    type="button"
+                    onClick={() => onOpenPost(i.id)}
+                    className="text-left w-full hover:bg-secondary/40 rounded-lg p-2 -mx-2 transition-colors"
+                  >
+                    <span className="block text-foreground truncate">{i.title}</span>
+                    <span className="block text-muted-foreground italic mt-0.5">
+                      {i.campaign_rationale
+                        ? `"${i.campaign_rationale}"`
+                        : "Manually assigned — no planner rationale recorded."}
+                    </span>
+                  </button>
+                </li>
+              ))}
+              {linkedIdeas.length > 8 && (
+                <li className="text-[10px] text-muted-foreground pl-2">
+                  +{linkedIdeas.length - 8} more…
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
