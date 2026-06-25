@@ -3291,8 +3291,6 @@ Continuity rules:
 - Define ONE narrative_thread (one sentence) and echo it across slides.
 - Per-slide copy: short headline (3-8 words), optional subheadline (0-10 words), and a concise supporting body on EVERY slide (6-18 words) so the carousel has a clear narrative arc.
 - Per-slide product_ref: when a slide visibly features, demonstrates, or directly references ONE specific product/service from the roster above, set product_ref to that roster key (e.g. "P1"). The renderer will attach that product's photo as a reference. For abstract / brand-level / general-tip slides, set product_ref to "". NEVER invent a key that isn't in the roster.
-- Define ONE narrative_thread (one sentence) and echo it across slides.
-- Per-slide copy: short headline (3-8 words), optional subheadline (0-10 words), and a concise supporting body on EVERY slide (6-18 words) so the carousel has a clear narrative arc.
 
 Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return more, do not return fewer.`;
 
