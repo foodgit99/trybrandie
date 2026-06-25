@@ -1034,8 +1034,8 @@ You will be given a list of active campaigns with their remaining slots. Any cam
           strategic_arc: arc,
           playbook_role: arc,
           funnel_stage: chosenStage,
-          funnel_rationale: typeof idea.funnel_rationale === "string" && idea.funnel_rationale.trim()
-            ? idea.funnel_rationale.trim().slice(0, 280)
+          funnel_rationale: typeof idea.stage_rationale === "string" && idea.stage_rationale.trim()
+            ? idea.stage_rationale.trim().slice(0, 280)
             : null,
           campaign_rationale: resolvedCampaignId && typeof idea.campaign_rationale === "string" && idea.campaign_rationale.trim()
             ? idea.campaign_rationale.trim().slice(0, 280)
