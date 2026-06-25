@@ -60,7 +60,7 @@ const NewAppHeader = () => {
               <Menu className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 rounded-xl p-1">
+          <DropdownMenuContent align="end" className="w-52 rounded-xl p-1 max-h-[80vh] overflow-y-auto">
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/cockpit")}>
               <Gauge className="h-4 w-4" />
               Cockpit
