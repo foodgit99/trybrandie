@@ -1275,6 +1275,8 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
             strategic_arc: arc,
             playbook_role: arc,
             funnel_stage: defaultFunnelStage,
+            funnel_rationale: "Filled into your default funnel stage to keep the week complete.",
+            campaign_rationale: resolvedCampaignId ? "Routed via your default campaign for empty-day fill." : null,
             autopilot: autopilotOn,
             product_ref: (typeof idea.product_ref === "string" && productKeyToId[idea.product_ref]) ? productKeyToId[idea.product_ref] : null,
           };
