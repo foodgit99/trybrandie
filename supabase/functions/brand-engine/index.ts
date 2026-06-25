@@ -939,6 +939,7 @@ TREND INTELLIGENCE: If industry trends are provided, weave them naturally into c
           playbook_role: arc,
           funnel_stage: defaultFunnelStage,
           autopilot: autopilotOn,
+          product_ref: (typeof idea.product_ref === "string" && productKeyToId[idea.product_ref]) ? productKeyToId[idea.product_ref] : null,
         };
       }));
 
