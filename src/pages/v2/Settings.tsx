@@ -91,6 +91,8 @@ const SettingsV2 = () => {
   const [briefingHour, setBriefingHour] = useState<number>(7);
   const [pushHour, setPushHour] = useState<number>(8);
   const [pushTz, setPushTz] = useState<string>("Africa/Lagos");
+  const [emailReminders, setEmailReminders] = useState<boolean>(true);
+  const [savingEmailReminders, setSavingEmailReminders] = useState(false);
   const [savingBriefing, setSavingBriefing] = useState(false);
   const [savingPush, setSavingPush] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
@@ -101,7 +103,7 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("whatsapp_number, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone")
+        .select("whatsapp_number, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone, email_reminders_enabled")
         .eq("user_id", user.id)
         .maybeSingle();
       setWhatsapp((data?.whatsapp_number as string) ?? "");
@@ -109,6 +111,7 @@ const SettingsV2 = () => {
       setBriefingHour(((data as any)?.monday_briefing_hour as number) ?? 7);
       setPushHour(((data as any)?.daily_push_hour as number) ?? 8);
       setPushTz(((data as any)?.posting_timezone as string) ?? "Africa/Lagos");
+      setEmailReminders(((data as any)?.email_reminders_enabled as boolean) ?? true);
     })();
   }, [user]);
 
