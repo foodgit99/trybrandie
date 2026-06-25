@@ -83,10 +83,12 @@ const NewAppHeader = () => {
               <BarChart3 className="h-4 w-4" />
               Report
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/studio")}>
               <Wand2 className="h-4 w-4" />
               Studio (Manual)
             </DropdownMenuItem>
+
 
 
             {isAdmin && (
