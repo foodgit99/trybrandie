@@ -3423,6 +3423,18 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
       if (!carouselPlan.slides[lastIdx].cta || String(carouselPlan.slides[lastIdx].cta).trim().length === 0) {
         carouselPlan.slides[lastIdx].cta = "DM us to get started";
       }
+      // Sanitise product_ref on every slide — drop unknown keys silently so the
+      // renderer can branch on a clean value. Optionally seed the hook slide
+      // with the idea-linked product if the planner left it empty.
+      const validKeySet = new Set(validProductKeys);
+      for (const s of carouselPlan.slides) {
+        const raw = typeof s.product_ref === "string" ? s.product_ref.trim() : "";
+        s.product_ref = raw && validKeySet.has(raw) ? raw : "";
+      }
+      if (seedProductKey && !carouselPlan.slides.some((s: any) => s.product_ref === seedProductKey)) {
+        // Prefer a value/proof slide; fall back to the hook.
+        const target = carouselPlan.slides.find((s: any) => s.arc_role === "value" || s.arc_role === "proof") || carouselPlan.slides[0];
+        if (target) target.product_ref = seedProductKey;
 
       // ----- Validate & normalise carousel copy_structure BEFORE rendering -----
       // Every slide must follow the same copy_structure shape (same set of
