@@ -956,6 +956,11 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
+      // Track per-campaign assignments this run so we never exceed remaining quota.
+      const runAssignedByCampaign = new Map<string, number>();
+      const campaignByIdMap = new Map(campaignsWithQuota.map((c: any) => [c.id, c]));
+      let driftCount = 0;
+
       const ideasToInsert = await Promise.all(result.data.ideas.map(async (idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
@@ -968,9 +973,32 @@ You will be given a list of active campaigns with their remaining slots. Any cam
           : (defaultCanvasSize && allowedCanvas.has(defaultCanvasSize)
               ? defaultCanvasSize
               : (allowedCanvas.has(idea.canvas_size) ? idea.canvas_size : "1080x1350"));
-        const aiResolvedCampaignId = idea.campaign_name
-          ? campaignMap.get(idea.campaign_name.toLowerCase()) || null
-          : null;
+
+        // --- Funnel stage: planner's pick wins; fall back to default; never empty. ---
+        let chosenStage: FunnelStageId | null = normaliseStageId(idea.funnel_stage);
+        if (!chosenStage) {
+          driftCount++;
+          chosenStage = normaliseStageId(defaultFunnelStage) || "awareness";
+        }
+
+        // --- Campaign: prefer planner's explicit id, then campaign_name, then default, then resolver. ---
+        let aiResolvedCampaignId: string | null = null;
+        if (typeof idea.campaign_id === "string" && idea.campaign_id.trim() && campaignByIdMap.has(idea.campaign_id)) {
+          aiResolvedCampaignId = idea.campaign_id;
+        } else if (idea.campaign_name) {
+          aiResolvedCampaignId = campaignMap.get(idea.campaign_name.toLowerCase()) || null;
+          if (idea.campaign_id) driftCount++;
+        }
+        // Quota guard: if planner over-fills a campaign, drop the assignment.
+        if (aiResolvedCampaignId) {
+          const meta: any = campaignByIdMap.get(aiResolvedCampaignId);
+          const usedThisRun = runAssignedByCampaign.get(aiResolvedCampaignId) || 0;
+          if (meta && (meta._remaining - usedThisRun) <= 0) {
+            console.log("[brand-engine] campaign quota exceeded by planner, dropping", { campaignId: aiResolvedCampaignId });
+            aiResolvedCampaignId = null;
+            driftCount++;
+          }
+        }
         let resolvedCampaignId: string | null = aiResolvedCampaignId || defaultCampaignId || null;
         if (autopilotOn) {
           const r = await resolveAutopilotCampaign({
@@ -978,10 +1006,13 @@ You will be given a list of active campaigns with their remaining slots. Any cam
             brandId: brand_id,
             userId,
             defaultCampaignId,
-            defaultFunnelStage,
+            defaultFunnelStage: chosenStage, // honour planner's stage choice, not just user default
             aiResolvedCampaignId,
           });
           resolvedCampaignId = r.campaignId;
+        }
+        if (resolvedCampaignId) {
+          runAssignedByCampaign.set(resolvedCampaignId, (runAssignedByCampaign.get(resolvedCampaignId) || 0) + 1);
         }
         return {
           brand_id,
@@ -1002,11 +1033,20 @@ You will be given a list of active campaigns with their remaining slots. Any cam
           day_of_week: typeof dIdx === "number" ? dIdx : null,
           strategic_arc: arc,
           playbook_role: arc,
-          funnel_stage: defaultFunnelStage,
+          funnel_stage: chosenStage,
           autopilot: autopilotOn,
           product_ref: (typeof idea.product_ref === "string" && productKeyToId[idea.product_ref]) ? productKeyToId[idea.product_ref] : null,
         };
       }));
+
+      console.log("[brand-engine] generate_weekly_ideas planner output", {
+        brand_id,
+        count: ideasToInsert.length,
+        stageDistribution: ideasToInsert.reduce((acc: Record<string, number>, i: any) => { acc[i.funnel_stage] = (acc[i.funnel_stage] || 0) + 1; return acc; }, {}),
+        campaignsAssigned: ideasToInsert.filter((i: any) => i.campaign_id).length,
+        driftCount,
+      });
+
 
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
