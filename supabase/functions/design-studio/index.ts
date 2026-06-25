@@ -3464,6 +3464,9 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
         // Prefer a value/proof slide; fall back to the hook.
         const target = carouselPlan.slides.find((s: any) => s.arc_role === "value" || s.arc_role === "proof") || carouselPlan.slides[0];
         if (target) target.product_ref = seedProductKey;
+      }
+
+
 
       // ----- Validate & normalise carousel copy_structure BEFORE rendering -----
       // Every slide must follow the same copy_structure shape (same set of
