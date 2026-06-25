@@ -8,9 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Camera, Loader2, Lock, LogOut, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, Download, Loader2, Lock, LogOut, ShieldAlert, Trash2 } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const LOCALES = [
   { id: "en", label: "English" },
@@ -73,6 +85,9 @@ const ProfilePage = () => {
   const [pwConfirm, setPwConfirm] = useState("");
   const [savingPw, setSavingPw] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [requestingDelete, setRequestingDelete] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const timezones = useMemo<string[]>(() => {
     try {
@@ -229,6 +244,82 @@ const ProfilePage = () => {
       toast({ title: "Couldn't update password", description: err.message, variant: "destructive" });
     } finally {
       setSavingPw(false);
+    }
+  };
+
+  const exportMyData = async () => {
+    if (!user) return;
+    setExporting(true);
+    try {
+      const tables = [
+        "profiles",
+        "brands",
+        "brand_products",
+        "target_audiences",
+        "content_pillars",
+        "content_ideas",
+        "campaigns",
+        "designs",
+        "weekly_blueprints",
+        "autopilot_settings",
+        "brand_trend_preferences",
+        "subscriptions",
+        "payment_transactions",
+        "support_tickets",
+      ] as const;
+
+      const payload: Record<string, unknown> = {
+        exported_at: new Date().toISOString(),
+        user: { id: user.id, email: user.email },
+      };
+
+      for (const t of tables) {
+        const { data, error } = await supabase.from(t as any).select("*");
+        payload[t] = error ? { error: error.message } : data ?? [];
+      }
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `brandie-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export downloaded." });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!user) return;
+    setRequestingDelete(true);
+    try {
+      const { error } = await supabase.from("support_tickets").insert({
+        user_id: user.id,
+        subject: "Account deletion request",
+        message: `Email: ${user.email}\nUser ID: ${user.id}\n\nReason: ${deleteReason || "(not provided)"}`,
+        status: "open",
+        category: "account_deletion",
+      } as any);
+      if (error) throw error;
+      setDeleteReason("");
+      toast({
+        title: "Deletion requested.",
+        description: "Our team will email you within 3 business days.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Couldn't submit request",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setRequestingDelete(false);
     }
   };
 
@@ -455,6 +546,93 @@ const ProfilePage = () => {
             </Button>
           </div>
         </Section>
+
+        <Section label="Data & account">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1 max-w-md">
+              <p className="text-sm font-medium">Export your data</p>
+              <p className="text-[12px] text-muted-foreground">
+                Download a JSON archive of your profile, brands, content, designs, and billing
+                history.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="rounded-full"
+              onClick={exportMyData}
+              disabled={exporting}
+            >
+              {exporting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Export data
+            </Button>
+          </div>
+
+          <div className="h-px bg-border" />
+
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1 max-w-md">
+              <p className="text-sm font-medium">Request account deletion</p>
+              <p className="text-[12px] text-muted-foreground">
+                We'll permanently remove your account, brands, and content within 3 business days.
+                This can't be undone.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full text-destructive hover:text-destructive"
+                  disabled={requestingDelete}
+                >
+                  <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                  Request deletion
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete your Brandie account?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This submits a deletion request to our team. Once processed, your account and
+                    all associated data will be permanently removed. Consider exporting your data
+                    first.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="delete_reason" className="text-xs">
+                    Reason (optional)
+                  </Label>
+                  <Textarea
+                    id="delete_reason"
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Help us improve — what's prompting this?"
+                    maxLength={500}
+                    rows={3}
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={requestDeletion}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {requestingDelete ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    ) : null}
+                    Submit request
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </Section>
+
 
         <div className="flex justify-end pb-12">
           <Button
