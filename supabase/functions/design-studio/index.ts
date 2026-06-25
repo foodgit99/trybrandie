@@ -3185,30 +3185,87 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
         }
       }
 
-      let productImageUrls: string[] = [];
+      let productImageUrls: string[] = []; // fallback flat list (featured-only) for slides w/o product_ref
+      const productRoster: Array<{
+        key: string;
+        id: string;
+        label: string;
+        images: string[];
+        is_featured: boolean;
+      }> = [];
       const productSummaries: string[] = [];
+      // Seed product_ref from a linked content_idea if present, so the arc planner
+      // gets a strong default for at least one slide.
+      let seedProductId: string | null = null;
+      if (contentIdeaId) {
+        try {
+          const { data: ideaRow } = await adminClient
+            .from("content_ideas")
+            .select("product_ref")
+            .eq("id", contentIdeaId)
+            .maybeSingle();
+          seedProductId = (ideaRow as any)?.product_ref || null;
+        } catch (e) {
+          console.log("[carousel] idea product_ref fetch failed:", e);
+        }
+      }
       if (brand?.id) {
         try {
           const { data: productData } = await adminClient
             .from("brand_products")
-            .select("label, description, features, product_type, price, image_url, gallery_images")
+            .select("id, label, description, features, product_type, price, image_url, gallery_images, is_featured, pricing_model, duration")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
-            .limit(6);
+            .limit(8);
           if (productData && productData.length > 0) {
-            productImageUrls = productData.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
-            for (const p of productData.slice(0, 4) as any[]) {
+            // Featured-first, then any product matching the seed idea is bumped to the top.
+            const sorted = [...productData].sort((a: any, b: any) => {
+              if (seedProductId) {
+                if (a.id === seedProductId && b.id !== seedProductId) return -1;
+                if (b.id === seedProductId && a.id !== seedProductId) return 1;
+              }
+              return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+            });
+            sorted.slice(0, 6).forEach((p: any, i: number) => {
+              const key = `P${i + 1}`;
+              const imgs = [p.image_url, ...(p.gallery_images || [])].filter(Boolean);
+              productRoster.push({
+                key,
+                id: p.id,
+                label: p.label || p.product_type || "Product",
+                images: imgs,
+                is_featured: !!p.is_featured,
+              });
               const feats = Array.isArray(p.features) ? p.features.slice(0, 3).join(", ") : "";
-              const summary = `- ${p.label || p.product_type || "Product"}${p.price ? ` (${p.price})` : ""}${p.description ? `: ${String(p.description).slice(0, 120)}` : ""}${feats ? ` | features: ${feats}` : ""}`;
-              productSummaries.push(summary);
-            }
+              const meta = [p.product_type || "physical"];
+              if (p.price) meta.push(p.price);
+              if (p.product_type === "service" && p.pricing_model) meta.push(p.pricing_model);
+              if (p.product_type === "service" && p.duration) meta.push(p.duration);
+              const imgNote = imgs.length > 0 ? ` [has ${imgs.length} reference image${imgs.length > 1 ? "s" : ""}]` : " [no image on file]";
+              productSummaries.push(`- ${key} ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}" (${meta.join(", ")})${imgNote}${p.description ? `: ${String(p.description).slice(0, 120)}` : ""}${feats ? ` | features: ${feats}` : ""}`);
+            });
+            // Featured-only fallback for slides with no explicit product_ref.
+            const featuredImages = productRoster
+              .filter((p) => p.is_featured)
+              .flatMap((p) => p.images.slice(0, 1));
+            productImageUrls = featuredImages.length > 0
+              ? featuredImages.slice(0, 2)
+              : productRoster.slice(0, 1).flatMap((p) => p.images.slice(0, 1));
           }
         } catch (e) {
           console.log("[carousel] product fetch failed:", e);
         }
       }
+      const productKeyToImages: Record<string, string[]> = {};
+      const productKeyToLabel: Record<string, string> = {};
+      for (const p of productRoster) {
+        productKeyToImages[p.key] = p.images.slice(0, 3); // cap per slide
+        productKeyToLabel[p.key] = p.label;
+      }
+      const validProductKeys = productRoster.map((p) => p.key);
+      const seedProductKey = seedProductId ? productRoster.find((p) => p.id === seedProductId)?.key || null : null;
       const productsContext = productSummaries.length
-        ? `\nPRODUCTS / SERVICES (use these as concrete anchors in interior slides):\n${productSummaries.join("\n")}`
+        ? `\nPRODUCTS / SERVICES ROSTER (each prefixed with a key like P1, P2 — use these keys in slide.product_ref to anchor a slide to a specific product):\n${productSummaries.join("\n")}${seedProductKey ? `\n\nThis carousel was launched from an idea anchored on ${seedProductKey} "${productKeyToLabel[seedProductKey]}" — at least one slide MUST set product_ref to "${seedProductKey}".` : ""}`
         : "";
 
       const trendContextArc = trend && trend !== "none"
