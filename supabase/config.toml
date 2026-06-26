@@ -83,4 +83,9 @@ verify_jwt = false
 [functions.email-marketing-send]
 verify_jwt = false
 
+[functions.email-marketing-verify-domain]
+verify_jwt = false
+
+
+
 
