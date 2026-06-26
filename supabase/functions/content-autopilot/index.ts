@@ -486,21 +486,38 @@ async function processIdea(
     designPayload.trend_intensity = trendPref.default_trend_intensity || 40;
   }
 
-  // Call design-studio
-  const designRes = await fetch(`${supabaseUrl}/functions/v1/design-studio`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
-    },
-    body: JSON.stringify(designPayload),
-  });
+  // Call design-studio with bounded retry on 429 (gateway per-trace rate limit).
+  // We parse the "Retry after Nms" hint and back off + jitter before retrying.
+  const MAX_429_RETRIES = 2;
+  let designRes: Response | null = null;
+  let errBody = "";
+  for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
+    designRes = await fetch(`${supabaseUrl}/functions/v1/design-studio`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify(designPayload),
+    });
+    if (designRes.ok) { errBody = ""; break; }
+    errBody = await designRes.text();
 
-  if (!designRes.ok) {
-    const errBody = await designRes.text();
-    console.error(`[autopilot] design-studio failed for idea ${idea.id}: ${designRes.status} ${errBody}`);
+    if (designRes.status === 429 && attempt < MAX_429_RETRIES) {
+      const m = errBody.match(/Retry after\s+(\d+)\s*ms/i);
+      const waitMs = (m ? Number(m[1]) : 8000) + 500 + Math.floor(Math.random() * 1500);
+      console.warn(`[autopilot] 429 on idea ${idea.id}, attempt ${attempt + 1}/${MAX_429_RETRIES}, waiting ${waitMs}ms`);
+      await logEvent(supabase, runId, idea.id, idea.brand_id, "rate_limited", `wait_ms=${waitMs}`, baseMeta);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+    break;
+  }
 
-    if (designRes.status === 402) {
+  if (!designRes || !designRes.ok) {
+    console.error(`[autopilot] design-studio failed for idea ${idea.id}: ${designRes?.status} ${errBody}`);
+
+    if (designRes?.status === 402) {
       await supabase.from("content_ideas").update({ autopilot_status: "failed_no_credits" } as any).eq("id", idea.id);
       if (userEmail) {
         await fetch(`${supabaseUrl}/functions/v1/send-email`, {
@@ -510,6 +527,13 @@ async function processIdea(
         }).catch(() => {});
       }
       return { success: false, status: "failed_no_credits", error: errBody };
+    }
+
+    // 429 after exhausting in-call retries: leave the idea RETRYABLE (pending)
+    // so the next cron tick (or autopilot-retry) can pick it up automatically.
+    if (designRes?.status === 429) {
+      await supabase.from("content_ideas").update({ autopilot_status: "pending" } as any).eq("id", idea.id);
+      return { success: false, status: "rate_limited", error: errBody };
     }
 
     await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
