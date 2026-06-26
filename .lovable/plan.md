@@ -1,42 +1,168 @@
+# Brandie Outbox — Autonomous Email Marketing Engine
 
-## What I found
+A new pillar that sits alongside the social Content Engine. Same philosophy: the user does not write emails, they approve a weekly email plan that ships itself. It reuses the Brand Centre, JTBD audience profile, Trend Lab, Funnels, Campaigns, Blueprint, and the multi-agent stack we already have.
 
-Your brand's idea (`Hustle No Be Muscle: The Executive View`, scheduled today) was picked up by the 6:00 AM autopilot run but failed with: **`Failed to generate design brief`** (an HTTP 429 from the Lovable AI Gateway disguised as a generic error). Because the row was stamped `autopilot_status='failed_error'`, no email was sent and no design was produced.
+---
 
-This is **not isolated** — looking at `autopilot_run_events` for the 6:00 AM run, almost every brand processed in the same window shows the same error pattern:
+## 1. Scope (V1)
 
-> `Rate limit exceeded for trace 019f028392d97d14bb94b116fdabf769. Retry after ~7000ms.`
+Included:
 
-### Root causes (in order of impact)
+- Subscriber list management (import, tags, segments, suppression)
+- Double opt-in signup forms + hosted landing page
+- Autonomous weekly **Email Blueprint** (broadcasts + automated journeys)
+- AI-generated subject lines, preheaders, body, CTAs, and on-brand HTML
+- Sending via existing Lovable Emails infra (pgmq + process-email-queue), with a dedicated `marketing_emails` queue
+- Per-recipient unsubscribe, CAN-SPAM/GDPR footer, suppression honoring
+- Open/click tracking, bounce + complaint handling
+- "CEO Briefing" extension: email performance feeds back into genome + planner
 
-1. **Rate-limit storm.** `content-autopilot` runs `CONCURRENCY=3` per brand and fires immediately on `0 6 * * *`. Combined with the volume of brands and the per-trace rate limit on the gateway, the first wave of brands triggers 429s for everyone behind them.
-2. **429 is treated as a permanent failure.** In `processIdea`, when `design-studio` returns 429, the idea is stamped `failed_error` instead of being left in a retryable state. `design-studio` itself comments "Don't retry on 429" (line 257-258), so the throttle wins.
-3. **`autopilot-retry` runs at the same minute** (`0 6 * * *`) as `autopilot-morning`, doubling the load and re-failing yesterday's failures into today's window.
-4. **`pg_net` 5-second timeout** — every cron invocation of `content-autopilot` shows `Timeout of 5000 ms reached` in `net._http_response`. The function keeps running, but we have no observability and any failure inside is silent.
-5. **Backfill needed for today.** All of today's `failed_error` ideas will sit until tomorrow's retry; we should re-enqueue them now so your post lands today.
+Out of scope (V2+): SMS/WhatsApp broadcasts, A/B/n statistical testing UI, full drag-and-drop editor, deliverability warm-up automation.
 
-## Fix
+---
 
-### 1. `supabase/functions/content-autopilot/index.ts`
-- Parse "Retry after Nms" out of the `design-studio` error response. On a 429:
-  - Do NOT set `autopilot_status='failed_error'`.
-  - Set `autopilot_status='pending'` (retryable) and log `rate_limited` to `autopilot_run_events`.
-  - Within the same invocation, retry the idea up to 2 times after sleeping `Retry-After + jitter`.
-- Lower in-call concurrency from 3 to 1 for the first 30 s of the run and add a 1.5–3 s jitter between batches so the cron tick doesn't fan out simultaneously across brands.
+## 2. How it fits existing Brandie
 
-### 2. `supabase/functions/design-studio/index.ts`
-- In the Brief Agent path (line 1847-1853), surface `429` with the `Retry-After` payload to the caller instead of collapsing it into `"Failed to generate design brief"`. This makes the autopilot retry logic above actually work.
 
-### 3. Cron schedule
-- Move `autopilot-retry-daily` from `0 6 * * *` to `30 8 * * *` so it never collides with `autopilot-morning`.
-- Bump `net.http_post` timeout on the three autopilot-* jobs from the default 5 s to 60 s via `timeout_milliseconds`, so cron sees real responses and we get visibility.
+| Existing system              | How Outbox uses it                                                     |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| Brand Centre / VSGS          | Colors, fonts, logo, tone → email HTML theme + voice                   |
+| Audience Intelligence (JTBD) | Segment defaults, subject line angles, emotional drivers               |
+| Funnels & Campaigns          | Each email is tagged to a funnel stage + campaign; quota-aware planner |
+| Content Ideas / Blueprint    | Repurpose post ideas into email arcs; share weekly approval ritual     |
+| Trend Lab                    | Seasonal/holiday hooks for broadcasts                                  |
+| Autopilot cron               | Same scheduler triggers email generation + sends                       |
+| Lovable Emails infra         | Reuse pgmq, suppression, unsubscribe tokens, domain                    |
+| Reporting                    | CEO Briefing adds email KPIs; feeds preference weights                 |
 
-### 4. Backfill today
-- Re-enqueue every idea with `scheduled_for = CURRENT_DATE AND autopilot_status = 'failed_error'` by flipping it back to `pending` and invoking `content-autopilot` once with `delivery_time='now'` so your post — and everyone else's — generates today.
 
-### Technical notes
-- `lock_autopilot_idea` already prevents a concurrent double-process, so the in-call retry is safe.
-- The gateway's "trace" rate limit is per-key/per-window — staggering + honoring `Retry-After` is the documented mitigation; no key/header change required.
-- All migrations here are cron updates only; no schema changes.
+No new email provider needed — we extend the existing Lovable Emails pipeline with a separate `marketing_emails` queue, marketing-specific footer, and explicit consent gating (transactional infra never sends to unconsented addresses).
 
-After deploy I will run the backfill once and confirm `autopilot_status='completed'` and `design_id` populated on your idea `d76411be`.
+---
+
+## 3. User experience (the "ritual")
+
+1. **Setup once** (in `/hub` → new "Outbox" tab):
+  - Connect/confirm sender domain (already done for app emails)
+  - Import contacts (CSV) or enable signup form
+  - Pick send cadence (e.g. 1 broadcast/week + journeys on)
+  - Confirm physical address + brand footer
+2. **Monday Briefing** extended:
+  - Blueprint now shows two tracks: Social posts + Email sends
+  - Each email card: subject, preheader, audience segment, funnel stage, campaign, scheduled time
+3. **Approve System** — one tap covers both tracks
+4. **Daily**: emails generate, render, and send automatically at the configured time
+5. **Friday CEO Briefing**: opens, clicks, replies, unsubs, revenue-attributed (if Paystack linked) per campaign
+
+Conversational edits work the same as posts: "Make Wednesday's email shorter" → routes through edit decision tree.
+
+---
+
+## 4. Multi-agent pipeline (new)
+
+Mirrors the design pipeline:
+
+```text
+Planner (weekly) ──► Segment Resolver ──► Copywriter Agent ──►
+  Subject/Preheader Optimizer ──► Email Art Director ──►
+  HTML Renderer (MJML→HTML) ──► QA Gate ──► Queue ──► Send ──► Tracker
+```
+
+- **Planner**: funnel + campaign quota aware, same logic as Blueprint planner, extended with email-specific arcs (welcome, nurture, re-engage, promo, win-back, post-purchase)
+- **Segment Resolver**: maps idea → audience segment (tag rules + JTBD persona)
+- **Copywriter Agent** (Gemini Pro): 60–150 word body, single CTA, plain-text alt
+- **Subject Optimizer** (Flash-Lite): generates 3 candidates, scores for clarity/curiosity/spam-words, picks one (logs others for future A/B)
+- **Art Director**: chooses one of N MJML templates themed by VSGS
+- **Renderer**: MJML → responsive HTML inline-styled; injects unsubscribe + address
+- **QA Gate**: validates required tokens, link safety, image alts, no broken merge tags, suppression preview
+
+---
+
+## 5. Data model
+
+New tables (all RLS-scoped to brand, GRANTs to authenticated + service_role):
+
+- `marketing_contacts` — email, name, tags[], status (subscribed/unsubscribed/bounced), source, consent_at, brand_id
+- `marketing_segments` — name, rules (jsonb: tag/JTBD filters), brand_id
+- `marketing_lists` — optional named lists, m2m via `marketing_list_members`
+- `marketing_journeys` — id, name, trigger (signup, tag_added, purchase, inactivity), steps (jsonb), status
+- `marketing_journey_steps` — ordered, wait_duration, email_template_ref, conditions
+- `email_broadcasts` — brand_id, subject, preheader, body_md, html, segment_id, funnel_stage_id, campaign_id, scheduled_for, status, idea_ref
+- `email_sends` — broadcast_id (or journey_step_id), contact_id, message_id, status, opened_at, clicked_at, bounced_at, complained_at, unsubscribed_at, revenue_cents
+- `email_links` — broadcast_id, url, slug (for click tracking redirect)
+- `email_signup_forms` — brand_id, slug, fields, redirect_url, double_opt_in
+- `marketing_suppression` — brand_id, email, reason (extends existing global suppression with brand-scope)
+- `email_preferences` — contact_id, category toggles (promotions, product_updates, newsletter)
+
+Reuses: `funnel_stages`, `campaigns`, `content_ideas`, `brand_products`, `target_audiences`.
+
+---
+
+## 6. Sending infrastructure
+
+- New pgmq queue: `marketing_emails` (separate from `auth_emails`, `transactional_emails`) so rate limiting and DLQ are independent
+- Extend `process-email-queue` to drain this queue with marketing-specific throttle (configurable per brand, default 60/min) and pre-send checks: subscribed? not suppressed? consent valid? quiet hours?
+- New edge functions:
+  - `email-marketing-plan` — weekly planner (cron)
+  - `email-marketing-generate` — generates a single broadcast from an idea
+  - `email-marketing-send` — enqueues a broadcast (fan-out to per-recipient queue rows)
+  - `email-marketing-track` — open pixel + click redirect handler
+  - `email-marketing-webhook` — bounce/complaint ingest (extend existing handler)
+  - `email-marketing-signup` — public signup form submit + double opt-in confirm
+- Reuse existing unsubscribe handler with a marketing-aware branch (per-category vs global)
+
+---
+
+## 7. Best-practice guardrails baked in
+
+- Double opt-in by default; single opt-in opt-in only with explicit toggle
+- Required physical address + brand name in footer (CAN-SPAM)
+- Per-category preferences + one-click unsubscribe (RFC 8058 `List-Unsubscribe-Post`)
+- Quiet hours per contact timezone (no sends 9pm–7am local)
+- Frequency cap (default max 3 marketing emails/contact/week)
+- Spam-word + ALL CAPS + excessive emoji checks in QA gate
+- Plain-text alt auto-generated
+- Pre-send "deliverability score" shown on the broadcast card
+- Warm-up mode: first 14 days, cap volume + ramp
+- Bounce/complaint auto-suppression at brand + global levels
+- GDPR: export + delete contact endpoints; consent log immutable
+
+---
+
+## 8. UI surfaces
+
+- **/hub → Outbox tab** with sub-tabs: Contacts, Segments, Forms, Journeys, Broadcasts, Performance
+- **/blueprint**: new "Email" lane next to "Social"
+- **/post/:dayId**: when item is email, show subject/preheader/body/segment + Send/Regenerate
+- **Settings → Email Marketing**: sender name, reply-to, physical address, frequency cap, quiet hours, autopilot on/off
+- **CEO Briefing**: new "Email" section with opens, clicks, top broadcasts, segment growth, suppression deltas
+
+---
+
+## 9. Rollout phases
+
+1. **Phase 1 (foundations)**: tables, contacts import, signup form, manual broadcast (no planner), tracking, suppression — proves deliverability end-to-end
+2. **Phase 2 (autopilot)**: weekly Email Blueprint, copywriter + subject agents, planner integration with funnels/campaigns
+3. **Phase 3 (journeys)**: welcome, abandoned-interest, win-back automations triggered by events
+4. **Phase 4 (intelligence)**: A/B subject tests, send-time optimization per contact, revenue attribution via Paystack webhook join
+
+---
+
+## 10. Technical notes (engineering detail)
+
+- Templates as MJML in `supabase/functions/_shared/marketing-email-templates/` with a registry like the transactional one; brand theming injected at render time from VSGS tokens
+- Click tracking via `/e/c/:slug` redirect on the published domain; open tracking via 1x1 pixel at `/e/o/:send_id.gif`
+- Idempotency: `email_sends` unique on `(broadcast_id, contact_id)`; planner uses `(brand_id, week_start, idea_id)` to avoid duplicate broadcasts
+- Reuse `resolve-autopilot-campaign` for routing; add `resolve-marketing-segment` mirror
+- Consent gate: `send-transactional-email` refuses any address in `marketing_suppression` for that brand; marketing function refuses any address without `consent_at`
+- Rate limit + retry pattern reused from `content-autopilot` (jitter, 429 backoff, leave-as-pending)
+- New cron jobs (pg_cron + pg_net, 60s timeout): `marketing-plan-weekly` (Sun 18:00 brand-local), `marketing-send-tick` (every 1 min), `marketing-journey-tick` (every 5 min)
+
+---
+
+## Open questions before build
+
+1. Do you want V1 to ship **all four phases** or start at Phase 1–2 (broadcasts + autopilot) and add journeys later? Yes, V1 to ship **all four phases.**
+2. Should marketing emails be **included in the existing subscription tiers** (with a monthly contact cap), or a **paid add-on**? emails be **included in the existing subscription tiers** (with a monthly contact cap). Not available for free and pay-as-you-go customers, only subscription customers
+3. Default sender: reuse the project's existing notification subdomain (e.g. `notify.brand.com`) or provision a separate marketing subdomain (`news.brand.com`) for deliverability isolation? (Recommended: separate.)
+4. Should the **Blueprint approval** cover social + email together (single approval), or keep email approval as a distinct ritual? Email approval should be separate
