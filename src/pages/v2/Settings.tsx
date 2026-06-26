@@ -11,12 +11,17 @@ import { Switch } from "@/components/ui/switch";
 import {
   ArrowRight,
   Bell,
+  CheckCircle2,
   CreditCard,
   Loader2,
   LogOut,
+  Mail,
+  RefreshCw,
   Sparkles,
   User,
+  XCircle,
 } from "lucide-react";
+
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 
