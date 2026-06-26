@@ -133,17 +133,27 @@ const SettingsV2 = () => {
   }, [user]);
 
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
+  const [outboxFromName, setOutboxFromName] = useState("");
+  const [outboxReplyTo, setOutboxReplyTo] = useState("");
+  const [outboxAddress, setOutboxAddress] = useState("");
+  const [savingOutbox, setSavingOutbox] = useState(false);
+  const [domain, setDomain] = useState<DomainStatus>(null);
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
 
   useEffect(() => {
     if (!brand?.id) return;
     (async () => {
       const { data } = await supabase
         .from("autopilot_settings")
-        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id, default_canvas_size")
+        .select("brand_id, enabled, delivery_time, timezone, default_funnel_stage, default_campaign_id, default_canvas_size, marketing_email_from_name, marketing_email_reply_to, marketing_email_physical_address")
         .eq("brand_id", brand.id)
         .maybeSingle();
-      if (data) setAutopilot(data as AutopilotSettings);
-      else
+      if (data) {
+        setAutopilot(data as AutopilotSettings);
+        setOutboxFromName((data as any).marketing_email_from_name ?? "");
+        setOutboxReplyTo((data as any).marketing_email_reply_to ?? "");
+        setOutboxAddress((data as any).marketing_email_physical_address ?? "");
+      } else
         setAutopilot({
           brand_id: brand.id,
           enabled: false,
@@ -163,6 +173,48 @@ const SettingsV2 = () => {
       setCampaigns((camps as CampaignOption[]) || []);
     })();
   }, [brand?.id]);
+
+  const saveOutbox = async () => {
+    if (!autopilot || !user) return;
+    setSavingOutbox(true);
+    const next = {
+      ...autopilot,
+      marketing_email_from_name: outboxFromName.trim() || null,
+      marketing_email_reply_to: outboxReplyTo.trim() || null,
+      marketing_email_physical_address: outboxAddress.trim() || null,
+      user_id: user.id,
+    };
+    const { error } = await supabase
+      .from("autopilot_settings")
+      .upsert(next as any, { onConflict: "brand_id" });
+    setSavingOutbox(false);
+    if (error) {
+      toast({ title: "Couldn't save Outbox", description: error.message, variant: "destructive" });
+    } else {
+      setAutopilot(next as AutopilotSettings);
+      toast({ title: "Outbox settings saved." });
+    }
+  };
+
+  const verifyDomain = async () => {
+    setVerifyingDomain(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("email-marketing-verify-domain", { body: {} });
+      if (error) throw error;
+      setDomain(data as DomainStatus);
+      if ((data as any)?.ok) toast({ title: "Domain verified." });
+      else toast({
+        title: "Domain not verified",
+        description: (data as any)?.error || `Status: ${(data as any)?.status}`,
+        variant: "destructive",
+      });
+    } catch (e: any) {
+      toast({ title: "Verify failed", description: e.message, variant: "destructive" });
+    } finally {
+      setVerifyingDomain(false);
+    }
+  };
+
 
   const saveWhatsapp = async () => {
     if (!user) return;
