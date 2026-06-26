@@ -297,14 +297,19 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Bounded concurrency so one slow idea doesn't starve the whole window.
-    // design-studio takes 60-90s per idea; running 3 in parallel keeps us well
-    // under the Edge Function wall-clock while clearing the queue ~3x faster.
-    const CONCURRENCY = 3;
+    // Serial processing + inter-idea jitter so a single cron tick doesn't
+    // fan out across many brands and trip the gateway's per-trace rate limit.
+    // design-studio takes 60-90s; with the in-call 429 retry above this still
+    // clears the queue within the wall-clock budget.
+    const CONCURRENCY = 1;
     try {
       for (let i = 0; i < allIdeas.length; i += CONCURRENCY) {
         const batch = allIdeas.slice(i, i + CONCURRENCY);
         await Promise.allSettled(batch.map(handleIdea));
+        if (i + CONCURRENCY < allIdeas.length) {
+          const jitter = 1500 + Math.floor(Math.random() * 1500);
+          await new Promise((r) => setTimeout(r, jitter));
+        }
       }
     } finally {
       await finalizeRun(supabase, runId, allIdeas.length, processed, skipped, errors, errorDetails);
