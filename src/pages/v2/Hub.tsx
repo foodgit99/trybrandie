@@ -24,6 +24,7 @@ import {
   CalendarDays,
   Gauge,
   TrendingUp,
+  Mail,
 } from "lucide-react";
 
 import SEO from "@/components/SEO";
@@ -35,6 +36,7 @@ import IdeaThumb from "@/components/v2/IdeaThumb";
 import FunnelsEditableTab from "@/components/v2/hub/FunnelsEditableTab";
 import CampaignsEditableTab from "@/components/v2/hub/CampaignsEditableTab";
 import TrendsTab from "@/components/v2/hub/TrendsTab";
+import OutboxTab from "@/components/v2/hub/OutboxTab";
 
 /* ------------------------------ Funnel model ------------------------------ */
 
@@ -98,7 +100,7 @@ type Blueprint = {
 
 type EngineSettings = { enabled: boolean; delivery_time: string } | null;
 
-type TabId = "today" | "week" | "funnels" | "campaigns" | "trends";
+type TabId = "today" | "week" | "funnels" | "campaigns" | "trends" | "outbox";
 
 const TABS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: "today", label: "Today", icon: Sun },
@@ -106,6 +108,7 @@ const TABS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: "funnels", label: "Funnels", icon: Layers },
   { id: "campaigns", label: "Campaigns", icon: Megaphone },
   { id: "trends", label: "Trends", icon: TrendingUp },
+  { id: "outbox", label: "Outbox", icon: Mail },
 ];
 
 function isSameDay(a: Date, b: Date) {
@@ -391,6 +394,9 @@ const Hub = () => {
                 brand={brand}
                 onSeedStudio={(prompt) => navigate(`/studio?prompt=${encodeURIComponent(prompt)}&category=trending`)}
               />
+            )}
+            {tab === "outbox" && (
+              <OutboxTab brand={brand} userId={user!.id} />
             )}
           </motion.div>
         </AnimatePresence>

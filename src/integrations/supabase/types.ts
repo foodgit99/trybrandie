@@ -558,6 +558,13 @@ export type Database = {
           delivery_time: string
           enabled: boolean
           id: string
+          marketing_email_enabled: boolean
+          marketing_email_frequency_cap: number
+          marketing_email_from_name: string | null
+          marketing_email_physical_address: string | null
+          marketing_email_quiet_hours_end: number
+          marketing_email_quiet_hours_start: number
+          marketing_email_reply_to: string | null
           min_queue_threshold: number
           mode: string
           timezone: string
@@ -575,6 +582,13 @@ export type Database = {
           delivery_time?: string
           enabled?: boolean
           id?: string
+          marketing_email_enabled?: boolean
+          marketing_email_frequency_cap?: number
+          marketing_email_from_name?: string | null
+          marketing_email_physical_address?: string | null
+          marketing_email_quiet_hours_end?: number
+          marketing_email_quiet_hours_start?: number
+          marketing_email_reply_to?: string | null
           min_queue_threshold?: number
           mode?: string
           timezone?: string
@@ -592,6 +606,13 @@ export type Database = {
           delivery_time?: string
           enabled?: boolean
           id?: string
+          marketing_email_enabled?: boolean
+          marketing_email_frequency_cap?: number
+          marketing_email_from_name?: string | null
+          marketing_email_physical_address?: string | null
+          marketing_email_quiet_hours_end?: number
+          marketing_email_quiet_hours_start?: number
+          marketing_email_reply_to?: string | null
           min_queue_threshold?: number
           mode?: string
           timezone?: string
@@ -1613,6 +1634,132 @@ export type Database = {
           },
         ]
       }
+      email_broadcasts: {
+        Row: {
+          ai_alt_subjects: Json | null
+          body_html: string | null
+          body_md: string | null
+          bounces_count: number
+          brand_id: string
+          campaign_id: string | null
+          clicks_count: number
+          created_at: string
+          cta_label: string | null
+          cta_url: string | null
+          deliverability_score: number | null
+          funnel_stage_id: string | null
+          id: string
+          idea_id: string | null
+          metadata: Json
+          opens_count: number
+          preheader: string | null
+          recipients_count: number
+          scheduled_for: string | null
+          segment_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          template_key: string | null
+          unsubs_count: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_alt_subjects?: Json | null
+          body_html?: string | null
+          body_md?: string | null
+          bounces_count?: number
+          brand_id: string
+          campaign_id?: string | null
+          clicks_count?: number
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          deliverability_score?: number | null
+          funnel_stage_id?: string | null
+          id?: string
+          idea_id?: string | null
+          metadata?: Json
+          opens_count?: number
+          preheader?: string | null
+          recipients_count?: number
+          scheduled_for?: string | null
+          segment_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          template_key?: string | null
+          unsubs_count?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_alt_subjects?: Json | null
+          body_html?: string | null
+          body_md?: string | null
+          bounces_count?: number
+          brand_id?: string
+          campaign_id?: string | null
+          clicks_count?: number
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          deliverability_score?: number | null
+          funnel_stage_id?: string | null
+          id?: string
+          idea_id?: string | null
+          metadata?: Json
+          opens_count?: number
+          preheader?: string | null
+          recipients_count?: number
+          scheduled_for?: string | null
+          segment_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          template_key?: string | null
+          unsubs_count?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_broadcasts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_broadcasts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_broadcasts_funnel_stage_id_fkey"
+            columns: ["funnel_stage_id"]
+            isOneToOne: false
+            referencedRelation: "content_pillars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_broadcasts_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "content_ideas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_broadcasts_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_campaign_logs: {
         Row: {
           campaign_id: string
@@ -1708,6 +1855,214 @@ export type Database = {
         }
         Relationships: []
       }
+      email_links: {
+        Row: {
+          broadcast_id: string
+          click_count: number
+          created_at: string
+          id: string
+          label: string | null
+          slug: string
+          url: string
+        }
+        Insert: {
+          broadcast_id: string
+          click_count?: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          slug: string
+          url: string
+        }
+        Update: {
+          broadcast_id?: string
+          click_count?: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          slug?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_links_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "email_broadcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_preferences: {
+        Row: {
+          contact_id: string
+          id: string
+          newsletters: boolean
+          product_updates: boolean
+          promotions: boolean
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          id?: string
+          newsletters?: boolean
+          product_updates?: boolean
+          promotions?: boolean
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          id?: string
+          newsletters?: boolean
+          product_updates?: boolean
+          promotions?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_preferences_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "marketing_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_sends: {
+        Row: {
+          bounced_at: string | null
+          brand_id: string
+          broadcast_id: string | null
+          click_count: number
+          clicked_at: string | null
+          complained_at: string | null
+          contact_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          journey_enrollment_id: string | null
+          message_id: string | null
+          open_count: number
+          opened_at: string | null
+          revenue_cents: number | null
+          status: string
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          bounced_at?: string | null
+          brand_id: string
+          broadcast_id?: string | null
+          click_count?: number
+          clicked_at?: string | null
+          complained_at?: string | null
+          contact_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          journey_enrollment_id?: string | null
+          message_id?: string | null
+          open_count?: number
+          opened_at?: string | null
+          revenue_cents?: number | null
+          status?: string
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          bounced_at?: string | null
+          brand_id?: string
+          broadcast_id?: string | null
+          click_count?: number
+          clicked_at?: string | null
+          complained_at?: string | null
+          contact_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          journey_enrollment_id?: string | null
+          message_id?: string | null
+          open_count?: number
+          opened_at?: string | null
+          revenue_cents?: number | null
+          status?: string
+          unsubscribed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sends_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sends_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "email_broadcasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sends_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_signup_forms: {
+        Row: {
+          brand_id: string
+          created_at: string
+          default_tags: string[]
+          description: string | null
+          double_opt_in: boolean
+          headline: string | null
+          id: string
+          is_active: boolean
+          redirect_url: string | null
+          slug: string
+          success_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          default_tags?: string[]
+          description?: string | null
+          double_opt_in?: boolean
+          headline?: string | null
+          id?: string
+          is_active?: boolean
+          redirect_url?: string | null
+          slug: string
+          success_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          default_tags?: string[]
+          description?: string | null
+          double_opt_in?: boolean
+          headline?: string | null
+          id?: string
+          is_active?: boolean
+          redirect_url?: string | null
+          slug?: string
+          success_message?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_signup_forms_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genome_preset_weights: {
         Row: {
           brand_id: string
@@ -1796,6 +2151,281 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      marketing_contacts: {
+        Row: {
+          brand_id: string
+          consent_at: string | null
+          created_at: string
+          double_opt_in_token: string | null
+          email: string
+          full_name: string | null
+          id: string
+          metadata: Json
+          source: string | null
+          status: string
+          tags: string[]
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          consent_at?: string | null
+          created_at?: string
+          double_opt_in_token?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+          metadata?: Json
+          source?: string | null
+          status?: string
+          tags?: string[]
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          consent_at?: string | null
+          created_at?: string
+          double_opt_in_token?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          metadata?: Json
+          source?: string | null
+          status?: string
+          tags?: string[]
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_contacts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_journey_enrollments: {
+        Row: {
+          brand_id: string
+          contact_id: string
+          created_at: string
+          current_step: number
+          id: string
+          journey_id: string
+          next_run_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          contact_id: string
+          created_at?: string
+          current_step?: number
+          id?: string
+          journey_id: string
+          next_run_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          contact_id?: string
+          created_at?: string
+          current_step?: number
+          id?: string
+          journey_id?: string
+          next_run_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_journey_enrollments_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_journey_enrollments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_journey_enrollments_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_journeys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_journey_steps: {
+        Row: {
+          body_md: string
+          created_at: string
+          cta_label: string | null
+          cta_url: string | null
+          id: string
+          journey_id: string
+          preheader: string | null
+          step_order: number
+          subject: string
+          wait_minutes: number
+        }
+        Insert: {
+          body_md: string
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          id?: string
+          journey_id: string
+          preheader?: string | null
+          step_order: number
+          subject: string
+          wait_minutes?: number
+        }
+        Update: {
+          body_md?: string
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          id?: string
+          journey_id?: string
+          preheader?: string | null
+          step_order?: number
+          subject?: string
+          wait_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_journey_steps_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_journeys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_journeys: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_journeys_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_segments: {
+        Row: {
+          brand_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_segments_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_suppression: {
+        Row: {
+          brand_id: string
+          created_at: string
+          email: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          email: string
+          id?: string
+          reason: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_suppression_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_transactions: {
         Row: {
