@@ -33,7 +33,19 @@ type AutopilotSettings = {
   default_funnel_stage: string | null;
   default_campaign_id: string | null;
   default_canvas_size: string | null;
+  marketing_email_from_name?: string | null;
+  marketing_email_reply_to?: string | null;
+  marketing_email_physical_address?: string | null;
 };
+
+type DomainStatus = {
+  ok: boolean;
+  domain: string;
+  status: string;
+  error?: string;
+  records?: Array<{ record: string; name: string; type: string; value: string; status?: string }>;
+} | null;
+
 
 type CampaignOption = { id: string; name: string };
 
