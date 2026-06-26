@@ -618,7 +618,110 @@ const SettingsV2 = () => {
         </Section>
 
 
+        <Section label="Outbox (Email marketing)">
+          <Row title="Sender name" subtitle="Shown as the From name in subscribers' inboxes.">
+            <Input
+              value={outboxFromName}
+              onChange={(e) => setOutboxFromName(e.target.value)}
+              placeholder={brand?.name || "Your brand"}
+              className="h-9 w-56"
+            />
+          </Row>
+          <Row title="Reply-to address" subtitle="Replies from subscribers land here.">
+            <Input
+              type="email"
+              value={outboxReplyTo}
+              onChange={(e) => setOutboxReplyTo(e.target.value)}
+              placeholder="hello@yourbrand.com"
+              className="h-9 w-64"
+            />
+          </Row>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Physical mailing address</Label>
+            <p className="text-xs text-muted-foreground">
+              Required by CAN-SPAM and most anti-spam laws. Shown in every broadcast footer.
+            </p>
+            <Input
+              value={outboxAddress}
+              onChange={(e) => setOutboxAddress(e.target.value)}
+              placeholder="123 Marina Street, Lagos, Nigeria"
+              className="h-9"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" className="rounded-full" onClick={saveOutbox} disabled={savingOutbox}>
+              {savingOutbox ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save sender identity"}
+            </Button>
+          </div>
+
+          <div className="border-t border-border pt-4 space-y-3">
+            <Row
+              title="Sender domain"
+              subtitle={domain?.domain ? `Configured: ${domain.domain}` : "Verify the domain Resend will send from."}
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full gap-1.5"
+                onClick={verifyDomain}
+                disabled={verifyingDomain}
+              >
+                {verifyingDomain ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Check status
+              </Button>
+            </Row>
+            {domain && (
+              <div
+                className={`rounded-xl border p-3 text-sm flex items-start gap-2 ${
+                  domain.ok
+                    ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+                    : "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+                }`}
+              >
+                {domain.ok ? (
+                  <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                ) : (
+                  <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                )}
+                <div className="space-y-1 min-w-0">
+                  <p className="font-medium">
+                    {domain.ok ? "Verified" : `Status: ${domain.status}`}
+                    {domain.domain ? ` — ${domain.domain}` : ""}
+                  </p>
+                  {domain.error && <p className="text-xs opacity-90">{domain.error}</p>}
+                  {!domain.ok && domain.records && domain.records.length > 0 && (
+                    <details className="text-xs">
+                      <summary className="cursor-pointer underline underline-offset-2">
+                        Required DNS records ({domain.records.length})
+                      </summary>
+                      <div className="mt-2 space-y-1 font-mono text-[11px]">
+                        {domain.records.map((r, i) => (
+                          <div key={i} className="rounded bg-background/60 border border-border p-2">
+                            <div><span className="opacity-60">{r.type}</span> {r.name}</div>
+                            <div className="truncate opacity-80">{r.value}</div>
+                            {r.status && <div className="opacity-60">status: {r.status}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                  {!domain.ok && !domain.error && (
+                    <p className="text-xs opacity-80 flex items-center gap-1">
+                      <Mail className="h-3 w-3" /> Add the records above at your DNS provider, then re-check.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </Section>
+
         <Section label="Plan">
+
           <Row title="Current plan" subtitle="Subscription, credits, invoices.">
             <Button asChild size="sm" variant="outline" className="rounded-full gap-1.5">
               <Link to="/plans">
