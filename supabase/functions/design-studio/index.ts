@@ -1847,9 +1847,13 @@ ${brand.special_instructions}
           if (!briefResponse.ok) {
             if (briefResponse.status === 429) throw new Error("RATE_LIMIT");
             if (briefResponse.status === 402) throw new Error("CREDITS_EXHAUSTED");
+            // Gateway 5xx and other transient upstream failures should be
+            // surfaced as RATE_LIMIT so the caller (autopilot) retries instead
+            // of permanently stamping the idea as failed.
+            if (briefResponse.status >= 500) throw new Error("RATE_LIMIT");
             const errText = await briefResponse.text();
             console.error("Brief generation error:", briefResponse.status, errText);
-            throw new Error("Failed to generate design brief");
+            throw new Error(`Failed to generate design brief (${briefResponse.status})`);
           }
 
           briefSpanInner.finish({ metadata: { model: modelUsed } });
