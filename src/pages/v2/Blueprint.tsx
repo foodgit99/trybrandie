@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +34,8 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import AutopilotStatusBanner from "@/components/v2/AutopilotStatusBanner";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 import IdeaThumb from "@/components/v2/IdeaThumb";
+import { useAutopilotStatus } from "@/hooks/useAutopilotStatus";
+
 
 const WEEKDAY_NAMES = [
   "Monday",
@@ -102,6 +104,102 @@ const Blueprint = () => {
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["v2-blueprint-ideas"] });
+
+  // ── Mode-aware auto-planning ────────────────────────────────────────────
+  const { data: apStatus } = useAutopilotStatus(brand?.id);
+  const mode = apStatus?.mode ?? null;
+  const autoPlannedRef = useRef<Set<string>>(new Set());
+  const [autoPlanning, setAutoPlanning] = useState(false);
+
+  useEffect(() => {
+    if (!brand?.id || !mode || isLoading) return;
+    if (mode === "manual") return;
+    if (ideas.length > 0) return;
+    const key = `${brand.id}:${weekStart.toISOString()}`;
+    if (autoPlannedRef.current.has(key)) return;
+    autoPlannedRef.current.add(key);
+
+    (async () => {
+      setAutoPlanning(true);
+      try {
+        toast({
+          title: "Brandie is planning your week…",
+          description:
+            mode === "autonomous"
+              ? "Drafting the arc, approving it, and starting today's post."
+              : "Drafting the arc — review and approve when ready.",
+        });
+        const { error: genErr } = await supabase.functions.invoke("brand-engine", {
+          body: { action: "generate_weekly_ideas", brand_id: brand.id },
+        });
+        if (genErr) throw genErr;
+
+        if (mode === "autonomous") {
+          const ws = weekStart.toISOString();
+          const we = weekEnd.toISOString();
+          await supabase
+            .from("content_ideas")
+            .update({ approval_status: "approved", status: "scheduled" })
+            .eq("brand_id", brand.id)
+            .neq("approval_status", "approved")
+            .gte("scheduled_for", ws)
+            .lt("scheduled_for", we);
+          // Kick today's render immediately; don't await failures fatally.
+          supabase.functions
+            .invoke("content-autopilot", { body: { brand_id: brand.id } })
+            .catch((e) => console.warn("[blueprint] content-autopilot kick failed", e));
+        }
+
+        invalidate();
+        toast({
+          title: mode === "autonomous" ? "Week live" : "Week drafted",
+          description:
+            mode === "autonomous"
+              ? "Brandie approved the week. Today's post is rendering."
+              : "Review the arc and tap Approve week when you're happy.",
+        });
+      } catch (err: any) {
+        toast({
+          title: "Couldn't auto-plan the week",
+          description: err.message ?? String(err),
+          variant: "destructive",
+        });
+      } finally {
+        setAutoPlanning(false);
+      }
+    })();
+  }, [brand?.id, mode, ideas.length, isLoading, weekStart, weekEnd]);
+
+  // Approve every unapproved idea for this week (Assisted ritual).
+  const [approvingWeek, setApprovingWeek] = useState(false);
+  const approveWeek = async () => {
+    if (!brand?.id) return;
+    setApprovingWeek(true);
+    try {
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ approval_status: "approved", status: "scheduled" })
+        .eq("brand_id", brand.id)
+        .neq("approval_status", "approved")
+        .gte("scheduled_for", weekStart.toISOString())
+        .lt("scheduled_for", weekEnd.toISOString());
+      if (error) throw error;
+      supabase.functions
+        .invoke("content-autopilot", { body: { brand_id: brand.id } })
+        .catch((e) => console.warn("[blueprint] content-autopilot kick failed", e));
+      toast({
+        title: "Week approved",
+        description: "Brandie will render and email each day on schedule.",
+      });
+      invalidate();
+    } catch (err: any) {
+      toast({ title: "Couldn't approve week", description: err.message, variant: "destructive" });
+    } finally {
+      setApprovingWeek(false);
+    }
+  };
+
+
 
   // Conversational edit bar
   const [editText, setEditText] = useState("");
@@ -300,47 +398,72 @@ const Blueprint = () => {
               This week, as a story.
             </h1>
             {ideas.length > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <div className="flex items-center gap-2 shrink-0">
+                {!approvedAll && (
                   <Button
-                    variant="outline"
                     size="sm"
-                    disabled={resetting}
-                    className="rounded-full h-9 px-3 gap-1.5 shrink-0"
+                    onClick={approveWeek}
+                    disabled={approvingWeek}
+                    className="rounded-full h-9 px-3 gap-1.5"
                   >
-                    {resetting ? (
+                    {approvingWeek ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <RotateCcw className="h-3.5 w-3.5" />
+                      <Check className="h-3.5 w-3.5" />
                     )}
-                    Reset week
+                    Approve week
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset this week?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This clears every post Brandie planned for this week — approved or not —
-                      and immediately drafts a fresh arc in its place. This can't be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep week</AlertDialogCancel>
-                    <AlertDialogAction onClick={resetWeek}>Reset & replan</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={resetting}
+                      className="rounded-full h-9 px-3 gap-1.5 shrink-0"
+                    >
+                      {resetting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      )}
+                      Reset week
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset this week?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This clears every post Brandie planned for this week — approved or not —
+                        and immediately drafts a fresh arc in its place. This can't be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep week</AlertDialogCancel>
+                      <AlertDialogAction onClick={resetWeek}>Reset & replan</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
           <p className="text-muted-foreground max-w-xl">
             {resetting
               ? "Brandie is drafting a fresh arc for this week. Hang tight — this takes a few seconds."
+              : autoPlanning
+              ? "Brandie is drafting your week — this takes a few seconds."
               : ideas.length === 0
-              ? 'Nothing planned this week yet. Tell Brandie below — try "plan this week" — and she\'ll draft the full arc.'
+              ? mode === "manual"
+                ? 'Nothing planned this week yet. Tell Brandie below — try "plan this week" — and she\'ll draft the full arc.'
+                : "Brandie will draft your week any moment now."
               : approvedAll
               ? 'All approved. Edit any day, or say "refresh the entire week" to start over.'
-              : "Review the arc. Tap to approve, or talk to Brandie at the bottom to plan, refresh, or tweak any day."}
+              : mode === "autonomous"
+              ? "Review the arc. Brandie auto-approves on autonomous mode — tap any day to tweak it."
+              : "Review the arc and tap Approve week, or talk to Brandie at the bottom to tweak any day."}
           </p>
+
+
 
         </header>
 

@@ -18,6 +18,7 @@ function endOfWeek(d = new Date()) {
 
 export type AutopilotStatus = {
   enabled: boolean;
+  mode: "manual" | "assisted" | "autonomous" | null;
   deliveryTime: string | null;
   timezone: string | null;
   thisWeekIdeas: number;
@@ -25,6 +26,7 @@ export type AutopilotStatus = {
   paused: boolean; // enabled but nothing the autopilot can act on this week
   reason: "ok" | "disabled" | "no_ideas" | "no_approved";
 };
+
 
 export function useAutopilotStatus(brandId: string | null | undefined) {
   return useQuery({
@@ -34,11 +36,13 @@ export function useAutopilotStatus(brandId: string | null | undefined) {
     queryFn: async (): Promise<AutopilotStatus> => {
       const { data: settings } = await supabase
         .from("autopilot_settings")
-        .select("enabled, delivery_time, timezone")
+        .select("enabled, mode, delivery_time, timezone")
         .eq("brand_id", brandId!)
         .maybeSingle();
 
       const enabled = !!settings?.enabled;
+      const mode = (settings?.mode as AutopilotStatus["mode"]) ?? null;
+
       const weekStart = startOfWeek().toISOString().slice(0, 10);
       const weekEndExclusive = endOfWeek().toISOString().slice(0, 10);
 
@@ -81,6 +85,7 @@ export function useAutopilotStatus(brandId: string | null | undefined) {
 
       return {
         enabled,
+        mode,
         deliveryTime: settings?.delivery_time ?? null,
         timezone: settings?.timezone ?? null,
         thisWeekIdeas,
@@ -88,6 +93,7 @@ export function useAutopilotStatus(brandId: string | null | undefined) {
         paused,
         reason,
       };
+
     },
   });
 }

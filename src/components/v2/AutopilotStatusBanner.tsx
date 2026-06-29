@@ -35,7 +35,7 @@ const AutopilotStatusBanner = ({ brandId, showApproveAll = false, className = ""
   const qc = useQueryClient();
   const [approving, setApproving] = useState(false);
 
-  if (isLoading || !data || !data.paused) return null;
+  if (isLoading || !data || !data.paused || data.mode === "manual") return null;
 
   const isBlueprintPage = typeof window !== "undefined" && window.location.pathname.startsWith("/blueprint");
 
