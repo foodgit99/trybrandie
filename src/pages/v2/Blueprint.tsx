@@ -398,47 +398,72 @@ const Blueprint = () => {
               This week, as a story.
             </h1>
             {ideas.length > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <div className="flex items-center gap-2 shrink-0">
+                {!approvedAll && (
                   <Button
-                    variant="outline"
                     size="sm"
-                    disabled={resetting}
-                    className="rounded-full h-9 px-3 gap-1.5 shrink-0"
+                    onClick={approveWeek}
+                    disabled={approvingWeek}
+                    className="rounded-full h-9 px-3 gap-1.5"
                   >
-                    {resetting ? (
+                    {approvingWeek ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <RotateCcw className="h-3.5 w-3.5" />
+                      <Check className="h-3.5 w-3.5" />
                     )}
-                    Reset week
+                    Approve week
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset this week?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This clears every post Brandie planned for this week — approved or not —
-                      and immediately drafts a fresh arc in its place. This can't be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep week</AlertDialogCancel>
-                    <AlertDialogAction onClick={resetWeek}>Reset & replan</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={resetting}
+                      className="rounded-full h-9 px-3 gap-1.5 shrink-0"
+                    >
+                      {resetting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      )}
+                      Reset week
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset this week?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This clears every post Brandie planned for this week — approved or not —
+                        and immediately drafts a fresh arc in its place. This can't be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep week</AlertDialogCancel>
+                      <AlertDialogAction onClick={resetWeek}>Reset & replan</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
           <p className="text-muted-foreground max-w-xl">
             {resetting
               ? "Brandie is drafting a fresh arc for this week. Hang tight — this takes a few seconds."
+              : autoPlanning
+              ? "Brandie is drafting your week — this takes a few seconds."
               : ideas.length === 0
-              ? 'Nothing planned this week yet. Tell Brandie below — try "plan this week" — and she\'ll draft the full arc.'
+              ? mode === "manual"
+                ? 'Nothing planned this week yet. Tell Brandie below — try "plan this week" — and she\'ll draft the full arc.'
+                : "Brandie will draft your week any moment now."
               : approvedAll
               ? 'All approved. Edit any day, or say "refresh the entire week" to start over.'
-              : "Review the arc. Tap to approve, or talk to Brandie at the bottom to plan, refresh, or tweak any day."}
+              : mode === "autonomous"
+              ? "Review the arc. Brandie auto-approves on autonomous mode — tap any day to tweak it."
+              : "Review the arc and tap Approve week, or talk to Brandie at the bottom to tweak any day."}
           </p>
+
+
 
         </header>
 
