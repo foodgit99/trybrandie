@@ -105,6 +105,102 @@ const Blueprint = () => {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["v2-blueprint-ideas"] });
 
+  // ── Mode-aware auto-planning ────────────────────────────────────────────
+  const { data: apStatus } = useAutopilotStatus(brand?.id);
+  const mode = apStatus?.mode ?? null;
+  const autoPlannedRef = useRef<Set<string>>(new Set());
+  const [autoPlanning, setAutoPlanning] = useState(false);
+
+  useEffect(() => {
+    if (!brand?.id || !mode || isLoading) return;
+    if (mode === "manual") return;
+    if (ideas.length > 0) return;
+    const key = `${brand.id}:${weekStart.toISOString()}`;
+    if (autoPlannedRef.current.has(key)) return;
+    autoPlannedRef.current.add(key);
+
+    (async () => {
+      setAutoPlanning(true);
+      try {
+        toast({
+          title: "Brandie is planning your week…",
+          description:
+            mode === "autonomous"
+              ? "Drafting the arc, approving it, and starting today's post."
+              : "Drafting the arc — review and approve when ready.",
+        });
+        const { error: genErr } = await supabase.functions.invoke("brand-engine", {
+          body: { action: "generate_weekly_ideas", brand_id: brand.id },
+        });
+        if (genErr) throw genErr;
+
+        if (mode === "autonomous") {
+          const ws = weekStart.toISOString();
+          const we = weekEnd.toISOString();
+          await supabase
+            .from("content_ideas")
+            .update({ approval_status: "approved", status: "scheduled" })
+            .eq("brand_id", brand.id)
+            .neq("approval_status", "approved")
+            .gte("scheduled_for", ws)
+            .lt("scheduled_for", we);
+          // Kick today's render immediately; don't await failures fatally.
+          supabase.functions
+            .invoke("content-autopilot", { body: { brand_id: brand.id } })
+            .catch((e) => console.warn("[blueprint] content-autopilot kick failed", e));
+        }
+
+        invalidate();
+        toast({
+          title: mode === "autonomous" ? "Week live" : "Week drafted",
+          description:
+            mode === "autonomous"
+              ? "Brandie approved the week. Today's post is rendering."
+              : "Review the arc and tap Approve week when you're happy.",
+        });
+      } catch (err: any) {
+        toast({
+          title: "Couldn't auto-plan the week",
+          description: err.message ?? String(err),
+          variant: "destructive",
+        });
+      } finally {
+        setAutoPlanning(false);
+      }
+    })();
+  }, [brand?.id, mode, ideas.length, isLoading, weekStart, weekEnd]);
+
+  // Approve every unapproved idea for this week (Assisted ritual).
+  const [approvingWeek, setApprovingWeek] = useState(false);
+  const approveWeek = async () => {
+    if (!brand?.id) return;
+    setApprovingWeek(true);
+    try {
+      const { error } = await supabase
+        .from("content_ideas")
+        .update({ approval_status: "approved", status: "scheduled" })
+        .eq("brand_id", brand.id)
+        .neq("approval_status", "approved")
+        .gte("scheduled_for", weekStart.toISOString())
+        .lt("scheduled_for", weekEnd.toISOString());
+      if (error) throw error;
+      supabase.functions
+        .invoke("content-autopilot", { body: { brand_id: brand.id } })
+        .catch((e) => console.warn("[blueprint] content-autopilot kick failed", e));
+      toast({
+        title: "Week approved",
+        description: "Brandie will render and email each day on schedule.",
+      });
+      invalidate();
+    } catch (err: any) {
+      toast({ title: "Couldn't approve week", description: err.message, variant: "destructive" });
+    } finally {
+      setApprovingWeek(false);
+    }
+  };
+
+
+
   // Conversational edit bar
   const [editText, setEditText] = useState("");
   const [editing, setEditing] = useState(false);
