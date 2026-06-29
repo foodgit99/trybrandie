@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +34,8 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import AutopilotStatusBanner from "@/components/v2/AutopilotStatusBanner";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 import IdeaThumb from "@/components/v2/IdeaThumb";
+import { useAutopilotStatus } from "@/hooks/useAutopilotStatus";
+
 
 const WEEKDAY_NAMES = [
   "Monday",
