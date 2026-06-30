@@ -116,8 +116,9 @@ Deno.serve(async (req) => {
     // When forceBrandId is supplied, scope to that brand only (bypass delivery_time match).
     let settingsQuery = supabase
       .from("autopilot_settings")
-      .select("brand_id, delivery_time, timezone, enabled")
-      .eq("enabled", true);
+      .select("brand_id, delivery_time, timezone, enabled, mode")
+      .eq("enabled", true)
+      .neq("mode", "manual");
     if (forceBrandId) {
       settingsQuery = settingsQuery.eq("brand_id", forceBrandId);
     } else {
@@ -219,7 +220,7 @@ Deno.serve(async (req) => {
 
       const merged = new Map<string, any>();
       for (const row of [...(blueprintApproved || []), ...(ideaApproved || [])]) {
-        merged.set(row.id, row);
+        merged.set(row.id, { ...row, __local_today: localToday });
       }
       if (merged.size > 0) {
         allIdeas = allIdeas.concat(Array.from(merged.values()));
@@ -234,7 +235,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ processed: 0, skipped: 0, total: 0, delivery_time: deliveryWindow });
     }
 
+    allIdeas.sort((a, b) => {
+      const aToday = a.scheduled_for === a.__local_today ? 0 : 1;
+      const bToday = b.scheduled_for === b.__local_today ? 0 : 1;
+      if (aToday !== bToday) return aToday - bToday;
+      const byDate = String(a.scheduled_for || "").localeCompare(String(b.scheduled_for || ""));
+      if (byDate !== 0) return byDate;
+      return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+    });
+
     console.log(`[autopilot] ${allIdeas.length} ideas to process`);
+    await updateRunProgress(supabase, runId, { ideas_found: allIdeas.length });
 
     let processed = 0;
     let skipped = 0;
@@ -276,6 +287,7 @@ Deno.serve(async (req) => {
         const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey, runId, baseMeta);
         if (result.success) {
           processed++;
+          await updateRunProgress(supabase, runId, { processed, skipped, errors });
           await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, {
             ...baseMeta,
             design_id: result.design_id,
@@ -283,6 +295,7 @@ Deno.serve(async (req) => {
           });
         } else {
           skipped++;
+          await updateRunProgress(supabase, runId, { processed, skipped, errors });
           await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, baseMeta);
         }
       } catch (ideaErr) {
@@ -293,6 +306,7 @@ Deno.serve(async (req) => {
           .eq("id", idea.id);
         errors++;
         errorDetails.push({ idea_id: idea.id, error: (ideaErr as Error).message });
+        await updateRunProgress(supabase, runId, { processed, skipped, errors, error_details: errorDetails });
         await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message, baseMeta);
       }
     };
@@ -369,6 +383,14 @@ async function finalizeRun(supabase: any, runId: string | undefined, found: numb
       error_details: errorDetails,
       completed_at: new Date().toISOString(),
     })
+    .eq("id", runId);
+}
+
+async function updateRunProgress(supabase: any, runId: string | undefined, patch: Record<string, any>) {
+  if (!runId) return;
+  await supabase
+    .from("autopilot_runs")
+    .update(patch)
     .eq("id", runId);
 }
 
