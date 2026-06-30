@@ -44,20 +44,42 @@ const AutopilotStatusBanner = ({ brandId, showApproveAll = false, className = ""
     setApproving(true);
     const weekStart = startOfWeek().toISOString().slice(0, 10);
     const weekEnd = endOfWeek().toISOString().slice(0, 10);
+
+    const { data: blueprintRows } = await supabase
+      .from("content_ideas")
+      .select("blueprint_id")
+      .eq("brand_id", brandId)
+      .eq("autopilot", true)
+      .not("blueprint_id", "is", null)
+      .gte("scheduled_for", weekStart)
+      .lt("scheduled_for", weekEnd);
+
+    const blueprintIds = Array.from(
+      new Set((blueprintRows ?? []).map((row: any) => row.blueprint_id).filter(Boolean)),
+    );
+
     const { error } = await supabase
       .from("content_ideas")
       .update({ approval_status: "approved", status: "scheduled" })
       .eq("brand_id", brandId)
       .eq("autopilot", true)
       .not("blueprint_id", "is", null)
-      .neq("approval_status", "approved")
       .gte("scheduled_for", weekStart)
       .lt("scheduled_for", weekEnd);
+    if (!error && blueprintIds.length > 0) {
+      await supabase
+        .from("weekly_blueprints" as any)
+        .update({ status: "approved", approved_at: new Date().toISOString() } as any)
+        .in("id", blueprintIds);
+    }
     setApproving(false);
     if (error) {
       toast({ title: "Couldn't approve week", description: error.message, variant: "destructive" });
       return;
     }
+    supabase.functions
+      .invoke("content-autopilot", { body: { brand_id: brandId, force: true } })
+      .catch((e) => console.warn("[autopilot-banner] content-autopilot kick failed", e));
     toast({ title: "Approved", description: "Autopilot is live for this week." });
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["autopilot-status", brandId] }),
