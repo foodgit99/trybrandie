@@ -52,19 +52,40 @@ const WEEK_ARC = ["Hook", "Educate", "Proof", "Offer", "Urgency", "Lifestyle", "
 
 // Ensure a weekly_blueprints row exists for (brand, week_start) and return its id.
 // Idempotent via the (brand_id, week_start_date) UNIQUE constraint.
-async function ensureBlueprint(client: any, brandId: string, userId: string, weekStart: string): Promise<string | null> {
+async function ensureBlueprint(
+  client: any,
+  brandId: string,
+  userId: string,
+  weekStart: string,
+  status: "draft" | "approved" = "draft",
+): Promise<string | null> {
   try {
     const { data: existing } = await client
       .from("weekly_blueprints")
-      .select("id")
+      .select("id, status")
       .eq("brand_id", brandId)
       .eq("week_start_date", weekStart)
       .maybeSingle();
-    if (existing?.id) return existing.id;
+    if (existing?.id) {
+      if (status === "approved" && existing.status !== "approved") {
+        await client
+          .from("weekly_blueprints")
+          .update({ status: "approved", approved_at: new Date().toISOString() })
+          .eq("id", existing.id);
+      }
+      return existing.id;
+    }
     const { data: created, error } = await client
       .from("weekly_blueprints")
       .upsert(
-        { brand_id: brandId, user_id: userId, week_start_date: weekStart, status: "draft", source: "autopilot" },
+        {
+          brand_id: brandId,
+          user_id: userId,
+          week_start_date: weekStart,
+          status,
+          approved_at: status === "approved" ? new Date().toISOString() : null,
+          source: "autopilot",
+        },
         { onConflict: "brand_id,week_start_date" },
       )
       .select("id")
@@ -945,16 +966,23 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       // Auto-enrol into autopilot if brand has autopilot enabled
       const { data: apSettings } = await serviceClient
         .from("autopilot_settings")
-        .select("enabled, default_funnel_stage, default_campaign_id, default_canvas_size")
+        .select("enabled, mode, default_funnel_stage, default_campaign_id, default_canvas_size")
         .eq("brand_id", brand_id)
         .maybeSingle();
       const autopilotOn = !!apSettings?.enabled;
+      const autoApproveBlueprint = autopilotOn && (apSettings as any)?.mode === "autonomous";
       const defaultFunnelStage = (apSettings as any)?.default_funnel_stage || null;
       const defaultCampaignId = (apSettings as any)?.default_campaign_id || null;
       const defaultCanvasSize = (apSettings as any)?.default_canvas_size || null;
 
       // Ensure a weekly_blueprints row exists so ideas link to a real plan-of-record.
-      const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
+      const blueprintId = await ensureBlueprint(
+        serviceClient,
+        brand_id,
+        userId,
+        weekStart,
+        autoApproveBlueprint ? "approved" : "draft",
+      );
 
       // Track per-campaign assignments this run so we never exceed remaining quota.
       const runAssignedByCampaign = new Map<string, number>();
@@ -1029,6 +1057,7 @@ You will be given a list of active campaigns with their remaining slots. Any cam
           content_category: CONTENT_CATEGORY_ENUM.includes(idea.content_category) ? idea.content_category : null,
           canvas_size: canvas,
           status: "suggested",
+          approval_status: autoApproveBlueprint ? "approved" : "pending",
           scheduled_for: dateMap.get(idea.day) || null,
           day_of_week: typeof dIdx === "number" ? dIdx : null,
           strategic_arc: arc,
