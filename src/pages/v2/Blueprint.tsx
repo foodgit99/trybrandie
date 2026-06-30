@@ -47,6 +47,37 @@ const WEEKDAY_NAMES = [
   "Sunday",
 ];
 
+async function approveBlueprintWeek(brandId: string, weekStart: Date, weekEnd: Date) {
+  const weekStartDate = weekStart.toISOString().slice(0, 10);
+  const weekEndDate = weekEnd.toISOString().slice(0, 10);
+
+  const { data: blueprintIds } = await supabase
+    .from("content_ideas")
+    .select("blueprint_id")
+    .eq("brand_id", brandId)
+    .not("blueprint_id", "is", null)
+    .gte("scheduled_for", weekStartDate)
+    .lt("scheduled_for", weekEndDate);
+
+  const ids = Array.from(
+    new Set((blueprintIds ?? []).map((row: any) => row.blueprint_id).filter(Boolean)),
+  );
+
+  await supabase
+    .from("content_ideas")
+    .update({ approval_status: "approved", status: "scheduled" })
+    .eq("brand_id", brandId)
+    .gte("scheduled_for", weekStartDate)
+    .lt("scheduled_for", weekEndDate);
+
+  if (ids.length > 0) {
+    await supabase
+      .from("weekly_blueprints" as any)
+      .update({ status: "approved", approved_at: new Date().toISOString() } as any)
+      .in("id", ids);
+  }
+}
+
 function startOfWeek(d = new Date()) {
   const date = new Date(d);
   const day = date.getDay();
@@ -135,18 +166,10 @@ const Blueprint = () => {
         if (genErr) throw genErr;
 
         if (mode === "autonomous") {
-          const ws = weekStart.toISOString();
-          const we = weekEnd.toISOString();
-          await supabase
-            .from("content_ideas")
-            .update({ approval_status: "approved", status: "scheduled" })
-            .eq("brand_id", brand.id)
-            .neq("approval_status", "approved")
-            .gte("scheduled_for", ws)
-            .lt("scheduled_for", we);
+          await approveBlueprintWeek(brand.id, weekStart, weekEnd);
           // Kick today's render immediately; don't await failures fatally.
           supabase.functions
-            .invoke("content-autopilot", { body: { brand_id: brand.id } })
+            .invoke("content-autopilot", { body: { brand_id: brand.id, force: true } })
             .catch((e) => console.warn("[blueprint] content-autopilot kick failed", e));
         }
 
@@ -176,16 +199,9 @@ const Blueprint = () => {
     if (!brand?.id) return;
     setApprovingWeek(true);
     try {
-      const { error } = await supabase
-        .from("content_ideas")
-        .update({ approval_status: "approved", status: "scheduled" })
-        .eq("brand_id", brand.id)
-        .neq("approval_status", "approved")
-        .gte("scheduled_for", weekStart.toISOString())
-        .lt("scheduled_for", weekEnd.toISOString());
-      if (error) throw error;
+      await approveBlueprintWeek(brand.id, weekStart, weekEnd);
       supabase.functions
-        .invoke("content-autopilot", { body: { brand_id: brand.id } })
+        .invoke("content-autopilot", { body: { brand_id: brand.id, force: true } })
         .catch((e) => console.warn("[blueprint] content-autopilot kick failed", e));
       toast({
         title: "Week approved",
