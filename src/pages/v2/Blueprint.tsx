@@ -302,10 +302,10 @@ const Blueprint = () => {
     }),
 
     onFinish: async (message) => {
-      // Persist the assistant turn so it appears in the strategist history too.
-      if (agentThreadId && user) {
+      const tid = agentThreadIdRef.current;
+      if (tid && user) {
         await supabase.from("agent_messages").insert({
-          conversation_id: agentThreadId,
+          conversation_id: tid,
           user_id: user.id,
           role: "assistant",
           parts: (message as any).parts ?? [{ type: "text", text: message.content }],
@@ -313,11 +313,11 @@ const Blueprint = () => {
         await supabase
           .from("agent_conversations")
           .update({ last_message_at: new Date().toISOString() })
-          .eq("id", agentThreadId);
+          .eq("id", tid);
       }
-      // Any tool the agent ran may have mutated blueprint data.
       invalidate();
     },
+
     onError: (err) =>
       toast({
         title: "Strategist hit an error",
