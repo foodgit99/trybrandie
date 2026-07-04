@@ -753,7 +753,71 @@ const Blueprint = () => {
       {/* CONVERSATIONAL EDIT BAR */}
       <div className="fixed bottom-0 inset-x-0 lg:pl-20 z-30 pointer-events-none">
         <div className="px-3 pb-3 sm:pb-5 lg:pb-6 pointer-events-none">
-          <div className="max-w-2xl mx-auto pointer-events-auto">
+          <div className="max-w-2xl mx-auto pointer-events-auto space-y-2">
+            {/* Strategist agent chat panel */}
+            {chatOpen && (autonomyEnabled ? agentMessages.length > 0 || agentStreaming : true) && (
+              <div
+                className="rounded-3xl border border-border bg-background/95 backdrop-blur shadow-lg shadow-foreground/5 overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
+                  <div className="flex items-center gap-1.5 text-[10px] tracking-wider uppercase text-muted-foreground">
+                    <Sparkles className="h-3 w-3" /> Strategist
+                    {agentStreaming && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setChatOpen(false);
+                      setAgentMessages([]);
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Close chat"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {autonomyEnabled ? (
+                  <div ref={chatScrollRef} className="max-h-[40vh] overflow-y-auto px-4 py-3 space-y-3">
+                    {agentMessages.map((m: any) => {
+                      const parts = m.parts ?? [{ type: "text", text: m.content }];
+                      const text = parts
+                        .filter((p: any) => p.type === "text")
+                        .map((p: any) => p.text)
+                        .join("");
+                      const toolParts = parts.filter((p: any) => p.type?.startsWith("tool-"));
+                      return (
+                        <div key={m.id} className={m.role === "user" ? "text-sm" : "text-sm"}>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                            {m.role === "user" ? "You" : "Brandie"}
+                          </div>
+                          {text && (
+                            <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1">
+                              <ReactMarkdown>{text}</ReactMarkdown>
+                            </div>
+                          )}
+                          {toolParts.map((tp: any, i: number) => (
+                            <div
+                              key={i}
+                              className="mt-1 text-[11px] text-muted-foreground italic"
+                            >
+                              {tp.state === "output-available" ? "✓ " : "… "}
+                              {(tp.type || "tool").replace(/^tool-/, "")}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                    The Strategist agent is off. Enable autonomous mode in{" "}
+                    <Link to="/agent/settings" className="underline text-foreground">
+                      Agent Settings
+                    </Link>{" "}
+                    to let Brandie act on your queries.
+                  </div>
+                )}
+              </div>
+            )}
             <div
               className="rounded-3xl border border-border bg-background/95 backdrop-blur shadow-lg shadow-foreground/5 p-3 sm:p-3.5"
               style={{ marginBottom: "max(env(safe-area-inset-bottom), 64px)" }}
