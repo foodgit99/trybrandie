@@ -43,8 +43,8 @@ export interface AgentSession {
 export function getMode(session: AgentSession, toolName: string, kind: ToolKind): ToolMode {
   const explicit = session.toolModes[toolName];
   if (explicit) return explicit;
-  // Defaults: reads auto, writes confirm, spend confirm
-  return kind === "read" ? "auto" : "confirm";
+  // Strategist is always autonomous — reads, writes, and spend all default to auto.
+  return "auto";
 }
 
 async function checkCeilings(session: AgentSession, kind: ToolKind): Promise<string | null> {
