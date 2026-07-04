@@ -1,7 +1,7 @@
 // Public webhook for the Brand Strategist Agent.
 // Authenticates via per-user bearer token. Runs a single-shot agent turn and returns text + actions taken.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { generateText, stepCountIs } from "npm:ai@4.3.16";
+import { generateText } from "npm:ai@4.3.16";
 import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@0.2.14";
 import { buildTools, AgentSession, ToolMode } from "../_shared/agent-tools.ts";
 
@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       system: `You are the Autonomous Brand Strategist. You are answering via an external channel (${channel}). Be concise — fit under 600 characters when possible. Use tools to act, then summarize crisply.`,
       messages: [...priorMessages, { role: "user", content: message }],
       tools: tools as any,
-      stopWhen: stepCountIs(25),
+      maxSteps: 25,
     });
     assistantText = r.text;
   } catch (e: any) {

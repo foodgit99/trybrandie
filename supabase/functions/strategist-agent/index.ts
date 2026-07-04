@@ -2,7 +2,7 @@
 // Coexists with the legacy `brand-strategist` function which remains unchanged.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { convertToModelMessages, streamText, stepCountIs, type UIMessage } from "npm:ai@4.3.16";
+import { convertToCoreMessages, streamText, type UIMessage } from "npm:ai@4.3.16";
 import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@0.2.14";
 import { buildTools, AgentSession, ToolMode } from "../_shared/agent-tools.ts";
 
@@ -114,9 +114,9 @@ Deno.serve(async (req) => {
     const result = streamText({
       model: provider("google/gemini-3-flash-preview"),
       system: systemPrompt,
-      messages: await convertToModelMessages(messages),
+      messages: convertToCoreMessages(messages as any),
       tools: tools as any,
-      stopWhen: stepCountIs(50),
+      maxSteps: 50,
     });
 
     return result.toUIMessageStreamResponse({
