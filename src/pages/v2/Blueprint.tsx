@@ -249,17 +249,18 @@ const Blueprint = () => {
     return () => { sub.data.subscription.unsubscribe(); };
   }, []);
 
-  const [autonomyEnabled, setAutonomyEnabled] = useState<boolean | null>(null);
+  // The Strategist is always autonomous. Ensure a settings row exists with autonomy on.
   useEffect(() => {
     if (!user || !brand?.id) return;
     supabase
       .from("agent_settings")
-      .select("autonomy_enabled")
-      .eq("user_id", user.id)
-      .eq("brand_id", brand.id)
-      .maybeSingle()
-      .then(({ data }) => setAutonomyEnabled(data?.autonomy_enabled ?? false));
+      .upsert(
+        { user_id: user.id, brand_id: brand.id, autonomy_enabled: true },
+        { onConflict: "user_id,brand_id" },
+      )
+      .then(() => {});
   }, [user, brand?.id]);
+
 
   const [agentThreadId, setAgentThreadId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
