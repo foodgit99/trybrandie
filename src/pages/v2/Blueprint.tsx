@@ -844,7 +844,7 @@ const Blueprint = () => {
                 </div>
                 <Button
                   onClick={handleConversationalEdit}
-                  disabled={!editText.trim() || editing}
+                  disabled={!editText.trim() || editing || agentStreaming}
                   size="icon"
                   className="rounded-full h-10 w-10 shrink-0"
                   aria-label="Send edit"
