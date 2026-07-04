@@ -755,14 +755,64 @@ const Blueprint = () => {
         <div className="px-3 pb-3 sm:pb-5 lg:pb-6 pointer-events-none">
           <div className="max-w-2xl mx-auto pointer-events-auto space-y-2">
             {/* Strategist agent chat panel */}
-            {chatOpen && (autonomyEnabled ? agentMessages.length > 0 || agentStreaming : true) && (
-              <div
-                className="rounded-3xl border border-border bg-background/95 backdrop-blur shadow-lg shadow-foreground/5 overflow-hidden"
-              >
+            {chatOpen && (autonomyEnabled ? agentMessages.length > 0 || agentStreaming : true) && (() => {
+              const TOOL_LABELS: Record<string, string> = {
+                get_brand_snapshot: "Reading your brand",
+                get_blueprint: "Checking your blueprint",
+                get_recent_designs: "Reviewing recent designs",
+                query_holidays: "Scanning upcoming holidays",
+                query_trends: "Pulling trend intel",
+                create_campaign: "Creating a campaign",
+                create_content_pillar: "Adding a content pillar",
+                draft_content_idea: "Drafting a content idea",
+                schedule_idea: "Scheduling an idea",
+                update_idea_caption: "Rewriting a caption",
+                enqueue_design_generation: "Queueing a design",
+              };
+              const humanTool = (t: string) =>
+                TOOL_LABELS[t] ?? t.replace(/^tool-/, "").replace(/_/g, " ");
+
+              // Derive live status from the last assistant message.
+              const lastAssistant = [...agentMessages].reverse().find((m: any) => m.role === "assistant");
+              const lastParts: any[] = (lastAssistant as any)?.parts ?? [];
+              const activeTool = lastParts
+                .filter((p: any) => p.type?.startsWith("tool-"))
+                .find((p: any) => p.state !== "output-available" && p.state !== "output-error");
+              const lastText = lastParts
+                .filter((p: any) => p.type === "text")
+                .map((p: any) => p.text)
+                .join("");
+              let statusLabel: string | null = null;
+              if (agentStreaming) {
+                if (activeTool) statusLabel = `${humanTool((activeTool.type || "").replace(/^tool-/, ""))}…`;
+                else if (!lastText.trim()) statusLabel = "Thinking…";
+                else statusLabel = "Writing…";
+              }
+
+              return (
+              <div className="rounded-3xl border border-border bg-background/95 backdrop-blur shadow-lg shadow-foreground/5 overflow-hidden">
+                {/* Streaming progress bar */}
+                {agentStreaming && (
+                  <div className="h-0.5 w-full bg-muted overflow-hidden" aria-hidden>
+                    <div
+                      className="h-full w-1/3 bg-foreground/70"
+                      style={{ animation: "blueprint-progress 1.4s ease-in-out infinite" }}
+                    />
+                    <style>{`@keyframes blueprint-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }`}</style>
+                  </div>
+                )}
                 <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
                   <div className="flex items-center gap-1.5 text-[10px] tracking-wider uppercase text-muted-foreground">
                     <Sparkles className="h-3 w-3" /> Strategist
-                    {agentStreaming && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+                    {agentStreaming && (
+                      <span className="ml-2 inline-flex items-center gap-1 normal-case tracking-normal text-[11px] text-foreground/80">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground bg-[length:200%_100%] bg-clip-text text-transparent" style={{ animation: "blueprint-shimmer 2s linear infinite" }}>
+                          {statusLabel}
+                        </span>
+                        <style>{`@keyframes blueprint-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => {
@@ -785,7 +835,7 @@ const Blueprint = () => {
                         .join("");
                       const toolParts = parts.filter((p: any) => p.type?.startsWith("tool-"));
                       return (
-                        <div key={m.id} className={m.role === "user" ? "text-sm" : "text-sm"}>
+                        <div key={m.id} className="text-sm">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
                             {m.role === "user" ? "You" : "Brandie"}
                           </div>
@@ -794,18 +844,41 @@ const Blueprint = () => {
                               <ReactMarkdown>{text}</ReactMarkdown>
                             </div>
                           )}
-                          {toolParts.map((tp: any, i: number) => (
-                            <div
-                              key={i}
-                              className="mt-1 text-[11px] text-muted-foreground italic"
-                            >
-                              {tp.state === "output-available" ? "✓ " : "… "}
-                              {(tp.type || "tool").replace(/^tool-/, "")}
-                            </div>
-                          ))}
+                          {toolParts.map((tp: any, i: number) => {
+                            const name = (tp.type || "tool").replace(/^tool-/, "");
+                            const done = tp.state === "output-available";
+                            const errored = tp.state === "output-error";
+                            return (
+                              <div
+                                key={i}
+                                className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                              >
+                                {done ? (
+                                  <Check className="h-3 w-3 text-foreground" />
+                                ) : errored ? (
+                                  <X className="h-3 w-3 text-destructive" />
+                                ) : (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                )}
+                                <span>{humanTool(name)}{done ? "" : errored ? " · failed" : "…"}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })}
+                    {/* Live status row when the agent hasn't produced any assistant part yet */}
+                    {agentStreaming && !lastAssistant && (
+                      <div className="text-sm">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                          Brandie
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <span>{statusLabel ?? "Thinking…"}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="px-4 py-3 text-sm text-muted-foreground">
@@ -817,7 +890,8 @@ const Blueprint = () => {
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
             <div
               className="rounded-3xl border border-border bg-background/95 backdrop-blur shadow-lg shadow-foreground/5 p-3 sm:p-3.5"
               style={{ marginBottom: "max(env(safe-area-inset-bottom), 64px)" }}
