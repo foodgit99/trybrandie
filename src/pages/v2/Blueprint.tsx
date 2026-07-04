@@ -193,6 +193,23 @@ const Blueprint = () => {
     })();
   }, [brand?.id, mode, ideas.length, isLoading, weekStart, weekEnd]);
 
+  // ── Autonomous: auto-generate any approved-but-unrendered ideas ─────────
+  const autoGenRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!brand?.id || mode !== "autonomous" || isLoading) return;
+    const pending = ideas.filter(
+      (i) => i.approval_status === "approved" && !i.design_id,
+    );
+    if (pending.length === 0) return;
+    // Key by the set of pending idea ids so new approvals re-trigger.
+    const key = `${brand.id}:${pending.map((i) => i.id).sort().join(",")}`;
+    if (autoGenRef.current.has(key)) return;
+    autoGenRef.current.add(key);
+    supabase.functions
+      .invoke("content-autopilot", { body: { brand_id: brand.id, force: true } })
+      .catch((e) => console.warn("[blueprint] autonomous autogen kick failed", e));
+  }, [brand?.id, mode, isLoading, ideas]);
+
   // Approve every unapproved idea for this week (Assisted ritual).
   const [approvingWeek, setApprovingWeek] = useState(false);
   const approveWeek = async () => {
