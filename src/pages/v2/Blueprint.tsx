@@ -825,70 +825,60 @@ const Blueprint = () => {
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                {autonomyEnabled ? (
-                  <div ref={chatScrollRef} className="max-h-[40vh] overflow-y-auto px-4 py-3 space-y-3">
-                    {agentMessages.map((m: any) => {
-                      const parts = m.parts ?? [{ type: "text", text: m.content }];
-                      const text = parts
-                        .filter((p: any) => p.type === "text")
-                        .map((p: any) => p.text)
-                        .join("");
-                      const toolParts = parts.filter((p: any) => p.type?.startsWith("tool-"));
-                      return (
-                        <div key={m.id} className="text-sm">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                            {m.role === "user" ? "You" : "Brandie"}
-                          </div>
-                          {text && (
-                            <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1">
-                              <ReactMarkdown>{text}</ReactMarkdown>
-                            </div>
-                          )}
-                          {toolParts.map((tp: any, i: number) => {
-                            const name = (tp.type || "tool").replace(/^tool-/, "");
-                            const done = tp.state === "output-available";
-                            const errored = tp.state === "output-error";
-                            return (
-                              <div
-                                key={i}
-                                className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground"
-                              >
-                                {done ? (
-                                  <Check className="h-3 w-3 text-foreground" />
-                                ) : errored ? (
-                                  <X className="h-3 w-3 text-destructive" />
-                                ) : (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                )}
-                                <span>{humanTool(name)}{done ? "" : errored ? " · failed" : "…"}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                    {/* Live status row when the agent hasn't produced any assistant part yet */}
-                    {agentStreaming && !lastAssistant && (
-                      <div className="text-sm">
+                <div ref={chatScrollRef} className="max-h-[40vh] overflow-y-auto px-4 py-3 space-y-3">
+                  {agentMessages.map((m: any) => {
+                    const parts = m.parts ?? [{ type: "text", text: m.content }];
+                    const text = parts
+                      .filter((p: any) => p.type === "text")
+                      .map((p: any) => p.text)
+                      .join("");
+                    const toolParts = parts.filter((p: any) => p.type?.startsWith("tool-"));
+                    return (
+                      <div key={m.id} className="text-sm">
                         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                          Brandie
+                          {m.role === "user" ? "You" : "Brandie"}
                         </div>
-                        <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          <span>{statusLabel ?? "Thinking…"}</span>
-                        </div>
+                        {text && (
+                          <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1">
+                            <ReactMarkdown>{text}</ReactMarkdown>
+                          </div>
+                        )}
+                        {toolParts.map((tp: any, i: number) => {
+                          const name = (tp.type || "tool").replace(/^tool-/, "");
+                          const done = tp.state === "output-available";
+                          const errored = tp.state === "output-error";
+                          return (
+                            <div
+                              key={i}
+                              className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                            >
+                              {done ? (
+                                <Check className="h-3 w-3 text-foreground" />
+                              ) : errored ? (
+                                <X className="h-3 w-3 text-destructive" />
+                              ) : (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              )}
+                              <span>{humanTool(name)}{done ? "" : errored ? " · failed" : "…"}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
-                    The Strategist agent is off. Enable autonomous mode in{" "}
-                    <Link to="/agent/settings" className="underline text-foreground">
-                      Agent Settings
-                    </Link>{" "}
-                    to let Brandie act on your queries.
-                  </div>
-                )}
+                    );
+                  })}
+                  {agentStreaming && !lastAssistant && (
+                    <div className="text-sm">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                        Brandie
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>{statusLabel ?? "Thinking…"}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
               </div>
               );
             })()}
