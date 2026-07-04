@@ -755,7 +755,7 @@ const Blueprint = () => {
         <div className="px-3 pb-3 sm:pb-5 lg:pb-6 pointer-events-none">
           <div className="max-w-2xl mx-auto pointer-events-auto space-y-2">
             {/* Strategist agent chat panel */}
-            {chatOpen && (autonomyEnabled ? agentMessages.length > 0 || agentStreaming : true) && (() => {
+            {chatOpen && (agentMessages.length > 0 || agentStreaming) && (() => {
               const TOOL_LABELS: Record<string, string> = {
                 get_brand_snapshot: "Reading your brand",
                 get_blueprint: "Checking your blueprint",
