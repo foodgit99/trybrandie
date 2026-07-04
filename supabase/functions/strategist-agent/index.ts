@@ -119,9 +119,8 @@ Deno.serve(async (req) => {
       maxSteps: 50,
     });
 
-    return result.toUIMessageStreamResponse({
+    return result.toDataStreamResponse({
       headers: corsHeaders,
-      originalMessages: messages,
     });
   } catch (e: any) {
     console.error("strategist-agent error", e);
