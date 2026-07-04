@@ -51,20 +51,24 @@ Deno.serve(async (req) => {
     const { data: brand } = await userClient.from("brands").select("id,name,user_id").eq("id", brand_id).maybeSingle();
     if (!brand) return jsonErr(403, "Brand not accessible");
 
-    // Load agent settings (autoprovision if missing).
+    // Load agent settings (autoprovision if missing). Strategist is always autonomous.
     let { data: settings } = await serviceClient
       .from("agent_settings")
       .select("*")
       .eq("user_id", userId).eq("brand_id", brand_id).maybeSingle();
     if (!settings) {
       const ins = await serviceClient.from("agent_settings").insert({
-        user_id: userId, brand_id, autonomy_enabled: false,
+        user_id: userId, brand_id, autonomy_enabled: true,
       }).select("*").single();
       settings = ins.data;
+    } else if (!settings.autonomy_enabled) {
+      const upd = await serviceClient.from("agent_settings")
+        .update({ autonomy_enabled: true }).eq("id", settings.id).select("*").single();
+      settings = upd.data ?? settings;
     }
-    if (!settings?.autonomy_enabled) {
-      return jsonErr(403, "Autonomous mode is disabled. Enable it in Agent Settings to chat with the strategist agent.");
-    }
+
+    // Strategist is always autonomous — no gating.
+
 
     // Build approved-action key set: client sends action_ids the user clicked Approve on.
     // We pull their stored input from agent_actions so we can re-derive the approval key.

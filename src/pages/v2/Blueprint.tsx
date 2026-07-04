@@ -249,29 +249,34 @@ const Blueprint = () => {
     return () => { sub.data.subscription.unsubscribe(); };
   }, []);
 
-  const [autonomyEnabled, setAutonomyEnabled] = useState<boolean | null>(null);
+  // The Strategist is always autonomous. Ensure a settings row exists with autonomy on.
   useEffect(() => {
     if (!user || !brand?.id) return;
     supabase
       .from("agent_settings")
-      .select("autonomy_enabled")
-      .eq("user_id", user.id)
-      .eq("brand_id", brand.id)
-      .maybeSingle()
-      .then(({ data }) => setAutonomyEnabled(data?.autonomy_enabled ?? false));
+      .upsert(
+        { user_id: user.id, brand_id: brand.id, autonomy_enabled: true },
+        { onConflict: "user_id,brand_id" },
+      )
+      .then(() => {});
   }, [user, brand?.id]);
 
+
   const [agentThreadId, setAgentThreadId] = useState<string | null>(null);
+  const agentThreadIdRef = useRef<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const ensureAgentThread = async (): Promise<string | null> => {
-    if (agentThreadId) return agentThreadId;
+    if (agentThreadIdRef.current) return agentThreadIdRef.current;
     if (!user || !brand?.id) return null;
     const { data } = await supabase
       .from("agent_conversations")
       .insert({ user_id: user.id, brand_id: brand.id, title: "Blueprint chat" })
       .select("id")
       .single();
-    if (data?.id) setAgentThreadId(data.id);
+    if (data?.id) {
+      agentThreadIdRef.current = data.id;
+      setAgentThreadId(data.id);
+    }
     return data?.id ?? null;
   };
 
@@ -282,7 +287,7 @@ const Blueprint = () => {
     isLoading: agentStreaming,
     setMessages: setAgentMessages,
   } = useChat({
-    id: agentThreadId ?? "blueprint-agent-pending",
+    id: "blueprint-agent",
     api: agentApiUrl,
     headers: tokenReady
       ? {
@@ -293,13 +298,14 @@ const Blueprint = () => {
     experimental_prepareRequestBody: ({ messages }) => ({
       messages,
       brand_id: brand?.id,
-      conversation_id: agentThreadId,
+      conversation_id: agentThreadIdRef.current,
     }),
+
     onFinish: async (message) => {
-      // Persist the assistant turn so it appears in the strategist history too.
-      if (agentThreadId && user) {
+      const tid = agentThreadIdRef.current;
+      if (tid && user) {
         await supabase.from("agent_messages").insert({
-          conversation_id: agentThreadId,
+          conversation_id: tid,
           user_id: user.id,
           role: "assistant",
           parts: (message as any).parts ?? [{ type: "text", text: message.content }],
@@ -307,11 +313,11 @@ const Blueprint = () => {
         await supabase
           .from("agent_conversations")
           .update({ last_message_at: new Date().toISOString() })
-          .eq("id", agentThreadId);
+          .eq("id", tid);
       }
-      // Any tool the agent ran may have mutated blueprint data.
       invalidate();
     },
+
     onError: (err) =>
       toast({
         title: "Strategist hit an error",
@@ -330,9 +336,10 @@ const Blueprint = () => {
   }, [agentMessages, agentStreaming]);
 
   const sendToAgent = async (text: string) => {
-    let threadId = agentThreadId;
+    let threadId = agentThreadIdRef.current;
     if (!threadId) threadId = await ensureAgentThread();
     if (!threadId) throw new Error("Couldn't start a strategist conversation.");
+
     if (user) {
       await supabase.from("agent_messages").insert({
         conversation_id: threadId,
@@ -351,12 +358,11 @@ const Blueprint = () => {
     if (!text || !brand?.id) return;
     setEditing(true);
     try {
-      // Primary path: autonomous Strategist agent handles the query end-to-end.
-      if (autonomyEnabled) {
-        setEditText("");
-        await sendToAgent(text);
-        return;
-      }
+      // Strategist agent handles every user query end-to-end (always autonomous).
+      setEditText("");
+      await sendToAgent(text);
+      return;
+
       // Fallback (autonomy off): legacy regex intent router.
       const lower = text.toLowerCase();
       const dayIdx = WEEKDAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
@@ -755,7 +761,7 @@ const Blueprint = () => {
         <div className="px-3 pb-3 sm:pb-5 lg:pb-6 pointer-events-none">
           <div className="max-w-2xl mx-auto pointer-events-auto space-y-2">
             {/* Strategist agent chat panel */}
-            {chatOpen && (autonomyEnabled ? agentMessages.length > 0 || agentStreaming : true) && (() => {
+            {chatOpen && (agentMessages.length > 0 || agentStreaming) && (() => {
               const TOOL_LABELS: Record<string, string> = {
                 get_brand_snapshot: "Reading your brand",
                 get_blueprint: "Checking your blueprint",
@@ -825,70 +831,60 @@ const Blueprint = () => {
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                {autonomyEnabled ? (
-                  <div ref={chatScrollRef} className="max-h-[40vh] overflow-y-auto px-4 py-3 space-y-3">
-                    {agentMessages.map((m: any) => {
-                      const parts = m.parts ?? [{ type: "text", text: m.content }];
-                      const text = parts
-                        .filter((p: any) => p.type === "text")
-                        .map((p: any) => p.text)
-                        .join("");
-                      const toolParts = parts.filter((p: any) => p.type?.startsWith("tool-"));
-                      return (
-                        <div key={m.id} className="text-sm">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                            {m.role === "user" ? "You" : "Brandie"}
-                          </div>
-                          {text && (
-                            <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1">
-                              <ReactMarkdown>{text}</ReactMarkdown>
-                            </div>
-                          )}
-                          {toolParts.map((tp: any, i: number) => {
-                            const name = (tp.type || "tool").replace(/^tool-/, "");
-                            const done = tp.state === "output-available";
-                            const errored = tp.state === "output-error";
-                            return (
-                              <div
-                                key={i}
-                                className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground"
-                              >
-                                {done ? (
-                                  <Check className="h-3 w-3 text-foreground" />
-                                ) : errored ? (
-                                  <X className="h-3 w-3 text-destructive" />
-                                ) : (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                )}
-                                <span>{humanTool(name)}{done ? "" : errored ? " · failed" : "…"}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                    {/* Live status row when the agent hasn't produced any assistant part yet */}
-                    {agentStreaming && !lastAssistant && (
-                      <div className="text-sm">
+                <div ref={chatScrollRef} className="max-h-[40vh] overflow-y-auto px-4 py-3 space-y-3">
+                  {agentMessages.map((m: any) => {
+                    const parts = m.parts ?? [{ type: "text", text: m.content }];
+                    const text = parts
+                      .filter((p: any) => p.type === "text")
+                      .map((p: any) => p.text)
+                      .join("");
+                    const toolParts = parts.filter((p: any) => p.type?.startsWith("tool-"));
+                    return (
+                      <div key={m.id} className="text-sm">
                         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                          Brandie
+                          {m.role === "user" ? "You" : "Brandie"}
                         </div>
-                        <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          <span>{statusLabel ?? "Thinking…"}</span>
-                        </div>
+                        {text && (
+                          <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1">
+                            <ReactMarkdown>{text}</ReactMarkdown>
+                          </div>
+                        )}
+                        {toolParts.map((tp: any, i: number) => {
+                          const name = (tp.type || "tool").replace(/^tool-/, "");
+                          const done = tp.state === "output-available";
+                          const errored = tp.state === "output-error";
+                          return (
+                            <div
+                              key={i}
+                              className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                            >
+                              {done ? (
+                                <Check className="h-3 w-3 text-foreground" />
+                              ) : errored ? (
+                                <X className="h-3 w-3 text-destructive" />
+                              ) : (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              )}
+                              <span>{humanTool(name)}{done ? "" : errored ? " · failed" : "…"}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
-                    The Strategist agent is off. Enable autonomous mode in{" "}
-                    <Link to="/agent/settings" className="underline text-foreground">
-                      Agent Settings
-                    </Link>{" "}
-                    to let Brandie act on your queries.
-                  </div>
-                )}
+                    );
+                  })}
+                  {agentStreaming && !lastAssistant && (
+                    <div className="text-sm">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                        Brandie
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>{statusLabel ?? "Thinking…"}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
               </div>
               );
             })()}
