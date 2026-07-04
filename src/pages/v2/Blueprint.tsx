@@ -613,7 +613,7 @@ const Blueprint = () => {
               ? 'All approved. Edit any day, or say "refresh the entire week" to start over.'
               : mode === "autonomous"
               ? "Review the arc. Brandie auto-approves on autonomous mode — tap any day to tweak it."
-              : "Review the arc and tap Approve week, or talk to Brandie at the bottom to tweak any day."}
+              : "Review the arc and tap Approve week, or talk to your Brand Strategist at the bottom to tweak any day."}
           </p>
 
 
@@ -896,7 +896,7 @@ const Blueprint = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 px-1 mb-1.5 text-[10px] tracking-wider uppercase text-muted-foreground">
                     <Sparkles className="h-3 w-3" />
-                    Talk to Brandie
+                    talk to your Brand Strategist
                   </div>
                   <Textarea
                     ref={composerRef}
