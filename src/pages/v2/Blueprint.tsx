@@ -237,10 +237,114 @@ const Blueprint = () => {
 
 
 
+  // ── Strategist Agent chat ───────────────────────────────────────────────
+  const [tokenReady, setTokenReady] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setTokenReady(session?.access_token ?? null);
+    });
+    const sub = supabase.auth.onAuthStateChange((_e, s) =>
+      setTokenReady(s?.access_token ?? null),
+    );
+    return () => { sub.data.subscription.unsubscribe(); };
+  }, []);
+
+  const [autonomyEnabled, setAutonomyEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!user || !brand?.id) return;
+    supabase
+      .from("agent_settings")
+      .select("autonomy_enabled")
+      .eq("user_id", user.id)
+      .eq("brand_id", brand.id)
+      .maybeSingle()
+      .then(({ data }) => setAutonomyEnabled(data?.autonomy_enabled ?? false));
+  }, [user, brand?.id]);
+
+  const [agentThreadId, setAgentThreadId] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const ensureAgentThread = async (): Promise<string | null> => {
+    if (agentThreadId) return agentThreadId;
+    if (!user || !brand?.id) return null;
+    const { data } = await supabase
+      .from("agent_conversations")
+      .insert({ user_id: user.id, brand_id: brand.id, title: "Blueprint chat" })
+      .select("id")
+      .single();
+    if (data?.id) setAgentThreadId(data.id);
+    return data?.id ?? null;
+  };
+
+  const agentApiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/strategist-agent`;
+  const {
+    messages: agentMessages,
+    append: agentAppend,
+    isLoading: agentStreaming,
+    setMessages: setAgentMessages,
+  } = useChat({
+    id: agentThreadId ?? "blueprint-agent-pending",
+    api: agentApiUrl,
+    headers: tokenReady
+      ? {
+          Authorization: `Bearer ${tokenReady}`,
+          apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+        }
+      : undefined,
+    experimental_prepareRequestBody: ({ messages }) => ({
+      messages,
+      brand_id: brand?.id,
+      conversation_id: agentThreadId,
+    }),
+    onFinish: async (message) => {
+      // Persist the assistant turn so it appears in the strategist history too.
+      if (agentThreadId && user) {
+        await supabase.from("agent_messages").insert({
+          conversation_id: agentThreadId,
+          user_id: user.id,
+          role: "assistant",
+          parts: (message as any).parts ?? [{ type: "text", text: message.content }],
+        });
+        await supabase
+          .from("agent_conversations")
+          .update({ last_message_at: new Date().toISOString() })
+          .eq("id", agentThreadId);
+      }
+      // Any tool the agent ran may have mutated blueprint data.
+      invalidate();
+    },
+    onError: (err) =>
+      toast({
+        title: "Strategist hit an error",
+        description: err?.message ?? "Please try again.",
+        variant: "destructive",
+      }),
+  });
+
   // Conversational edit bar
   const [editText, setEditText] = useState("");
   const [editing, setEditing] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [agentMessages, agentStreaming]);
+
+  const sendToAgent = async (text: string) => {
+    let threadId = agentThreadId;
+    if (!threadId) threadId = await ensureAgentThread();
+    if (!threadId) throw new Error("Couldn't start a strategist conversation.");
+    if (user) {
+      await supabase.from("agent_messages").insert({
+        conversation_id: threadId,
+        user_id: user.id,
+        role: "user",
+        parts: [{ type: "text", text }],
+      });
+    }
+    setChatOpen(true);
+    await agentAppend({ role: "user", content: text });
+  };
+
 
   const handleConversationalEdit = async () => {
     const text = editText.trim();
