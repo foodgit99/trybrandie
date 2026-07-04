@@ -263,16 +263,20 @@ const Blueprint = () => {
 
 
   const [agentThreadId, setAgentThreadId] = useState<string | null>(null);
+  const agentThreadIdRef = useRef<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const ensureAgentThread = async (): Promise<string | null> => {
-    if (agentThreadId) return agentThreadId;
+    if (agentThreadIdRef.current) return agentThreadIdRef.current;
     if (!user || !brand?.id) return null;
     const { data } = await supabase
       .from("agent_conversations")
       .insert({ user_id: user.id, brand_id: brand.id, title: "Blueprint chat" })
       .select("id")
       .single();
-    if (data?.id) setAgentThreadId(data.id);
+    if (data?.id) {
+      agentThreadIdRef.current = data.id;
+      setAgentThreadId(data.id);
+    }
     return data?.id ?? null;
   };
 
@@ -283,7 +287,7 @@ const Blueprint = () => {
     isLoading: agentStreaming,
     setMessages: setAgentMessages,
   } = useChat({
-    id: agentThreadId ?? "blueprint-agent-pending",
+    id: "blueprint-agent",
     api: agentApiUrl,
     headers: tokenReady
       ? {
@@ -294,8 +298,9 @@ const Blueprint = () => {
     experimental_prepareRequestBody: ({ messages }) => ({
       messages,
       brand_id: brand?.id,
-      conversation_id: agentThreadId,
+      conversation_id: agentThreadIdRef.current,
     }),
+
     onFinish: async (message) => {
       // Persist the assistant turn so it appears in the strategist history too.
       if (agentThreadId && user) {
