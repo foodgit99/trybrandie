@@ -352,12 +352,11 @@ const Blueprint = () => {
     if (!text || !brand?.id) return;
     setEditing(true);
     try {
-      // Primary path: autonomous Strategist agent handles the query end-to-end.
-      if (autonomyEnabled) {
-        setEditText("");
-        await sendToAgent(text);
-        return;
-      }
+      // Strategist agent handles every user query end-to-end (always autonomous).
+      setEditText("");
+      await sendToAgent(text);
+      return;
+
       // Fallback (autonomy off): legacy regex intent router.
       const lower = text.toLowerCase();
       const dayIdx = WEEKDAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
