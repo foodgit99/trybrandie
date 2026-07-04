@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
+import { useChat } from "@ai-sdk/react";
+import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
@@ -17,6 +19,7 @@ import {
   Trash2,
   Wand2,
   RotateCcw,
+  X,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -234,16 +237,127 @@ const Blueprint = () => {
 
 
 
+  // ── Strategist Agent chat ───────────────────────────────────────────────
+  const [tokenReady, setTokenReady] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setTokenReady(session?.access_token ?? null);
+    });
+    const sub = supabase.auth.onAuthStateChange((_e, s) =>
+      setTokenReady(s?.access_token ?? null),
+    );
+    return () => { sub.data.subscription.unsubscribe(); };
+  }, []);
+
+  const [autonomyEnabled, setAutonomyEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!user || !brand?.id) return;
+    supabase
+      .from("agent_settings")
+      .select("autonomy_enabled")
+      .eq("user_id", user.id)
+      .eq("brand_id", brand.id)
+      .maybeSingle()
+      .then(({ data }) => setAutonomyEnabled(data?.autonomy_enabled ?? false));
+  }, [user, brand?.id]);
+
+  const [agentThreadId, setAgentThreadId] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const ensureAgentThread = async (): Promise<string | null> => {
+    if (agentThreadId) return agentThreadId;
+    if (!user || !brand?.id) return null;
+    const { data } = await supabase
+      .from("agent_conversations")
+      .insert({ user_id: user.id, brand_id: brand.id, title: "Blueprint chat" })
+      .select("id")
+      .single();
+    if (data?.id) setAgentThreadId(data.id);
+    return data?.id ?? null;
+  };
+
+  const agentApiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/strategist-agent`;
+  const {
+    messages: agentMessages,
+    append: agentAppend,
+    isLoading: agentStreaming,
+    setMessages: setAgentMessages,
+  } = useChat({
+    id: agentThreadId ?? "blueprint-agent-pending",
+    api: agentApiUrl,
+    headers: tokenReady
+      ? {
+          Authorization: `Bearer ${tokenReady}`,
+          apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+        }
+      : undefined,
+    experimental_prepareRequestBody: ({ messages }) => ({
+      messages,
+      brand_id: brand?.id,
+      conversation_id: agentThreadId,
+    }),
+    onFinish: async (message) => {
+      // Persist the assistant turn so it appears in the strategist history too.
+      if (agentThreadId && user) {
+        await supabase.from("agent_messages").insert({
+          conversation_id: agentThreadId,
+          user_id: user.id,
+          role: "assistant",
+          parts: (message as any).parts ?? [{ type: "text", text: message.content }],
+        });
+        await supabase
+          .from("agent_conversations")
+          .update({ last_message_at: new Date().toISOString() })
+          .eq("id", agentThreadId);
+      }
+      // Any tool the agent ran may have mutated blueprint data.
+      invalidate();
+    },
+    onError: (err) =>
+      toast({
+        title: "Strategist hit an error",
+        description: err?.message ?? "Please try again.",
+        variant: "destructive",
+      }),
+  });
+
   // Conversational edit bar
   const [editText, setEditText] = useState("");
   const [editing, setEditing] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [agentMessages, agentStreaming]);
+
+  const sendToAgent = async (text: string) => {
+    let threadId = agentThreadId;
+    if (!threadId) threadId = await ensureAgentThread();
+    if (!threadId) throw new Error("Couldn't start a strategist conversation.");
+    if (user) {
+      await supabase.from("agent_messages").insert({
+        conversation_id: threadId,
+        user_id: user.id,
+        role: "user",
+        parts: [{ type: "text", text }],
+      });
+    }
+    setChatOpen(true);
+    await agentAppend({ role: "user", content: text });
+  };
+
 
   const handleConversationalEdit = async () => {
     const text = editText.trim();
     if (!text || !brand?.id) return;
     setEditing(true);
     try {
+      // Primary path: autonomous Strategist agent handles the query end-to-end.
+      if (autonomyEnabled) {
+        setEditText("");
+        await sendToAgent(text);
+        return;
+      }
+      // Fallback (autonomy off): legacy regex intent router.
       const lower = text.toLowerCase();
       const dayIdx = WEEKDAY_NAMES.findIndex((d) => lower.includes(d.toLowerCase()));
 
@@ -639,7 +753,71 @@ const Blueprint = () => {
       {/* CONVERSATIONAL EDIT BAR */}
       <div className="fixed bottom-0 inset-x-0 lg:pl-20 z-30 pointer-events-none">
         <div className="px-3 pb-3 sm:pb-5 lg:pb-6 pointer-events-none">
-          <div className="max-w-2xl mx-auto pointer-events-auto">
+          <div className="max-w-2xl mx-auto pointer-events-auto space-y-2">
+            {/* Strategist agent chat panel */}
+            {chatOpen && (autonomyEnabled ? agentMessages.length > 0 || agentStreaming : true) && (
+              <div
+                className="rounded-3xl border border-border bg-background/95 backdrop-blur shadow-lg shadow-foreground/5 overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
+                  <div className="flex items-center gap-1.5 text-[10px] tracking-wider uppercase text-muted-foreground">
+                    <Sparkles className="h-3 w-3" /> Strategist
+                    {agentStreaming && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setChatOpen(false);
+                      setAgentMessages([]);
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Close chat"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {autonomyEnabled ? (
+                  <div ref={chatScrollRef} className="max-h-[40vh] overflow-y-auto px-4 py-3 space-y-3">
+                    {agentMessages.map((m: any) => {
+                      const parts = m.parts ?? [{ type: "text", text: m.content }];
+                      const text = parts
+                        .filter((p: any) => p.type === "text")
+                        .map((p: any) => p.text)
+                        .join("");
+                      const toolParts = parts.filter((p: any) => p.type?.startsWith("tool-"));
+                      return (
+                        <div key={m.id} className={m.role === "user" ? "text-sm" : "text-sm"}>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                            {m.role === "user" ? "You" : "Brandie"}
+                          </div>
+                          {text && (
+                            <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1">
+                              <ReactMarkdown>{text}</ReactMarkdown>
+                            </div>
+                          )}
+                          {toolParts.map((tp: any, i: number) => (
+                            <div
+                              key={i}
+                              className="mt-1 text-[11px] text-muted-foreground italic"
+                            >
+                              {tp.state === "output-available" ? "✓ " : "… "}
+                              {(tp.type || "tool").replace(/^tool-/, "")}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                    The Strategist agent is off. Enable autonomous mode in{" "}
+                    <Link to="/agent/settings" className="underline text-foreground">
+                      Agent Settings
+                    </Link>{" "}
+                    to let Brandie act on your queries.
+                  </div>
+                )}
+              </div>
+            )}
             <div
               className="rounded-3xl border border-border bg-background/95 backdrop-blur shadow-lg shadow-foreground/5 p-3 sm:p-3.5"
               style={{ marginBottom: "max(env(safe-area-inset-bottom), 64px)" }}
@@ -666,7 +844,7 @@ const Blueprint = () => {
                 </div>
                 <Button
                   onClick={handleConversationalEdit}
-                  disabled={!editText.trim() || editing}
+                  disabled={!editText.trim() || editing || agentStreaming}
                   size="icon"
                   className="rounded-full h-10 w-10 shrink-0"
                   aria-label="Send edit"
