@@ -336,9 +336,10 @@ const Blueprint = () => {
   }, [agentMessages, agentStreaming]);
 
   const sendToAgent = async (text: string) => {
-    let threadId = agentThreadId;
+    let threadId = agentThreadIdRef.current;
     if (!threadId) threadId = await ensureAgentThread();
     if (!threadId) throw new Error("Couldn't start a strategist conversation.");
+
     if (user) {
       await supabase.from("agent_messages").insert({
         conversation_id: threadId,
