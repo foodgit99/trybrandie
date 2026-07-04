@@ -67,9 +67,8 @@ Deno.serve(async (req) => {
       settings = upd.data ?? settings;
     }
 
-    if (!settings?.autonomy_enabled) {
-      return jsonErr(403, "Autonomous mode is disabled. Enable it in Agent Settings to chat with the strategist agent.");
-    }
+    // Strategist is always autonomous — no gating.
+
 
     // Build approved-action key set: client sends action_ids the user clicked Approve on.
     // We pull their stored input from agent_actions so we can re-derive the approval key.
