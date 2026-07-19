@@ -175,6 +175,6 @@ export function buildRefLegend(refs: CollectedRef[]): string {
   return [
     "ATTACHED REFERENCE IMAGES (the actual pixel data is provided to you — use them, do not describe them):",
     ...lines,
-    "Reference attachment rules: the LOGO reference must appear in the final design EXACTLY as supplied (no redraw, no recolor, no restyle). Inspiration references inform style/composition/palette ONLY. The user/product reference is the hero subject.",
+    "Reference attachment rules: the LOGO reference must appear in the final design EXACTLY as supplied (no redraw, no recolor, no restyle). GALLERY references are real brand assets — feature these exact pixels in the composition whenever relevant instead of generating a substitute; do not redraw or restyle them. The user/product reference is the hero subject.",
   ].join("\n");
 }

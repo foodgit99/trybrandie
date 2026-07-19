@@ -1633,7 +1633,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Accent colours: ${(brand.accent_colors || []).join(", ")}
 - Primary font: ${brand.typography_primary || "Clean sans-serif"}
 - Secondary font: ${brand.typography_secondary || "Serif"}
-${inspirationUrls.length > 0 ? `- Brand inspiration/style references: The brand has ${inspirationUrls.length} inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.` : ""}
+${inspirationUrls.length > 0 ? `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Feature these EXACT images in the composition whenever relevant instead of generating substitutes. Do not redraw or restyle them — they are the brand's real assets.` : ""}
 ${brand.special_instructions ? `- Special instructions: ${brand.special_instructions}` : ""}
 ${audienceContext}${trendContext}${productImageContext}${preferenceContext}${chatHistoryContext}
 
