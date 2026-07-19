@@ -105,6 +105,7 @@ export interface CollectRefsInput {
   previousImageUrl?: string | null;
   /** Max total refs to attach (gpt-image-2 quality degrades past ~4). */
   maxRefs?: number;
+
 }
 
 /**
@@ -136,7 +137,7 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
     candidates.push({ url: input.userImageUrl, role: "user", label: "user-provided image (use as the primary subject of the design)" });
   }
   for (const insp of (input.inspirationUrls || []).slice(0, 2)) {
-    candidates.push({ url: insp, role: "inspiration", label: "inspiration (match style, composition, palette energy ONLY — do not copy its content)" });
+    candidates.push({ url: insp, role: "inspiration", label: "brand gallery photo (REAL brand asset — feature these exact pixels in the composition when relevant; do NOT replace with a generated stand-in, do NOT redraw)" });
   }
   if (!input.userImageUrl) {
     for (const prod of (input.productImageUrls || []).slice(0, 2)) {
