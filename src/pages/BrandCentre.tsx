@@ -1104,15 +1104,18 @@ const BrandCentre = () => {
           {/* Updates, real-time business activity feed */}
           {brand?.id && user?.id && <BrandUpdates brandId={brand.id} userId={user.id} />}
 
-          {/* Inspiration */}
+          {/* Gallery */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Inspiration</h3>
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Gallery</h3>
               <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => inspirationInputRef.current?.click()}>
-                <Upload className="h-3 w-3" /> Add
+                <Upload className="h-3 w-3" /> Add to gallery
               </Button>
               <input ref={inspirationInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleInspirationUpload} />
             </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Real brand photos Brandie will feature in your designs — products, screenshots, team, premises, packaging, etc. Brandie uses these exact images instead of generating stand-ins.
+            </p>
             {inspiration && inspiration.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {inspiration.map((item) => (
@@ -1123,7 +1126,7 @@ const BrandCentre = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No inspiration images yet.</p>
+              <p className="text-sm text-muted-foreground">No gallery images yet. Upload real brand photos so your designs look like your business.</p>
             )}
           </div>
 

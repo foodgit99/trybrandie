@@ -1,53 +1,43 @@
-## What happened
+# Rename Inspiration → Gallery, and use those images literally
 
-Autonomous mode is on, and today’s Brandie post exists:
+Today the "Inspiration" section is treated by the renderer as **style-only** ("match style, composition, palette energy ONLY — do not copy its content"). We're flipping the meaning: the section becomes the brand's **Gallery** of real assets (product shots, storefront, team, screenshots, etc.), and the renderer should prefer these actual pixels over any AI-generated stand-ins.
 
-- Brand: Brandie
-- Today’s idea: “Social Media Day: The OS Evolution”
-- Scheduled for: Tuesday, June 30
-- Approval: approved
-- Autopilot: on
-- Design: not created
-- Autopilot status: still empty, meaning the generator never picked this specific idea up
+This is a UI + agent-prompt change. We keep the existing `brand_inspiration` table and `brand-inspiration` storage bucket (rename would churn migrations, RLS, storage paths, and every existing user's uploaded files for no user-visible gain). Only labels and prompt semantics change.
 
-## Why it did not auto-generate
+## 1. UI rename (Brand Centre)
 
-There are two issues in the current autonomous path:
+`src/pages/BrandCentre.tsx` and `src/pages/v2/BrandCentre.tsx`:
+- Section title "Inspiration" → **"Gallery"**.
+- Helper copy → "Real brand photos Brandie will feature in your designs — products, screenshots, team, premises, packaging, etc. Brandie uses these exact images instead of generating stand-ins."
+- Upload button label "Add inspiration" → "Add to gallery".
+- Empty-state copy updated to match.
 
-1. **The scheduled morning autopilot run started, but did not finish cleanly.**
-   - The morning job ran at the correct time window for Lagos.
-   - It began processing the global autopilot queue.
-   - It hit slow/rate-limited design generation and older pending ideas from other brands first.
-   - The run did not reach today’s Brandie idea before the backend request timed out / stalled.
+No table, column, bucket, query-key, or ref-name changes — internal identifiers (`brand_inspiration`, `inspirationUrls`, etc.) stay to avoid a churn migration.
 
-2. **The “kick today’s render immediately” path from Blueprint is not forced.**
-   - The Blueprint page calls the autopilot function after autonomous approval.
-   - But it sends only the brand id, not `force: true`.
-   - So if the user opens Blueprint outside the exact morning window, the function says “not the right time” and processes 0 ideas.
+## 2. Renderer priority change
 
-A smaller related issue: the weekly Blueprint row for this week is still marked `draft`, even though the individual ideas are approved. The current generator can still process individually approved ideas, so this is not the main blocker, but it makes status reporting confusing.
+`supabase/functions/_shared/render-refs.ts`:
+- Change the label for the `inspiration` role from *"match style… do not copy its content"* to something like *"brand gallery photo (real brand asset — feature these exact pixels in the design when relevant; do not replace with a generated stand-in)"*.
+- Bump priority so gallery images sit alongside product/user images rather than behind them. New order: logo → previous render → user upload → **gallery (up to 2)** → product photos. Raise `maxRefs` default from 4 → 5 so a logo + previous + user + 2 gallery can all attach.
+- Keep the existing 4MB / content-type validation.
 
-## Fix plan
+`supabase/functions/_shared/render-refs.ts` legend text (`buildRefLegend`) updated so the model is told gallery references are literal brand assets to use, not style hints.
 
-1. **Make Blueprint’s immediate autonomous kick actually force-run today’s brand**
-   - Update the Blueprint approval/autonomous auto-plan calls to invoke autopilot with:
-     - `brand_id`
-     - `force: true`
-   - This makes “Autonomous approved the week, start today’s post now” work even outside the scheduled hour.
+## 3. Prompt copy in design-studio
 
-2. **Prioritize the current brand and today’s idea when forced**
-   - In the autopilot function, when `brand_id + force` are present, process only that brand and prioritize today’s due idea first.
-   - This prevents Brandie’s today post from being stuck behind the wider global queue.
+`supabase/functions/design-studio/index.ts`:
+- Update the two lines that describe `inspirationUrls` in the design brief prompt (single + carousel paths) to say: "The brand's Gallery contains N real brand photos. Feature these exact images in the composition wherever relevant instead of generating substitutes." (currently says "inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.")
+- Keep the existing style-tag analysis pipeline (it still gives the preset picker useful signal about the brand's visual world), but rename log lines and internal comments from "inspiration" → "gallery" only where it's user-visible; leave variable names untouched to keep the diff small.
 
-3. **Make the scheduled autopilot run more reliable**
-   - Order due ideas predictably by date and creation time.
-   - Avoid one long global run silently dying before it finalizes.
-   - Record partial progress earlier so the run history reflects what was actually picked up.
+## 4. Landing / marketing copy
 
-4. **Clean up Blueprint approval consistency**
-   - When autonomous mode auto-approves a week, also mark the weekly Blueprint row as approved.
-   - This keeps Blueprint status, banner status, and generator eligibility aligned.
+Skip. Landing page uses "inspiration" in a different marketing context and isn't user-editable brand data.
 
-5. **Backfill today’s Brandie post after the fix**
-   - Reset today’s idea to a retryable state if needed.
-   - Trigger a forced run for Brandie so today’s carousel starts rendering immediately.
+## Out of scope
+- No DB migration, no storage bucket rename, no changes to `brand.inspiration_examples` column, no changes to `admin-action`, `brand-strategist`, `brand-engine`, `autopilot-planner`, or `brand-updates` (they read the same URLs; semantics are enforced at render time).
+- No change to how many images a user can upload.
+
+## Technical notes
+- `src/integrations/supabase/types.ts` is auto-generated; unchanged.
+- Query keys (`brand_inspiration`) unchanged so cached data stays valid across the rename.
+- The `RefRole` type keeps `"inspiration"` as its identifier; only the human-facing `label` string in the prompt changes.

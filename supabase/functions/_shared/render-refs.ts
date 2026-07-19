@@ -103,8 +103,9 @@ export interface CollectRefsInput {
   userImageUrl?: string | null;
   productImageUrls?: string[];
   previousImageUrl?: string | null;
-  /** Max total refs to attach (gpt-image-2 quality degrades past ~4). */
+  /** Max total refs to attach (gpt-image-2 quality degrades past ~5). */
   maxRefs?: number;
+
 }
 
 /**
@@ -116,14 +117,14 @@ export interface CollectRefsInput {
  *  1. Brand logo  (pixel-exact, must always come first when present)
  *  2. Previous render (for edits — preserves layout)
  *  3. User-uploaded image (hero subject)
- *  4. Inspiration #1, #2 (style only, do not copy)
+ *  4. Gallery photo #1, #2 (real brand assets to feature literally)
  *  5. Product image #1, #2 (only when no user image)
  */
 export async function collectRenderRefs(input: CollectRefsInput): Promise<{
   refs: CollectedRef[];
   skipped: { role: RefRole; url: string }[];
 }> {
-  const maxRefs = input.maxRefs ?? 4;
+  const maxRefs = input.maxRefs ?? 5;
   const candidates: { url: string; role: RefRole; label: string }[] = [];
 
   if (input.logoUrl) {
@@ -136,7 +137,7 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
     candidates.push({ url: input.userImageUrl, role: "user", label: "user-provided image (use as the primary subject of the design)" });
   }
   for (const insp of (input.inspirationUrls || []).slice(0, 2)) {
-    candidates.push({ url: insp, role: "inspiration", label: "inspiration (match style, composition, palette energy ONLY — do not copy its content)" });
+    candidates.push({ url: insp, role: "inspiration", label: "brand gallery photo (REAL brand asset — feature these exact pixels in the composition when relevant; do NOT replace with a generated stand-in, do NOT redraw)" });
   }
   if (!input.userImageUrl) {
     for (const prod of (input.productImageUrls || []).slice(0, 2)) {
@@ -174,6 +175,6 @@ export function buildRefLegend(refs: CollectedRef[]): string {
   return [
     "ATTACHED REFERENCE IMAGES (the actual pixel data is provided to you — use them, do not describe them):",
     ...lines,
-    "Reference attachment rules: the LOGO reference must appear in the final design EXACTLY as supplied (no redraw, no recolor, no restyle). Inspiration references inform style/composition/palette ONLY. The user/product reference is the hero subject.",
+    "Reference attachment rules: the LOGO reference must appear in the final design EXACTLY as supplied (no redraw, no recolor, no restyle). GALLERY references are real brand assets — feature these exact pixels in the composition whenever relevant instead of generating a substitute; do not redraw or restyle them. The user/product reference is the hero subject.",
   ].join("\n");
 }
