@@ -103,7 +103,7 @@ export interface CollectRefsInput {
   userImageUrl?: string | null;
   productImageUrls?: string[];
   previousImageUrl?: string | null;
-  /** Max total refs to attach (gpt-image-2 quality degrades past ~4). */
+  /** Max total refs to attach (gpt-image-2 quality degrades past ~5). */
   maxRefs?: number;
 
 }
@@ -117,14 +117,14 @@ export interface CollectRefsInput {
  *  1. Brand logo  (pixel-exact, must always come first when present)
  *  2. Previous render (for edits — preserves layout)
  *  3. User-uploaded image (hero subject)
- *  4. Inspiration #1, #2 (style only, do not copy)
+ *  4. Gallery photo #1, #2 (real brand assets to feature literally)
  *  5. Product image #1, #2 (only when no user image)
  */
 export async function collectRenderRefs(input: CollectRefsInput): Promise<{
   refs: CollectedRef[];
   skipped: { role: RefRole; url: string }[];
 }> {
-  const maxRefs = input.maxRefs ?? 4;
+  const maxRefs = input.maxRefs ?? 5;
   const candidates: { url: string; role: RefRole; label: string }[] = [];
 
   if (input.logoUrl) {
