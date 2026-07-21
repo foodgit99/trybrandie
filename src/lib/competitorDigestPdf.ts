@@ -33,7 +33,7 @@ export type PdfIdea = {
   title: string;
   content_category: string | null;
   scheduled_for: string | null;
-  competitor_rationale?: string | null;
+  campaign_rationale?: string | null;
   funnel_rationale?: string | null;
 };
 
