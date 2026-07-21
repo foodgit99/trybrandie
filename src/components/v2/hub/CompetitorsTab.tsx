@@ -79,6 +79,7 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [discovering, setDiscovering] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: competitors = [], isLoading } = useQuery({
     queryKey: ["hub-competitors", brand.id],
