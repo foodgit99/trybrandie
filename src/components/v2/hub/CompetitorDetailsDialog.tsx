@@ -632,7 +632,131 @@ export default function CompetitorDetailsDialog({
         </section>
 
         {/* Footer */}
-        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-background border-t border-border mt-6 flex justify-end gap-2">
+        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-background border-t border-border mt-6 flex flex-wrap justify-end gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Palette className="h-4 w-4 mr-1.5" style={{ color: accentColor }} />
+                Report branding
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Customize your PDF</p>
+                <p className="text-xs text-muted-foreground">
+                  Applied to every report you export for this brand.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="report-title" className="text-xs">
+                  Report title
+                </Label>
+                <Input
+                  id="report-title"
+                  placeholder="Competitor Deep Dive"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  maxLength={60}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Accent color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label="Pick accent color"
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className="h-9 w-9 rounded-md border border-border bg-transparent cursor-pointer"
+                  />
+                  <Input
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className="h-9 flex-1 font-mono text-xs"
+                    maxLength={7}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {ACCENT_SWATCHES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setAccentColor(c)}
+                      className={cn(
+                        "h-6 w-6 rounded-full border transition",
+                        accentColor.toLowerCase() === c.toLowerCase()
+                          ? "border-foreground ring-2 ring-offset-1 ring-foreground/30"
+                          : "border-border hover:scale-110",
+                      )}
+                      style={{ background: c }}
+                      aria-label={`Use ${c}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Report logo</Label>
+                <div className="flex items-center gap-2">
+                  {reportLogoUrl ? (
+                    <img
+                      src={reportLogoUrl}
+                      alt=""
+                      className="h-10 w-10 rounded-md object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-md border border-dashed border-border grid place-items-center text-[10px] text-muted-foreground">
+                      Logo
+                    </div>
+                  )}
+                  <label className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void handleLogoUpload(f);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="w-full cursor-pointer"
+                      disabled={uploadingLogo}
+                    >
+                      <span>
+                        <Upload className="h-3.5 w-3.5 mr-1.5" />
+                        {uploadingLogo ? "Uploading…" : "Upload"}
+                      </span>
+                    </Button>
+                  </label>
+                  {reportLogoUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setReportLogoUrl(null)}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Falls back to your brand logo when empty.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <Button size="sm" onClick={saveBranding} disabled={savingBranding}>
+                  {savingBranding ? "Saving…" : "Save branding"}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -641,6 +765,7 @@ export default function CompetitorDetailsDialog({
             {exporting ? "Preparing report…" : "Export PDF"}
           </Button>
         </div>
+
       </DialogContent>
     </Dialog>
   );
