@@ -225,7 +225,106 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ─── DAILY TOP-UP MODE ────────────────────────────────────────────────────
+  // Runs every morning: for any enabled brand with fewer than N ideas remaining
+  // in the current week, kick brand-engine to fill this week's empty days.
+  // Bridges the gap for brands that toggle autopilot on mid-week or whose
+  // Sunday weekly-plan sweep silently failed for them.
+  try {
+    let body: any = null;
+    try { body = await req.clone().json(); } catch { /* ignore */ }
+    if (body && body.daily_topup) {
+      const now = new Date();
+      const todayIso = isoDate(now);
+      const monday = new Date(now);
+      monday.setUTCHours(0, 0, 0, 0);
+      const dow = monday.getUTCDay();
+      const diff = dow === 0 ? -6 : 1 - dow;
+      monday.setUTCDate(monday.getUTCDate() + diff);
+      const weekStart = isoDate(monday);
+      const weekEnd = (() => {
+        const d = new Date(monday);
+        d.setUTCDate(d.getUTCDate() + 6);
+        return isoDate(d);
+      })();
+      const weekDates: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setUTCDate(d.getUTCDate() + i);
+        weekDates.push(isoDate(d));
+      }
+
+      const { data: settings } = await supabase
+        .from("autopilot_settings")
+        .select("brand_id, user_id, mode")
+        .eq("enabled", true)
+        .neq("mode", "manual");
+
+      let topped = 0;
+      const errors: any[] = [];
+      for (const s of settings ?? []) {
+        try {
+          const { data: existing } = await supabase
+            .from("content_ideas")
+            .select("scheduled_for")
+            .eq("brand_id", s.brand_id)
+            .gte("scheduled_for", todayIso)
+            .lte("scheduled_for", weekEnd);
+          const filled = new Set((existing ?? []).map((r: any) => r.scheduled_for));
+          const missingDays = weekDates.filter((d) => d >= todayIso && !filled.has(d));
+          if (missingDays.length === 0) continue;
+
+          console.log(`[autopilot-planner:topup] brand ${s.brand_id} missing ${missingDays.length} day(s)`);
+
+          const autoApprove = s.mode === "autonomous";
+          await supabase
+            .from("weekly_blueprints")
+            .upsert(
+              {
+                brand_id: s.brand_id,
+                user_id: s.user_id,
+                week_start_date: weekStart,
+                status: autoApprove ? "approved" : "draft",
+                approved_at: autoApprove ? new Date().toISOString() : null,
+                source: "autopilot",
+              },
+              { onConflict: "brand_id,week_start_date" },
+            );
+
+          const res = await fetch(`${supabaseUrl}/functions/v1/brand-engine`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({
+              action: "fill_empty_days",
+              brand_id: s.brand_id,
+              user_id: s.user_id,
+              skip_credit_check: true,
+              week_offset: 0,
+            }),
+          });
+          if (!res.ok) {
+            const errBody = await res.text();
+            errors.push({ brand_id: s.brand_id, error: errBody.slice(0, 200) });
+            continue;
+          }
+          topped++;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          errors.push({ brand_id: s.brand_id, error: msg });
+        }
+      }
+      console.log(`[autopilot-planner:topup] done — topped ${topped}, errors ${errors.length}`);
+      return jsonResponse({ mode: "daily_topup", topped, errors: errors.length, error_details: errors });
+    }
+  } catch (e) {
+    console.error("[autopilot-planner:topup] fatal:", e);
+  }
+
   console.log("[autopilot-planner] starting weekly plan sweep");
+
 
   try {
     const now = new Date();

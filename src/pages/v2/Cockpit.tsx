@@ -50,9 +50,12 @@ type Idea = {
   day_of_week: number | null;
   status: string;
   approval_status: string;
+  autopilot?: boolean | null;
+  autopilot_status?: string | null;
   design_id?: string | null;
   design?: { image_url: string | null; caption: string | null } | null;
 };
+
 
 const Cockpit = () => {
   const { user, loading: authLoading } = useAuth();
@@ -82,7 +85,7 @@ const Cockpit = () => {
       if (!brand?.id) return [];
       const { data, error } = await supabase
         .from("content_ideas")
-        .select("id, title, prompt, content_category, scheduled_for, day_of_week, status, approval_status, design_id, design:design_id(image_url, caption)")
+        .select("id, title, prompt, content_category, scheduled_for, day_of_week, status, approval_status, autopilot, autopilot_status, design_id, design:design_id(image_url, caption)")
         .eq("brand_id", brand.id)
         .gte("scheduled_for", weekStart.toISOString())
         .lt("scheduled_for", weekEnd.toISOString())
@@ -166,6 +169,21 @@ const Cockpit = () => {
   const totalThisWeek = ideas.length;
   const approvedCount = ideas.filter((i) => i.approval_status === "approved" || i.status === "scheduled").length;
   const allApproved = totalThisWeek > 0 && approvedCount === totalThisWeek;
+
+  // Today's autonomous shipment tally — surfaces autopilot health at a glance
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const todaysAutopilot = ideas.filter(
+    (i) => i.autopilot === true && (i.scheduled_for ?? "").slice(0, 10) === todayIso,
+  );
+  const todaysShipped = todaysAutopilot.filter((i) => i.autopilot_status === "completed").length;
+  const todaysFailed = todaysAutopilot.filter(
+    (i) => i.autopilot_status === "failed_error" || i.autopilot_status === "failed_no_credits",
+  ).length;
+
 
   // Phase I: one-time toast nudge when the week is unseeded
   useEffect(() => {
@@ -292,6 +310,20 @@ const Cockpit = () => {
               ? "This week is fully approved. We'll handle the rest."
               : `Your weekly strategy is ready. ${totalThisWeek} posts, sequenced into a 5-day arc.`}
           </p>
+          {todaysAutopilot.length > 0 && (
+            <p className="text-xs tracking-[0.14em] uppercase text-muted-foreground pt-1">
+              <span className={`inline-block h-1.5 w-1.5 rounded-full mr-2 align-middle ${
+                todaysShipped === todaysAutopilot.length
+                  ? "bg-emerald-500"
+                  : todaysFailed > 0
+                  ? "bg-red-500"
+                  : "bg-amber-500 animate-pulse"
+              }`} />
+              Autonomous today · {todaysShipped}/{todaysAutopilot.length} shipped
+              {todaysFailed > 0 ? ` · ${todaysFailed} failed` : ""}
+            </p>
+          )}
+
         </header>
 
         {/* WEEK STRIP */}

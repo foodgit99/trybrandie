@@ -247,6 +247,14 @@ Deno.serve(async (req) => {
     console.log(`[autopilot] ${allIdeas.length} ideas to process`);
     await updateRunProgress(supabase, runId, { ideas_found: allIdeas.length });
 
+    // Chunk to survive edge wall-clock. Each idea takes ~60-90s and edge fns die
+    // around 150s of continuous work, so we process a small batch per invocation
+    // and self-continue via fire-and-forget fetch when leftovers remain.
+    const MAX_IDEAS_PER_TICK = 6;
+    const totalFound = allIdeas.length;
+    const remaining = allIdeas.slice(MAX_IDEAS_PER_TICK);
+    const thisTick = allIdeas.slice(0, MAX_IDEAS_PER_TICK);
+
     let processed = 0;
     let skipped = 0;
     let errors = 0;
@@ -300,14 +308,16 @@ Deno.serve(async (req) => {
         }
       } catch (ideaErr) {
         console.error(`[autopilot] Error processing idea ${idea.id}:`, ideaErr);
+        // Leave as 'pending' so a subsequent tick / retry sweep can pick it up
+        // instead of parking it in failed_error until tomorrow.
         await supabase
           .from("content_ideas")
-          .update({ autopilot_status: "failed_error" } as any)
+          .update({ autopilot_status: "pending" } as any)
           .eq("id", idea.id);
         errors++;
         errorDetails.push({ idea_id: idea.id, error: (ideaErr as Error).message });
         await updateRunProgress(supabase, runId, { processed, skipped, errors, error_details: errorDetails });
-        await logEvent(supabase, runId, idea.id, idea.brand_id, "failed_error", (ideaErr as Error).message, baseMeta);
+        await logEvent(supabase, runId, idea.id, idea.brand_id, "pending_after_throw", (ideaErr as Error).message, baseMeta);
       }
     };
 
@@ -317,21 +327,47 @@ Deno.serve(async (req) => {
     // clears the queue within the wall-clock budget.
     const CONCURRENCY = 1;
     try {
-      for (let i = 0; i < allIdeas.length; i += CONCURRENCY) {
-        const batch = allIdeas.slice(i, i + CONCURRENCY);
+      for (let i = 0; i < thisTick.length; i += CONCURRENCY) {
+        const batch = thisTick.slice(i, i + CONCURRENCY);
         await Promise.allSettled(batch.map(handleIdea));
-        if (i + CONCURRENCY < allIdeas.length) {
+        if (i + CONCURRENCY < thisTick.length) {
           const jitter = 1500 + Math.floor(Math.random() * 1500);
           await new Promise((r) => setTimeout(r, jitter));
         }
       }
     } finally {
-      await finalizeRun(supabase, runId, allIdeas.length, processed, skipped, errors, errorDetails);
+      await finalizeRun(supabase, runId, totalFound, processed, skipped, errors, errorDetails);
     }
 
-    console.log(`[autopilot] Done (${deliveryWindow}). Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
+    // If more ideas remain, self-continue with force=true so the next isolate
+    // bypasses the hour-window and picks up the leftovers without waiting for
+    // the next cron tick. Fire-and-forget; failure just means the next cron
+    // (or autopilot-retry) will catch these.
+    if (remaining.length > 0) {
+      console.log(`[autopilot] ${remaining.length} leftover ideas — self-continuing`);
+      const continuation = fetch(`${supabaseUrl}/functions/v1/content-autopilot`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          delivery_time: deliveryWindow,
+          force: true,
+          continuation: true,
+        }),
+      }).catch((e) => console.warn("[autopilot] self-continue kick failed", e));
+      // @ts-ignore EdgeRuntime is available at runtime on Supabase edge
+      if (typeof EdgeRuntime !== "undefined" && (EdgeRuntime as any).waitUntil) {
+        // @ts-ignore
+        (EdgeRuntime as any).waitUntil(continuation);
+      }
+    }
 
-    return jsonResponse({ processed, skipped, errors, total: allIdeas.length, delivery_time: deliveryWindow });
+    console.log(`[autopilot] Done (${deliveryWindow}). Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}, Leftover: ${remaining.length}`);
+
+    return jsonResponse({ processed, skipped, errors, total: totalFound, leftover: remaining.length, delivery_time: deliveryWindow });
+
   } catch (err) {
     console.error("[autopilot] Fatal error:", err);
     return errorResponse(500, (err as Error).message);
