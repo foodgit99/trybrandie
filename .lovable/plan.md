@@ -1,52 +1,56 @@
-## What's actually slow
+## What I found
 
-I traced the two paths in `supabase/functions/design-studio/index.ts`:
+Your most recent carousel job (`631bc388…`, started 2026-07-21 03:49:05) is still in the DB as `status=running, stage=starting, progress=5` — with no `finished_at`, no `error`, no result. It's not alone: **every carousel job since July 7 that didn't finish sits in exactly the same state** (`ca667d65…`, `afcf4b53…`, `8b3b917a…`, `33d26e98…`, `c053ce90…`). All show `stage="starting", progress=5` — the initial marker written by `design-studio` at line 4040 — and never advance.
 
-- **Single post** (`/post`): each render calls `renderWithGptImageEdits` (line 309), which tries `google/gemini-3-pro-image-preview` first — the slowest image model in the stack. After render, a quality critic scores it; on a "fail" verdict it deletes the design and renders again. Realistic wall time today: ~45–120s per post.
-- **Carousel** (line 3106+): the same render function runs, but slides are generated **strictly one at a time** in a `for` loop (line 3769), because each slide attaches the previous slide's rendered image as a continuity reference. For 5–10 slides × ~60–120s each × up to 2 quality-critic retries per slide, the worst-case time balloons well past an hour. A single stalled gateway call blocks everything after it because there is no per-slide deadline.
+Meanwhile the AI Gateway logs show the model calls themselves are healthy: image generations are returning in ~27–30s (`019f82cb-9b26-75c9…`, `019f82cb-9c09-72c8…`, `019f82cb-0b63-7e17…`, etc.), and one 60-second call was cancelled (`019f7ec4-b2f3-7b1a…`) — matching the ~94-second gap before the isolate got killed.
 
-The quality wins from the Pro model and the critic loop are real, but they compound the wrong way: they multiply across slides that are already sequential.
+### Root cause
 
-## The plan
+`design-studio` runs the carousel inside `EdgeRuntime.waitUntil(work)` (index.ts line 4082). The pipeline writes `stage="starting"` **once** before rendering, then only writes again at the very end (`succeeded` or `failed`). Nothing writes in between.
 
-### 1. Parallelize carousel slides (biggest win)
+When the pipeline exceeds Supabase Edge Runtime's wall-time (~150s CPU), the isolate is killed. Because the kill happens outside the `try/catch`, the `failed` branch never runs — so the row is stranded at `stage="starting"` forever, and the client just keeps polling a row that will never change. That's your "10 minutes and nothing happened."
 
-- Render **slide 1 (the cover)** first, on its own. It establishes the palette, type lockup and motif that all other slides must inherit.
-- Render **slides 2..N in parallel** with bounded concurrency (max 3 at once) using the cover image as the shared continuity anchor instead of the immediately-previous slide. The visual motif, genome, brand lock, and per-slide plan already encode consistency — the pixel-level "previous slide" ref is redundant when every slide inherits from the cover.
-- Persist and return slides as they finish so the UI can show progress, not a blank spinner.
+Even when it *does* finish, a 5-slide Pro carousel today is: cover (~30s) + ceil(4/3)×30s inner batches (~60s) + planning + copy + critic ≈ 120–150s, right at the ceiling. A 10-slide is guaranteed to exceed it.
 
-Expected impact: 5-slide carousel drops from ~10–15 min to ~2–3 min; 10-slide from >30 min to ~4–5 min.
+## The fix
 
-### 2. Slim the quality-critic loop
+### 1. Emit progress heartbeats from inside the carousel loop
 
-- Run the critic on the **cover slide only** for carousels (it anchors the whole set). Skip scoring on inner slides — they inherit the cover's approved system.
-- For single posts, keep scoring but cap the "fail → regenerate" path at **one** retry (current code already caps at one, but combined with the model cascade + `retryFetch` it can still snowball). Also skip the second scoring call after the retry — trust the retry.
+In `supabase/functions/design-studio/index.ts` (`renderSlide` / carousel orchestrator around lines 3786–3934), after the cover finishes and after every inner slide resolves, `UPDATE design_jobs SET progress=..., stage='slide_k_of_n', updated_at=now() WHERE id=jobId`. This gives the UI real progress and — critical — a fresh `updated_at` we can use for stall detection.
 
-### 3. Add a per-slide deadline
+### 2. Add a stall watchdog so stuck jobs stop lying to the UI
 
-- Wrap each image call in a 90-second timeout. On timeout, fall through to the next model in the cascade immediately instead of waiting on `retryFetch`'s backoff. Reduce `retryFetch` retries from 2 → 1 for image generation only.
+Two changes:
+- Add a `heartbeat_at timestamptz` column (or reuse `updated_at`) on `design_jobs`; bump it on every progress write.
+- A tiny server-side finalizer (either a new `pg_cron` that flips `running` jobs with `heartbeat_at < now() - interval '3 min'` to `failed` with `error={message:'worker_timeout'}`, or a check inside `design-enqueue`/the poll path that does the same lazily on read). Either way the client stops spinning forever.
 
-### 4. Faster feedback on /post
+### 3. Keep carousels inside the wall-time budget
 
-- Return the render result as soon as the image + copy are saved; run the critic/score update as a fire-and-forget background write (the score field is used later on the design record, not blocking the response).
+Two complementary changes to `renderSlide` / the carousel loop:
+- Raise inner-slide concurrency from 3 → 5 so a 5-slide carousel is cover + 1 parallel batch (~60s total) and a 10-slide is cover + 2 batches (~90s).
+- For carousels of ≥6 slides, split the work: cover job renders the cover + writes slide rows for the plan, then enqueues a follow-up `design-studio` invocation (via the existing Inngest event pattern in `design-enqueue`) that renders the remaining slides in a fresh isolate. Each isolate then owns ≤5 slides and stays well under the wall-time.
 
-### 5. UI: progressive carousel
+### 4. Client shows slides as they land
 
-- On `/post`, when generating a carousel, poll or subscribe to `designs` filtered by `carousel_id` and show slides as they land instead of holding one spinner until the whole set is done. This makes even the worst case feel responsive.
+`DesignGenerationContext` already subscribes to `design_jobs`; add a parallel subscription to `designs` filtered by `carousel_id=eq.<id>` so each slide appears in the UI the moment it's written, instead of waiting for the whole job to flip to `succeeded`. The final `succeeded` write still triggers the "complete" state.
+
+### 5. Backfill the stranded jobs
+
+One-off SQL migration to mark the 5 stranded `stage="starting"` carousel jobs as `failed` with a clear message, so if any user is still polling one it resolves.
 
 ## Files touched
 
-- `supabase/functions/design-studio/index.ts` — reorder cover→parallel slides, swap default model, gate the critic loop, add per-call timeout, background score update.
-- `supabase/functions/_shared/render-refs.ts` — allow passing a "cover image" as the continuity ref for parallel slides (small addition, existing `previousImageUrl` slot can be reused).
-- `src/pages/v2/DailyPost.tsx` (and the carousel composer entry) — add "Highest quality" toggle, wire progressive slide subscription for carousels.
+- `supabase/functions/design-studio/index.ts` — heartbeat writes in the carousel loop, concurrency 3→5, split-into-follow-up-job for ≥6 slides.
+- New migration — add `heartbeat_at` to `design_jobs`, backfill stranded rows, add stall-watchdog (either `pg_cron` job or a stored function called from the poll path).
+- `src/contexts/DesignGenerationContext.tsx` — subscribe to `designs` by `carousel_id` for progressive slide display; treat `heartbeat_at` age as a soft-fail signal.
 
 ## Explicitly NOT changing
 
-- Brand genome, plan/arc validation, product-ref routing, gallery-first logic, copy structure gates — all preserved. Only the render orchestration changes.
-- Nothing about credit deduction or pricing changes.
+- Pro remains the default image model (per your last direction).
+- Copy validation, arc gates, gallery-first, product-ref routing — all preserved.
 
 ## How I'll verify
 
-- Time a 5-slide carousel before/after (target: under 3 min).
-- Confirm all slides share cover palette/type by eyeballing 3 generations.
-- Watch `edge_function_logs` for `[render] ... ok` lines to confirm Flash is the primary path and Pro is fallback-only.
+- Generate a 5-slide and a 10-slide carousel end-to-end; both finish and `design_jobs.status` flips to `succeeded`.
+- Kill a slide mid-run (temporary throw) and confirm the watchdog marks the job `failed` within 3 minutes instead of hanging.
+- Confirm slides appear one-by-one in the UI as each renders.
