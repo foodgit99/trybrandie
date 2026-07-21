@@ -1,0 +1,1 @@
+ALTER TABLE public.brands ADD COLUMN IF NOT EXISTS prefer_gallery_first boolean NOT NULL DEFAULT true;
