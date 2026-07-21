@@ -19,6 +19,43 @@ import LogoDesignerDialog from "@/components/LogoDesignerDialog";
 import BrandUpdates from "@/components/BrandUpdates";
 import { TREND_PRESETS, getTrendById } from "@/lib/trendPresets";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
+
+type GalleryItem = { id: string; image_url: string; position?: number };
+
+function SortableGalleryTile({ item, onDelete }: { item: GalleryItem; onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  } as React.CSSProperties;
+  return (
+    <div ref={setNodeRef} style={style} className="relative aspect-square group touch-none">
+      <img src={item.image_url} alt="" className="w-full h-full object-cover rounded-xl border border-border pointer-events-none" />
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder"
+        className="absolute top-2 left-2 w-6 h-6 bg-background/80 backdrop-blur border border-border rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onDelete(item.id)}
+        className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
 
 const VIBES = ["Minimal", "Bold", "Luxury", "Playful", "Corporate", "Cinematic"] as const;
 const FONT_OPTIONS = [
@@ -294,13 +331,50 @@ const BrandCentre = () => {
   const { data: inspiration, refetch: refetchInspiration } = useQuery({
     queryKey: ["brand_inspiration", brand?.id],
     queryFn: async () => {
-      if (!brand) return [];
-      const { data, error } = await supabase.from("brand_inspiration").select("*").eq("brand_id", brand.id);
+      if (!brand) return [] as GalleryItem[];
+      const { data, error } = await supabase
+        .from("brand_inspiration")
+        .select("*")
+        .eq("brand_id", brand.id)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return (data || []) as GalleryItem[];
     },
     enabled: !!brand,
   });
+  const [galleryOrder, setGalleryOrder] = useState<GalleryItem[] | null>(null);
+  const gallery = galleryOrder ?? (inspiration ?? []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleGalleryDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const current = galleryOrder ?? (inspiration ?? []);
+    const oldIdx = current.findIndex((i) => i.id === active.id);
+    const newIdx = current.findIndex((i) => i.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const next = arrayMove(current, oldIdx, newIdx);
+    setGalleryOrder(next);
+    // Persist positions
+    try {
+      await Promise.all(
+        next.map((item, i) =>
+          supabase.from("brand_inspiration").update({ position: i }).eq("id", item.id)
+        )
+      );
+      refetchInspiration();
+    } catch (err) {
+      console.error("Failed to reorder gallery", err);
+      toast({ title: "Couldn't save order", variant: "destructive" });
+      setGalleryOrder(null);
+    }
+  };
 
   // Product Images
   const { data: productImages, refetch: refetchProducts } = useQuery({
@@ -465,19 +539,24 @@ const BrandCentre = () => {
   const handleInspirationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length || !brand || !user) return;
+    let nextPos = (inspiration?.length ?? 0);
     for (const file of files) {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("brand-inspiration").upload(path, file);
       if (upErr) continue;
       const { data: urlData } = supabase.storage.from("brand-inspiration").getPublicUrl(path);
-      await supabase.from("brand_inspiration").insert({ brand_id: brand.id, image_url: urlData.publicUrl });
+      await supabase.from("brand_inspiration").insert({ brand_id: brand.id, image_url: urlData.publicUrl, position: nextPos });
+      nextPos += 1;
     }
-    toast({ title: "Inspiration added" }); refetchInspiration();
+    setGalleryOrder(null);
+    toast({ title: "Added to gallery" }); refetchInspiration();
   };
 
   const deleteInspiration = async (id: string) => {
-    await supabase.from("brand_inspiration").delete().eq("id", id); refetchInspiration();
+    await supabase.from("brand_inspiration").delete().eq("id", id);
+    setGalleryOrder(null);
+    refetchInspiration();
   };
 
   const handleColorChange = (setter: React.Dispatch<React.SetStateAction<string[]>>, arr: string[], index: number, value: string) => {
