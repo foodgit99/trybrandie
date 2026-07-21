@@ -775,6 +775,32 @@ export default function CompetitorDetailsDialog({
               </div>
             </PopoverContent>
           </Popover>
+          {policy && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px]",
+                policy.isFull
+                  ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                  : "bg-amber-500/10 text-amber-700 border-amber-500/30",
+              )}
+              title={
+                policy.isFull
+                  ? "Full report — no watermark, all sections included."
+                  : `Redacted export. Watermark: ${policy.watermark}. Hidden: ${[
+                      !policy.showSignalRationale && "signal rationale",
+                      !policy.showSnapshotExcerpts && "snapshot excerpts",
+                      !policy.showIdeas && "ideas playbook",
+                      !policy.showRecommendedActions && "action steps",
+                      !policy.showSourcesAppendix && "sources appendix",
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "some sections"}.`
+              }
+            >
+              {policy.isFull ? "Full export" : `${policy.tierLabel} · watermarked`}
+            </Badge>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -783,6 +809,7 @@ export default function CompetitorDetailsDialog({
             {exporting ? "Preparing report…" : "Export PDF"}
           </Button>
         </div>
+
 
       </DialogContent>
     </Dialog>
