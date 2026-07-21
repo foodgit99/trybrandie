@@ -1,40 +1,33 @@
-# Harden the Inngest dispatch layer
+## Why /post carousels are slower than /studio carousels
 
-Inngest isn't the primary cause of the 10-minute hangs (that's the Edge Runtime wall-time kill, now covered by the heartbeat + watchdog). But three things in the current Inngest wiring can amplify slowness and cause duplicate work. Fix all three.
+Both surfaces route through the same pipeline: `startGeneration` → `design-enqueue` → Inngest → `design-studio`. The queue, model chain, concurrency (5 slides in parallel), and heartbeat are identical. The difference is **the payload each page sends**, which unlocks extra pre-render work inside `design-studio`.
 
-## What's wrong today
+### Extra work /post triggers that /studio skips
 
-1. **`retries: 2` on the dispatch step** (`supabase/functions/inngest/index.ts:15`). The step's only job is `fetch(design-studio)`; it throws if `res.ok` is false. If `design-studio` returns non-2xx *after* the background pipeline has already started running (via `EdgeRuntime.waitUntil`), Inngest will retry — spawning a **second isolate** for the same `job_id`. That doubles model spend and can race two writers on the same `design_jobs` row.
-2. **No idempotency check in `design-studio`.** Nothing rejects a second dispatch for a `job_id` already in `running` / `succeeded` / `failed`. A retry silently starts a fresh pipeline on top of a live one.
-3. **`concurrency.limit: 5`** globally. An autopilot burst (a Blueprint approval fires 5+ jobs at once) queues manual `/post` generations behind cron work, which reads to the user as "carousel is hanging."
+/post sends `content_idea_id`. /studio does not (it sends a raw prompt). That one field turns on a chain of expensive lookups **before slides start rendering**:
 
-## The fix
+1. **Category-recipe research enrichment** (`enrichWithResearch`, `design-studio` line 1804+). The idea's `content_category` resolves to a recipe. Recipes flagged `needs_fresh_info` (educational, trending, informational, promotional with offers) fire an LLM research call via `ai.gateway.lovable.dev` to fetch fresh sources. A Studio-only prompt has no category → research is skipped (`tracer.setMetric("research_skipped", true)`).
+2. **Brand updates fetch + summarisation** (`fetchRecentUpdates`, line 2456+). Only runs when there's an active category. Adds another DB read plus prompt bloat.
+3. **`product_ref` anchoring** (lines 1611, 3275). Two extra DB roundtrips for both the single and carousel branch to look up the pinned product for the idea, then re-sort and re-caption the roster.
+4. **Category-scoped copy/caption directives, CTA policy, forbidden-copy context** — all injected into the strategist and copywriter prompts, making those LLM calls larger and slower.
+5. **Autopilot-only, but relevant for /post's Blueprint-triggered flow**: `candidate_count` can be bumped to 2, doubling renders per slide with a critic pick. Manual clicks on /post don't set this, but jobs triggered via approve-blueprint may.
 
-### 1. `supabase/functions/inngest/index.ts`
-- Drop `retries: 2` → `retries: 0` on `designWorker`. The heartbeat + watchdog is now the authoritative failure signal; Inngest retrying on top of that only creates duplicates.
-- Raise `concurrency.limit` from `5` → `15` so autopilot bursts and manual generations don't head-of-line-block each other. (Real concurrency is still capped by Edge Runtime isolate quota; this just widens the Inngest gate.)
-- Before dispatching, `step.run("idempotency-check", …)` fetches `design_jobs.status` for `job_id`. If it's anything other than `queued`, return `{ skipped: true, reason: "already_dispatched", status }` — no retry, no second isolate.
+### Compounding effect
 
-### 2. `supabase/functions/design-studio/index.ts` (background entry)
-- At the top of the background carousel/single handler (right after parsing `job_id`), do a single `UPDATE design_jobs SET status='running', heartbeat_at=now(), started_at=coalesce(started_at, now()) WHERE id=$1 AND status='queued' RETURNING id`. If zero rows come back, log `duplicate_dispatch_ignored` and return 200 immediately — this is the compare-and-swap that makes retries safe even if step 1 misses.
-- Keep everything else (heartbeats, watchdog, parallel rendering) exactly as shipped.
+Because these steps happen **serially before** the first slide dispatches, the carousel's clock starts later. On a 5-slide carousel, an extra ~10–25s of research + updates preamble is added on top of the same render time. Studio kicks straight into the strategist step with a bare brand + prompt, so it starts rendering sooner.
 
-### 3. Ack-path robustness
-- In the Inngest `step.run("dispatch-pipeline", …)`, treat 2xx **and** 409 (idempotency reject) as success — don't throw. Only 5xx / network errors should surface, and even those now won't retry because `retries: 0`.
+### Verify before fixing
 
-## Files touched
+- [ ] Compare `design_jobs.stage` timings for a recent /post carousel vs a /studio one (look for how long the job sits in `strategist`/`copywriter` before `render-cover`).
+- [ ] Check AI Gateway logs filtered by that job's `run_id`: /post jobs will show a `google/gemini-2.5-flash` research call and possibly a `flash-lite` compression call that /studio jobs don't have.
+- [ ] Confirm no /post job is inheriting `candidate_count > 1` from stray Blueprint code paths.
 
-- `supabase/functions/inngest/index.ts` — `retries: 0`, `concurrency.limit: 15`, idempotency pre-check step, treat 409 as ack.
-- `supabase/functions/design-studio/index.ts` — compare-and-swap `queued → running` guard at background entry; early-return on duplicate.
+### Proposed fix (once verified)
 
-## Explicitly NOT changing
+1. **Parallelise the preamble.** Move `enrichWithResearch`, `fetchRecentUpdates`, and `product_ref` fetch into `Promise.all` alongside the strategist call so they don't block the render dispatch. The research promise is already declared early — audit whether it's actually awaited before strategist runs and hoist the two idea lookups (`product_ref` for single + carousel) into that same batch.
+2. **Time-box research.** Wrap `enrichWithResearch` in `withTimeout(TIMEOUTS.SHORT)`; if it exceeds ~6s, drop through with empty sources rather than blocking the whole carousel.
+3. **Skip research for carousels.** The carousel arc planner already produces per-slide narrative; fresh web research adds far less value than for a single hero post. Gate `enrichWithResearch` on `action !== "generate_carousel"` (or make it opt-in per recipe).
+4. **Cache brand updates per job.** `fetchRecentUpdates` runs once per job today, but its output is re-serialised for both copy and caption prompts. Fine as-is, but confirm it's not re-fetched.
+5. **Force `candidate_count = 1`** for any manual /post generation regardless of caller — add a server-side clamp when `contentIdeaId` is set but the request didn't come from `approve-blueprint`/`content-autopilot` (identify by a signed `source` field on the enqueue payload).
 
-- Heartbeat writes, watchdog cron, and the 3→5 slide concurrency shipped in the last turn.
-- Pro remains the default image model.
-- `design-enqueue` — its job insert + event send stays as-is.
-
-## How I'll verify
-
-- Fire the same `app/design.requested` event twice back-to-back for one `job_id`; confirm exactly one pipeline runs and the second returns `duplicate_dispatch_ignored`.
-- Force `design-studio` to return 500 once mid-run; confirm Inngest does **not** retry (no second isolate in AI Gateway logs for that `job_id`).
-- Trigger an autopilot burst of 8 jobs while manually generating a carousel from `/post`; confirm the manual job starts within seconds instead of queueing behind the burst.
+After #1–#3, /post carousels should render in roughly the same wall-clock as /studio carousels, with the category-recipe intelligence still applied to the copy/caption but no longer blocking the render clock.
