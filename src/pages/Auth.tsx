@@ -116,7 +116,7 @@ const Auth = () => {
           <img src={brandieLogo} alt="Brandie" className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-5xl font-serif tracking-tight text-foreground mb-4">Brandie</h1>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Your AI creative director. Beautiful, on-brand social graphics, every time.
+            Your autonomous marketing department. A strategic week of on-brand content, ready every Monday.
           </p>
         </motion.div>
       </div>
