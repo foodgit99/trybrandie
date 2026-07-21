@@ -36,9 +36,11 @@ const ROLE_LABEL: Record<number, { label: string; hint: string }> = {
 
 function SortableTile({
   item,
+  index,
   onDelete,
 }: {
   item: GalleryItem;
+  index: number;
   onDelete: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -48,13 +50,33 @@ function SortableTile({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const role = ROLE_LABEL[index];
   return (
     <div ref={setNodeRef} style={style} className="relative aspect-square group touch-none">
       <img
         src={item.image_url}
         alt=""
-        className="w-full h-full object-cover rounded-xl border border-border pointer-events-none"
+        className={`w-full h-full object-cover rounded-xl border pointer-events-none ${
+          role ? "border-primary/60 ring-2 ring-primary/30" : "border-border"
+        }`}
       />
+      {role ? (
+        <div
+          className="absolute bottom-2 left-2 right-2 flex items-center gap-1"
+          title={role.hint}
+        >
+          <Badge className="gap-1 px-2 py-0.5 text-[10px] font-semibold shadow-sm">
+            <Sparkles className="h-2.5 w-2.5" />
+            {role.label}
+          </Badge>
+        </div>
+      ) : (
+        <div className="absolute bottom-2 left-2 right-2">
+          <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-medium opacity-80">
+            Backup
+          </Badge>
+        </div>
+      )}
       <button
         type="button"
         {...attributes}
