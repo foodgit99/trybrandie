@@ -637,6 +637,59 @@ export type Database = {
           },
         ]
       }
+      brand_competitors: {
+        Row: {
+          brand_id: string
+          created_at: string
+          discovery_rationale: string | null
+          discovery_source: string
+          domain: string | null
+          id: string
+          instagram_handle: string | null
+          is_active: boolean
+          last_scanned_at: string | null
+          logo_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          discovery_rationale?: string | null
+          discovery_source?: string
+          domain?: string | null
+          id?: string
+          instagram_handle?: string | null
+          is_active?: boolean
+          last_scanned_at?: string | null
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          discovery_rationale?: string | null
+          discovery_source?: string
+          domain?: string | null
+          id?: string
+          instagram_handle?: string | null
+          is_active?: boolean
+          last_scanned_at?: string | null
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_competitors_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_inspiration: {
         Row: {
           brand_id: string
@@ -1104,6 +1157,130 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      competitor_signals: {
+        Row: {
+          acted_on: boolean
+          brand_id: string
+          competitor_id: string
+          content_idea_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          rationale: string | null
+          signal_type: string
+          summary: string
+          week_start_date: string
+        }
+        Insert: {
+          acted_on?: boolean
+          brand_id: string
+          competitor_id: string
+          content_idea_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          rationale?: string | null
+          signal_type: string
+          summary: string
+          week_start_date: string
+        }
+        Update: {
+          acted_on?: boolean
+          brand_id?: string
+          competitor_id?: string
+          content_idea_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          rationale?: string | null
+          signal_type?: string
+          summary?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_signals_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_signals_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "brand_competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_signals_content_idea_id_fkey"
+            columns: ["content_idea_id"]
+            isOneToOne: false
+            referencedRelation: "content_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitor_snapshots: {
+        Row: {
+          brand_id: string
+          competitor_id: string
+          cost_credits: number | null
+          created_at: string
+          error: string | null
+          extracted: Json | null
+          id: string
+          raw: Json | null
+          scanned_at: string
+          source: string
+          tokens_used: number | null
+          week_start_date: string
+        }
+        Insert: {
+          brand_id: string
+          competitor_id: string
+          cost_credits?: number | null
+          created_at?: string
+          error?: string | null
+          extracted?: Json | null
+          id?: string
+          raw?: Json | null
+          scanned_at?: string
+          source: string
+          tokens_used?: number | null
+          week_start_date: string
+        }
+        Update: {
+          brand_id?: string
+          competitor_id?: string
+          cost_credits?: number | null
+          created_at?: string
+          error?: string | null
+          extracted?: Json | null
+          id?: string
+          raw?: Json | null
+          scanned_at?: string
+          source?: string
+          tokens_used?: number | null
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_snapshots_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_snapshots_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "brand_competitors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_ideas: {
         Row: {

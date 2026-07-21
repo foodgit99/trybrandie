@@ -36,6 +36,8 @@ import IdeaThumb from "@/components/v2/IdeaThumb";
 import FunnelsEditableTab from "@/components/v2/hub/FunnelsEditableTab";
 import CampaignsEditableTab from "@/components/v2/hub/CampaignsEditableTab";
 import TrendsTab from "@/components/v2/hub/TrendsTab";
+import CompetitorsTab from "@/components/v2/hub/CompetitorsTab";
+import { Swords } from "lucide-react";
 import OutboxTab from "@/components/v2/hub/OutboxTab";
 
 /* ------------------------------ Funnel model ------------------------------ */
@@ -100,7 +102,7 @@ type Blueprint = {
 
 type EngineSettings = { enabled: boolean; delivery_time: string } | null;
 
-type TabId = "today" | "week" | "funnels" | "campaigns" | "trends" | "outbox";
+type TabId = "today" | "week" | "funnels" | "campaigns" | "trends" | "competitors" | "outbox";
 
 const TABS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: "today", label: "Today", icon: Sun },
@@ -108,6 +110,7 @@ const TABS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: "funnels", label: "Funnels", icon: Layers },
   { id: "campaigns", label: "Campaigns", icon: Megaphone },
   { id: "trends", label: "Trends", icon: TrendingUp },
+  { id: "competitors", label: "Competitors", icon: Swords },
   { id: "outbox", label: "Outbox", icon: Mail },
 ];
 
@@ -394,6 +397,9 @@ const Hub = () => {
                 brand={brand}
                 onSeedStudio={(prompt) => navigate(`/studio?prompt=${encodeURIComponent(prompt)}&category=trending`)}
               />
+            )}
+            {tab === "competitors" && (
+              <CompetitorsTab brand={brand} />
             )}
             {tab === "outbox" && (
               <OutboxTab brand={brand} userId={user!.id} />

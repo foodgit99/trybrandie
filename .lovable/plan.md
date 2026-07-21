@@ -1,48 +1,93 @@
 
-## Autonomous Engine — Audit Findings
+# Competitor Intelligence
 
-**Short answer: no, it's not working properly.** Autonomous is set up correctly for 17 brands, but today's morning delivery only shipped 1 of 12 due posts, and 5 autonomous brands have zero ideas for the week.
+An autonomous module that watches a brand's real market rivals every week, benchmarks their positioning against the user's brand, tracks their SEO wins, and drops the best signals straight into Blueprint as content ideas. It lands as a new tab in `/hub` and a card in the Monday Briefing.
 
-### What I checked
-- `autopilot_settings` — 17 brands on `mode=autonomous, delivery_time=morning, Africa/Lagos`. Correct.
-- Cron jobs — `autopilot-morning/afternoon/evening` fire at 06/12/17 UTC (7am/1pm/6pm Lagos). Correct.
-- `autopilot_runs` — this morning: `ideas_found=44, processed=1, completed_at=NULL`. Yesterday morning: `ideas_found=41, processed=1, completed_at=NULL`. Same shape both days.
-- `content_ideas` scheduled for today across autonomous brands: **1 completed, 1 failed_error, 3 pending, 10 unclaimed**. Only "Abarcos ltd" received today's post; 11 other brands did not.
-- `design_jobs` in the last 24h — three jobs died with `worker_timeout` (edge wall-clock limit) at stages `starting` and `cover_done`.
-- 5 autonomous brands have **0 ideas for the entire week** (DADA, Ignite Lounge, Lighthouse Cleaning, Victory spot, Zeepway) — the planner never seeded them.
+## The user experience
 
-### Root causes (three separate bugs)
+**Sunday night, before the Monday Briefing runs:**
+1. If the brand has no competitors yet, Brandie discovers 3–5 rivals autonomously using industry + audience + Semrush `competitive_analysis` on the brand's domain.
+2. For each tracked competitor, Brandie runs a weekly scan: Firecrawl the site + Instagram handle for new posts/offers/hero copy, Semrush `domain_analysis` + `top_pages` for SEO movement, brand extraction (colors, fonts, tone).
+3. Gemini 3.1 Pro reads the raw scan and produces a **Competitor Digest**: what they launched, what's working for them, positioning shifts, and 2–3 actionable "steal-the-angle" content ideas.
+4. Actionable ideas flow into `content_ideas` as `source='competitor_intel'`, tagged with the competitor and rationale, ready for the next Blueprint.
 
-**1. content-autopilot dies after ~1 idea per morning run.**
-The 06:00 UTC sweep finds ~44 due ideas and processes them serially with inter-idea jitter. It hits the edge-runtime wall-clock before it finishes, `completed_at` never gets written, and the remaining 43 ideas sit at `autopilot_status=null` for the rest of the day. The 08:30 UTC `autopilot-retry-daily` sweep should backfill them but isn't, because retry only picks up `failed_no_credits` / `failed_error` rows — untouched (`null`) ideas from the same day are not re-scanned by any later run.
+**Inside the app:**
+- **New `/hub` tab: "Competitors"** — grid of tracked competitor cards. Each shows logo, last-scan date, "What changed" bullets, brand-vs-them side-by-side (colors, fonts, hero copy, price points), SEO delta (traffic ▲/▼, new top pages), and a "Turn into a post" button on each surfaced idea.
+- **Cockpit weekly card** — "3 moves your rivals made this week" under the hero briefing.
+- **Add / remove competitor** — manual override is available, but the empty state is auto-populated so users never see a blank canvas.
 
-**2. autopilot-planner only runs once a week (Sun 00:30 UTC).**
-Any brand that turns on autopilot mid-week, or whose Sunday plan silently failed, stays empty until the following Sunday. That's why 5 autonomous brands have no ideas at all this week.
+## Tier caps
 
-**3. design-studio wall-clock kills carousel/complex jobs.**
-Three jobs in the last 24h hit `worker_timeout`. Heartbeat/watchdog catches them, but for autonomous brands this becomes today's missed post with no automatic retry inside the morning window.
+| Tier    | Tracked competitors |
+| ------- | ------------------- |
+| Free    | 1                   |
+| Creator | 3                   |
+| Agency  | Unlimited           |
 
-### Fix plan
+Enforced via a trigger on `brand_competitors` INSERT, mirroring `enforce_brand_limit()`.
 
-**A. Make content-autopilot survive the queue.**
-- Replace the "process everything found this tick" loop with a bounded chunk (e.g. process 8–10 ideas, then re-enqueue itself via `pg_net` for the next batch until empty).
-- Emit `autopilot_runs.completed_at` on both graceful exit paths so ops can see partial progress.
-- Add an "unfinished morning" recovery: at the 12:00 UTC afternoon tick, include yesterday+today `null`/`pending` ideas for morning-delivery brands (not just today's window). Same for evening.
+## Data model
 
-**B. Give autopilot-planner a daily top-up.**
-- Add a daily 00:15 UTC cron that runs `autopilot-planner` for brands with fewer than N pending ideas in the current week. Keep the Sunday cron as the full weekly seed.
-- Log a `run_event` per brand seeded so failures are visible.
+```text
+brand_competitors                competitor_snapshots               competitor_signals
+─────────────────                ─────────────────────              ───────────────────
+id                               id                                 id
+brand_id (FK brands)             competitor_id (FK)                 competitor_id (FK)
+name                             scanned_at                         brand_id (FK)
+domain                           source (site|instagram|semrush)    signal_type (launch|
+instagram_handle                 raw (jsonb — scrape body)            offer|angle|seo_win|
+logo_url                         extracted (jsonb — brand tokens,     positioning_shift)
+discovery_source                    top pages, posts, prices)       summary
+  (auto|user)                    tokens_used                        rationale
+discovery_rationale              cost_credits                       content_idea_id (nullable)
+is_active                                                           week_start_date
+last_scanned_at                                                     acted_on (bool)
+created_at
+```
 
-**C. Harden design-studio timeouts for autonomous jobs.**
-- On worker_timeout, if `source=autopilot` and no retry has fired yet, auto-enqueue one retry (single-shot) instead of leaving the idea as `failed_error`.
-- Keep the existing heartbeat/watchdog untouched.
+All three tables: RLS scoped to `has_brand_access(brand_id, auth.uid())`, GRANT to authenticated + service_role, no anon.
 
-**D. Observability — one small addition.**
-- On the Cockpit's Engine card, surface "today's autonomous shipments: X of Y" from `content_ideas` so this failure mode is visible without opening the DB.
+## Edge functions
 
-No client/UX changes beyond (D). Everything else is edge-function + one new cron.
+- **`competitor-discover`** — one-shot. Given `brand_id`, calls Semrush `competitive_analysis`, Firecrawl-scrapes the top 3–5 rivals to enrich (name, logo, IG handle inferred from footer), inserts them into `brand_competitors` respecting the tier cap. Idempotent.
+- **`competitor-scan`** — per-competitor scan. Firecrawl the domain (branding + summary formats) + IG handle (if set), Semrush `domain_analysis` + `top_pages`, write to `competitor_snapshots`. Uses `heartbeat_at` + chunking pattern already in `content-autopilot`.
+- **`competitor-digest`** — per-brand weekly synthesis. Reads latest snapshots, prompts Gemini 3.1 Pro to produce signals + steal-the-angle ideas, writes `competitor_signals`, and inserts approved ideas into `content_ideas` with `source='competitor_intel'`.
 
-### Out of scope
-- Rewriting the design-studio carousel pipeline (already hardened last week).
-- Changing delivery-time semantics or timezone handling.
-- Migrating any planner logic to Inngest (we removed it).
+Failures leave rows in `pending` so the sweep retries — matches the reliability pattern from the autopilot audit.
+
+## Scheduling
+
+One new `pg_cron` job — **`competitor-weekly-scan`, Sundays 22:00 UTC** — POSTs to a lightweight orchestrator that fans out `competitor-scan` per active competitor (concurrency 3, respecting Firecrawl + Semrush rate limits), then triggers `competitor-digest` per brand. Runs before the Monday 06:00 briefing so results are ready when the user opens the app.
+
+An empty-state trigger also fires `competitor-discover` on brand creation once the brand has an industry set, so nothing is blank on day one.
+
+## Feeding the Brandie engine
+
+When `competitor-digest` produces a "steal-the-angle" idea:
+- It's inserted into `content_ideas` as `autopilot=true, approval_status='pending'` (Assisted) or `'approved'` (Autonomous), unscheduled.
+- The next `autopilot-planner` daily top-up (already scheduled at 00:15 UTC) picks it up and slots it into an empty day, respecting funnel + campaign quota rules already in `resolve-autopilot-campaign.ts`.
+- The idea carries `content_category`, a `competitor_rationale` field, and links back to the competitor card via `competitor_signals.content_idea_id` so users see *why* it was suggested.
+
+## Frontend
+
+- `src/components/v2/hub/CompetitorsTab.tsx` — grid, add/remove, discovery empty state, "Refresh now" button (respects tier).
+- `src/components/v2/CompetitorCard.tsx` — logo, last-scan pill, "What changed" bullets, mini brand-benchmark strip, SEO delta chip, ideas list.
+- `src/components/v2/CompetitorDigestCard.tsx` — Cockpit hero placement, "3 moves this week" summary.
+- Wired into `Hub.tsx` alongside existing Outbox/Trends/Funnels/Campaigns tabs.
+- Tier upgrade prompt on hitting the cap, using the existing `SubscriptionPanel` pattern.
+
+## Technical details
+
+- **AI model**: `google/gemini-3.1-pro-preview` for the digest (reasoning-heavy); `google/gemini-3.1-flash-lite` for lightweight brand extraction if Firecrawl `branding` format is unavailable.
+- **Firecrawl**: uses the existing gateway-backed connection. Formats requested per scan: `branding`, `summary`, `links`. IG scraping via the same connector with the profile URL.
+- **Semrush**: uses the existing connector. Auto-fallback to `us` database, with the brand's country database when set on `brands`.
+- **Credit accounting**: each scan writes `cost_credits` to the snapshot for admin visibility; no user-facing credit charge — this is a subscription-included feature.
+- **Idempotency**: `competitor_snapshots` unique on `(competitor_id, week_start_date, source)` so a re-run replaces the row rather than duplicating.
+
+## Out of scope for V1
+
+- Paid-ads spend tracking (Meta ad library integration) — flagged as V2.
+- Real-time push alerts when a competitor launches — weekly cadence only.
+- Manual competitor discovery UI ships, but auto-discovery is the default path per the user's decision.
+
+Ready to build once you approve.
