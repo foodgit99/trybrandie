@@ -18,20 +18,29 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Upload, X, Loader2 } from "lucide-react";
+import { GripVertical, Upload, X, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 type GalleryItem = { id: string; image_url: string; position?: number };
 
+const FEATURED_SLOTS = 2; // render-refs takes top 2 gallery images
+const ROLE_LABEL: Record<number, { label: string; hint: string }> = {
+  0: { label: "Hero", hint: "Featured as the main visual" },
+  1: { label: "Support", hint: "Used as secondary reference" },
+};
+
 function SortableTile({
   item,
+  index,
   onDelete,
 }: {
   item: GalleryItem;
+  index: number;
   onDelete: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -41,13 +50,33 @@ function SortableTile({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const role = ROLE_LABEL[index];
   return (
     <div ref={setNodeRef} style={style} className="relative aspect-square group touch-none">
       <img
         src={item.image_url}
         alt=""
-        className="w-full h-full object-cover rounded-xl border border-border pointer-events-none"
+        className={`w-full h-full object-cover rounded-xl border pointer-events-none ${
+          role ? "border-primary/60 ring-2 ring-primary/30" : "border-border"
+        }`}
       />
+      {role ? (
+        <div
+          className="absolute bottom-2 left-2 right-2 flex items-center gap-1"
+          title={role.hint}
+        >
+          <Badge className="gap-1 px-2 py-0.5 text-[10px] font-semibold shadow-sm">
+            <Sparkles className="h-2.5 w-2.5" />
+            {role.label}
+          </Badge>
+        </div>
+      ) : (
+        <div className="absolute bottom-2 left-2 right-2">
+          <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-medium opacity-80">
+            Backup
+          </Badge>
+        </div>
+      )}
       <button
         type="button"
         {...attributes}
@@ -123,7 +152,32 @@ export default function BrandGalleryPanel({
     },
   });
 
+  const { data: nextIdea } = useQuery({
+    queryKey: ["v2-brand-gallery-next-idea", brandId],
+    queryFn: async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data } = await supabase
+        .from("content_ideas")
+        .select("id, title, scheduled_for, content_category, status")
+        .eq("brand_id", brandId)
+        .gte("scheduled_for", today.toISOString())
+        .not("status", "in", "(posted,failed,archived)")
+        .order("scheduled_for", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; title: string; scheduled_for: string; content_category: string | null } | null;
+    },
+  });
+
   const gallery = localOrder ?? items;
+  const nextDateLabel = nextIdea?.scheduled_for
+    ? new Date(nextIdea.scheduled_for).toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -262,15 +316,45 @@ export default function BrandGalleryPanel({
           Tap to upload product, team, or premises photos
         </button>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={gallery.map((i) => i.id)} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {gallery.map((item) => (
-                <SortableTile key={item.id} item={item} onDelete={deleteItem} />
-              ))}
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-background/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  Next design preview
+                </div>
+                {nextIdea ? (
+                  <p className="mt-1 text-sm text-foreground truncate">
+                    <span className="font-medium">{nextIdea.title}</span>
+                    {nextDateLabel ? (
+                      <span className="text-muted-foreground"> · {nextDateLabel}</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    No upcoming post scheduled. These roles will apply to the next design generated.
+                  </p>
+                )}
+              </div>
             </div>
-          </SortableContext>
-        </DndContext>
+            <p className="mt-2 text-xs text-muted-foreground">
+              The top {Math.min(FEATURED_SLOTS, gallery.length)} image
+              {gallery.length === 1 ? " is" : "s are"} sent to the renderer as
+              {" "}<span className="font-medium text-foreground">Hero</span> and
+              {" "}<span className="font-medium text-foreground">Support</span> references. Drag to change priority.
+            </p>
+          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={gallery.map((i) => i.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {gallery.map((item, idx) => (
+                  <SortableTile key={item.id} item={item} index={idx} onDelete={deleteItem} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
       )}
     </div>
   );
