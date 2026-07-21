@@ -249,6 +249,10 @@ const BrandCentre = () => {
           )}
         </Block>
 
+        <Block label="Gallery">
+          <BrandGalleryPanel brandId={brand.id} userId={user.id} />
+        </Block>
+
         <section className="space-y-3">
           <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Team</h2>
           <TeamMembersPanel />
