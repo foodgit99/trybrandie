@@ -689,10 +689,13 @@ async function runFullHandler(req: Request): Promise<Response> {
     // watchdog can distinguish "still working" from "isolate got killed" and the
     // UI can show real progress instead of a frozen 5% spinner.
     const _hbJobId: string | undefined = _parsedReqBody?.job_id;
+    const _hbAdmin = _hbJobId
+      ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+      : null;
     const heartbeat = async (progress: number, stage: string) => {
-      if (!_hbJobId) return;
+      if (!_hbJobId || !_hbAdmin) return;
       try {
-        await adminClient.from("design_jobs").update({
+        await _hbAdmin.from("design_jobs").update({
           progress: Math.max(5, Math.min(99, Math.round(progress))),
           stage,
           heartbeat_at: new Date().toISOString(),
