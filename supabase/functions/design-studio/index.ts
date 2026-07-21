@@ -3805,6 +3805,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         // slide inherits from it. We keep the quality-critic loop on the
         // cover only — if the cover passes, the visual system is approved
         // and inner slides can skip scoring.
+        await heartbeat(10, `cover_1_of_${numSlides}`);
         const coverNextSlide = numSlides > 1 ? carouselPlan.slides[1] : null;
         let coverResult: SlideResult;
         try {
@@ -3855,17 +3856,21 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         slides.push(coverResult);
         const coverImageUrl = coverResult.image_url;
         const coverSlidePlan = carouselPlan.slides[0];
+        await heartbeat(Math.round((1 / numSlides) * 90) + 5, `cover_done`);
 
         // === Phase 2: render slides 1..N in PARALLEL with bounded concurrency. ===
         // Every inner slide uses the COVER as its continuity anchor (not the
         // immediately-previous slide). Motif/palette/type are enforced via
         // the shared plan + genome + cover reference image, so pixel-level
         // "prev slide" chaining is unnecessary — and dropping it lets us
-        // fan out. Concurrency capped at 3 to stay under gateway rate limits.
-        const CONCURRENCY = 3;
+        // fan out. Concurrency raised to 5 so a 5-slide carousel finishes in
+        // one parallel batch and 10-slide in two — keeping us inside the
+        // edge-runtime wall-time budget.
+        const CONCURRENCY = 5;
         const innerCount = Math.max(0, numSlides - 1);
         const innerResults: (SlideResult | null)[] = new Array(innerCount).fill(null);
 
+        let completedInner = 0;
         let cursor = 0;
         const workers: Promise<void>[] = [];
         for (let w = 0; w < Math.min(CONCURRENCY, innerCount); w++) {
@@ -3884,6 +3889,11 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
                   result = await renderSlide(i, coverImageUrl, coverSlidePlan, nextSlide, 1);
                 }
                 innerResults[localIdx] = result;
+                completedInner += 1;
+                await heartbeat(
+                  Math.round(((completedInner + 1) / numSlides) * 90) + 5,
+                  `slide_${completedInner + 1}_of_${numSlides}`,
+                );
               } catch (slideErr) {
                 console.error(`[carousel] slide ${i + 1} hard-failed after retry:`, slideErr);
                 throw slideErr;
@@ -3895,6 +3905,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
 
         for (const r of innerResults) if (r) slides.push(r);
         slides.sort((a, b) => a.slide_index - b.slide_index);
+        await heartbeat(95, "carousel_finalizing");
 
       } catch (renderErr) {
         console.error("[carousel] hard render failure — cleaning up partial carousel:", renderErr);
