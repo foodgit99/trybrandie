@@ -331,13 +331,11 @@ async function renderWithGptImageEdits(
     }
   }
 
-  // Fallback chain — Flash first for speed (near-Pro quality), Pro as fallback,
-  // then legacy Flash as last resort. Reordered from Pro-first because Pro
-  // routinely takes 60-120s per call and, when multiplied across carousel
-  // slides, was pushing generations past an hour.
+  // Fallback chain — Pro first for highest quality, Flash variants as fallbacks
+  // if Pro fails or times out on its 90s per-model deadline.
   const models = [
-    "google/gemini-3.1-flash-image-preview",
     "google/gemini-3-pro-image-preview",
+    "google/gemini-3.1-flash-image-preview",
     "google/gemini-2.5-flash-image",
   ];
 
