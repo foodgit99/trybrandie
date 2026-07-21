@@ -214,8 +214,13 @@ export async function buildCompetitorDeepReportPdf(args: {
   signals: DeepSignal[];
   snapshots: DeepSnapshot[];
   ideas: DeepIdea[];
+  branding?: ReportBranding;
 }): Promise<jsPDF> {
-  const { brand, competitor, signals, snapshots, ideas } = args;
+  const { brand, competitor, signals, snapshots, ideas, branding } = args;
+  const accent = normalizeHex(branding?.accentColor, DEFAULT_ACCENT);
+  const reportTitle = (branding?.reportTitle?.trim() || "Competitor Deep Dive");
+  const eyebrowBrand = (brand.name || "Brandie").toUpperCase();
+  const eyebrow = `${eyebrowBrand} · ${reportTitle.toUpperCase()}`;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -225,11 +230,22 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setFillColor(BEIGE);
   doc.rect(0, 0, pageW, pageH, "F");
 
-  // Top eyebrow
+  // Top eyebrow — uses the brand's own report title
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(accent);
-  doc.text("BRANDIE · COMPETITOR DEEP DIVE", margin, margin);
+  doc.text(eyebrow, margin, margin);
+
+  // Optional brand logo on cover (top-right), separate from competitor logo
+  const brandLogoUrl = branding?.brandLogoUrl || brand.logo_url || null;
+  if (brandLogoUrl) {
+    const data = await fetchImageDataUrl(brandLogoUrl);
+    if (data) {
+      try {
+        doc.addImage(data, "PNG", pageW - margin - 48, margin - 12, 48, 48);
+      } catch {}
+    }
+  }
 
   // Competitor logo
   let coverY = margin + 40;
