@@ -134,6 +134,85 @@ export default function CompetitorDetailsDialog({
   const { toast } = useToast();
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  // Report branding controls (persisted on brands row)
+  const { data: brandRow, refetch: refetchBrand } = useQuery({
+    queryKey: ["brand-report-branding", brandId],
+    enabled: !!brandId && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brands")
+        .select("name, logo_url, report_title, report_accent_color, report_logo_url")
+        .eq("id", brandId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [reportTitle, setReportTitle] = useState("");
+  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
+  const [reportLogoUrl, setReportLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!brandRow) return;
+    setReportTitle((brandRow as any).report_title ?? "");
+    setAccentColor((brandRow as any).report_accent_color ?? DEFAULT_ACCENT);
+    setReportLogoUrl(
+      (brandRow as any).report_logo_url ?? (brandRow as any).logo_url ?? null,
+    );
+  }, [brandRow]);
+
+  async function saveBranding() {
+    setSavingBranding(true);
+    try {
+      const { error } = await supabase
+        .from("brands")
+        .update({
+          report_title: reportTitle.trim() || null,
+          report_accent_color: accentColor || null,
+          report_logo_url: reportLogoUrl || null,
+        })
+        .eq("id", brandId);
+      if (error) throw error;
+      await refetchBrand();
+      toast({ title: "Report branding saved" });
+    } catch (e: any) {
+      toast({
+        title: "Couldn't save",
+        description: e?.message ?? "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingBranding(false);
+    }
+  }
+
+  async function handleLogoUpload(file: File) {
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${brandId}/report-logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("brand-logos")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("brand-logos").getPublicUrl(path);
+      setReportLogoUrl(pub.publicUrl);
+      toast({ title: "Logo uploaded", description: "Click Save to apply." });
+    } catch (e: any) {
+      toast({
+        title: "Upload failed",
+        description: e?.message ?? "Try a smaller image.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
 
   const compSignals = useMemo(
     () => signals.filter((s) => s.competitor_id === competitor?.id),
