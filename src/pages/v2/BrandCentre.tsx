@@ -9,6 +9,7 @@ import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import TeamMembersPanel from "@/components/team/TeamMembersPanel";
 import BrandUsagePanel from "@/components/brands/BrandUsagePanel";
+import BrandGalleryPanel from "@/components/brands/BrandGalleryPanel";
 
 const Swatch = ({ hex }: { hex: string }) => (
   <div className="flex flex-col items-center gap-1.5">
