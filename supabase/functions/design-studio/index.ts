@@ -353,11 +353,26 @@ async function renderWithGptImageEdits(
       n: 1,
     });
 
-    const resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body,
-    });
+    // 90s per-model deadline. If a single model stalls, we fall through to the
+    // next one immediately instead of hanging the whole (potentially parallel)
+    // carousel on one bad request.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    let resp: Response;
+    try {
+      resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body,
+        signal: controller.signal,
+      }, 1);
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      console.warn(`[render] ${model} threw (${lastErr}) — falling through to next model`);
+      clearTimeout(timeoutId);
+      continue;
+    }
+    clearTimeout(timeoutId);
 
     if (resp.ok) {
       const data = await resp.json();
@@ -373,6 +388,7 @@ async function renderWithGptImageEdits(
     if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
     lastErr = await resp.text().catch(() => `HTTP ${resp.status}`);
     console.error(`[render] ${model} failed (${resp.status}):`, lastErr.slice(0, 300));
+
   }
   throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
 }
