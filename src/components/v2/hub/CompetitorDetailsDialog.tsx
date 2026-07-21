@@ -44,7 +44,9 @@ import {
   buildRecommendedActions,
 } from "@/lib/competitorDeepReportPdf";
 import { citationsForSignal } from "@/lib/competitorSources";
+import { resolveReportAccess, policyForTier } from "@/lib/reportAccess";
 import { cn } from "@/lib/utils";
+
 
 const DEFAULT_ACCENT = "#C4993B";
 const ACCENT_SWATCHES = [
@@ -283,10 +285,18 @@ export default function CompetitorDetailsDialog({
   const siteSnap = snapshots.find((s: any) => s.source === "site");
   const igSnap = snapshots.find((s: any) => s.source === "instagram");
 
+  const { data: reportAccess } = useQuery({
+    queryKey: ["report-access", brandId],
+    enabled: !!brandId && open,
+    queryFn: () => resolveReportAccess(brandId),
+  });
+  const policy = reportAccess ? policyForTier(reportAccess.tier) : null;
+
   async function handleExport() {
     if (!competitor) return;
     setExporting(true);
     try {
+      const access = reportAccess ?? (await resolveReportAccess(brandId));
       const doc = await buildCompetitorDeepReportPdf({
         brand: {
           name: (brandRow as any)?.name ?? "Your brand",
@@ -301,14 +311,21 @@ export default function CompetitorDetailsDialog({
           accentColor: accentColor || null,
           brandLogoUrl: reportLogoUrl,
         },
+        access,
       });
       const date = new Date().toISOString().slice(0, 10);
       const slug = competitor.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
       const titleSlug = (reportTitle.trim() || "Deep-Dive")
         .replace(/[^a-z0-9]+/gi, "-")
         .replace(/^-|-$/g, "");
-      doc.save(`Brandie-${slug}-${titleSlug}-${date}.pdf`);
-      toast({ title: "Report ready", description: "PDF downloaded." });
+      const tierSuffix = access.tier === "agency" ? "" : `-${access.tier}`;
+      doc.save(`Brandie-${slug}-${titleSlug}${tierSuffix}-${date}.pdf`);
+      toast({
+        title: "Report ready",
+        description: policyForTier(access.tier).isFull
+          ? "PDF downloaded."
+          : `Redacted preview downloaded (${policyForTier(access.tier).tierLabel}).`,
+      });
     } catch (e: any) {
       toast({
         title: "Export failed",
@@ -319,6 +336,7 @@ export default function CompetitorDetailsDialog({
       setExporting(false);
     }
   }
+
 
 
   if (!competitor) return null;
@@ -757,6 +775,32 @@ export default function CompetitorDetailsDialog({
               </div>
             </PopoverContent>
           </Popover>
+          {policy && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px]",
+                policy.isFull
+                  ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                  : "bg-amber-500/10 text-amber-700 border-amber-500/30",
+              )}
+              title={
+                policy.isFull
+                  ? "Full report — no watermark, all sections included."
+                  : `Redacted export. Watermark: ${policy.watermark}. Hidden: ${[
+                      !policy.showSignalRationale && "signal rationale",
+                      !policy.showSnapshotExcerpts && "snapshot excerpts",
+                      !policy.showIdeas && "ideas playbook",
+                      !policy.showRecommendedActions && "action steps",
+                      !policy.showSourcesAppendix && "sources appendix",
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "some sections"}.`
+              }
+            >
+              {policy.isFull ? "Full export" : `${policy.tierLabel} · watermarked`}
+            </Badge>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -765,6 +809,7 @@ export default function CompetitorDetailsDialog({
             {exporting ? "Preparing report…" : "Export PDF"}
           </Button>
         </div>
+
 
       </DialogContent>
     </Dialog>

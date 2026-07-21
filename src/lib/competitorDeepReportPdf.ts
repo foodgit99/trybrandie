@@ -1,6 +1,9 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { citationsForSignal, type SourceCitation } from "./competitorSources";
+import type { ReportAccess, ReportPolicy } from "./reportAccess";
+import { policyForTier } from "./reportAccess";
+
 
 // Brandie default palette (overridable via `branding`)
 const BEIGE = "#FAF8F5";
@@ -215,8 +218,11 @@ export async function buildCompetitorDeepReportPdf(args: {
   snapshots: DeepSnapshot[];
   ideas: DeepIdea[];
   branding?: ReportBranding;
+  /** Subscription-based redaction / watermarking policy. Defaults to Free. */
+  access?: ReportAccess;
 }): Promise<jsPDF> {
-  const { brand, competitor, signals, snapshots, ideas, branding } = args;
+  const { brand, competitor, signals, snapshots, ideas, branding, access } = args;
+  const policy: ReportPolicy = policyForTier(access?.tier ?? "free");
   const accent = normalizeHex(branding?.accentColor, DEFAULT_ACCENT);
   const reportTitle = (branding?.reportTitle?.trim() || "Competitor Deep Dive");
   const eyebrowBrand = (brand.name || "Brandie").toUpperCase();
@@ -225,6 +231,16 @@ export async function buildCompetitorDeepReportPdf(args: {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 48;
+
+  // Apply per-tier caps to the datasets before any rendering so redacted
+  // sections stay consistent with the on-page counts and cover badges.
+  const signalsForReport =
+    policy.maxSignalsInTable !== null
+      ? signals.slice(0, policy.maxSignalsInTable)
+      : signals;
+  const ideasForReport =
+    policy.maxIdeas !== null ? ideas.slice(0, policy.maxIdeas) : ideas;
+
 
   // ---------- Cover ----------
   doc.setFillColor(BEIGE);
@@ -297,6 +313,32 @@ export async function buildCompetitorDeepReportPdf(args: {
     coverY + 196,
   );
   doc.text(`Last scan: ${fmtDate(competitor.last_scanned_at)}`, margin, coverY + 212);
+
+  // Plan / access badge — makes the tier explicit on the cover so any
+  // recipient can tell at a glance whether they're holding a redacted
+  // sample or the full agency-grade report.
+  const badgeY = coverY + 226;
+  doc.setFillColor(policy.isFull ? accent : "#8A6A1F");
+  const badgeText = policy.isFull
+    ? `Full report · ${policy.tierLabel}`
+    : `Redacted preview · ${policy.tierLabel}`;
+  const badgeW = doc.getTextWidth(badgeText) + 20;
+  doc.roundedRect(margin, badgeY - 10, badgeW, 16, 8, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor("#FFFFFF");
+  doc.text(badgeText, margin + 10, badgeY);
+  if (access?.preparedByEmail) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(MUTED);
+    doc.text(
+      `Prepared by ${access.preparedByEmail}`,
+      margin + badgeW + 12,
+      badgeY,
+    );
+  }
+
 
   // Discovery rationale block
   if (competitor.discovery_rationale) {
@@ -435,7 +477,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     return nums;
   }
 
-  if (signals.length === 0) {
+  if (signalsForReport.length === 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     doc.setTextColor(MUTED);
@@ -445,6 +487,31 @@ export async function buildCompetitorDeepReportPdf(args: {
       margin + 50,
     );
   } else {
+    const head = policy.showSignalRationale
+      ? [["Week", "Signal", "What they did", "Why it matters", "Sources"]]
+      : [["Week", "Signal", "What they did", "Sources"]];
+    const body = signalsForReport.map((s) => {
+      const base = [
+        fmtDate(s.week_start_date),
+        SIGNAL_LABELS[s.signal_type] ?? s.signal_type,
+        clip(s.summary, 260),
+      ];
+      if (policy.showSignalRationale) base.push(clip(s.rationale, 260));
+      base.push(refsFor(s).map((n) => `[${n}]`).join(" ") || "—");
+      return base;
+    });
+    const columnStyles: Record<number, any> = policy.showSignalRationale
+      ? {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 82, fontStyle: "bold", textColor: accent },
+          2: { cellWidth: 150 },
+          4: { cellWidth: 54, textColor: accent, fontStyle: "bold" },
+        }
+      : {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 90, fontStyle: "bold", textColor: accent },
+          3: { cellWidth: 60, textColor: accent, fontStyle: "bold" },
+        };
     autoTable(doc, {
       startY: margin + 34,
       margin: { left: margin, right: margin },
@@ -456,27 +523,36 @@ export async function buildCompetitorDeepReportPdf(args: {
         fontStyle: "bold",
       },
       styles: { font: "helvetica", fontSize: 9, textColor: CHARCOAL, cellPadding: 7 },
-      head: [["Week", "Signal", "What they did", "Why it matters", "Sources"]],
-      body: signals.map((s) => [
-        fmtDate(s.week_start_date),
-        SIGNAL_LABELS[s.signal_type] ?? s.signal_type,
-        clip(s.summary, 260),
-        clip(s.rationale, 260),
-        refsFor(s).map((n) => `[${n}]`).join(" ") || "—",
-      ]),
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 82, fontStyle: "bold", textColor: accent },
-        2: { cellWidth: 150 },
-        4: { cellWidth: 54, textColor: accent, fontStyle: "bold" },
-      },
+      head,
+      body,
+      columnStyles,
     });
+    if (
+      (policy.maxSignalsInTable !== null && signals.length > signalsForReport.length) ||
+      !policy.showSignalRationale
+    ) {
+      // @ts-expect-error autotable augments doc
+      const afterY = doc.lastAutoTable?.finalY ?? margin + 40;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(MUTED);
+      const hiddenCount = signals.length - signalsForReport.length;
+      const parts: string[] = [];
+      if (hiddenCount > 0) parts.push(`${hiddenCount} more signal${hiddenCount === 1 ? "" : "s"} hidden`);
+      if (!policy.showSignalRationale) parts.push(`"Why it matters" analysis redacted`);
+      doc.text(
+        `${parts.join(" · ")} — upgrade to unlock the full report.`,
+        margin,
+        afterY + 16,
+      );
+    }
   }
+
 
   // ---------- Snapshot excerpts ----------
   const siteSnap = snapshots.find((s) => s.source === "site");
   const igSnap = snapshots.find((s) => s.source === "instagram");
-  if (siteSnap?.extracted || igSnap?.extracted) {
+  if (policy.showSnapshotExcerpts && (siteSnap?.extracted || igSnap?.extracted)) {
     doc.addPage();
     doc.setFillColor(BEIGE);
     doc.rect(0, 0, pageW, pageH, "F");
@@ -553,7 +629,7 @@ export async function buildCompetitorDeepReportPdf(args: {
   }
 
   // ---------- Ideas ----------
-  if (ideas.length > 0) {
+  if (policy.showIdeas && ideasForReport.length > 0) {
     doc.addPage();
     doc.setFillColor(BEIGE);
     doc.rect(0, 0, pageW, pageH, "F");
@@ -572,7 +648,7 @@ export async function buildCompetitorDeepReportPdf(args: {
       headStyles: { fillColor: CHARCOAL, textColor: BEIGE, fontSize: 10, fontStyle: "bold" },
       styles: { font: "helvetica", fontSize: 9, textColor: CHARCOAL, cellPadding: 7 },
       head: [["Idea", "Category", "Scheduled", "Why"]],
-      body: ideas.map((i) => [
+      body: ideasForReport.map((i) => [
         clip(i.title, 160),
         i.content_category ?? "—",
         fmtDate(i.scheduled_for),
@@ -584,6 +660,20 @@ export async function buildCompetitorDeepReportPdf(args: {
         2: { cellWidth: 70 },
       },
     });
+    if (policy.maxIdeas !== null && ideas.length > ideasForReport.length) {
+      // @ts-expect-error autotable augments doc
+      const afterY = doc.lastAutoTable?.finalY ?? margin + 40;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(MUTED);
+      doc.text(
+        `${ideas.length - ideasForReport.length} more idea${
+          ideas.length - ideasForReport.length === 1 ? "" : "s"
+        } hidden — upgrade to unlock the full playbook.`,
+        margin,
+        afterY + 16,
+      );
+    }
   }
 
   // ---------- Recommended action steps ----------
@@ -598,45 +688,77 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setLineWidth(1.5);
   doc.line(margin, margin + 18, margin + 60, margin + 18);
 
-  const actions = buildRecommendedActions(competitor, signals);
-  let ay = margin + 44;
-  for (const a of actions) {
-    if (ay > pageH - 120) {
-      doc.addPage();
-      doc.setFillColor(BEIGE);
-      doc.rect(0, 0, pageW, pageH, "F");
-      ay = margin;
-    }
+  if (!policy.showRecommendedActions) {
+    // Redacted — render an upgrade CTA card in place of the full playbook so
+    // the section is still visible in the ToC/flow but the strategy stays
+    // behind the paywall.
     doc.setFillColor("#FFFFFF");
-    const boxH = 40 + a.steps.length * 30;
-    doc.roundedRect(margin, ay, pageW - margin * 2, boxH, 10, 10, "F");
+    doc.roundedRect(margin, margin + 44, pageW - margin * 2, 160, 10, 10, "F");
     doc.setFillColor(accent);
-    doc.rect(margin, ay, 4, boxH, "F");
-
+    doc.rect(margin, margin + 44, 4, 160, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setTextColor(CHARCOAL);
-    doc.text(a.title, margin + 16, ay + 22);
+    doc.text("Playbook locked on the Free plan", margin + 20, margin + 74);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(MUTED);
+    const upgradeLines = doc.splitTextToSize(
+      "This sample report shows what Brandie sees. The full step-by-step action plan — how to steal the angle, close the SEO gap, and counter positioning shifts — unlocks on the Entrepreneur plan and above.",
+      pageW - margin * 2 - 36,
+    );
+    doc.text(upgradeLines, margin + 20, margin + 100);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(accent);
+    doc.text("Upgrade at trybrandie.com/plans", margin + 20, margin + 176);
+  } else {
+    const actions = buildRecommendedActions(competitor, signalsForReport);
+    let ay = margin + 44;
+    for (const a of actions) {
+      if (ay > pageH - 120) {
+        doc.addPage();
+        doc.setFillColor(BEIGE);
+        doc.rect(0, 0, pageW, pageH, "F");
+        ay = margin;
+      }
+      doc.setFillColor("#FFFFFF");
+      const boxH = 40 + a.steps.length * 30;
+      doc.roundedRect(margin, ay, pageW - margin * 2, boxH, 10, 10, "F");
+      doc.setFillColor(accent);
+      doc.rect(margin, ay, 4, boxH, "F");
 
-    let sy = ay + 40;
-    a.steps.forEach((step, idx) => {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(accent);
-      doc.text(`${idx + 1}.`, margin + 16, sy + 10);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.setTextColor(CHARCOAL);
-      const lines = doc.splitTextToSize(step, pageW - margin * 2 - 44);
-      doc.text(lines, margin + 32, sy + 10);
-      sy += Math.max(24, lines.length * 12 + 8);
-    });
+      doc.text(a.title, margin + 16, ay + 22);
 
-    ay += boxH + 16;
+      let sy = ay + 40;
+      a.steps.forEach((step, idx) => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(accent);
+        doc.text(`${idx + 1}.`, margin + 16, sy + 10);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(CHARCOAL);
+        const lines = doc.splitTextToSize(step, pageW - margin * 2 - 44);
+        doc.text(lines, margin + 32, sy + 10);
+        sy += Math.max(24, lines.length * 12 + 8);
+      });
+
+      ay += boxH + 16;
+    }
   }
 
+
   // ---------- Sources & citations ----------
-  if (orderedCitations.length > 0) {
+  if (policy.showSourcesAppendix && orderedCitations.length > 0) {
+    const citationsForReport =
+      policy.maxCitations !== null
+        ? orderedCitations.slice(0, policy.maxCitations)
+        : orderedCitations;
+
     doc.addPage();
     doc.setFillColor(BEIGE);
     doc.rect(0, 0, pageW, pageH, "F");
@@ -659,7 +781,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     );
 
     let cy = margin + 72;
-    orderedCitations.forEach((c, i) => {
+    citationsForReport.forEach((c, i) => {
       if (cy > pageH - 60) {
         doc.addPage();
         doc.setFillColor(BEIGE);
@@ -691,23 +813,66 @@ export async function buildCompetitorDeepReportPdf(args: {
 
       cy += 22 + urlLines.length * 12;
     });
+
+    if (policy.maxCitations !== null && orderedCitations.length > citationsForReport.length) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(MUTED);
+      doc.text(
+        `${orderedCitations.length - citationsForReport.length} additional source${
+          orderedCitations.length - citationsForReport.length === 1 ? "" : "s"
+        } hidden on this plan.`,
+        margin,
+        Math.min(cy + 8, pageH - 40),
+      );
+    }
   }
 
-
-  // Footer on all pages
+  // Footer + watermark on all pages. The watermark strategy is driven by the
+  // per-plan policy: diagonal + "SAMPLE" for Free, a subtle prepared-with line
+  // for paid tiers below Agency, and none for Agency.
   const total = doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
     doc.setPage(p);
+
+    if (policy.watermark === "diagonal") {
+      // Tiled diagonal watermark. Kept faint via a semi-transparent GState so
+      // it never overpowers the underlying content but is impossible to miss.
+      const GState = (doc as any).GState as
+        | ((opts: { opacity: number }) => any)
+        | undefined;
+      if (GState) (doc as any).setGState(GState({ opacity: 0.12 }));
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(42);
+      doc.setTextColor(CHARCOAL);
+      const text = policy.watermarkText || "SAMPLE";
+      const stepX = 220;
+      const stepY = 180;
+      for (let x = -pageW; x < pageW * 2; x += stepX) {
+        for (let y = 0; y < pageH + stepY; y += stepY) {
+          doc.text(text, x, y, { angle: 30 });
+        }
+      }
+      if (GState) (doc as any).setGState(GState({ opacity: 1 }));
+      doc.setTextColor(CHARCOAL);
+
+    } else if (policy.watermark === "footer" && policy.watermarkText) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      doc.setTextColor(accent);
+      doc.text(policy.watermarkText, pageW / 2, pageH - 32, { align: "center" });
+    }
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(MUTED);
-    doc.text(
-      `Generated by Brandie · trybrandie.com · ${brand.name || ""}`,
-      margin,
-      pageH - 20,
-    );
+    const footerLeft = access?.preparedByEmail
+      ? `Generated by Brandie · trybrandie.com · ${brand.name || ""} · Prepared by ${access.preparedByEmail}`
+      : `Generated by Brandie · trybrandie.com · ${brand.name || ""}`;
+    doc.text(footerLeft, margin, pageH - 20);
     doc.text(`${p} / ${total}`, pageW - margin, pageH - 20, { align: "right" });
   }
 
   return doc;
 }
+
