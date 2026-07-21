@@ -629,7 +629,7 @@ export async function buildCompetitorDeepReportPdf(args: {
   }
 
   // ---------- Ideas ----------
-  if (ideas.length > 0) {
+  if (policy.showIdeas && ideasForReport.length > 0) {
     doc.addPage();
     doc.setFillColor(BEIGE);
     doc.rect(0, 0, pageW, pageH, "F");
@@ -648,7 +648,7 @@ export async function buildCompetitorDeepReportPdf(args: {
       headStyles: { fillColor: CHARCOAL, textColor: BEIGE, fontSize: 10, fontStyle: "bold" },
       styles: { font: "helvetica", fontSize: 9, textColor: CHARCOAL, cellPadding: 7 },
       head: [["Idea", "Category", "Scheduled", "Why"]],
-      body: ideas.map((i) => [
+      body: ideasForReport.map((i) => [
         clip(i.title, 160),
         i.content_category ?? "—",
         fmtDate(i.scheduled_for),
@@ -660,6 +660,20 @@ export async function buildCompetitorDeepReportPdf(args: {
         2: { cellWidth: 70 },
       },
     });
+    if (policy.maxIdeas !== null && ideas.length > ideasForReport.length) {
+      // @ts-expect-error autotable augments doc
+      const afterY = doc.lastAutoTable?.finalY ?? margin + 40;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(MUTED);
+      doc.text(
+        `${ideas.length - ideasForReport.length} more idea${
+          ideas.length - ideasForReport.length === 1 ? "" : "s"
+        } hidden — upgrade to unlock the full playbook.`,
+        margin,
+        afterY + 16,
+      );
+    }
   }
 
   // ---------- Recommended action steps ----------
@@ -674,42 +688,69 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setLineWidth(1.5);
   doc.line(margin, margin + 18, margin + 60, margin + 18);
 
-  const actions = buildRecommendedActions(competitor, signals);
-  let ay = margin + 44;
-  for (const a of actions) {
-    if (ay > pageH - 120) {
-      doc.addPage();
-      doc.setFillColor(BEIGE);
-      doc.rect(0, 0, pageW, pageH, "F");
-      ay = margin;
-    }
+  if (!policy.showRecommendedActions) {
+    // Redacted — render an upgrade CTA card in place of the full playbook so
+    // the section is still visible in the ToC/flow but the strategy stays
+    // behind the paywall.
     doc.setFillColor("#FFFFFF");
-    const boxH = 40 + a.steps.length * 30;
-    doc.roundedRect(margin, ay, pageW - margin * 2, boxH, 10, 10, "F");
+    doc.roundedRect(margin, margin + 44, pageW - margin * 2, 160, 10, 10, "F");
     doc.setFillColor(accent);
-    doc.rect(margin, ay, 4, boxH, "F");
-
+    doc.rect(margin, margin + 44, 4, 160, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setTextColor(CHARCOAL);
-    doc.text(a.title, margin + 16, ay + 22);
+    doc.text("Playbook locked on the Free plan", margin + 20, margin + 74);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(MUTED);
+    const upgradeLines = doc.splitTextToSize(
+      "This sample report shows what Brandie sees. The full step-by-step action plan — how to steal the angle, close the SEO gap, and counter positioning shifts — unlocks on the Entrepreneur plan and above.",
+      pageW - margin * 2 - 36,
+    );
+    doc.text(upgradeLines, margin + 20, margin + 100);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(accent);
+    doc.text("Upgrade at trybrandie.com/plans", margin + 20, margin + 176);
+  } else {
+    const actions = buildRecommendedActions(competitor, signalsForReport);
+    let ay = margin + 44;
+    for (const a of actions) {
+      if (ay > pageH - 120) {
+        doc.addPage();
+        doc.setFillColor(BEIGE);
+        doc.rect(0, 0, pageW, pageH, "F");
+        ay = margin;
+      }
+      doc.setFillColor("#FFFFFF");
+      const boxH = 40 + a.steps.length * 30;
+      doc.roundedRect(margin, ay, pageW - margin * 2, boxH, 10, 10, "F");
+      doc.setFillColor(accent);
+      doc.rect(margin, ay, 4, boxH, "F");
 
-    let sy = ay + 40;
-    a.steps.forEach((step, idx) => {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(accent);
-      doc.text(`${idx + 1}.`, margin + 16, sy + 10);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.setTextColor(CHARCOAL);
-      const lines = doc.splitTextToSize(step, pageW - margin * 2 - 44);
-      doc.text(lines, margin + 32, sy + 10);
-      sy += Math.max(24, lines.length * 12 + 8);
-    });
+      doc.text(a.title, margin + 16, ay + 22);
 
-    ay += boxH + 16;
+      let sy = ay + 40;
+      a.steps.forEach((step, idx) => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(accent);
+        doc.text(`${idx + 1}.`, margin + 16, sy + 10);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(CHARCOAL);
+        const lines = doc.splitTextToSize(step, pageW - margin * 2 - 44);
+        doc.text(lines, margin + 32, sy + 10);
+        sy += Math.max(24, lines.length * 12 + 8);
+      });
+
+      ay += boxH + 16;
+    }
   }
+
 
   // ---------- Sources & citations ----------
   if (orderedCitations.length > 0) {
