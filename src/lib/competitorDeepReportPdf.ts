@@ -2,12 +2,32 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { citationsForSignal, type SourceCitation } from "./competitorSources";
 
-// Brandie palette
+// Brandie default palette (overridable via `branding`)
 const BEIGE = "#FAF8F5";
 const CHARCOAL = "#2B2D33";
-const GOLD = "#C4993B";
+const DEFAULT_ACCENT = "#C4993B";
 const MUTED = "#6B6B6B";
 const SOFT = "#E7E2D8";
+
+export type ReportBranding = {
+  /** Report title used on cover + eyebrow (default "Competitor Deep Dive"). */
+  reportTitle?: string | null;
+  /** Hex accent color used for rules, highlights, badges, footer refs. */
+  accentColor?: string | null;
+  /** Optional logo to display on the cover in addition to the competitor logo. */
+  brandLogoUrl?: string | null;
+};
+
+function normalizeHex(v: string | null | undefined, fallback: string): string {
+  if (!v) return fallback;
+  const s = v.trim();
+  if (/^#?[0-9a-fA-F]{6}$/.test(s)) return s.startsWith("#") ? s : `#${s}`;
+  if (/^#?[0-9a-fA-F]{3}$/.test(s)) {
+    const c = s.replace("#", "");
+    return `#${c[0]}${c[0]}${c[1]}${c[1]}${c[2]}${c[2]}`;
+  }
+  return fallback;
+}
 
 export type DeepCompetitor = {
   id: string;
@@ -194,8 +214,13 @@ export async function buildCompetitorDeepReportPdf(args: {
   signals: DeepSignal[];
   snapshots: DeepSnapshot[];
   ideas: DeepIdea[];
+  branding?: ReportBranding;
 }): Promise<jsPDF> {
-  const { brand, competitor, signals, snapshots, ideas } = args;
+  const { brand, competitor, signals, snapshots, ideas, branding } = args;
+  const accent = normalizeHex(branding?.accentColor, DEFAULT_ACCENT);
+  const reportTitle = (branding?.reportTitle?.trim() || "Competitor Deep Dive");
+  const eyebrowBrand = (brand.name || "Brandie").toUpperCase();
+  const eyebrow = `${eyebrowBrand} · ${reportTitle.toUpperCase()}`;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -205,11 +230,22 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setFillColor(BEIGE);
   doc.rect(0, 0, pageW, pageH, "F");
 
-  // Top eyebrow
+  // Top eyebrow — uses the brand's own report title
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.setTextColor(GOLD);
-  doc.text("BRANDIE · COMPETITOR DEEP DIVE", margin, margin);
+  doc.setTextColor(accent);
+  doc.text(eyebrow, margin, margin);
+
+  // Optional brand logo on cover (top-right), separate from competitor logo
+  const brandLogoUrl = branding?.brandLogoUrl || brand.logo_url || null;
+  if (brandLogoUrl) {
+    const data = await fetchImageDataUrl(brandLogoUrl);
+    if (data) {
+      try {
+        doc.addImage(data, "PNG", pageW - margin - 48, margin - 12, 48, 48);
+      } catch {}
+    }
+  }
 
   // Competitor logo
   let coverY = margin + 40;
@@ -242,7 +278,7 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.text(meta, margin, coverY + 132);
 
   // Gold rule
-  doc.setDrawColor(GOLD);
+  doc.setDrawColor(accent);
   doc.setLineWidth(2);
   doc.line(margin, coverY + 152, margin + 80, coverY + 152);
 
@@ -289,7 +325,7 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setFontSize(20);
   doc.setTextColor(CHARCOAL);
   doc.text("Signal breakdown", margin, margin + 10);
-  doc.setDrawColor(GOLD);
+  doc.setDrawColor(accent);
   doc.setLineWidth(1.5);
   doc.line(margin, margin + 18, margin + 60, margin + 18);
 
@@ -363,7 +399,7 @@ export async function buildCompetitorDeepReportPdf(args: {
       weeks.map(([w, v]) => ({
         label: fmtDate(w),
         value: v,
-        color: GOLD,
+        color: accent,
       })),
     );
   }
@@ -376,7 +412,7 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setFontSize(20);
   doc.setTextColor(CHARCOAL);
   doc.text("Every signal, in detail", margin, margin + 10);
-  doc.setDrawColor(GOLD);
+  doc.setDrawColor(accent);
   doc.setLineWidth(1.5);
   doc.line(margin, margin + 18, margin + 60, margin + 18);
 
@@ -430,9 +466,9 @@ export async function buildCompetitorDeepReportPdf(args: {
       ]),
       columnStyles: {
         0: { cellWidth: 60 },
-        1: { cellWidth: 82, fontStyle: "bold", textColor: GOLD },
+        1: { cellWidth: 82, fontStyle: "bold", textColor: accent },
         2: { cellWidth: 150 },
-        4: { cellWidth: 54, textColor: GOLD, fontStyle: "bold" },
+        4: { cellWidth: 54, textColor: accent, fontStyle: "bold" },
       },
     });
   }
@@ -448,7 +484,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     doc.setFontSize(20);
     doc.setTextColor(CHARCOAL);
     doc.text("Their public surface", margin, margin + 10);
-    doc.setDrawColor(GOLD);
+    doc.setDrawColor(accent);
     doc.setLineWidth(1.5);
     doc.line(margin, margin + 18, margin + 60, margin + 18);
 
@@ -525,7 +561,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     doc.setFontSize(20);
     doc.setTextColor(CHARCOAL);
     doc.text("What to steal this week", margin, margin + 10);
-    doc.setDrawColor(GOLD);
+    doc.setDrawColor(accent);
     doc.setLineWidth(1.5);
     doc.line(margin, margin + 18, margin + 60, margin + 18);
 
@@ -558,7 +594,7 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setFontSize(20);
   doc.setTextColor(CHARCOAL);
   doc.text("Recommended action steps", margin, margin + 10);
-  doc.setDrawColor(GOLD);
+  doc.setDrawColor(accent);
   doc.setLineWidth(1.5);
   doc.line(margin, margin + 18, margin + 60, margin + 18);
 
@@ -574,7 +610,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     doc.setFillColor("#FFFFFF");
     const boxH = 40 + a.steps.length * 30;
     doc.roundedRect(margin, ay, pageW - margin * 2, boxH, 10, 10, "F");
-    doc.setFillColor(GOLD);
+    doc.setFillColor(accent);
     doc.rect(margin, ay, 4, boxH, "F");
 
     doc.setFont("helvetica", "bold");
@@ -586,7 +622,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     a.steps.forEach((step, idx) => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
-      doc.setTextColor(GOLD);
+      doc.setTextColor(accent);
       doc.text(`${idx + 1}.`, margin + 16, sy + 10);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
@@ -608,7 +644,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     doc.setFontSize(20);
     doc.setTextColor(CHARCOAL);
     doc.text("Sources & citations", margin, margin + 10);
-    doc.setDrawColor(GOLD);
+    doc.setDrawColor(accent);
     doc.setLineWidth(1.5);
     doc.line(margin, margin + 18, margin + 60, margin + 18);
 
@@ -632,7 +668,7 @@ export async function buildCompetitorDeepReportPdf(args: {
       }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
-      doc.setTextColor(GOLD);
+      doc.setTextColor(accent);
       doc.text(`[${i + 1}]`, margin, cy);
 
       doc.setFont("helvetica", "bold");

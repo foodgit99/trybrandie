@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -32,6 +35,8 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  Palette,
+  Upload,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -40,6 +45,18 @@ import {
 } from "@/lib/competitorDeepReportPdf";
 import { citationsForSignal } from "@/lib/competitorSources";
 import { cn } from "@/lib/utils";
+
+const DEFAULT_ACCENT = "#C4993B";
+const ACCENT_SWATCHES = [
+  "#C4993B", // Brandie gold
+  "#2B2D33", // Charcoal
+  "#10B981", // Emerald
+  "#3B82F6", // Blue
+  "#8B5CF6", // Violet
+  "#EF4444", // Red
+  "#F59E0B", // Amber
+  "#EC4899", // Pink
+];
 
 type Competitor = {
   id: string;
@@ -117,6 +134,85 @@ export default function CompetitorDetailsDialog({
   const { toast } = useToast();
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  // Report branding controls (persisted on brands row)
+  const { data: brandRow, refetch: refetchBrand } = useQuery({
+    queryKey: ["brand-report-branding", brandId],
+    enabled: !!brandId && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brands")
+        .select("name, logo_url, report_title, report_accent_color, report_logo_url")
+        .eq("id", brandId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [reportTitle, setReportTitle] = useState("");
+  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
+  const [reportLogoUrl, setReportLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!brandRow) return;
+    setReportTitle((brandRow as any).report_title ?? "");
+    setAccentColor((brandRow as any).report_accent_color ?? DEFAULT_ACCENT);
+    setReportLogoUrl(
+      (brandRow as any).report_logo_url ?? (brandRow as any).logo_url ?? null,
+    );
+  }, [brandRow]);
+
+  async function saveBranding() {
+    setSavingBranding(true);
+    try {
+      const { error } = await supabase
+        .from("brands")
+        .update({
+          report_title: reportTitle.trim() || null,
+          report_accent_color: accentColor || null,
+          report_logo_url: reportLogoUrl || null,
+        })
+        .eq("id", brandId);
+      if (error) throw error;
+      await refetchBrand();
+      toast({ title: "Report branding saved" });
+    } catch (e: any) {
+      toast({
+        title: "Couldn't save",
+        description: e?.message ?? "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingBranding(false);
+    }
+  }
+
+  async function handleLogoUpload(file: File) {
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${brandId}/report-logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("brand-logos")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("brand-logos").getPublicUrl(path);
+      setReportLogoUrl(pub.publicUrl);
+      toast({ title: "Logo uploaded", description: "Click Save to apply." });
+    } catch (e: any) {
+      toast({
+        title: "Upload failed",
+        description: e?.message ?? "Try a smaller image.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
 
   const compSignals = useMemo(
     () => signals.filter((s) => s.competitor_id === competitor?.id),
@@ -191,11 +287,6 @@ export default function CompetitorDetailsDialog({
     if (!competitor) return;
     setExporting(true);
     try {
-      const { data: brandRow } = await supabase
-        .from("brands")
-        .select("name, logo_url")
-        .eq("id", brandId)
-        .maybeSingle();
       const doc = await buildCompetitorDeepReportPdf({
         brand: {
           name: (brandRow as any)?.name ?? "Your brand",
@@ -205,10 +296,18 @@ export default function CompetitorDetailsDialog({
         signals: compSignals as any,
         snapshots: snapshots as any,
         ideas: ideas as any,
+        branding: {
+          reportTitle: reportTitle.trim() || null,
+          accentColor: accentColor || null,
+          brandLogoUrl: reportLogoUrl,
+        },
       });
       const date = new Date().toISOString().slice(0, 10);
       const slug = competitor.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-      doc.save(`Brandie-${slug}-Deep-Dive-${date}.pdf`);
+      const titleSlug = (reportTitle.trim() || "Deep-Dive")
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-|-$/g, "");
+      doc.save(`Brandie-${slug}-${titleSlug}-${date}.pdf`);
       toast({ title: "Report ready", description: "PDF downloaded." });
     } catch (e: any) {
       toast({
@@ -220,6 +319,7 @@ export default function CompetitorDetailsDialog({
       setExporting(false);
     }
   }
+
 
   if (!competitor) return null;
 
@@ -532,7 +632,131 @@ export default function CompetitorDetailsDialog({
         </section>
 
         {/* Footer */}
-        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-background border-t border-border mt-6 flex justify-end gap-2">
+        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-background border-t border-border mt-6 flex flex-wrap justify-end gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Palette className="h-4 w-4 mr-1.5" style={{ color: accentColor }} />
+                Report branding
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Customize your PDF</p>
+                <p className="text-xs text-muted-foreground">
+                  Applied to every report you export for this brand.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="report-title" className="text-xs">
+                  Report title
+                </Label>
+                <Input
+                  id="report-title"
+                  placeholder="Competitor Deep Dive"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  maxLength={60}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Accent color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label="Pick accent color"
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className="h-9 w-9 rounded-md border border-border bg-transparent cursor-pointer"
+                  />
+                  <Input
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className="h-9 flex-1 font-mono text-xs"
+                    maxLength={7}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {ACCENT_SWATCHES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setAccentColor(c)}
+                      className={cn(
+                        "h-6 w-6 rounded-full border transition",
+                        accentColor.toLowerCase() === c.toLowerCase()
+                          ? "border-foreground ring-2 ring-offset-1 ring-foreground/30"
+                          : "border-border hover:scale-110",
+                      )}
+                      style={{ background: c }}
+                      aria-label={`Use ${c}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Report logo</Label>
+                <div className="flex items-center gap-2">
+                  {reportLogoUrl ? (
+                    <img
+                      src={reportLogoUrl}
+                      alt=""
+                      className="h-10 w-10 rounded-md object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-md border border-dashed border-border grid place-items-center text-[10px] text-muted-foreground">
+                      Logo
+                    </div>
+                  )}
+                  <label className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void handleLogoUpload(f);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="w-full cursor-pointer"
+                      disabled={uploadingLogo}
+                    >
+                      <span>
+                        <Upload className="h-3.5 w-3.5 mr-1.5" />
+                        {uploadingLogo ? "Uploading…" : "Upload"}
+                      </span>
+                    </Button>
+                  </label>
+                  {reportLogoUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setReportLogoUrl(null)}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Falls back to your brand logo when empty.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <Button size="sm" onClick={saveBranding} disabled={savingBranding}>
+                  {savingBranding ? "Saving…" : "Save branding"}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -541,6 +765,7 @@ export default function CompetitorDetailsDialog({
             {exporting ? "Preparing report…" : "Export PDF"}
           </Button>
         </div>
+
       </DialogContent>
     </Dialog>
   );
