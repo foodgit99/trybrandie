@@ -398,6 +398,9 @@ const Hub = () => {
                 onSeedStudio={(prompt) => navigate(`/studio?prompt=${encodeURIComponent(prompt)}&category=trending`)}
               />
             )}
+            {tab === "competitors" && (
+              <CompetitorsTab brand={brand} />
+            )}
             {tab === "outbox" && (
               <OutboxTab brand={brand} userId={user!.id} />
             )}
