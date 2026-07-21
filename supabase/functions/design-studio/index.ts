@@ -4064,16 +4064,40 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
+  // Compare-and-swap: only proceed if job is still 'queued'. This makes duplicate
+  // Inngest dispatches (retries, double-fires) safe — the second invocation
+  // returns 409 without starting a second pipeline.
+  const { data: claimed, error: claimErr } = await admin
+    .from("design_jobs")
+    .update({
+      status: "running",
+      started_at: new Date().toISOString(),
+      heartbeat_at: new Date().toISOString(),
+      progress: 5,
+      stage: "starting",
+    })
+    .eq("id", jobId)
+    .eq("status", "queued")
+    .select("id")
+    .maybeSingle();
+
+  if (claimErr) {
+    console.error("design-studio claim error:", claimErr);
+    return new Response(
+      JSON.stringify({ error: "claim_failed", detail: claimErr.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (!claimed) {
+    console.log(`[design-studio] duplicate_dispatch_ignored job_id=${jobId}`);
+    return new Response(
+      JSON.stringify({ skipped: true, reason: "duplicate_dispatch_ignored", job_id: jobId }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const work = (async () => {
     try {
-      await admin.from("design_jobs").update({
-        status: "running",
-        started_at: new Date().toISOString(),
-        heartbeat_at: new Date().toISOString(),
-        progress: 5,
-        stage: "starting",
-      }).eq("id", jobId);
-
       const res = await runFullHandler(cloneReq());
       let data: any = null;
       try { data = await res.json(); } catch { data = null; }
@@ -4121,3 +4145,4 @@ serve(async (req) => {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
+
