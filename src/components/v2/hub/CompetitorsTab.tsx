@@ -27,7 +27,9 @@ import {
   Instagram,
   TrendingUp,
   Lock,
+  FileDown,
 } from "lucide-react";
+import { buildCompetitorDigestPdf } from "@/lib/competitorDigestPdf";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
