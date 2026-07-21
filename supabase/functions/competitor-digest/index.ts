@@ -102,7 +102,9 @@ TASK — produce a strict JSON object with:
       "competitor_id": "<uuid from above>",
       "signal_type": "launch"|"offer"|"angle"|"seo_win"|"positioning_shift",
       "summary": "1-sentence what changed / what stood out (max 25 words)",
-      "rationale": "1 sentence why this matters to ${brand.name}"
+      "rationale": "1 sentence why this matters to ${brand.name}",
+      "sources": ["site"|"instagram", ...],
+      "source_urls": ["<any exact URL you observed in the snapshot (post URL, product page URL, etc.) — only include URLs that literally appear in the snapshot data>"]
     }
   ],
   "steal_the_angle": [
@@ -111,7 +113,9 @@ TASK — produce a strict JSON object with:
       "title": "Instagram-post-ready title (max 8 words)",
       "prompt": "detailed content brief for the design agent (2-3 sentences)",
       "content_category": "one of: educational, informational, promotional, announcement, trending, social_proof, bts, interactive, holidays, entertainment",
-      "rationale": "why lifting this angle wins for ${brand.name} (1 sentence)"
+      "rationale": "why lifting this angle wins for ${brand.name} (1 sentence)",
+      "sources": ["site"|"instagram", ...],
+      "source_urls": ["<same rule: only URLs literally present in the snapshot>"]
     }
   ]
 }
@@ -120,6 +124,8 @@ Rules:
 - 3-6 signals total. Skip competitors that show nothing new.
 - 2-3 steal_the_angle ideas. Each MUST reference a real thing you saw in the snapshots, not generic advice.
 - Ideas must sound like ${brand.name}'s voice, not a clone of the competitor.
+- "sources" MUST list which snapshot channels ("site", "instagram") backed the observation. Never invent a channel.
+- "source_urls" MUST only contain URLs that appear verbatim in the snapshot data. If none exist, return an empty array.
 - Return ONLY the JSON object.`;
 
     const aiRes = await fetch(AI_GATEWAY, {
