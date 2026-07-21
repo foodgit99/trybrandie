@@ -452,9 +452,20 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
           </Button>
         </div>
       )}
+        </div>
+      )}
+
+      <CompetitorDetailsDialog
+        open={!!detailsId}
+        onOpenChange={(v) => !v && setDetailsId(null)}
+        competitor={competitors.find((c) => c.id === detailsId) ?? null}
+        signals={signals}
+        brandId={brand.id}
+      />
     </div>
   );
 }
+
 
 function AddCompetitorDialog({
   open,
