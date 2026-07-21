@@ -251,6 +251,7 @@ Rules:
       if (ideaErr || !idea) continue;
       ideasInserted++;
 
+      const src = normaliseSources(s.competitor_id, s);
       await supabase.from("competitor_signals").insert({
         competitor_id: s.competitor_id,
         brand_id: brandId,
@@ -259,6 +260,7 @@ Rules:
         summary: String(s.title).slice(0, 500),
         rationale: s.rationale ? String(s.rationale).slice(0, 500) : null,
         content_idea_id: idea.id,
+        metadata: { sources: src.channels, source_urls: src.urls },
       });
     }
 
