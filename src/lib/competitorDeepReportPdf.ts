@@ -1,6 +1,9 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { citationsForSignal, type SourceCitation } from "./competitorSources";
+import type { ReportAccess, ReportPolicy } from "./reportAccess";
+import { policyForTier } from "./reportAccess";
+
 
 // Brandie default palette (overridable via `branding`)
 const BEIGE = "#FAF8F5";
