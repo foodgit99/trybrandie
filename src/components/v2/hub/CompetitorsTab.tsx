@@ -237,7 +237,7 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
           if (ids.length === 0) return { data: [] as any[] };
           return await supabase
             .from("content_ideas")
-            .select("id, title, content_category, scheduled_for, competitor_rationale, funnel_rationale")
+            .select("id, title, content_category, scheduled_for, campaign_rationale, funnel_rationale")
             .in("id", ids);
         })(),
       ]);
