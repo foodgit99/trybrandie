@@ -170,6 +170,21 @@ const Cockpit = () => {
   const approvedCount = ideas.filter((i) => i.approval_status === "approved" || i.status === "scheduled").length;
   const allApproved = totalThisWeek > 0 && approvedCount === totalThisWeek;
 
+  // Today's autonomous shipment tally — surfaces autopilot health at a glance
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const todaysAutopilot = ideas.filter(
+    (i) => i.autopilot === true && (i.scheduled_for ?? "").slice(0, 10) === todayIso,
+  );
+  const todaysShipped = todaysAutopilot.filter((i) => i.autopilot_status === "completed").length;
+  const todaysFailed = todaysAutopilot.filter(
+    (i) => i.autopilot_status === "failed_error" || i.autopilot_status === "failed_no_credits",
+  ).length;
+
+
   // Phase I: one-time toast nudge when the week is unseeded
   useEffect(() => {
     if (ideasLoading || !brand?.id) return;
