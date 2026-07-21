@@ -685,6 +685,21 @@ async function runFullHandler(req: Request): Promise<Response> {
     const _rngSeed: string = _parsedReqBody?.job_id || `${user.id}:${Date.now()}`;
     const rng = createSeededRng(_rngSeed);
 
+    // Heartbeat helper — write progress/stage/heartbeat_at to design_jobs so the
+    // watchdog can distinguish "still working" from "isolate got killed" and the
+    // UI can show real progress instead of a frozen 5% spinner.
+    const _hbJobId: string | undefined = _parsedReqBody?.job_id;
+    const heartbeat = async (progress: number, stage: string) => {
+      if (!_hbJobId) return;
+      try {
+        await adminClient.from("design_jobs").update({
+          progress: Math.max(5, Math.min(99, Math.round(progress))),
+          stage,
+          heartbeat_at: new Date().toISOString(),
+        }).eq("id", _hbJobId);
+      } catch {}
+    };
+
 
     // Sanitise user-provided text inputs
     if (messages && Array.isArray(messages)) {
