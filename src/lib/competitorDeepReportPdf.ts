@@ -477,7 +477,7 @@ export async function buildCompetitorDeepReportPdf(args: {
     return nums;
   }
 
-  if (signals.length === 0) {
+  if (signalsForReport.length === 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     doc.setTextColor(MUTED);
@@ -487,6 +487,31 @@ export async function buildCompetitorDeepReportPdf(args: {
       margin + 50,
     );
   } else {
+    const head = policy.showSignalRationale
+      ? [["Week", "Signal", "What they did", "Why it matters", "Sources"]]
+      : [["Week", "Signal", "What they did", "Sources"]];
+    const body = signalsForReport.map((s) => {
+      const base = [
+        fmtDate(s.week_start_date),
+        SIGNAL_LABELS[s.signal_type] ?? s.signal_type,
+        clip(s.summary, 260),
+      ];
+      if (policy.showSignalRationale) base.push(clip(s.rationale, 260));
+      base.push(refsFor(s).map((n) => `[${n}]`).join(" ") || "—");
+      return base;
+    });
+    const columnStyles: Record<number, any> = policy.showSignalRationale
+      ? {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 82, fontStyle: "bold", textColor: accent },
+          2: { cellWidth: 150 },
+          4: { cellWidth: 54, textColor: accent, fontStyle: "bold" },
+        }
+      : {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 90, fontStyle: "bold", textColor: accent },
+          3: { cellWidth: 60, textColor: accent, fontStyle: "bold" },
+        };
     autoTable(doc, {
       startY: margin + 34,
       margin: { left: margin, right: margin },
@@ -498,22 +523,31 @@ export async function buildCompetitorDeepReportPdf(args: {
         fontStyle: "bold",
       },
       styles: { font: "helvetica", fontSize: 9, textColor: CHARCOAL, cellPadding: 7 },
-      head: [["Week", "Signal", "What they did", "Why it matters", "Sources"]],
-      body: signals.map((s) => [
-        fmtDate(s.week_start_date),
-        SIGNAL_LABELS[s.signal_type] ?? s.signal_type,
-        clip(s.summary, 260),
-        clip(s.rationale, 260),
-        refsFor(s).map((n) => `[${n}]`).join(" ") || "—",
-      ]),
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 82, fontStyle: "bold", textColor: accent },
-        2: { cellWidth: 150 },
-        4: { cellWidth: 54, textColor: accent, fontStyle: "bold" },
-      },
+      head,
+      body,
+      columnStyles,
     });
+    if (
+      (policy.maxSignalsInTable !== null && signals.length > signalsForReport.length) ||
+      !policy.showSignalRationale
+    ) {
+      // @ts-expect-error autotable augments doc
+      const afterY = doc.lastAutoTable?.finalY ?? margin + 40;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(MUTED);
+      const hiddenCount = signals.length - signalsForReport.length;
+      const parts: string[] = [];
+      if (hiddenCount > 0) parts.push(`${hiddenCount} more signal${hiddenCount === 1 ? "" : "s"} hidden`);
+      if (!policy.showSignalRationale) parts.push(`"Why it matters" analysis redacted`);
+      doc.text(
+        `${parts.join(" · ")} — upgrade to unlock the full report.`,
+        margin,
+        afterY + 16,
+      );
+    }
   }
+
 
   // ---------- Snapshot excerpts ----------
   const siteSnap = snapshots.find((s) => s.source === "site");
