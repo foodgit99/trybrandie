@@ -53,6 +53,7 @@ type Signal = {
   rationale: string | null;
   content_idea_id: string | null;
   week_start_date: string;
+  metadata?: any;
 };
 
 function tierCap(planId: string | null | undefined): number | null {
