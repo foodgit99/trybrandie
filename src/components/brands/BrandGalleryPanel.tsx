@@ -152,7 +152,32 @@ export default function BrandGalleryPanel({
     },
   });
 
+  const { data: nextIdea } = useQuery({
+    queryKey: ["v2-brand-gallery-next-idea", brandId],
+    queryFn: async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data } = await supabase
+        .from("content_ideas")
+        .select("id, title, scheduled_for, content_category, status")
+        .eq("brand_id", brandId)
+        .gte("scheduled_for", today.toISOString())
+        .not("status", "in", "(posted,failed,archived)")
+        .order("scheduled_for", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; title: string; scheduled_for: string; content_category: string | null } | null;
+    },
+  });
+
   const gallery = localOrder ?? items;
+  const nextDateLabel = nextIdea?.scheduled_for
+    ? new Date(nextIdea.scheduled_for).toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
