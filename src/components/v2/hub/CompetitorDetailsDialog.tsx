@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -32,6 +35,8 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  Palette,
+  Upload,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -40,6 +45,18 @@ import {
 } from "@/lib/competitorDeepReportPdf";
 import { citationsForSignal } from "@/lib/competitorSources";
 import { cn } from "@/lib/utils";
+
+const DEFAULT_ACCENT = "#C4993B";
+const ACCENT_SWATCHES = [
+  "#C4993B", // Brandie gold
+  "#2B2D33", // Charcoal
+  "#10B981", // Emerald
+  "#3B82F6", // Blue
+  "#8B5CF6", // Violet
+  "#EF4444", // Red
+  "#F59E0B", // Amber
+  "#EC4899", // Pink
+];
 
 type Competitor = {
   id: string;
