@@ -27,7 +27,9 @@ import {
   Instagram,
   TrendingUp,
   Lock,
+  FileDown,
 } from "lucide-react";
+import { buildCompetitorDigestPdf } from "@/lib/competitorDigestPdf";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
@@ -77,6 +79,7 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [discovering, setDiscovering] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: competitors = [], isLoading } = useQuery({
     queryKey: ["hub-competitors", brand.id],
@@ -223,6 +226,45 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
     },
   });
 
+  async function handleExportPdf() {
+    if (competitors.length === 0) return;
+    setExporting(true);
+    try {
+      const [{ data: brandRow }, ideasRes] = await Promise.all([
+        supabase.from("brands").select("name, logo_url").eq("id", brand.id).maybeSingle(),
+        (async () => {
+          const ids = signals.map((s) => s.content_idea_id).filter((v): v is string => !!v);
+          if (ids.length === 0) return { data: [] as any[] };
+          return await supabase
+            .from("content_ideas")
+            .select("id, title, content_category, scheduled_for, campaign_rationale, funnel_rationale")
+            .in("id", ids);
+        })(),
+      ]);
+      const doc = await buildCompetitorDigestPdf({
+        brand: {
+          name: (brandRow as any)?.name ?? "Your brand",
+          logo_url: (brandRow as any)?.logo_url ?? null,
+        },
+        competitors: competitors as any,
+        signals: signals as any,
+        ideas: ((ideasRes as any)?.data ?? []) as any,
+      });
+      const date = new Date().toISOString().slice(0, 10);
+      doc.save(`Brandie-Competitor-Digest-${date}.pdf`);
+      toast({ title: "Report ready", description: "PDF downloaded." });
+    } catch (e: any) {
+      toast({
+        title: "Export failed",
+        description: e?.message ?? "Try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -256,6 +298,15 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
           >
             <Sparkles className="h-4 w-4 mr-1.5" />
             {runDigest.isPending ? "Digesting…" : "Run digest"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exporting || competitors.length === 0}
+            onClick={handleExportPdf}
+          >
+            <FileDown className="h-4 w-4 mr-1.5" />
+            {exporting ? "Preparing report…" : "Export PDF"}
           </Button>
           <AddCompetitorDialog
             open={addOpen}
