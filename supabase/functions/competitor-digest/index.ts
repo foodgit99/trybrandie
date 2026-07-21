@@ -102,7 +102,9 @@ TASK — produce a strict JSON object with:
       "competitor_id": "<uuid from above>",
       "signal_type": "launch"|"offer"|"angle"|"seo_win"|"positioning_shift",
       "summary": "1-sentence what changed / what stood out (max 25 words)",
-      "rationale": "1 sentence why this matters to ${brand.name}"
+      "rationale": "1 sentence why this matters to ${brand.name}",
+      "sources": ["site"|"instagram", ...],
+      "source_urls": ["<any exact URL you observed in the snapshot (post URL, product page URL, etc.) — only include URLs that literally appear in the snapshot data>"]
     }
   ],
   "steal_the_angle": [
@@ -111,7 +113,9 @@ TASK — produce a strict JSON object with:
       "title": "Instagram-post-ready title (max 8 words)",
       "prompt": "detailed content brief for the design agent (2-3 sentences)",
       "content_category": "one of: educational, informational, promotional, announcement, trending, social_proof, bts, interactive, holidays, entertainment",
-      "rationale": "why lifting this angle wins for ${brand.name} (1 sentence)"
+      "rationale": "why lifting this angle wins for ${brand.name} (1 sentence)",
+      "sources": ["site"|"instagram", ...],
+      "source_urls": ["<same rule: only URLs literally present in the snapshot>"]
     }
   ]
 }
@@ -120,6 +124,8 @@ Rules:
 - 3-6 signals total. Skip competitors that show nothing new.
 - 2-3 steal_the_angle ideas. Each MUST reference a real thing you saw in the snapshots, not generic advice.
 - Ideas must sound like ${brand.name}'s voice, not a clone of the competitor.
+- "sources" MUST list which snapshot channels ("site", "instagram") backed the observation. Never invent a channel.
+- "source_urls" MUST only contain URLs that appear verbatim in the snapshot data. If none exist, return an empty array.
 - Return ONLY the JSON object.`;
 
     const aiRes = await fetch(AI_GATEWAY, {
@@ -167,8 +173,47 @@ Rules:
     let signalsInserted = 0;
     let ideasInserted = 0;
 
+    // Build a channel→URL fallback map per competitor (site domain / IG handle URL).
+    const fallbackByComp: Record<string, { site: string | null; instagram: string | null }> = {};
+    for (const c of competitors) {
+      fallbackByComp[c.id] = {
+        site: c.domain ? (c.domain.startsWith("http") ? c.domain : `https://${c.domain}`) : null,
+        instagram: c.instagram_handle
+          ? `https://instagram.com/${String(c.instagram_handle).replace(/^@/, "")}`
+          : null,
+      };
+    }
+
+    function normaliseSources(compId: string, raw: any): {
+      channels: string[];
+      urls: string[];
+    } {
+      const fb = fallbackByComp[compId] ?? { site: null, instagram: null };
+      const channelsIn: string[] = Array.isArray(raw?.sources) ? raw.sources : [];
+      const urlsIn: string[] = Array.isArray(raw?.source_urls) ? raw.source_urls : [];
+      const channels = channelsIn
+        .map((c) => String(c).toLowerCase())
+        .filter((c) => c === "site" || c === "instagram");
+      // Guarantee at least one channel — default to whichever fallback exists.
+      if (channels.length === 0) {
+        if (fb.site) channels.push("site");
+        else if (fb.instagram) channels.push("instagram");
+      }
+      const urls = new Set<string>();
+      for (const u of urlsIn) {
+        const s = String(u ?? "").trim();
+        if (/^https?:\/\//i.test(s)) urls.add(s);
+      }
+      for (const ch of channels) {
+        const fallback = ch === "site" ? fb.site : fb.instagram;
+        if (fallback) urls.add(fallback);
+      }
+      return { channels: [...new Set(channels)], urls: [...urls].slice(0, 6) };
+    }
+
     for (const s of signals) {
       if (!validCompIds.has(s.competitor_id)) continue;
+      const src = normaliseSources(s.competitor_id, s);
       const { error } = await supabase.from("competitor_signals").insert({
         competitor_id: s.competitor_id,
         brand_id: brandId,
@@ -176,6 +221,7 @@ Rules:
         signal_type: ["launch","offer","angle","seo_win","positioning_shift"].includes(s.signal_type) ? s.signal_type : "angle",
         summary: String(s.summary ?? "").slice(0, 500),
         rationale: s.rationale ? String(s.rationale).slice(0, 500) : null,
+        metadata: { sources: src.channels, source_urls: src.urls },
       });
       if (!error) signalsInserted++;
     }
@@ -205,6 +251,7 @@ Rules:
       if (ideaErr || !idea) continue;
       ideasInserted++;
 
+      const src = normaliseSources(s.competitor_id, s);
       await supabase.from("competitor_signals").insert({
         competitor_id: s.competitor_id,
         brand_id: brandId,
@@ -213,6 +260,7 @@ Rules:
         summary: String(s.title).slice(0, 500),
         rationale: s.rationale ? String(s.rationale).slice(0, 500) : null,
         content_idea_id: idea.id,
+        metadata: { sources: src.channels, source_urls: src.urls },
       });
     }
 
