@@ -72,14 +72,43 @@ function SortableTile({
 export default function BrandGalleryPanel({
   brandId,
   userId,
+  preferGalleryFirst,
+  onPreferGalleryFirstChange,
 }: {
   brandId: string;
   userId: string;
+  preferGalleryFirst?: boolean;
+  onPreferGalleryFirstChange?: (next: boolean) => void;
 }) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [localOrder, setLocalOrder] = useState<GalleryItem[] | null>(null);
+  const [preferGallery, setPreferGallery] = useState<boolean>(preferGalleryFirst ?? true);
+  const [savingPref, setSavingPref] = useState(false);
+
+  const togglePreferGallery = async (next: boolean) => {
+    const prev = preferGallery;
+    setPreferGallery(next);
+    setSavingPref(true);
+    const { error } = await supabase
+      .from("brands")
+      .update({ prefer_gallery_first: next })
+      .eq("id", brandId);
+    setSavingPref(false);
+    if (error) {
+      setPreferGallery(prev);
+      toast({ title: "Could not save preference", description: error.message, variant: "destructive" });
+      return;
+    }
+    onPreferGalleryFirstChange?.(next);
+    toast({
+      title: next ? "Gallery-first turned on" : "Gallery-first turned off",
+      description: next
+        ? "Brandie will prefer your exact Gallery photos in new designs."
+        : "Brandie may generate replacement visuals when useful.",
+    });
+  };
 
   const { data: items = [], refetch, isLoading } = useQuery({
     queryKey: ["v2-brand-gallery", brandId],
