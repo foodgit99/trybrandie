@@ -18,14 +18,21 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Upload, X, Loader2 } from "lucide-react";
+import { GripVertical, Upload, X, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 type GalleryItem = { id: string; image_url: string; position?: number };
+
+const FEATURED_SLOTS = 2; // render-refs takes top 2 gallery images
+const ROLE_LABEL: Record<number, { label: string; hint: string }> = {
+  0: { label: "Hero", hint: "Featured as the main visual" },
+  1: { label: "Support", hint: "Used as secondary reference" },
+};
 
 function SortableTile({
   item,
