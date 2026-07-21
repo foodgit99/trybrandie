@@ -202,6 +202,23 @@ export default function BrandGalleryPanel({
 
   return (
     <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+        <div className="min-w-0">
+          <Label htmlFor="prefer-gallery-toggle" className="text-sm font-medium">
+            Use my Gallery images first
+          </Label>
+          <p className="text-xs text-muted-foreground mt-1 max-w-md">
+            When on, Brandie prefers your exact uploaded photos over generated visuals and only invents imagery for what your Gallery can't cover.
+          </p>
+        </div>
+        <Switch
+          id="prefer-gallery-toggle"
+          checked={preferGallery}
+          onCheckedChange={togglePreferGallery}
+          disabled={savingPref}
+        />
+      </div>
+
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-muted-foreground max-w-md">
           Add real product shots, screenshots, team, or premises photos. Brandie prioritises these
