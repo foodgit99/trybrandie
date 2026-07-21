@@ -412,15 +412,27 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
                     />
                     Refresh
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeCompetitor.mutate(c.id)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDetailsId(c.id)}
+                      title="View details"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeCompetitor.mutate(c.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </footer>
+
               </motion.article>
             );
           })}
