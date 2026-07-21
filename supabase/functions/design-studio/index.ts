@@ -4069,6 +4069,7 @@ serve(async (req) => {
       await admin.from("design_jobs").update({
         status: "running",
         started_at: new Date().toISOString(),
+        heartbeat_at: new Date().toISOString(),
         progress: 5,
         stage: "starting",
       }).eq("id", jobId);
