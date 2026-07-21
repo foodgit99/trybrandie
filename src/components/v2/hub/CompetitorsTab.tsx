@@ -452,8 +452,7 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
           </Button>
         </div>
       )}
-        </div>
-      )}
+
 
       <CompetitorDetailsDialog
         open={!!detailsId}
