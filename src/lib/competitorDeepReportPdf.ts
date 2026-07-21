@@ -314,6 +314,32 @@ export async function buildCompetitorDeepReportPdf(args: {
   );
   doc.text(`Last scan: ${fmtDate(competitor.last_scanned_at)}`, margin, coverY + 212);
 
+  // Plan / access badge — makes the tier explicit on the cover so any
+  // recipient can tell at a glance whether they're holding a redacted
+  // sample or the full agency-grade report.
+  const badgeY = coverY + 226;
+  doc.setFillColor(policy.isFull ? accent : "#8A6A1F");
+  const badgeText = policy.isFull
+    ? `Full report · ${policy.tierLabel}`
+    : `Redacted preview · ${policy.tierLabel}`;
+  const badgeW = doc.getTextWidth(badgeText) + 20;
+  doc.roundedRect(margin, badgeY - 10, badgeW, 16, 8, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor("#FFFFFF");
+  doc.text(badgeText, margin + 10, badgeY);
+  if (access?.preparedByEmail) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(MUTED);
+    doc.text(
+      `Prepared by ${access.preparedByEmail}`,
+      margin + badgeW + 12,
+      badgeY,
+    );
+  }
+
+
   // Discovery rationale block
   if (competitor.discovery_rationale) {
     doc.setFillColor(SOFT);
