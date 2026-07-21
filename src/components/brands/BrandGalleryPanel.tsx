@@ -316,15 +316,45 @@ export default function BrandGalleryPanel({
           Tap to upload product, team, or premises photos
         </button>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={gallery.map((i) => i.id)} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {gallery.map((item) => (
-                <SortableTile key={item.id} item={item} onDelete={deleteItem} />
-              ))}
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-background/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  Next design preview
+                </div>
+                {nextIdea ? (
+                  <p className="mt-1 text-sm text-foreground truncate">
+                    <span className="font-medium">{nextIdea.title}</span>
+                    {nextDateLabel ? (
+                      <span className="text-muted-foreground"> · {nextDateLabel}</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    No upcoming post scheduled. These roles will apply to the next design generated.
+                  </p>
+                )}
+              </div>
             </div>
-          </SortableContext>
-        </DndContext>
+            <p className="mt-2 text-xs text-muted-foreground">
+              The top {Math.min(FEATURED_SLOTS, gallery.length)} image
+              {gallery.length === 1 ? " is" : "s are"} sent to the renderer as
+              {" "}<span className="font-medium text-foreground">Hero</span> and
+              {" "}<span className="font-medium text-foreground">Support</span> references. Drag to change priority.
+            </p>
+          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={gallery.map((i) => i.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {gallery.map((item, idx) => (
+                  <SortableTile key={item.id} item={item} index={idx} onDelete={deleteItem} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
       )}
     </div>
   );
