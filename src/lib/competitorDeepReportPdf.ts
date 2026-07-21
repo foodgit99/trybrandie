@@ -218,8 +218,11 @@ export async function buildCompetitorDeepReportPdf(args: {
   snapshots: DeepSnapshot[];
   ideas: DeepIdea[];
   branding?: ReportBranding;
+  /** Subscription-based redaction / watermarking policy. Defaults to Free. */
+  access?: ReportAccess;
 }): Promise<jsPDF> {
-  const { brand, competitor, signals, snapshots, ideas, branding } = args;
+  const { brand, competitor, signals, snapshots, ideas, branding, access } = args;
+  const policy: ReportPolicy = policyForTier(access?.tier ?? "free");
   const accent = normalizeHex(branding?.accentColor, DEFAULT_ACCENT);
   const reportTitle = (branding?.reportTitle?.trim() || "Competitor Deep Dive");
   const eyebrowBrand = (brand.name || "Brandie").toUpperCase();
@@ -228,6 +231,16 @@ export async function buildCompetitorDeepReportPdf(args: {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 48;
+
+  // Apply per-tier caps to the datasets before any rendering so redacted
+  // sections stay consistent with the on-page counts and cover badges.
+  const signalsForReport =
+    policy.maxSignalsInTable !== null
+      ? signals.slice(0, policy.maxSignalsInTable)
+      : signals;
+  const ideasForReport =
+    policy.maxIdeas !== null ? ideas.slice(0, policy.maxIdeas) : ideas;
+
 
   // ---------- Cover ----------
   doc.setFillColor(BEIGE);
