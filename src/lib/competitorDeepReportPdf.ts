@@ -552,7 +552,7 @@ export async function buildCompetitorDeepReportPdf(args: {
   // ---------- Snapshot excerpts ----------
   const siteSnap = snapshots.find((s) => s.source === "site");
   const igSnap = snapshots.find((s) => s.source === "instagram");
-  if (siteSnap?.extracted || igSnap?.extracted) {
+  if (policy.showSnapshotExcerpts && (siteSnap?.extracted || igSnap?.extracted)) {
     doc.addPage();
     doc.setFillColor(BEIGE);
     doc.rect(0, 0, pageW, pageH, "F");
