@@ -44,7 +44,9 @@ import {
   buildRecommendedActions,
 } from "@/lib/competitorDeepReportPdf";
 import { citationsForSignal } from "@/lib/competitorSources";
+import { resolveReportAccess, policyForTier } from "@/lib/reportAccess";
 import { cn } from "@/lib/utils";
+
 
 const DEFAULT_ACCENT = "#C4993B";
 const ACCENT_SWATCHES = [
