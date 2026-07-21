@@ -331,12 +331,16 @@ async function renderWithGptImageEdits(
     }
   }
 
-  // Fallback chain — Pro first for quality, then Flash variants for speed/cost.
+  // Fallback chain — Flash first for speed (near-Pro quality), Pro as fallback,
+  // then legacy Flash as last resort. Reordered from Pro-first because Pro
+  // routinely takes 60-120s per call and, when multiplied across carousel
+  // slides, was pushing generations past an hour.
   const models = [
-    "google/gemini-3-pro-image-preview",
     "google/gemini-3.1-flash-image-preview",
+    "google/gemini-3-pro-image-preview",
     "google/gemini-2.5-flash-image",
   ];
+
 
   let lastErr = "";
   for (let i = 0; i < models.length; i++) {
@@ -349,11 +353,26 @@ async function renderWithGptImageEdits(
       n: 1,
     });
 
-    const resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body,
-    });
+    // 90s per-model deadline. If a single model stalls, we fall through to the
+    // next one immediately instead of hanging the whole (potentially parallel)
+    // carousel on one bad request.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    let resp: Response;
+    try {
+      resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body,
+        signal: controller.signal,
+      }, 1);
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      console.warn(`[render] ${model} threw (${lastErr}) — falling through to next model`);
+      clearTimeout(timeoutId);
+      continue;
+    }
+    clearTimeout(timeoutId);
 
     if (resp.ok) {
       const data = await resp.json();
@@ -369,6 +388,7 @@ async function renderWithGptImageEdits(
     if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
     lastErr = await resp.text().catch(() => `HTTP ${resp.status}`);
     console.error(`[render] ${model} failed (${resp.status}):`, lastErr.slice(0, 300));
+
   }
   throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
 }
@@ -3764,76 +3784,102 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
       }
 
       try {
-        let prevImageUrl: string | null = null;
-        let prevSlide: any | null = null;
-        for (let i = 0; i < numSlides; i++) {
-          const nextSlide = i + 1 < numSlides ? carouselPlan.slides[i + 1] : null;
-          let result: SlideResult;
-          try {
-            result = await renderSlide(i, prevImageUrl, prevSlide, nextSlide, 0);
-          } catch (firstErr) {
-            console.warn(`[carousel] slide ${i + 1} failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
-            result = await renderSlide(i, prevImageUrl, prevSlide, nextSlide, 1);
-          }
-
-          // Quality score this slide. On a fail verdict, retry once.
-          try {
-            const slidePlan = carouselPlan.slides[i];
-            const score = await scoreDesignImage({
-              imageUrl: result.image_url,
-              brief: `${carouselPlan.narrative_thread} | ${slidePlan.scene_description}`.slice(0, 1200),
-              brandName: brand?.name ?? null,
-              brandColors: [...(brand?.primary_colors || []), ...(brand?.accent_colors || [])].slice(0, 3),
-              copy: { headline: slidePlan.headline, subheadline: slidePlan.subheadline, cta: slidePlan.cta },
-              category: `carousel-${slidePlan.arc_role}`,
-              apiKey: LOVABLE_API_KEY,
-            });
-            if (score) {
-              result.quality_score = { ...score.scores, verdict: score.verdict };
-              result.quality_signals = score.signals;
-
-              if (score.verdict === "fail") {
-                console.warn(`[carousel] slide ${i + 1} scored "fail" (${score.scores.overall}) — single retry`);
-                try {
-                  await adminClient.from("designs").delete().eq("id", result.design_id);
-                  try {
-                    const url = String(result.image_url || "");
-                    const idx = url.indexOf("/designs/");
-                    if (idx >= 0) await adminClient.storage.from("designs").remove([url.slice(idx + "/designs/".length)]);
-                  } catch {}
-                  const retryResult = await renderSlide(i, prevImageUrl, prevSlide, nextSlide, 1);
-                  const retryScore = await scoreDesignImage({
-                    imageUrl: retryResult.image_url,
-                    brief: `${carouselPlan.narrative_thread} | ${slidePlan.scene_description}`.slice(0, 1200),
-                    brandName: brand?.name ?? null,
-                    brandColors: [...(brand?.primary_colors || []), ...(brand?.accent_colors || [])].slice(0, 3),
-                    copy: { headline: slidePlan.headline, subheadline: slidePlan.subheadline, cta: slidePlan.cta },
-                    category: `carousel-${slidePlan.arc_role}`,
-                    apiKey: LOVABLE_API_KEY,
-                  }).catch(() => null);
-                  result = retryResult;
-                  if (retryScore) {
-                    result.quality_score = { ...retryScore.scores, verdict: retryScore.verdict };
-                    result.quality_signals = retryScore.signals;
-                  }
-                } catch (retryErr) {
-                  console.error(`[carousel] slide ${i + 1} retry after fail-verdict threw:`, retryErr);
-                }
-              }
-
-              await adminClient.from("designs").update({
-                quality_score: result.quality_score,
-                quality_signals: result.quality_signals,
-              } as any).eq("id", result.design_id).catch(() => {});
-            }
-          } catch (scoreErr) {
-            console.warn(`[carousel] slide ${i + 1} scoring failed (non-fatal):`, scoreErr);
-          }
-
-          slides.push(result);
-          prevImageUrl = result.image_url;
-          prevSlide = carouselPlan.slides[i];
+        // === Phase 1: render the COVER slide first (sequential). ===
+        // The cover establishes palette, type lockup and motif; every other
+        // slide inherits from it. We keep the quality-critic loop on the
+        // cover only — if the cover passes, the visual system is approved
+        // and inner slides can skip scoring.
+        const coverNextSlide = numSlides > 1 ? carouselPlan.slides[1] : null;
+        let coverResult: SlideResult;
+        try {
+          coverResult = await renderSlide(0, null, null, coverNextSlide, 0);
+        } catch (firstErr) {
+          console.warn(`[carousel] cover failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
+          coverResult = await renderSlide(0, null, null, coverNextSlide, 1);
         }
+
+        // Score the cover; on fail-verdict, single retry (unchanged behaviour).
+        try {
+          const slidePlan = carouselPlan.slides[0];
+          const score = await scoreDesignImage({
+            imageUrl: coverResult.image_url,
+            brief: `${carouselPlan.narrative_thread} | ${slidePlan.scene_description}`.slice(0, 1200),
+            brandName: brand?.name ?? null,
+            brandColors: [...(brand?.primary_colors || []), ...(brand?.accent_colors || [])].slice(0, 3),
+            copy: { headline: slidePlan.headline, subheadline: slidePlan.subheadline, cta: slidePlan.cta },
+            category: `carousel-${slidePlan.arc_role}`,
+            apiKey: LOVABLE_API_KEY,
+          });
+          if (score) {
+            coverResult.quality_score = { ...score.scores, verdict: score.verdict };
+            coverResult.quality_signals = score.signals;
+            if (score.verdict === "fail") {
+              console.warn(`[carousel] cover scored "fail" (${score.scores.overall}) — single retry`);
+              try {
+                await adminClient.from("designs").delete().eq("id", coverResult.design_id);
+                try {
+                  const url = String(coverResult.image_url || "");
+                  const idx = url.indexOf("/designs/");
+                  if (idx >= 0) await adminClient.storage.from("designs").remove([url.slice(idx + "/designs/".length)]);
+                } catch {}
+                coverResult = await renderSlide(0, null, null, coverNextSlide, 1);
+              } catch (retryErr) {
+                console.error(`[carousel] cover retry after fail-verdict threw:`, retryErr);
+              }
+            }
+            await adminClient.from("designs").update({
+              quality_score: coverResult.quality_score,
+              quality_signals: coverResult.quality_signals,
+            } as any).eq("id", coverResult.design_id).catch(() => {});
+          }
+        } catch (scoreErr) {
+          console.warn(`[carousel] cover scoring failed (non-fatal):`, scoreErr);
+        }
+
+        slides.push(coverResult);
+        const coverImageUrl = coverResult.image_url;
+        const coverSlidePlan = carouselPlan.slides[0];
+
+        // === Phase 2: render slides 1..N in PARALLEL with bounded concurrency. ===
+        // Every inner slide uses the COVER as its continuity anchor (not the
+        // immediately-previous slide). Motif/palette/type are enforced via
+        // the shared plan + genome + cover reference image, so pixel-level
+        // "prev slide" chaining is unnecessary — and dropping it lets us
+        // fan out. Concurrency capped at 3 to stay under gateway rate limits.
+        const CONCURRENCY = 3;
+        const innerCount = Math.max(0, numSlides - 1);
+        const innerResults: (SlideResult | null)[] = new Array(innerCount).fill(null);
+
+        let cursor = 0;
+        const workers: Promise<void>[] = [];
+        for (let w = 0; w < Math.min(CONCURRENCY, innerCount); w++) {
+          workers.push((async () => {
+            while (true) {
+              const localIdx = cursor++;
+              if (localIdx >= innerCount) return;
+              const i = localIdx + 1; // real slide index (1..N-1)
+              const nextSlide = i + 1 < numSlides ? carouselPlan.slides[i + 1] : null;
+              try {
+                let result: SlideResult;
+                try {
+                  result = await renderSlide(i, coverImageUrl, coverSlidePlan, nextSlide, 0);
+                } catch (firstErr) {
+                  console.warn(`[carousel] slide ${i + 1} failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
+                  result = await renderSlide(i, coverImageUrl, coverSlidePlan, nextSlide, 1);
+                }
+                innerResults[localIdx] = result;
+              } catch (slideErr) {
+                console.error(`[carousel] slide ${i + 1} hard-failed after retry:`, slideErr);
+                throw slideErr;
+              }
+            }
+          })());
+        }
+        await Promise.all(workers);
+
+        for (const r of innerResults) if (r) slides.push(r);
+        slides.sort((a, b) => a.slide_index - b.slide_index);
+
       } catch (renderErr) {
         console.error("[carousel] hard render failure — cleaning up partial carousel:", renderErr);
         await cleanupCarousel();

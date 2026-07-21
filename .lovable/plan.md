@@ -1,43 +1,52 @@
-# Rename Inspiration → Gallery, and use those images literally
+## What's actually slow
 
-Today the "Inspiration" section is treated by the renderer as **style-only** ("match style, composition, palette energy ONLY — do not copy its content"). We're flipping the meaning: the section becomes the brand's **Gallery** of real assets (product shots, storefront, team, screenshots, etc.), and the renderer should prefer these actual pixels over any AI-generated stand-ins.
+I traced the two paths in `supabase/functions/design-studio/index.ts`:
 
-This is a UI + agent-prompt change. We keep the existing `brand_inspiration` table and `brand-inspiration` storage bucket (rename would churn migrations, RLS, storage paths, and every existing user's uploaded files for no user-visible gain). Only labels and prompt semantics change.
+- **Single post** (`/post`): each render calls `renderWithGptImageEdits` (line 309), which tries `google/gemini-3-pro-image-preview` first — the slowest image model in the stack. After render, a quality critic scores it; on a "fail" verdict it deletes the design and renders again. Realistic wall time today: ~45–120s per post.
+- **Carousel** (line 3106+): the same render function runs, but slides are generated **strictly one at a time** in a `for` loop (line 3769), because each slide attaches the previous slide's rendered image as a continuity reference. For 5–10 slides × ~60–120s each × up to 2 quality-critic retries per slide, the worst-case time balloons well past an hour. A single stalled gateway call blocks everything after it because there is no per-slide deadline.
 
-## 1. UI rename (Brand Centre)
+The quality wins from the Pro model and the critic loop are real, but they compound the wrong way: they multiply across slides that are already sequential.
 
-`src/pages/BrandCentre.tsx` and `src/pages/v2/BrandCentre.tsx`:
-- Section title "Inspiration" → **"Gallery"**.
-- Helper copy → "Real brand photos Brandie will feature in your designs — products, screenshots, team, premises, packaging, etc. Brandie uses these exact images instead of generating stand-ins."
-- Upload button label "Add inspiration" → "Add to gallery".
-- Empty-state copy updated to match.
+## The plan
 
-No table, column, bucket, query-key, or ref-name changes — internal identifiers (`brand_inspiration`, `inspirationUrls`, etc.) stay to avoid a churn migration.
+### 1. Parallelize carousel slides (biggest win)
 
-## 2. Renderer priority change
+- Render **slide 1 (the cover)** first, on its own. It establishes the palette, type lockup and motif that all other slides must inherit.
+- Render **slides 2..N in parallel** with bounded concurrency (max 3 at once) using the cover image as the shared continuity anchor instead of the immediately-previous slide. The visual motif, genome, brand lock, and per-slide plan already encode consistency — the pixel-level "previous slide" ref is redundant when every slide inherits from the cover.
+- Persist and return slides as they finish so the UI can show progress, not a blank spinner.
 
-`supabase/functions/_shared/render-refs.ts`:
-- Change the label for the `inspiration` role from *"match style… do not copy its content"* to something like *"brand gallery photo (real brand asset — feature these exact pixels in the design when relevant; do not replace with a generated stand-in)"*.
-- Bump priority so gallery images sit alongside product/user images rather than behind them. New order: logo → previous render → user upload → **gallery (up to 2)** → product photos. Raise `maxRefs` default from 4 → 5 so a logo + previous + user + 2 gallery can all attach.
-- Keep the existing 4MB / content-type validation.
+Expected impact: 5-slide carousel drops from ~10–15 min to ~2–3 min; 10-slide from >30 min to ~4–5 min.
 
-`supabase/functions/_shared/render-refs.ts` legend text (`buildRefLegend`) updated so the model is told gallery references are literal brand assets to use, not style hints.
+### 2. Slim the quality-critic loop
 
-## 3. Prompt copy in design-studio
+- Run the critic on the **cover slide only** for carousels (it anchors the whole set). Skip scoring on inner slides — they inherit the cover's approved system.
+- For single posts, keep scoring but cap the "fail → regenerate" path at **one** retry (current code already caps at one, but combined with the model cascade + `retryFetch` it can still snowball). Also skip the second scoring call after the retry — trust the retry.
 
-`supabase/functions/design-studio/index.ts`:
-- Update the two lines that describe `inspirationUrls` in the design brief prompt (single + carousel paths) to say: "The brand's Gallery contains N real brand photos. Feature these exact images in the composition wherever relevant instead of generating substitutes." (currently says "inspiration image(s) that define the desired visual aesthetic. Match this visual style closely.")
-- Keep the existing style-tag analysis pipeline (it still gives the preset picker useful signal about the brand's visual world), but rename log lines and internal comments from "inspiration" → "gallery" only where it's user-visible; leave variable names untouched to keep the diff small.
+### 3. Add a per-slide deadline
 
-## 4. Landing / marketing copy
+- Wrap each image call in a 90-second timeout. On timeout, fall through to the next model in the cascade immediately instead of waiting on `retryFetch`'s backoff. Reduce `retryFetch` retries from 2 → 1 for image generation only.
 
-Skip. Landing page uses "inspiration" in a different marketing context and isn't user-editable brand data.
+### 4. Faster feedback on /post
 
-## Out of scope
-- No DB migration, no storage bucket rename, no changes to `brand.inspiration_examples` column, no changes to `admin-action`, `brand-strategist`, `brand-engine`, `autopilot-planner`, or `brand-updates` (they read the same URLs; semantics are enforced at render time).
-- No change to how many images a user can upload.
+- Return the render result as soon as the image + copy are saved; run the critic/score update as a fire-and-forget background write (the score field is used later on the design record, not blocking the response).
 
-## Technical notes
-- `src/integrations/supabase/types.ts` is auto-generated; unchanged.
-- Query keys (`brand_inspiration`) unchanged so cached data stays valid across the rename.
-- The `RefRole` type keeps `"inspiration"` as its identifier; only the human-facing `label` string in the prompt changes.
+### 5. UI: progressive carousel
+
+- On `/post`, when generating a carousel, poll or subscribe to `designs` filtered by `carousel_id` and show slides as they land instead of holding one spinner until the whole set is done. This makes even the worst case feel responsive.
+
+## Files touched
+
+- `supabase/functions/design-studio/index.ts` — reorder cover→parallel slides, swap default model, gate the critic loop, add per-call timeout, background score update.
+- `supabase/functions/_shared/render-refs.ts` — allow passing a "cover image" as the continuity ref for parallel slides (small addition, existing `previousImageUrl` slot can be reused).
+- `src/pages/v2/DailyPost.tsx` (and the carousel composer entry) — add "Highest quality" toggle, wire progressive slide subscription for carousels.
+
+## Explicitly NOT changing
+
+- Brand genome, plan/arc validation, product-ref routing, gallery-first logic, copy structure gates — all preserved. Only the render orchestration changes.
+- Nothing about credit deduction or pricing changes.
+
+## How I'll verify
+
+- Time a 5-slide carousel before/after (target: under 3 min).
+- Confirm all slides share cover palette/type by eyeballing 3 generations.
+- Watch `edge_function_logs` for `[render] ... ok` lines to confirm Flash is the primary path and Pro is fallback-only.
