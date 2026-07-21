@@ -1193,17 +1193,18 @@ const BrandCentre = () => {
               <input ref={inspirationInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleInspirationUpload} />
             </div>
             <p className="text-xs text-muted-foreground -mt-1">
-              Real brand photos Brandie will feature in your designs — products, screenshots, team, premises, packaging, etc. Brandie uses these exact images instead of generating stand-ins.
+              Real brand photos Brandie will feature in your designs — products, screenshots, team, premises, packaging, etc. Brandie uses these exact images instead of generating stand-ins. <span className="text-foreground/80">Drag to reorder — top images are prioritised first.</span>
             </p>
-            {inspiration && inspiration.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {inspiration.map((item) => (
-                  <div key={item.id} className="relative aspect-square group">
-                    <img src={item.image_url} alt="" className="w-full h-full object-cover rounded-xl border border-border" />
-                    <button onClick={() => deleteInspiration(item.id)} className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3" /></button>
+            {gallery.length > 0 ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGalleryDragEnd}>
+                <SortableContext items={gallery.map((g) => g.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {gallery.map((item) => (
+                      <SortableGalleryTile key={item.id} item={item} onDelete={deleteInspiration} />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             ) : (
               <p className="text-sm text-muted-foreground">No gallery images yet. Upload real brand photos so your designs look like your business.</p>
             )}

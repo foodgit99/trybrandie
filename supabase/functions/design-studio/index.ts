@@ -1541,8 +1541,10 @@ TREND RULES:
         try {
           const { data: inspirationData } = await adminClient
             .from("brand_inspiration")
-            .select("image_url")
+            .select("image_url, position, created_at")
             .eq("brand_id", brand.id)
+            .order("position", { ascending: true })
+            .order("created_at", { ascending: true })
             .limit(10);
           if (inspirationData && inspirationData.length > 0) {
             inspirationUrls = inspirationData.map((i: any) => i.image_url);
@@ -3207,8 +3209,10 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
         try {
           const { data: inspirationData } = await adminClient
             .from("brand_inspiration")
-            .select("image_url")
+            .select("image_url, position, created_at")
             .eq("brand_id", brand.id)
+            .order("position", { ascending: true })
+            .order("created_at", { ascending: true })
             .limit(10);
           if (inspirationData && inspirationData.length > 0) {
             inspirationUrls = inspirationData.map((i: any) => i.image_url);
