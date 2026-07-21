@@ -38,6 +38,7 @@ import {
   buildCompetitorDeepReportPdf,
   buildRecommendedActions,
 } from "@/lib/competitorDeepReportPdf";
+import { citationsForSignal } from "@/lib/competitorSources";
 import { cn } from "@/lib/utils";
 
 type Competitor = {
@@ -60,6 +61,7 @@ type Signal = {
   content_idea_id: string | null;
   week_start_date: string;
   created_at?: string;
+  metadata?: any;
 };
 
 const SIGNAL_META: Record<
@@ -402,6 +404,34 @@ export default function CompetitorDetailsDialog({
                     {s.rationale && (
                       <p className="text-xs text-muted-foreground">{s.rationale}</p>
                     )}
+                    {(() => {
+                      const cites = citationsForSignal(s, competitor);
+                      if (cites.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Sources
+                          </span>
+                          {cites.map((c) => (
+                            <a
+                              key={c.url}
+                              href={c.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] text-foreground/80 hover:text-primary hover:border-primary/40"
+                              title={c.url}
+                            >
+                              {c.channel === "instagram" ? (
+                                <Instagram className="h-2.5 w-2.5" />
+                              ) : (
+                                <Globe className="h-2.5 w-2.5" />
+                              )}
+                              {c.label}
+                            </a>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     {s.content_idea_id && (
                       <button
                         onClick={() => {

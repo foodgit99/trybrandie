@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { citationsForSignal, type SourceCitation } from "./competitorSources";
 
 // Brandie palette
 const BEIGE = "#FAF8F5";
@@ -28,6 +29,7 @@ export type DeepSignal = {
   content_idea_id: string | null;
   week_start_date: string;
   created_at?: string;
+  metadata?: any;
 };
 
 export type DeepSnapshot = {
@@ -388,6 +390,25 @@ export async function buildCompetitorDeepReportPdf(args: {
       margin + 50,
     );
   } else {
+    // Assign a stable citation index across the report so [1], [2]… line up
+    // between the signals table and the "Sources & citations" appendix.
+    const citationIndex = new Map<string, number>(); // url -> ordinal
+    const orderedCitations: SourceCitation[] = [];
+    function refsFor(sig: DeepSignal): number[] {
+      const cites = citationsForSignal(sig, competitor);
+      const nums: number[] = [];
+      for (const c of cites) {
+        let n = citationIndex.get(c.url);
+        if (!n) {
+          n = orderedCitations.length + 1;
+          citationIndex.set(c.url, n);
+          orderedCitations.push(c);
+        }
+        nums.push(n);
+      }
+      return nums;
+    }
+
     autoTable(doc, {
       startY: margin + 34,
       margin: { left: margin, right: margin },
@@ -399,17 +420,19 @@ export async function buildCompetitorDeepReportPdf(args: {
         fontStyle: "bold",
       },
       styles: { font: "helvetica", fontSize: 9, textColor: CHARCOAL, cellPadding: 7 },
-      head: [["Week", "Signal", "What they did", "Why it matters"]],
+      head: [["Week", "Signal", "What they did", "Why it matters", "Sources"]],
       body: signals.map((s) => [
         fmtDate(s.week_start_date),
         SIGNAL_LABELS[s.signal_type] ?? s.signal_type,
         clip(s.summary, 260),
         clip(s.rationale, 260),
+        refsFor(s).map((n) => `[${n}]`).join(" ") || "—",
       ]),
       columnStyles: {
-        0: { cellWidth: 70 },
-        1: { cellWidth: 90, fontStyle: "bold", textColor: GOLD },
-        2: { cellWidth: 170 },
+        0: { cellWidth: 60 },
+        1: { cellWidth: 82, fontStyle: "bold", textColor: GOLD },
+        2: { cellWidth: 150 },
+        4: { cellWidth: 54, textColor: GOLD, fontStyle: "bold" },
       },
     });
   }
