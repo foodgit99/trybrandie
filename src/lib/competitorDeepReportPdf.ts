@@ -599,6 +599,65 @@ export async function buildCompetitorDeepReportPdf(args: {
     ay += boxH + 16;
   }
 
+  // ---------- Sources & citations ----------
+  if (orderedCitations.length > 0) {
+    doc.addPage();
+    doc.setFillColor(BEIGE);
+    doc.rect(0, 0, pageW, pageH, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(CHARCOAL);
+    doc.text("Sources & citations", margin, margin + 10);
+    doc.setDrawColor(GOLD);
+    doc.setLineWidth(1.5);
+    doc.line(margin, margin + 18, margin + 60, margin + 18);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(MUTED);
+    doc.text(
+      "Numbered references from the signals table. Each URL was observed in this competitor's public surface at scan time — click to verify.",
+      margin,
+      margin + 40,
+      { maxWidth: pageW - margin * 2 },
+    );
+
+    let cy = margin + 72;
+    orderedCitations.forEach((c, i) => {
+      if (cy > pageH - 60) {
+        doc.addPage();
+        doc.setFillColor(BEIGE);
+        doc.rect(0, 0, pageW, pageH, "F");
+        cy = margin;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(GOLD);
+      doc.text(`[${i + 1}]`, margin, cy);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(CHARCOAL);
+      const channelLabel =
+        c.channel === "instagram" ? "Instagram" : c.channel === "site" ? "Website" : "Web";
+      doc.text(`${channelLabel} · ${c.label}`, margin + 30, cy);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor("#1E5AE8");
+      const urlLines = doc.splitTextToSize(c.url, pageW - margin * 2 - 30);
+      doc.textWithLink(urlLines[0], margin + 30, cy + 14, { url: c.url });
+      if (urlLines.length > 1) {
+        // Draw remaining lines as plain wrapped text so no clip.
+        doc.text(urlLines.slice(1), margin + 30, cy + 26);
+      }
+      doc.setTextColor(CHARCOAL);
+
+      cy += 22 + urlLines.length * 12;
+    });
+  }
+
+
   // Footer on all pages
   const total = doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
