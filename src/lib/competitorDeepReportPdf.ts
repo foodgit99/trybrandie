@@ -380,6 +380,25 @@ export async function buildCompetitorDeepReportPdf(args: {
   doc.setLineWidth(1.5);
   doc.line(margin, margin + 18, margin + 60, margin + 18);
 
+  // Assign a stable citation index across the report so [1], [2]… line up
+  // between the signals table and the "Sources & citations" appendix.
+  const citationIndex = new Map<string, number>();
+  const orderedCitations: SourceCitation[] = [];
+  function refsFor(sig: DeepSignal): number[] {
+    const cites = citationsForSignal(sig, competitor);
+    const nums: number[] = [];
+    for (const c of cites) {
+      let n = citationIndex.get(c.url);
+      if (!n) {
+        n = orderedCitations.length + 1;
+        citationIndex.set(c.url, n);
+        orderedCitations.push(c);
+      }
+      nums.push(n);
+    }
+    return nums;
+  }
+
   if (signals.length === 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
@@ -390,25 +409,6 @@ export async function buildCompetitorDeepReportPdf(args: {
       margin + 50,
     );
   } else {
-    // Assign a stable citation index across the report so [1], [2]… line up
-    // between the signals table and the "Sources & citations" appendix.
-    const citationIndex = new Map<string, number>(); // url -> ordinal
-    const orderedCitations: SourceCitation[] = [];
-    function refsFor(sig: DeepSignal): number[] {
-      const cites = citationsForSignal(sig, competitor);
-      const nums: number[] = [];
-      for (const c of cites) {
-        let n = citationIndex.get(c.url);
-        if (!n) {
-          n = orderedCitations.length + 1;
-          citationIndex.set(c.url, n);
-          orderedCitations.push(c);
-        }
-        nums.push(n);
-      }
-      return nums;
-    }
-
     autoTable(doc, {
       startY: margin + 34,
       margin: { left: margin, right: margin },
