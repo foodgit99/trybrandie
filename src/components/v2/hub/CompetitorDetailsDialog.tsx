@@ -37,6 +37,10 @@ import {
   TrendingUp,
   Palette,
   Upload,
+  ShieldCheck,
+  ShieldAlert,
+  Check,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
