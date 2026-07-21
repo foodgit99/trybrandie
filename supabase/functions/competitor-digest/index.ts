@@ -173,8 +173,47 @@ Rules:
     let signalsInserted = 0;
     let ideasInserted = 0;
 
+    // Build a channel→URL fallback map per competitor (site domain / IG handle URL).
+    const fallbackByComp: Record<string, { site: string | null; instagram: string | null }> = {};
+    for (const c of competitors) {
+      fallbackByComp[c.id] = {
+        site: c.domain ? (c.domain.startsWith("http") ? c.domain : `https://${c.domain}`) : null,
+        instagram: c.instagram_handle
+          ? `https://instagram.com/${String(c.instagram_handle).replace(/^@/, "")}`
+          : null,
+      };
+    }
+
+    function normaliseSources(compId: string, raw: any): {
+      channels: string[];
+      urls: string[];
+    } {
+      const fb = fallbackByComp[compId] ?? { site: null, instagram: null };
+      const channelsIn: string[] = Array.isArray(raw?.sources) ? raw.sources : [];
+      const urlsIn: string[] = Array.isArray(raw?.source_urls) ? raw.source_urls : [];
+      const channels = channelsIn
+        .map((c) => String(c).toLowerCase())
+        .filter((c) => c === "site" || c === "instagram");
+      // Guarantee at least one channel — default to whichever fallback exists.
+      if (channels.length === 0) {
+        if (fb.site) channels.push("site");
+        else if (fb.instagram) channels.push("instagram");
+      }
+      const urls = new Set<string>();
+      for (const u of urlsIn) {
+        const s = String(u ?? "").trim();
+        if (/^https?:\/\//i.test(s)) urls.add(s);
+      }
+      for (const ch of channels) {
+        const fallback = ch === "site" ? fb.site : fb.instagram;
+        if (fallback) urls.add(fallback);
+      }
+      return { channels: [...new Set(channels)], urls: [...urls].slice(0, 6) };
+    }
+
     for (const s of signals) {
       if (!validCompIds.has(s.competitor_id)) continue;
+      const src = normaliseSources(s.competitor_id, s);
       const { error } = await supabase.from("competitor_signals").insert({
         competitor_id: s.competitor_id,
         brand_id: brandId,
@@ -182,6 +221,7 @@ Rules:
         signal_type: ["launch","offer","angle","seo_win","positioning_shift"].includes(s.signal_type) ? s.signal_type : "angle",
         summary: String(s.summary ?? "").slice(0, 500),
         rationale: s.rationale ? String(s.rationale).slice(0, 500) : null,
+        metadata: { sources: src.channels, source_urls: src.urls },
       });
       if (!error) signalsInserted++;
     }
