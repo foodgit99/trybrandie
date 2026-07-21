@@ -62,7 +62,7 @@ verify_jwt = false
 [functions.design-enqueue]
 verify_jwt = false
 
-[functions.inngest]
+[functions.design-dispatch]
 verify_jwt = false
 
 [functions.email-marketing-track]
