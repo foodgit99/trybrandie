@@ -22,6 +22,8 @@ import { GripVertical, Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 type GalleryItem = { id: string; image_url: string; position?: number };
 
@@ -70,14 +72,43 @@ function SortableTile({
 export default function BrandGalleryPanel({
   brandId,
   userId,
+  preferGalleryFirst,
+  onPreferGalleryFirstChange,
 }: {
   brandId: string;
   userId: string;
+  preferGalleryFirst?: boolean;
+  onPreferGalleryFirstChange?: (next: boolean) => void;
 }) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [localOrder, setLocalOrder] = useState<GalleryItem[] | null>(null);
+  const [preferGallery, setPreferGallery] = useState<boolean>(preferGalleryFirst ?? true);
+  const [savingPref, setSavingPref] = useState(false);
+
+  const togglePreferGallery = async (next: boolean) => {
+    const prev = preferGallery;
+    setPreferGallery(next);
+    setSavingPref(true);
+    const { error } = await supabase
+      .from("brands")
+      .update({ prefer_gallery_first: next })
+      .eq("id", brandId);
+    setSavingPref(false);
+    if (error) {
+      setPreferGallery(prev);
+      toast({ title: "Could not save preference", description: error.message, variant: "destructive" });
+      return;
+    }
+    onPreferGalleryFirstChange?.(next);
+    toast({
+      title: next ? "Gallery-first turned on" : "Gallery-first turned off",
+      description: next
+        ? "Brandie will prefer your exact Gallery photos in new designs."
+        : "Brandie may generate replacement visuals when useful.",
+    });
+  };
 
   const { data: items = [], refetch, isLoading } = useQuery({
     queryKey: ["v2-brand-gallery", brandId],
@@ -171,6 +202,23 @@ export default function BrandGalleryPanel({
 
   return (
     <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+        <div className="min-w-0">
+          <Label htmlFor="prefer-gallery-toggle" className="text-sm font-medium">
+            Use my Gallery images first
+          </Label>
+          <p className="text-xs text-muted-foreground mt-1 max-w-md">
+            When on, Brandie prefers your exact uploaded photos over generated visuals and only invents imagery for what your Gallery can't cover.
+          </p>
+        </div>
+        <Switch
+          id="prefer-gallery-toggle"
+          checked={preferGallery}
+          onCheckedChange={togglePreferGallery}
+          disabled={savingPref}
+        />
+      </div>
+
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-muted-foreground max-w-md">
           Add real product shots, screenshots, team, or premises photos. Brandie prioritises these

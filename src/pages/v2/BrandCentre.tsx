@@ -250,7 +250,11 @@ const BrandCentre = () => {
         </Block>
 
         <Block label="Gallery">
-          <BrandGalleryPanel brandId={brand.id} userId={user.id} />
+          <BrandGalleryPanel
+            brandId={brand.id}
+            userId={user.id}
+            preferGalleryFirst={(brand as any).prefer_gallery_first ?? true}
+          />
         </Block>
 
         <section className="space-y-3">
