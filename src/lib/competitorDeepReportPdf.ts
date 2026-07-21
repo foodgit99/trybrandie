@@ -2,12 +2,32 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { citationsForSignal, type SourceCitation } from "./competitorSources";
 
-// Brandie palette
+// Brandie default palette (overridable via `branding`)
 const BEIGE = "#FAF8F5";
 const CHARCOAL = "#2B2D33";
-const GOLD = "#C4993B";
+const DEFAULT_ACCENT = "#C4993B";
 const MUTED = "#6B6B6B";
 const SOFT = "#E7E2D8";
+
+export type ReportBranding = {
+  /** Report title used on cover + eyebrow (default "Competitor Deep Dive"). */
+  reportTitle?: string | null;
+  /** Hex accent color used for rules, highlights, badges, footer refs. */
+  accentColor?: string | null;
+  /** Optional logo to display on the cover in addition to the competitor logo. */
+  brandLogoUrl?: string | null;
+};
+
+function normalizeHex(v: string | null | undefined, fallback: string): string {
+  if (!v) return fallback;
+  const s = v.trim();
+  if (/^#?[0-9a-fA-F]{6}$/.test(s)) return s.startsWith("#") ? s : `#${s}`;
+  if (/^#?[0-9a-fA-F]{3}$/.test(s)) {
+    const c = s.replace("#", "");
+    return `#${c[0]}${c[0]}${c[1]}${c[1]}${c[2]}${c[2]}`;
+  }
+  return fallback;
+}
 
 export type DeepCompetitor = {
   id: string;
