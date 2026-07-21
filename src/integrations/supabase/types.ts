@@ -1404,6 +1404,7 @@ export type Database = {
           created_at: string
           error: Json | null
           finished_at: string | null
+          heartbeat_at: string | null
           id: string
           input: Json
           kind: string
@@ -1422,6 +1423,7 @@ export type Database = {
           created_at?: string
           error?: Json | null
           finished_at?: string | null
+          heartbeat_at?: string | null
           id?: string
           input?: Json
           kind?: string
@@ -1440,6 +1442,7 @@ export type Database = {
           created_at?: string
           error?: Json | null
           finished_at?: string | null
+          heartbeat_at?: string | null
           id?: string
           input?: Json
           kind?: string
@@ -3340,6 +3343,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      finalize_stalled_design_jobs: { Args: never; Returns: number }
       has_brand_access: {
         Args: { _brand_id: string; _user_id: string }
         Returns: boolean
