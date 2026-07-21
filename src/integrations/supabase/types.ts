@@ -985,6 +985,9 @@ export type Database = {
           playbook_id: string | null
           prefer_gallery_first: boolean
           primary_colors: string[] | null
+          report_accent_color: string | null
+          report_logo_url: string | null
+          report_title: string | null
           secondary_colors: string[] | null
           special_instructions: string | null
           tagline: string | null
@@ -1013,6 +1016,9 @@ export type Database = {
           playbook_id?: string | null
           prefer_gallery_first?: boolean
           primary_colors?: string[] | null
+          report_accent_color?: string | null
+          report_logo_url?: string | null
+          report_title?: string | null
           secondary_colors?: string[] | null
           special_instructions?: string | null
           tagline?: string | null
@@ -1041,6 +1047,9 @@ export type Database = {
           playbook_id?: string | null
           prefer_gallery_first?: boolean
           primary_colors?: string[] | null
+          report_accent_color?: string | null
+          report_logo_url?: string | null
+          report_title?: string | null
           secondary_colors?: string[] | null
           special_instructions?: string | null
           tagline?: string | null
