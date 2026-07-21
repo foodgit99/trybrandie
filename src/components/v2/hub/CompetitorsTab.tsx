@@ -266,15 +266,8 @@ export default function CompetitorsTab({ brand }: { brand: { id: string } }) {
             <Sparkles className="h-4 w-4 mr-1.5" />
             {runDigest.isPending ? "Digesting…" : "Run digest"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={exporting || competitors.length === 0}
-            onClick={handleExportPdf}
-          >
-            <FileDown className="h-4 w-4 mr-1.5" />
-            {exporting ? "Preparing report…" : "Export PDF"}
-          </Button>
+
+
           <AddCompetitorDialog
             open={addOpen}
             onOpenChange={setAddOpen}
