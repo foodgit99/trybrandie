@@ -124,7 +124,145 @@ function fmtDate(iso: string | null | undefined) {
   }
 }
 
+type PolicyRow = { label: string; included: boolean; note?: string };
+
+function buildPolicyRows(policy: ReturnType<typeof policyForTier>): PolicyRow[] {
+  return [
+    {
+      label: "Signal rationale ('Why it matters')",
+      included: policy.showSignalRationale,
+    },
+    {
+      label: "Snapshot excerpts of their public surface",
+      included: policy.showSnapshotExcerpts,
+    },
+    {
+      label: "'What to steal this week' ideas playbook",
+      included: policy.showIdeas,
+      note:
+        policy.showIdeas && policy.maxIdeas != null
+          ? `Capped at ${policy.maxIdeas}`
+          : undefined,
+    },
+    {
+      label: "Recommended action steps",
+      included: policy.showRecommendedActions,
+    },
+    {
+      label: "Sources & citations appendix",
+      included: policy.showSourcesAppendix,
+      note:
+        policy.showSourcesAppendix && policy.maxCitations != null
+          ? `Capped at ${policy.maxCitations}`
+          : undefined,
+    },
+    {
+      label: "Full signals table",
+      included: true,
+      note:
+        policy.maxSignalsInTable != null
+          ? `Capped at ${policy.maxSignalsInTable}`
+          : "All signals included",
+    },
+  ];
+}
+
+function ExportPolicyBanner({
+  policy,
+  isTeamMember,
+  preparedByEmail,
+}: {
+  policy: ReturnType<typeof policyForTier>;
+  isTeamMember: boolean;
+  preparedByEmail: string | null;
+}) {
+  const rows = buildPolicyRows(policy);
+  const tone = policy.isFull
+    ? {
+        wrap: "border-emerald-500/30 bg-emerald-500/5",
+        icon: "text-emerald-600",
+        Icon: ShieldCheck,
+        headline: `Full ${policy.tierLabel} export`,
+        sub: "No watermark. Every section will be included in your PDF.",
+      }
+    : policy.watermark === "diagonal"
+      ? {
+          wrap: "border-amber-500/40 bg-amber-500/10",
+          icon: "text-amber-700",
+          Icon: ShieldAlert,
+          headline: `${policy.tierLabel} — sample export`,
+          sub: `A diagonal "${policy.watermarkText}" watermark will be stamped across every page, and several sections will be redacted.`,
+        }
+      : {
+          wrap: "border-amber-500/30 bg-amber-500/5",
+          icon: "text-amber-700",
+          Icon: ShieldAlert,
+          headline: `${policy.tierLabel} export — partial redactions`,
+          sub: `A subtle footer watermark ("${policy.watermarkText}") will appear on every page. Some sections are capped or hidden.`,
+        };
+  const Icon = tone.Icon;
+  return (
+    <div
+      className={cn(
+        "mt-3 rounded-xl border p-3 sm:p-4",
+        tone.wrap,
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <Icon className={cn("h-5 w-5 shrink-0 mt-0.5", tone.icon)} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{tone.headline}</p>
+            <Badge variant="outline" className="text-[10px]">
+              Before you export
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">{tone.sub}</p>
+
+          <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+            {rows.map((r) => (
+              <li key={r.label} className="flex items-start gap-2 text-xs">
+                {r.included ? (
+                  <Check className="h-3.5 w-3.5 mt-0.5 text-emerald-600 shrink-0" />
+                ) : (
+                  <X className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                )}
+                <span
+                  className={cn(
+                    "leading-snug",
+                    r.included ? "text-foreground" : "text-muted-foreground line-through",
+                  )}
+                >
+                  {r.label}
+                  {r.note && (
+                    <span className="ml-1 text-[10px] uppercase tracking-wide text-muted-foreground no-underline">
+                      · {r.note}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {isTeamMember && preparedByEmail && (
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              You'll be credited as <span className="font-medium">Prepared by {preparedByEmail}</span> in
+              the footer. Tier is inherited from the brand owner's plan.
+            </p>
+          )}
+          {!policy.isFull && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Upgrade the brand owner's plan to remove the watermark and unlock hidden sections.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CompetitorDetailsDialog({
+
   open,
   onOpenChange,
   competitor,
