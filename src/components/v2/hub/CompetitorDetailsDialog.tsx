@@ -410,6 +410,17 @@ export default function CompetitorDetailsDialog({
           )}
         </DialogHeader>
 
+        {/* Export policy banner — shows what the current tier will include or redact */}
+        {policy && (
+          <ExportPolicyBanner
+            policy={policy}
+            isTeamMember={!!reportAccess?.isTeamMember}
+            preparedByEmail={reportAccess?.preparedByEmail ?? null}
+          />
+        )}
+
+
+
         {/* Stat cards */}
         <div className="grid grid-cols-3 gap-3 mt-2">
           {barData.map((b) => (
