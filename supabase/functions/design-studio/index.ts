@@ -1801,6 +1801,7 @@ ${brand.special_instructions}
         }
       })();
 
+      const EMPTY_RESEARCH = { promptText: "", sources: [] as any[] };
       const researchPromise = (async () => {
         const cat = await contentCategoryPromise;
         const recipe = CATEGORY_RECIPES[cat];
@@ -1812,17 +1813,29 @@ ${brand.special_instructions}
         ]
           .map((v) => String(v).trim())
           .filter(Boolean);
-        return await enrichWithResearch(cat, userPrompt, {
-          brandName: brand?.name,
-          industry: brand?.industry,
-          vibeKeywords,
-          toneOfVoice: brand?.tone_of_voice,
-          audienceDescriptor: audienceProfile?.persona_summary,
-          postType: recipe?.name || cat,
-          platform: canvas.platform || "Instagram",
-          topic: userPrompt, // M5: ground offline heuristic in the user's actual ask
-          override,
-        }, FIRECRAWL_API_KEY, adminClient);
+        try {
+          // Hard 8s deadline: research is a nice-to-have signal, not a blocker.
+          // Without this the whole pipeline can sit waiting on Firecrawl / a slow
+          // cached-lookup path when Studio would already be rendering.
+          return await withTimeout(
+            enrichWithResearch(cat, userPrompt, {
+              brandName: brand?.name,
+              industry: brand?.industry,
+              vibeKeywords,
+              toneOfVoice: brand?.tone_of_voice,
+              audienceDescriptor: audienceProfile?.persona_summary,
+              postType: recipe?.name || cat,
+              platform: canvas.platform || "Instagram",
+              topic: userPrompt,
+              override,
+            }, FIRECRAWL_API_KEY, adminClient),
+            8_000,
+            "enrichWithResearch",
+          );
+        } catch (e) {
+          console.warn("[research] skipped after timeout/failure:", e instanceof Error ? e.message : e);
+          return EMPTY_RESEARCH;
+        }
       })();
 
       // --- PARALLEL: Brief Agent + Genome Composer + Inspiration Analysis + Category ---
