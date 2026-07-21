@@ -838,10 +838,10 @@ export async function buildCompetitorDeepReportPdf(args: {
     if (policy.watermark === "diagonal") {
       // Tiled diagonal watermark. Kept faint via a semi-transparent GState so
       // it never overpowers the underlying content but is impossible to miss.
-      // @ts-expect-error GState is provided by jsPDF at runtime
-      const GState = doc.GState;
-      const prevGState = GState ? new GState({ opacity: 0.12 }) : null;
-      if (prevGState) doc.setGState(prevGState);
+      const GState = (doc as any).GState as
+        | ((opts: { opacity: number }) => any)
+        | undefined;
+      if (GState) (doc as any).setGState(GState({ opacity: 0.12 }));
       doc.setFont("helvetica", "bold");
       doc.setFontSize(42);
       doc.setTextColor(CHARCOAL);
@@ -853,8 +853,9 @@ export async function buildCompetitorDeepReportPdf(args: {
           doc.text(text, x, y, { angle: 30 });
         }
       }
-      if (GState) doc.setGState(new GState({ opacity: 1 }));
+      if (GState) (doc as any).setGState(GState({ opacity: 1 }));
       doc.setTextColor(CHARCOAL);
+
     } else if (policy.watermark === "footer" && policy.watermarkText) {
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8);
