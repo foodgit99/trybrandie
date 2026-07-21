@@ -102,7 +102,7 @@ type Blueprint = {
 
 type EngineSettings = { enabled: boolean; delivery_time: string } | null;
 
-type TabId = "today" | "week" | "funnels" | "campaigns" | "trends" | "outbox";
+type TabId = "today" | "week" | "funnels" | "campaigns" | "trends" | "competitors" | "outbox";
 
 const TABS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: "today", label: "Today", icon: Sun },
@@ -110,6 +110,7 @@ const TABS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: "funnels", label: "Funnels", icon: Layers },
   { id: "campaigns", label: "Campaigns", icon: Megaphone },
   { id: "trends", label: "Trends", icon: TrendingUp },
+  { id: "competitors", label: "Competitors", icon: Swords },
   { id: "outbox", label: "Outbox", icon: Mail },
 ];
 
