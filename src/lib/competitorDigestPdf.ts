@@ -297,7 +297,7 @@ export async function buildCompetitorDigestPdf(args: {
         clip(i.title, 160),
         i.content_category ?? "—",
         fmtDate(i.scheduled_for),
-        clip(i.competitor_rationale || i.funnel_rationale, 300),
+        clip(i.campaign_rationale || i.funnel_rationale, 300),
       ]),
       columnStyles: {
         0: { cellWidth: 170, fontStyle: "bold" },
