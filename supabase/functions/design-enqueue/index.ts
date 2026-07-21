@@ -1,5 +1,6 @@
 // Enqueues a design generation job. Returns immediately with a job_id.
-// The actual work runs via Inngest -> design-studio (background mode).
+// Dispatch happens via an AFTER INSERT trigger on design_jobs that POSTs to
+// design-dispatch, with a pg_cron sweep as a safety net. No external queue.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,30 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const INNGEST_GATEWAY = "https://connector-gateway.lovable.dev/inngest";
-
-async function sendInngestEvent(name: string, data: Record<string, unknown>) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const INNGEST_API_KEY = Deno.env.get("INNGEST_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-  if (!INNGEST_API_KEY) throw new Error("INNGEST_API_KEY is not configured");
-
-  const res = await fetch(`${INNGEST_GATEWAY}/e/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": INNGEST_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name, data }),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Inngest event failed [${res.status}]: ${txt}`);
-  }
-  return res.json();
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -90,8 +67,8 @@ serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceRoleKey);
     const kind = action === "generate_carousel" ? "carousel" : "single";
 
-    // Priority rendering: Agency tier (and any plan with priority_render_until in future)
-    // gets elevated job priority. Higher number = higher priority.
+    // Priority rendering: Agency tier (and any plan with priority_render_until
+    // in future) gets elevated job priority. Higher number = higher priority.
     let priority = 0;
     try {
       const { data: prof } = await admin
@@ -129,27 +106,8 @@ serve(async (req) => {
       });
     }
 
-    // Send Inngest event — worker will invoke design-studio with job_id.
-    try {
-      await sendInngestEvent("app/design.requested", {
-        job_id: job.id,
-        user_id: user.id,
-        priority,
-        body,
-      });
-    } catch (e) {
-      // Mark job failed so the client doesn't spin forever.
-      await admin.from("design_jobs").update({
-        status: "failed",
-        error: { message: e instanceof Error ? e.message : "Failed to enqueue" },
-        finished_at: new Date().toISOString(),
-      }).eq("id", job.id);
-      return new Response(JSON.stringify({ error: "Failed to enqueue job" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // No external event needed — the AFTER INSERT trigger on design_jobs will
+    // POST to design-dispatch, and pg_cron sweeps every ~5s as a safety net.
     return new Response(JSON.stringify({ job_id: job.id, status: "queued" }), {
       status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
