@@ -310,6 +310,20 @@ const Cockpit = () => {
               ? "This week is fully approved. We'll handle the rest."
               : `Your weekly strategy is ready. ${totalThisWeek} posts, sequenced into a 5-day arc.`}
           </p>
+          {todaysAutopilot.length > 0 && (
+            <p className="text-xs tracking-[0.14em] uppercase text-muted-foreground pt-1">
+              <span className={`inline-block h-1.5 w-1.5 rounded-full mr-2 align-middle ${
+                todaysShipped === todaysAutopilot.length
+                  ? "bg-emerald-500"
+                  : todaysFailed > 0
+                  ? "bg-red-500"
+                  : "bg-amber-500 animate-pulse"
+              }`} />
+              Autonomous today · {todaysShipped}/{todaysAutopilot.length} shipped
+              {todaysFailed > 0 ? ` · ${todaysFailed} failed` : ""}
+            </p>
+          )}
+
         </header>
 
         {/* WEEK STRIP */}
