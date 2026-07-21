@@ -27,11 +27,12 @@ import {
   Instagram,
   TrendingUp,
   Lock,
-  FileDown,
+  Eye,
 } from "lucide-react";
-import { buildCompetitorDigestPdf } from "@/lib/competitorDigestPdf";
+import CompetitorDetailsDialog from "@/components/v2/hub/CompetitorDetailsDialog";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+
 
 type Competitor = {
   id: string;
