@@ -36,6 +36,8 @@ import IdeaThumb from "@/components/v2/IdeaThumb";
 import FunnelsEditableTab from "@/components/v2/hub/FunnelsEditableTab";
 import CampaignsEditableTab from "@/components/v2/hub/CampaignsEditableTab";
 import TrendsTab from "@/components/v2/hub/TrendsTab";
+import CompetitorsTab from "@/components/v2/hub/CompetitorsTab";
+import { Swords } from "lucide-react";
 import OutboxTab from "@/components/v2/hub/OutboxTab";
 
 /* ------------------------------ Funnel model ------------------------------ */
