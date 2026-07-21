@@ -287,11 +287,6 @@ export default function CompetitorDetailsDialog({
     if (!competitor) return;
     setExporting(true);
     try {
-      const { data: brandRow } = await supabase
-        .from("brands")
-        .select("name, logo_url")
-        .eq("id", brandId)
-        .maybeSingle();
       const doc = await buildCompetitorDeepReportPdf({
         brand: {
           name: (brandRow as any)?.name ?? "Your brand",
@@ -301,10 +296,18 @@ export default function CompetitorDetailsDialog({
         signals: compSignals as any,
         snapshots: snapshots as any,
         ideas: ideas as any,
+        branding: {
+          reportTitle: reportTitle.trim() || null,
+          accentColor: accentColor || null,
+          brandLogoUrl: reportLogoUrl,
+        },
       });
       const date = new Date().toISOString().slice(0, 10);
       const slug = competitor.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-      doc.save(`Brandie-${slug}-Deep-Dive-${date}.pdf`);
+      const titleSlug = (reportTitle.trim() || "Deep-Dive")
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-|-$/g, "");
+      doc.save(`Brandie-${slug}-${titleSlug}-${date}.pdf`);
       toast({ title: "Report ready", description: "PDF downloaded." });
     } catch (e: any) {
       toast({
@@ -316,6 +319,7 @@ export default function CompetitorDetailsDialog({
       setExporting(false);
     }
   }
+
 
   if (!competitor) return null;
 
