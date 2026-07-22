@@ -1573,23 +1573,30 @@ TREND RULES:
 
       // Collect inspiration examples — load from brand_inspiration table
       let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      let galleryItems: Array<{ url: string; label: string | null }> = [];
       if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
         try {
           const { data: inspirationData } = await adminClient
             .from("brand_inspiration")
-            .select("image_url, position, created_at")
+            .select("image_url, label, position, created_at")
             .eq("brand_id", brand.id)
             .order("position", { ascending: true })
             .order("created_at", { ascending: true })
             .limit(10);
           if (inspirationData && inspirationData.length > 0) {
             inspirationUrls = inspirationData.map((i: any) => i.image_url);
+            galleryItems = inspirationData.map((i: any) => ({ url: i.image_url, label: i.label ?? null }));
             console.log(`Loaded ${inspirationUrls.length} inspiration images from DB`);
           }
         } catch (e) {
           console.log("Failed to load inspiration images:", e);
         }
       }
+      const galleryLabelBrief = galleryItems.some((g) => g.label && g.label.trim())
+        ? `\n- Gallery reference labels (user-provided context for each image, in priority order):\n${galleryItems
+            .map((g, i) => `  ${i + 1}. ${g.label && g.label.trim() ? g.label.trim() : "(unlabeled)"}`)
+            .join("\n")}`
+        : "";
 
       // Fetch product catalogue for contextual use
       let productImageUrls: string[] = [];
@@ -1673,7 +1680,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? (brand?.prefer_gallery_first !== false
   ? `- Brand Gallery (PREFER GALLERY FIRST — mandatory): The brand has ${inspirationUrls.length} real gallery photo(s). You MUST feature these EXACT images in the composition as the primary visuals. Do NOT generate replacement product/team/premises imagery when a gallery photo can serve the same purpose. Only fabricate new imagery for elements the gallery does not cover. Never redraw, restyle, or heavily crop the gallery images — treat their pixels as literal brand assets.`
-  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Feature these EXACT images in the composition whenever relevant instead of generating substitutes. Do not redraw or restyle them — they are the brand's real assets.`) : ""}
+  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Feature these EXACT images in the composition whenever relevant instead of generating substitutes. Do not redraw or restyle them — they are the brand's real assets.`) : ""}${galleryLabelBrief}
 ${brand.special_instructions ? `- Special instructions: ${brand.special_instructions}` : ""}
 ${audienceContext}${trendContext}${productImageContext}${preferenceContext}${chatHistoryContext}
 
@@ -3256,22 +3263,29 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       // ----- Step 0a: fetch products & inspiration UP-FRONT so the arc planner -----
       // can weave concrete product names / features into the narrative thread.
       let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      let carouselGalleryItems: Array<{ url: string; label: string | null }> = [];
       if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
         try {
           const { data: inspirationData } = await adminClient
             .from("brand_inspiration")
-            .select("image_url, position, created_at")
+            .select("image_url, label, position, created_at")
             .eq("brand_id", brand.id)
             .order("position", { ascending: true })
             .order("created_at", { ascending: true })
             .limit(10);
           if (inspirationData && inspirationData.length > 0) {
             inspirationUrls = inspirationData.map((i: any) => i.image_url);
+            carouselGalleryItems = inspirationData.map((i: any) => ({ url: i.image_url, label: i.label ?? null }));
           }
         } catch (e) {
           console.log("[carousel] inspiration fetch failed:", e);
         }
       }
+      const carouselGalleryLabelBrief = carouselGalleryItems.some((g) => g.label && g.label.trim())
+        ? `Gallery reference labels (user-provided context per image, priority order):\n${carouselGalleryItems
+            .map((g, i) => `  ${i + 1}. ${g.label && g.label.trim() ? g.label.trim() : "(unlabeled)"}`)
+            .join("\n")}`
+        : "";
 
       let productImageUrls: string[] = []; // fallback flat list (featured-only) for slides w/o product_ref
       const productRoster: Array<{
@@ -3726,7 +3740,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         const productDirective = slideProductKey && productKeyToImages[slideProductKey]?.length
           ? `\n\nTHIS SLIDE FEATURES PRODUCT "${productKeyToLabel[slideProductKey]}" — the attached product reference image(s) must appear as a real, recognisable hero or supporting visual. Honour the product's actual colours, shape, materials and details. Do NOT invent a different product.`
           : "";
-        const slidePromptWithProduct = slidePrompt + productDirective;
+        const slidePromptWithProduct = slidePrompt + productDirective + (carouselGalleryLabelBrief ? `\n\n${carouselGalleryLabelBrief}` : "");
 
         // Per-slide refs include the previous slide as a continuity anchor.
         const { refs: slideRefs } = await collectRenderRefs({

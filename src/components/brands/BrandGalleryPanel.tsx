@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
-type GalleryItem = { id: string; image_url: string; position?: number };
+type GalleryItem = { id: string; image_url: string; position?: number; label?: string | null };
 
 const FEATURED_SLOTS = 2; // render-refs takes top 2 gallery images
 const ROLE_LABEL: Record<number, { label: string; hint: string }> = {
@@ -38,62 +38,87 @@ function SortableTile({
   item,
   index,
   onDelete,
+  onLabelSave,
 }: {
   item: GalleryItem;
   index: number;
   onDelete: (id: string) => void;
+  onLabelSave: (id: string, label: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
+  const [labelDraft, setLabelDraft] = useState<string>(item.label ?? "");
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
   const role = ROLE_LABEL[index];
+  const commit = () => {
+    const next = labelDraft.trim();
+    if ((item.label ?? "") !== next) onLabelSave(item.id, next);
+  };
   return (
-    <div ref={setNodeRef} style={style} className="relative aspect-square group touch-none">
-      <img
-        src={item.image_url}
-        alt=""
-        className={`w-full h-full object-cover rounded-xl border pointer-events-none ${
-          role ? "border-primary/60 ring-2 ring-primary/30" : "border-border"
-        }`}
-      />
-      {role ? (
-        <div
-          className="absolute bottom-2 left-2 right-2 flex items-center gap-1"
-          title={role.hint}
+    <div ref={setNodeRef} style={style} className="group touch-none space-y-1.5">
+      <div className="relative aspect-square">
+        <img
+          src={item.image_url}
+          alt={item.label ?? ""}
+          className={`w-full h-full object-cover rounded-xl border pointer-events-none ${
+            role ? "border-primary/60 ring-2 ring-primary/30" : "border-border"
+          }`}
+        />
+        {role ? (
+          <div
+            className="absolute bottom-2 left-2 right-2 flex items-center gap-1"
+            title={role.hint}
+          >
+            <Badge className="gap-1 px-2 py-0.5 text-[10px] font-semibold shadow-sm">
+              <Sparkles className="h-2.5 w-2.5" />
+              {role.label}
+            </Badge>
+          </div>
+        ) : (
+          <div className="absolute bottom-2 left-2 right-2">
+            <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-medium opacity-80">
+              Backup
+            </Badge>
+          </div>
+        )}
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder"
+          className="absolute top-2 left-2 w-6 h-6 bg-background/80 backdrop-blur border border-border rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing"
         >
-          <Badge className="gap-1 px-2 py-0.5 text-[10px] font-semibold shadow-sm">
-            <Sparkles className="h-2.5 w-2.5" />
-            {role.label}
-          </Badge>
-        </div>
-      ) : (
-        <div className="absolute bottom-2 left-2 right-2">
-          <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-medium opacity-80">
-            Backup
-          </Badge>
-        </div>
-      )}
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label="Drag to reorder"
-        className="absolute top-2 left-2 w-6 h-6 bg-background/80 backdrop-blur border border-border rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing"
-      >
-        <GripVertical className="h-3 w-3" />
-      </button>
-      <button
-        type="button"
-        onClick={() => onDelete(item.id)}
-        aria-label="Remove image"
-        className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-      >
-        <X className="h-3 w-3" />
-      </button>
+          <GripVertical className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(item.id)}
+          aria-label="Remove image"
+          className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      <input
+        type="text"
+        value={labelDraft}
+        onChange={(e) => setLabelDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        maxLength={60}
+        placeholder="Add label (e.g. Product hero)"
+        className="w-full text-[11px] px-2 py-1 rounded-md border border-border bg-background/60 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/60"
+        aria-label="Image label"
+      />
     </div>
   );
 }
@@ -144,7 +169,7 @@ export default function BrandGalleryPanel({
     queryFn: async () => {
       const { data } = await supabase
         .from("brand_inspiration")
-        .select("id, image_url, position")
+        .select("id, image_url, position, label")
         .eq("brand_id", brandId)
         .order("position", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true });
@@ -254,6 +279,22 @@ export default function BrandGalleryPanel({
     setLocalOrder(null);
   };
 
+  const saveLabel = async (id: string, label: string) => {
+    const prev = gallery;
+    setLocalOrder(prev.map((i) => (i.id === id ? { ...i, label } : i)));
+    const { error } = await supabase
+      .from("brand_inspiration")
+      .update({ label: label || null })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Could not save label", description: error.message, variant: "destructive" });
+      setLocalOrder(null);
+      return;
+    }
+    await refetch();
+    setLocalOrder(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3">
@@ -349,7 +390,7 @@ export default function BrandGalleryPanel({
             <SortableContext items={gallery.map((i) => i.id)} strategy={rectSortingStrategy}>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {gallery.map((item, idx) => (
-                  <SortableTile key={item.id} item={item} index={idx} onDelete={deleteItem} />
+                  <SortableTile key={item.id} item={item} index={idx} onDelete={deleteItem} onLabelSave={saveLabel} />
                 ))}
               </div>
             </SortableContext>
