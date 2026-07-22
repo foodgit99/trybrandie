@@ -3740,7 +3740,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         const productDirective = slideProductKey && productKeyToImages[slideProductKey]?.length
           ? `\n\nTHIS SLIDE FEATURES PRODUCT "${productKeyToLabel[slideProductKey]}" — the attached product reference image(s) must appear as a real, recognisable hero or supporting visual. Honour the product's actual colours, shape, materials and details. Do NOT invent a different product.`
           : "";
-        const slidePromptWithProduct = slidePrompt + productDirective;
+        const slidePromptWithProduct = slidePrompt + productDirective + (carouselGalleryLabelBrief ? `\n\n${carouselGalleryLabelBrief}` : "");
 
         // Per-slide refs include the previous slide as a continuity anchor.
         const { refs: slideRefs } = await collectRenderRefs({
