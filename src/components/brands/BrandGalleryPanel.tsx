@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
-type GalleryItem = { id: string; image_url: string; position?: number };
+type GalleryItem = { id: string; image_url: string; position?: number; label?: string | null };
 
 const FEATURED_SLOTS = 2; // render-refs takes top 2 gallery images
 const ROLE_LABEL: Record<number, { label: string; hint: string }> = {
