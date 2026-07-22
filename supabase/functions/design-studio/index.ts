@@ -1573,23 +1573,30 @@ TREND RULES:
 
       // Collect inspiration examples — load from brand_inspiration table
       let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      let galleryItems: Array<{ url: string; label: string | null }> = [];
       if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
         try {
           const { data: inspirationData } = await adminClient
             .from("brand_inspiration")
-            .select("image_url, position, created_at")
+            .select("image_url, label, position, created_at")
             .eq("brand_id", brand.id)
             .order("position", { ascending: true })
             .order("created_at", { ascending: true })
             .limit(10);
           if (inspirationData && inspirationData.length > 0) {
             inspirationUrls = inspirationData.map((i: any) => i.image_url);
+            galleryItems = inspirationData.map((i: any) => ({ url: i.image_url, label: i.label ?? null }));
             console.log(`Loaded ${inspirationUrls.length} inspiration images from DB`);
           }
         } catch (e) {
           console.log("Failed to load inspiration images:", e);
         }
       }
+      const galleryLabelBrief = galleryItems.some((g) => g.label && g.label.trim())
+        ? `\n- Gallery reference labels (user-provided context for each image, in priority order):\n${galleryItems
+            .map((g, i) => `  ${i + 1}. ${g.label && g.label.trim() ? g.label.trim() : "(unlabeled)"}`)
+            .join("\n")}`
+        : "";
 
       // Fetch product catalogue for contextual use
       let productImageUrls: string[] = [];
