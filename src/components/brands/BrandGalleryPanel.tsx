@@ -279,6 +279,22 @@ export default function BrandGalleryPanel({
     setLocalOrder(null);
   };
 
+  const saveLabel = async (id: string, label: string) => {
+    const prev = gallery;
+    setLocalOrder(prev.map((i) => (i.id === id ? { ...i, label } : i)));
+    const { error } = await supabase
+      .from("brand_inspiration")
+      .update({ label: label || null })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Could not save label", description: error.message, variant: "destructive" });
+      setLocalOrder(null);
+      return;
+    }
+    await refetch();
+    setLocalOrder(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-secondary/40 p-3">
