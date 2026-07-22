@@ -169,7 +169,7 @@ export default function BrandGalleryPanel({
     queryFn: async () => {
       const { data } = await supabase
         .from("brand_inspiration")
-        .select("id, image_url, position")
+        .select("id, image_url, position, label")
         .eq("brand_id", brandId)
         .order("position", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true });
