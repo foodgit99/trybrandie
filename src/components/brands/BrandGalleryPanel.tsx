@@ -390,7 +390,7 @@ export default function BrandGalleryPanel({
             <SortableContext items={gallery.map((i) => i.id)} strategy={rectSortingStrategy}>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {gallery.map((item, idx) => (
-                  <SortableTile key={item.id} item={item} index={idx} onDelete={deleteItem} />
+                  <SortableTile key={item.id} item={item} index={idx} onDelete={deleteItem} onLabelSave={saveLabel} />
                 ))}
               </div>
             </SortableContext>
