@@ -1680,7 +1680,7 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? (brand?.prefer_gallery_first !== false
   ? `- Brand Gallery (PREFER GALLERY FIRST — mandatory): The brand has ${inspirationUrls.length} real gallery photo(s). You MUST feature these EXACT images in the composition as the primary visuals. Do NOT generate replacement product/team/premises imagery when a gallery photo can serve the same purpose. Only fabricate new imagery for elements the gallery does not cover. Never redraw, restyle, or heavily crop the gallery images — treat their pixels as literal brand assets.`
-  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Feature these EXACT images in the composition whenever relevant instead of generating substitutes. Do not redraw or restyle them — they are the brand's real assets.`) : ""}
+  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Feature these EXACT images in the composition whenever relevant instead of generating substitutes. Do not redraw or restyle them — they are the brand's real assets.`) : ""}${galleryLabelBrief}
 ${brand.special_instructions ? `- Special instructions: ${brand.special_instructions}` : ""}
 ${audienceContext}${trendContext}${productImageContext}${preferenceContext}${chatHistoryContext}
 
