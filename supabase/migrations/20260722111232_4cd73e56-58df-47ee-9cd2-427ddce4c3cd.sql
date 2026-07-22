@@ -1,0 +1,1 @@
+ALTER TABLE public.brand_inspiration ADD COLUMN IF NOT EXISTS label text;
