@@ -3263,22 +3263,29 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       // ----- Step 0a: fetch products & inspiration UP-FRONT so the arc planner -----
       // can weave concrete product names / features into the narrative thread.
       let inspirationUrls: string[] = brand?.inspiration_examples || [];
+      let carouselGalleryItems: Array<{ url: string; label: string | null }> = [];
       if ((!inspirationUrls || inspirationUrls.length === 0) && brand?.id) {
         try {
           const { data: inspirationData } = await adminClient
             .from("brand_inspiration")
-            .select("image_url, position, created_at")
+            .select("image_url, label, position, created_at")
             .eq("brand_id", brand.id)
             .order("position", { ascending: true })
             .order("created_at", { ascending: true })
             .limit(10);
           if (inspirationData && inspirationData.length > 0) {
             inspirationUrls = inspirationData.map((i: any) => i.image_url);
+            carouselGalleryItems = inspirationData.map((i: any) => ({ url: i.image_url, label: i.label ?? null }));
           }
         } catch (e) {
           console.log("[carousel] inspiration fetch failed:", e);
         }
       }
+      const carouselGalleryLabelBrief = carouselGalleryItems.some((g) => g.label && g.label.trim())
+        ? `Gallery reference labels (user-provided context per image, priority order):\n${carouselGalleryItems
+            .map((g, i) => `  ${i + 1}. ${g.label && g.label.trim() ? g.label.trim() : "(unlabeled)"}`)
+            .join("\n")}`
+        : "";
 
       let productImageUrls: string[] = []; // fallback flat list (featured-only) for slides w/o product_ref
       const productRoster: Array<{
