@@ -2559,7 +2559,9 @@ ${brand.special_instructions}
       // Copywriter Agent (runs in parallel with Caption)
       const copywriterPromise = (async () => {
         try {
-          const copywriterPrompt = `You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic.
+          const copywriterPrompt = `${OGILVY_COPY_DOCTRINE}
+
+You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic. Apply the doctrine above: pick ONE objective, use a strong hook opener (never "We…"), prefer specifics over adjectives, and pass the pre-flight checklist silently before returning.
 
 CONTEXT:
 - Creative direction: ${designPrompt}
