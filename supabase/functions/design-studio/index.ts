@@ -2494,6 +2494,49 @@ ${brand.special_instructions}
         }
       }
 
+      // --- GALLERY LABEL MEMORY ---
+      // Reuse gallery labels from prior successful designs of the same intent
+      // (same brand + content_category, upvoted or neutral) so recurring
+      // intents keep picking the same gallery images.
+      let priorGalleryReuseBrief = "";
+      const currentGalleryLabels = galleryItems
+        .map((g) => (g.label ?? "").trim())
+        .filter((l) => l.length > 0);
+      if (brand?.id && resolvedCategory && currentGalleryLabels.length > 0) {
+        try {
+          const { data: priorDesigns } = await adminClient
+            .from("designs")
+            .select("gallery_labels_used, vote, created_at")
+            .eq("brand_id", brand.id)
+            .eq("content_category", resolvedCategory)
+            .not("gallery_labels_used", "is", null)
+            .gte("vote", 0)
+            .order("vote", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(5);
+          const tally: Record<string, number> = {};
+          for (const row of (priorDesigns as any[] | null) ?? []) {
+            const w = row.vote === 1 ? 3 : 1;
+            for (const raw of (row.gallery_labels_used as string[] | null) ?? []) {
+              const l = (raw ?? "").trim().toLowerCase();
+              if (!l) continue;
+              // Only surface labels still present in the current gallery
+              if (!currentGalleryLabels.some((c) => c.toLowerCase() === l)) continue;
+              tally[l] = (tally[l] || 0) + w;
+            }
+          }
+          const preferred = Object.entries(tally)
+            .sort((a, b) => b[1] - a[1])
+            .map(([l]) => l)
+            .slice(0, 4);
+          if (preferred.length > 0) {
+            priorGalleryReuseBrief = `\n\nGALLERY MEMORY (prior "${resolvedCategoryData?.name || resolvedCategory}" posts used these gallery images — prefer them again for continuity): ${preferred.join(" · ")}.`;
+          }
+        } catch (e) {
+          console.log("[gallery-memory] lookup failed:", e instanceof Error ? e.message : e);
+        }
+      }
+
       const copyForbiddenContext = buildCopyForbiddenContext(resolvedCategory);
       const ctaPolicyLine = (() => {
         const policy = CATEGORY_RECIPES[resolvedCategory]?.cta_policy;
