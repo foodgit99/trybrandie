@@ -231,6 +231,8 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
                 ...(data.genome && { genome: data.genome }),
                 ...(data.caption && { caption: data.caption }),
                 ...(data.copy_structure && { copy_structure: data.copy_structure }),
+                ...(data.content_category && { content_category: data.content_category }),
+                ...(Array.isArray(data.gallery_labels_used) && data.gallery_labels_used.length > 0 && { gallery_labels_used: data.gallery_labels_used }),
               } as any).eq("id", designId);
 
               const newChatRows = [userMsg, assistantMsg].filter(Boolean).map((m: any) => ({
@@ -255,6 +257,8 @@ export function DesignGenerationProvider({ children }: { children: React.ReactNo
                 ...(data.genome && { genome: data.genome }),
                 ...(data.caption && { caption: data.caption }),
                 ...(data.copy_structure && { copy_structure: data.copy_structure }),
+                ...(data.content_category && { content_category: data.content_category }),
+                ...(Array.isArray(data.gallery_labels_used) && data.gallery_labels_used.length > 0 && { gallery_labels_used: data.gallery_labels_used }),
                 ...(data.layout_schema && { layout_schema: data.layout_schema }),
                 ...(data.creative_director_version && { creative_director_version: data.creative_director_version }),
               } as any).select("id").single();

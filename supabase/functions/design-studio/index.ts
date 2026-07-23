@@ -2494,6 +2494,49 @@ ${brand.special_instructions}
         }
       }
 
+      // --- GALLERY LABEL MEMORY ---
+      // Reuse gallery labels from prior successful designs of the same intent
+      // (same brand + content_category, upvoted or neutral) so recurring
+      // intents keep picking the same gallery images.
+      let priorGalleryReuseBrief = "";
+      const currentGalleryLabels = galleryItems
+        .map((g) => (g.label ?? "").trim())
+        .filter((l) => l.length > 0);
+      if (brand?.id && resolvedCategory && currentGalleryLabels.length > 0) {
+        try {
+          const { data: priorDesigns } = await adminClient
+            .from("designs")
+            .select("gallery_labels_used, vote, created_at")
+            .eq("brand_id", brand.id)
+            .eq("content_category", resolvedCategory)
+            .not("gallery_labels_used", "is", null)
+            .gte("vote", 0)
+            .order("vote", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(5);
+          const tally: Record<string, number> = {};
+          for (const row of (priorDesigns as any[] | null) ?? []) {
+            const w = row.vote === 1 ? 3 : 1;
+            for (const raw of (row.gallery_labels_used as string[] | null) ?? []) {
+              const l = (raw ?? "").trim().toLowerCase();
+              if (!l) continue;
+              // Only surface labels still present in the current gallery
+              if (!currentGalleryLabels.some((c) => c.toLowerCase() === l)) continue;
+              tally[l] = (tally[l] || 0) + w;
+            }
+          }
+          const preferred = Object.entries(tally)
+            .sort((a, b) => b[1] - a[1])
+            .map(([l]) => l)
+            .slice(0, 4);
+          if (preferred.length > 0) {
+            priorGalleryReuseBrief = `\n\nGALLERY MEMORY (prior "${resolvedCategoryData?.name || resolvedCategory}" posts used these gallery images — prefer them again for continuity): ${preferred.join(" · ")}.`;
+          }
+        } catch (e) {
+          console.log("[gallery-memory] lookup failed:", e instanceof Error ? e.message : e);
+        }
+      }
+
       const copyForbiddenContext = buildCopyForbiddenContext(resolvedCategory);
       const ctaPolicyLine = (() => {
         const policy = CATEGORY_RECIPES[resolvedCategory]?.cta_policy;
@@ -2843,7 +2886,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           : "";
 
         // P1.#1: PRIMARY CREATIVE INTENT — lead with the verbatim user prompt.
-        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${blueprintBlock}${varGenomeContext}${varCopyInjection}`;
+        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${blueprintBlock}${varGenomeContext}${varCopyInjection}${priorGalleryReuseBrief}`;
 
         // P1.#1: condensed polish block (~3 sentences, was ~2KB of boilerplate).
         const polishBlock = `Create a PHOTOREALISTIC, modern, studio-grade social graphic (${sizeLabel}, ${w}x${h}px). Use real photography, natural textures, balanced composition, generous breathing room, refined glassy finish, crisp edges, and tasteful glassmorphism on overlay panels — no muddy gradients or low-res artefacts. CRITICAL TEXT CONTRAST: every word must sit on a high-contrast background (use scrims/overlays when over photography); readability is non-negotiable.${copyStructure ? "" : " Only include text that directly serves the user's request — no filler text or random quotes."}`;
@@ -3143,6 +3186,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           ...(captionText ? { caption: captionText } : {}),
           run_id: tracer.runId,
           content_category: resolvedCategory,
+          gallery_labels_used: currentGalleryLabels,
           ...(layoutSchema ? { layout_schema: layoutSchema, creative_director_version: CD_VERSION } : {}),
           ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
           ...(updatesUsed.length ? { updates_used: summariseForClient(updatesUsed) } : {}),
@@ -3281,7 +3325,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           console.log("[carousel] inspiration fetch failed:", e);
         }
       }
-      const carouselGalleryLabelBrief = carouselGalleryItems.some((g) => g.label && g.label.trim())
+      let carouselGalleryLabelBrief = carouselGalleryItems.some((g) => g.label && g.label.trim())
         ? `Gallery reference labels (user-provided context per image, priority order):\n${carouselGalleryItems
             .map((g, i) => `  ${i + 1}. ${g.label && g.label.trim() ? g.label.trim() : "(unlabeled)"}`)
             .join("\n")}`
@@ -3299,16 +3343,53 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       // Seed product_ref from a linked content_idea if present, so the arc planner
       // gets a strong default for at least one slide.
       let seedProductId: string | null = null;
+      let carouselContentCategory: string | null = null;
       if (contentIdeaId) {
         try {
           const { data: ideaRow } = await adminClient
             .from("content_ideas")
-            .select("product_ref")
+            .select("product_ref, category")
             .eq("id", contentIdeaId)
             .maybeSingle();
           seedProductId = (ideaRow as any)?.product_ref || null;
+          carouselContentCategory = (ideaRow as any)?.category || null;
         } catch (e) {
           console.log("[carousel] idea product_ref fetch failed:", e);
+        }
+      }
+      const carouselGalleryLabelsUsed = carouselGalleryItems
+        .map((g) => (g.label ?? "").trim())
+        .filter((l) => l.length > 0);
+
+      // Reuse gallery labels from prior successful carousels/posts of the same intent.
+      if (brand?.id && carouselContentCategory && carouselGalleryLabelsUsed.length > 0) {
+        try {
+          const { data: priorDesigns } = await adminClient
+            .from("designs")
+            .select("gallery_labels_used, vote")
+            .eq("brand_id", brand.id)
+            .eq("content_category", carouselContentCategory)
+            .not("gallery_labels_used", "is", null)
+            .gte("vote", 0)
+            .order("vote", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(6);
+          const tally: Record<string, number> = {};
+          for (const row of (priorDesigns as any[] | null) ?? []) {
+            const w = row.vote === 1 ? 3 : 1;
+            for (const raw of (row.gallery_labels_used as string[] | null) ?? []) {
+              const l = (raw ?? "").trim().toLowerCase();
+              if (!l) continue;
+              if (!carouselGalleryLabelsUsed.some((c) => c.toLowerCase() === l)) continue;
+              tally[l] = (tally[l] || 0) + w;
+            }
+          }
+          const preferred = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([l]) => l).slice(0, 4);
+          if (preferred.length > 0) {
+            carouselGalleryLabelBrief += `\n\nGALLERY MEMORY (prior "${carouselContentCategory}" posts used these gallery images — prefer them again for continuity): ${preferred.join(" · ")}.`;
+          }
+        } catch (e) {
+          console.log("[carousel gallery-memory] lookup failed:", e instanceof Error ? e.message : e);
         }
       }
       if (brand?.id) {
@@ -3807,6 +3888,8 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           slide_label: slide.slide_label,
           narrative_thread: carouselPlan.narrative_thread,
           vote: 0,
+          ...(carouselContentCategory && { content_category: carouselContentCategory }),
+          ...(carouselGalleryLabelsUsed.length > 0 && { gallery_labels_used: carouselGalleryLabelsUsed }),
           ...(contentIdeaId && { content_idea_id: contentIdeaId }),
           ...(trend && trend !== "none" && { trend_used: trend, trend_intensity }),
         } as any).select("id").single();
