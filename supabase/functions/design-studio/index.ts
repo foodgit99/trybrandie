@@ -4053,7 +4053,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: `You are a social media caption writer. Write a caption for an Instagram carousel post. Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}. The carousel's through-line: "${carouselPlan.narrative_thread}". The final CTA is: "${carouselPlan.slides[lastIdx].cta}".` },
+              { role: "system", content: `${OGILVY_COPY_DOCTRINE}\n\nYou are a social media caption writer. Write a caption for an Instagram carousel post. Pick ONE caption framework and open with a hook that earns attention — never with "We…". Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}. The carousel's through-line: "${carouselPlan.narrative_thread}". The final CTA is: "${carouselPlan.slides[lastIdx].cta}".` },
               { role: "user", content: `Write a caption for a ${numSlides}-slide carousel about: "${userPrompt}". Echo the through-line. End with the CTA. Include 5-8 hashtags.` },
             ],
           }),
