@@ -2662,7 +2662,9 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
             ? `\n\nFINAL COPY RENDERED ON THE DESIGN (mirror this language — do NOT contradict or restate differently):\n- Headline: "${upstreamCopy.headline}"${upstreamCopy.subheadline ? `\n- Subheadline: "${upstreamCopy.subheadline}"` : ""}${upstreamCopy.cta ? `\n- CTA: "${upstreamCopy.cta}"` : ""}`
             : "";
 
-          const captionSystemPrompt = `You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts.
+          const captionSystemPrompt = `${OGILVY_COPY_DOCTRINE}
+
+You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts. Silently pick ONE objective and ONE caption framework (PAS / AIDA / BAB / Story-Lesson-CTA / Myth-Truth-Evidence / Question-Insight-Invitation / Mistake-Solution-Example) before writing. Earn attention in the first sentence. End with a single, specific CTA.
 
 BRAND CONTEXT:
 - Brand: ${brand?.name || "Unknown"}
