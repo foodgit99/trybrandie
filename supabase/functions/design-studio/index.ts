@@ -3360,6 +3360,38 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       const carouselGalleryLabelsUsed = carouselGalleryItems
         .map((g) => (g.label ?? "").trim())
         .filter((l) => l.length > 0);
+
+      // Reuse gallery labels from prior successful carousels/posts of the same intent.
+      if (brand?.id && carouselContentCategory && carouselGalleryLabelsUsed.length > 0) {
+        try {
+          const { data: priorDesigns } = await adminClient
+            .from("designs")
+            .select("gallery_labels_used, vote")
+            .eq("brand_id", brand.id)
+            .eq("content_category", carouselContentCategory)
+            .not("gallery_labels_used", "is", null)
+            .gte("vote", 0)
+            .order("vote", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(6);
+          const tally: Record<string, number> = {};
+          for (const row of (priorDesigns as any[] | null) ?? []) {
+            const w = row.vote === 1 ? 3 : 1;
+            for (const raw of (row.gallery_labels_used as string[] | null) ?? []) {
+              const l = (raw ?? "").trim().toLowerCase();
+              if (!l) continue;
+              if (!carouselGalleryLabelsUsed.some((c) => c.toLowerCase() === l)) continue;
+              tally[l] = (tally[l] || 0) + w;
+            }
+          }
+          const preferred = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([l]) => l).slice(0, 4);
+          if (preferred.length > 0) {
+            carouselGalleryLabelBrief += `\n\nGALLERY MEMORY (prior "${carouselContentCategory}" posts used these gallery images — prefer them again for continuity): ${preferred.join(" · ")}.`;
+          }
+        } catch (e) {
+          console.log("[carousel gallery-memory] lookup failed:", e instanceof Error ? e.message : e);
+        }
+      }
       if (brand?.id) {
         try {
           const { data: productData } = await adminClient
