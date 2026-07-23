@@ -3186,6 +3186,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           ...(captionText ? { caption: captionText } : {}),
           run_id: tracer.runId,
           content_category: resolvedCategory,
+          gallery_labels_used: currentGalleryLabels,
           ...(layoutSchema ? { layout_schema: layoutSchema, creative_director_version: CD_VERSION } : {}),
           ...(researchEnrichment?.sources?.length ? { research_sources: researchEnrichment.sources } : {}),
           ...(updatesUsed.length ? { updates_used: summariseForClient(updatesUsed) } : {}),
