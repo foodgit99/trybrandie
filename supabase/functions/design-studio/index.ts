@@ -3343,18 +3343,23 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       // Seed product_ref from a linked content_idea if present, so the arc planner
       // gets a strong default for at least one slide.
       let seedProductId: string | null = null;
+      let carouselContentCategory: string | null = null;
       if (contentIdeaId) {
         try {
           const { data: ideaRow } = await adminClient
             .from("content_ideas")
-            .select("product_ref")
+            .select("product_ref, category")
             .eq("id", contentIdeaId)
             .maybeSingle();
           seedProductId = (ideaRow as any)?.product_ref || null;
+          carouselContentCategory = (ideaRow as any)?.category || null;
         } catch (e) {
           console.log("[carousel] idea product_ref fetch failed:", e);
         }
       }
+      const carouselGalleryLabelsUsed = carouselGalleryItems
+        .map((g) => (g.label ?? "").trim())
+        .filter((l) => l.length > 0);
       if (brand?.id) {
         try {
           const { data: productData } = await adminClient
