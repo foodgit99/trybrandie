@@ -3325,7 +3325,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           console.log("[carousel] inspiration fetch failed:", e);
         }
       }
-      const carouselGalleryLabelBrief = carouselGalleryItems.some((g) => g.label && g.label.trim())
+      let carouselGalleryLabelBrief = carouselGalleryItems.some((g) => g.label && g.label.trim())
         ? `Gallery reference labels (user-provided context per image, priority order):\n${carouselGalleryItems
             .map((g, i) => `  ${i + 1}. ${g.label && g.label.trim() ? g.label.trim() : "(unlabeled)"}`)
             .join("\n")}`
