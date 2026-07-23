@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   DndContext,
@@ -48,16 +48,49 @@ function SortableTile({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
   const [labelDraft, setLabelDraft] = useState<string>(item.label ?? "");
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Keep draft in sync when the saved label changes from elsewhere (refetch, other tab).
+  useEffect(() => {
+    if (!isEditing) setLabelDraft(item.label ?? "");
+  }, [item.label, isEditing]);
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
   const role = ROLE_LABEL[index];
-  const commit = () => {
-    const next = labelDraft.trim();
-    if ((item.label ?? "") !== next) onLabelSave(item.id, next);
+  const savedLabel = (item.label ?? "").trim();
+
+  const commit = async (raw: string) => {
+    const next = raw.trim();
+    if ((item.label ?? "").trim() === next) {
+      setIsEditing(false);
+      return;
+    }
+    setSaving(true);
+    await onLabelSave(item.id, next);
+    setSaving(false);
+    setIsEditing(false);
   };
+
+  const startEditing = () => {
+    setLabelDraft(item.label ?? "");
+    setIsEditing(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const removeLabel = async () => {
+    setLabelDraft("");
+    setSaving(true);
+    await onLabelSave(item.id, "");
+    setSaving(false);
+    setIsEditing(false);
+  };
+
   return (
     <div ref={setNodeRef} style={style} className="group touch-none space-y-1.5">
       <div className="relative aspect-square">
@@ -103,22 +136,75 @@ function SortableTile({
           <X className="h-3 w-3" />
         </button>
       </div>
-      <input
-        type="text"
-        value={labelDraft}
-        onChange={(e) => setLabelDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            (e.target as HTMLInputElement).blur();
-          }
-        }}
-        maxLength={60}
-        placeholder="Add label (e.g. Product hero)"
-        className="w-full text-[11px] px-2 py-1 rounded-md border border-border bg-background/60 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/60"
-        aria-label="Image label"
-      />
+      {isEditing ? (
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                (e.target as HTMLInputElement).blur();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setLabelDraft(item.label ?? "");
+                setIsEditing(false);
+              }
+            }}
+            maxLength={60}
+            placeholder="Add label (e.g. Product hero)"
+            className="w-full text-[11px] pl-2 pr-6 py-1 rounded-md border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/60"
+            aria-label="Image label"
+            disabled={saving}
+          />
+          {labelDraft && !saving && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setLabelDraft("")}
+              aria-label="Clear label"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full text-muted-foreground hover:text-foreground flex items-center justify-center"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+          {saving && (
+            <Loader2 className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+        </div>
+      ) : savedLabel ? (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={startEditing}
+            className="flex-1 min-w-0 text-left text-[11px] px-2 py-1 rounded-md border border-transparent hover:border-border hover:bg-secondary/60 truncate"
+            title="Click to edit"
+          >
+            {savedLabel}
+          </button>
+          <button
+            type="button"
+            onClick={removeLabel}
+            aria-label="Remove label"
+            className="shrink-0 w-5 h-5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center"
+            title="Remove label"
+            disabled={saving}
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={startEditing}
+          className="w-full text-[11px] px-2 py-1 rounded-md border border-dashed border-border/70 bg-background/40 text-muted-foreground hover:text-foreground hover:border-border hover:bg-secondary/60 text-left"
+        >
+          + Add label
+        </button>
+      )}
     </div>
   );
 }
