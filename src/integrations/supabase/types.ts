@@ -1733,10 +1733,12 @@ export type Database = {
           canvas_size: string
           caption: string | null
           carousel_id: string | null
+          content_category: string | null
           content_idea_id: string | null
           copy_structure: Json | null
           created_at: string
           creative_director_version: string | null
+          gallery_labels_used: string[] | null
           genome: Json | null
           id: string
           image_url: string
@@ -1760,10 +1762,12 @@ export type Database = {
           canvas_size?: string
           caption?: string | null
           carousel_id?: string | null
+          content_category?: string | null
           content_idea_id?: string | null
           copy_structure?: Json | null
           created_at?: string
           creative_director_version?: string | null
+          gallery_labels_used?: string[] | null
           genome?: Json | null
           id?: string
           image_url: string
@@ -1787,10 +1791,12 @@ export type Database = {
           canvas_size?: string
           caption?: string | null
           carousel_id?: string | null
+          content_category?: string | null
           content_idea_id?: string | null
           copy_structure?: Json | null
           created_at?: string
           creative_director_version?: string | null
+          gallery_labels_used?: string[] | null
           genome?: Json | null
           id?: string
           image_url?: string
