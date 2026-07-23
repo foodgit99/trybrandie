@@ -1197,7 +1197,7 @@ You will be given a list of active campaigns with their remaining slots. Any cam
         .join("\n");
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner. Generate exactly ONE post idea for EACH listed empty day. Do not repeat or rephrase the recent titles provided. Maximize category variety, prioritising categories that are missing from the last 14 days when relevant to the brand.
+        system: `${OGILVY_COPY_DOCTRINE}\n\n${OGILVY_PILLAR_GUIDE}\n\nYou are a social media content planner. Generate exactly ONE post idea for EACH listed empty day. Each idea serves ONE objective, leads with an audience-facing hook (never "We…" / "Our company…"), avoids empty motivational filler, and never invents proof. Do not repeat or rephrase the recent titles provided. Maximize category variety, prioritising categories that are missing from the last 14 days when relevant to the brand.
 
 ${CONTENT_CATEGORIES_REF}
 
