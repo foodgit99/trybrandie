@@ -3856,6 +3856,8 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           slide_label: slide.slide_label,
           narrative_thread: carouselPlan.narrative_thread,
           vote: 0,
+          ...(carouselContentCategory && { content_category: carouselContentCategory }),
+          ...(carouselGalleryLabelsUsed.length > 0 && { gallery_labels_used: carouselGalleryLabelsUsed }),
           ...(contentIdeaId && { content_idea_id: contentIdeaId }),
           ...(trend && trend !== "none" && { trend_used: trend, trend_intensity }),
         } as any).select("id").single();
