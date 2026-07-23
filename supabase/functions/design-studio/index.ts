@@ -26,6 +26,7 @@ import {
   type CollectedRef,
 } from "../_shared/render-refs.ts";
 import { scoreDesignImage, weightedOverall, type QualityResult } from "../_shared/design-scorer.ts";
+import { OGILVY_COPY_DOCTRINE } from "../_shared/ogilvy-copy-doctrine.ts";
 
 
 
@@ -2558,7 +2559,9 @@ ${brand.special_instructions}
       // Copywriter Agent (runs in parallel with Caption)
       const copywriterPromise = (async () => {
         try {
-          const copywriterPrompt = `You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic.
+          const copywriterPrompt = `${OGILVY_COPY_DOCTRINE}
+
+You are a world-class brand copywriter. Your job is to write the EXACT text that will appear on a social media graphic. Apply the doctrine above: pick ONE objective, use a strong hook opener (never "We…"), prefer specifics over adjectives, and pass the pre-flight checklist silently before returning.
 
 CONTEXT:
 - Creative direction: ${designPrompt}
@@ -2659,7 +2662,9 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
             ? `\n\nFINAL COPY RENDERED ON THE DESIGN (mirror this language — do NOT contradict or restate differently):\n- Headline: "${upstreamCopy.headline}"${upstreamCopy.subheadline ? `\n- Subheadline: "${upstreamCopy.subheadline}"` : ""}${upstreamCopy.cta ? `\n- CTA: "${upstreamCopy.cta}"` : ""}`
             : "";
 
-          const captionSystemPrompt = `You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts.
+          const captionSystemPrompt = `${OGILVY_COPY_DOCTRINE}
+
+You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts. Silently pick ONE objective and ONE caption framework (PAS / AIDA / BAB / Story-Lesson-CTA / Myth-Truth-Evidence / Question-Insight-Invitation / Mistake-Solution-Example) before writing. Earn attention in the first sentence. End with a single, specific CTA.
 
 BRAND CONTEXT:
 - Brand: ${brand?.name || "Unknown"}
@@ -3456,7 +3461,9 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
         : "";
 
       // ----- Step 1: Arc plan (Pro reasoning model, structured, validated) -----
-      const arcSystem = `You are a senior creative director planning an Instagram carousel with exactly ${numSlides} slides.
+      const arcSystem = `${OGILVY_COPY_DOCTRINE}
+
+You are a senior creative director planning an Instagram carousel with exactly ${numSlides} slides. Apply the doctrine: the entire carousel serves ONE objective, opens with a strong hook (never "We…"), advances one new beat per slide, and closes with one clear CTA. No invented proof. No empty motivational filler.
 
 ${brandContext}${audienceContext}${productsContext}${trendContextArc}
 
@@ -4046,7 +4053,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: `You are a social media caption writer. Write a caption for an Instagram carousel post. Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}. The carousel's through-line: "${carouselPlan.narrative_thread}". The final CTA is: "${carouselPlan.slides[lastIdx].cta}".` },
+              { role: "system", content: `${OGILVY_COPY_DOCTRINE}\n\nYou are a social media caption writer. Write a caption for an Instagram carousel post. Pick ONE caption framework and open with a hook that earns attention — never with "We…". Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}. The carousel's through-line: "${carouselPlan.narrative_thread}". The final CTA is: "${carouselPlan.slides[lastIdx].cta}".` },
               { role: "user", content: `Write a caption for a ${numSlides}-slide carousel about: "${userPrompt}". Echo the through-line. End with the CTA. Include 5-8 hashtags.` },
             ],
           }),

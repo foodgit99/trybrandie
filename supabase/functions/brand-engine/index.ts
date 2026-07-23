@@ -4,6 +4,7 @@ import { getWeekHolidaysAsync, fetchHolidayFeed, resolveBrandRegion } from "../_
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
 import { resolveBrandStages, normaliseStageId, STAGE_IDS, type FunnelStageId } from "../_shared/funnel-stages.ts";
+import { OGILVY_COPY_DOCTRINE, OGILVY_PILLAR_GUIDE } from "../_shared/ogilvy-copy-doctrine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -862,7 +863,7 @@ Each campaign should target a specific content category. Vary categories across 
 
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
+        system: `${OGILVY_COPY_DOCTRINE}\n\n${OGILVY_PILLAR_GUIDE}\n\nYou are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Every idea must serve ONE objective, lead with an audience-facing hook (never open titles or prompts with "We…" / "Our company…"), avoid empty motivational filler and invented proof. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
 
 ${CONTENT_CATEGORIES_REF}
 
@@ -1196,7 +1197,7 @@ You will be given a list of active campaigns with their remaining slots. Any cam
         .join("\n");
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner. Generate exactly ONE post idea for EACH listed empty day. Do not repeat or rephrase the recent titles provided. Maximize category variety, prioritising categories that are missing from the last 14 days when relevant to the brand.
+        system: `${OGILVY_COPY_DOCTRINE}\n\n${OGILVY_PILLAR_GUIDE}\n\nYou are a social media content planner. Generate exactly ONE post idea for EACH listed empty day. Each idea serves ONE objective, leads with an audience-facing hook (never "We…" / "Our company…"), avoids empty motivational filler, and never invents proof. Do not repeat or rephrase the recent titles provided. Maximize category variety, prioritising categories that are missing from the last 14 days when relevant to the brand.
 
 ${CONTENT_CATEGORIES_REF}
 
@@ -1483,7 +1484,7 @@ Rules:
         .join("\n");
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner. Convert each provided business UPDATE into ONE on-brand post idea.
+        system: `${OGILVY_COPY_DOCTRINE}\n\nYou are a social media content planner. Convert each provided business UPDATE into ONE on-brand post idea. Each idea serves ONE objective, leads with an audience-facing hook (never "We…" / "Our company…" openings — reframe announcements around the reader's benefit), and never invents specifics that aren't in the source update.
 
 ${CONTENT_CATEGORIES_REF}
 

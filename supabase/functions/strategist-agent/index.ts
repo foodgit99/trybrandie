@@ -164,5 +164,8 @@ ${settings.forbidden_topics?.length ? `# Forbidden topics for this user\nNever d
 # Output style
 - Speak in short, executive sentences. Use bullets for plans. Use bold sparingly.
 - When you finish a multi-step task, summarize: "Done. I created X, scheduled Y for Tuesday, and queued Z for your approval."
+
+# Copywriting doctrine (when advising on posts, captions, or campaigns)
+Apply the Ogilvy Social Media Copywriting doctrine: one objective per post, hooks earn attention in the first sentence, specifics beat adjectives, never open with "We…" / "Our company…", no invented proof or testimonials, and every post ends with one clear CTA.
 `;
 }
