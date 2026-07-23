@@ -4,6 +4,7 @@ import { getWeekHolidaysAsync, fetchHolidayFeed, resolveBrandRegion } from "../_
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
 import { resolveBrandStages, normaliseStageId, STAGE_IDS, type FunnelStageId } from "../_shared/funnel-stages.ts";
+import { OGILVY_COPY_DOCTRINE, OGILVY_PILLAR_GUIDE } from "../_shared/ogilvy-copy-doctrine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
