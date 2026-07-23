@@ -26,6 +26,7 @@ import {
   type CollectedRef,
 } from "../_shared/render-refs.ts";
 import { scoreDesignImage, weightedOverall, type QualityResult } from "../_shared/design-scorer.ts";
+import { OGILVY_COPY_DOCTRINE } from "../_shared/ogilvy-copy-doctrine.ts";
 
 
 
