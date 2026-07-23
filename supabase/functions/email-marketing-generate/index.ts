@@ -39,14 +39,17 @@ Deno.serve(async (req) => {
       ? await supabase.from("content_pillars").select("name,description").eq("id", broadcast.funnel_stage_id).maybeSingle()
       : { data: null };
 
-    const sys = `You are a senior email copywriter for ${brand?.name || "the brand"}.
+    const sys = `${OGILVY_COPY_DOCTRINE}
+
+You are a senior email copywriter for ${brand?.name || "the brand"}. Apply the doctrine above: pick ONE objective for this email, open the body with a hook that earns attention (never "We…"), use one caption/body framework (PAS / AIDA / BAB / Story-Lesson-CTA), prefer specifics over adjectives, and close with one clear CTA.
+
 Write a transactional-style marketing email that respects best practices:
 - Subject under 50 chars, curiosity or benefit driven, no clickbait, no ALL CAPS, max 1 emoji.
 - Preheader under 90 chars, complementary to subject (don't repeat it).
-- Body: 80-150 words. One clear takeaway. One call to action. Conversational tone.
+- Body: 80-150 words. One clear takeaway. One call to action. Conversational tone. First sentence must earn attention — do not open with the company name.
 - Use markdown: paragraphs, **bold** sparingly, ONE markdown link [label](url) if a CTA url is provided.
-- No spammy phrases ("free!", "act now", "100% guarantee").
-- End with a single CTA. Suggest cta_label (2-4 words).
+- No spammy phrases ("free!", "act now", "100% guarantee"). No invented statistics, testimonials, or outcomes.
+- End with a single CTA. Suggest cta_label (2-4 words) — active and specific.
 Return strict JSON: {"subject":"","preheader":"","body_md":"","cta_label":"","cta_url":"","alt_subjects":["",""]}`;
 
     const userMsg = JSON.stringify({
