@@ -863,7 +863,7 @@ Each campaign should target a specific content category. Vary categories across 
 
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
+        system: `${OGILVY_COPY_DOCTRINE}\n\n${OGILVY_PILLAR_GUIDE}\n\nYou are a social media content planner and format strategist. Generate 5-7 post ideas for this week. Each idea should have a title, a ready-to-use design prompt (that can be sent directly to an AI design studio), and be assigned to a specific day. Every idea must serve ONE objective, lead with an audience-facing hook (never open titles or prompts with "We…" / "Our company…"), avoid empty motivational filler and invented proof. Use the brand's content pillars, series, and campaigns to inform the ideas. The prompts should be specific, mentioning the brand name and what the graphic should show. If a campaign is relevant, include the campaign_name field matching the exact campaign name provided.
 
 ${CONTENT_CATEGORIES_REF}
 
