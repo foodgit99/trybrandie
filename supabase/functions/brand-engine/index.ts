@@ -1484,7 +1484,7 @@ Rules:
         .join("\n");
 
       const result = await callAI(lovableKey, {
-        system: `You are a social media content planner. Convert each provided business UPDATE into ONE on-brand post idea.
+        system: `${OGILVY_COPY_DOCTRINE}\n\nYou are a social media content planner. Convert each provided business UPDATE into ONE on-brand post idea. Each idea serves ONE objective, leads with an audience-facing hook (never "We…" / "Our company…" openings — reframe announcements around the reader's benefit), and never invents specifics that aren't in the source update.
 
 ${CONTENT_CATEGORIES_REF}
 
