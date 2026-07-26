@@ -307,15 +307,74 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
   return `data:${blob.type || "image/png"};base64,${btoa(binary)}`;
 }
 
+// --- PHASE 0: RENDER BUDGET ---
+// Image rendering is ~93% of AI spend. Every render (including retries and
+// extra best-of-N candidates) is metered against a hard per-job ceiling so a
+// pathological job can never burn unbounded credits.
+type RenderTier = "hero" | "support";
+
+class RenderBudget {
+  used = 0;
+  hero = 0;
+  support = 0;
+  refused = 0;
+  constructor(public readonly limit: number) {}
+
+  take(tier: RenderTier) {
+    if (this.used >= this.limit) {
+      this.refused += 1;
+      throw new Error("RENDER_BUDGET_EXHAUSTED");
+    }
+    this.used += 1;
+    if (tier === "hero") this.hero += 1;
+    else this.support += 1;
+  }
+
+  get remaining() {
+    return Math.max(0, this.limit - this.used);
+  }
+
+  snapshot() {
+    return {
+      render_budget: this.limit,
+      render_calls_used: this.used,
+      hero_renders: this.hero,
+      support_renders: this.support,
+      renders_refused: this.refused,
+    };
+  }
+}
+
+// Hero renders (single designs, carousel cover) establish the visual system —
+// they stay on Pro. Support renders (inner carousel slides) inherit palette,
+// type lockup and motif from the cover reference image, so they start on the
+// much cheaper Flash Image tier with Pro kept only as a last-resort fallback.
+const HERO_MODEL_LADDER = [
+  "google/gemini-3-pro-image-preview",
+  "google/gemini-3.1-flash-image-preview",
+  "google/gemini-2.5-flash-image",
+];
+const SUPPORT_MODEL_LADDER = [
+  "google/gemini-3.1-flash-image-preview",
+  "google/gemini-2.5-flash-image",
+  "google/gemini-3-pro-image-preview",
+];
+
 async function renderWithGptImageEdits(
   prompt: string,
   refs: CollectedRef[],
   w: number,
   h: number,
-): Promise<{ b64: string; tier: number; refsUsed: number }> {
+  opts?: { tier?: RenderTier; budget?: RenderBudget | null },
+): Promise<{ b64: string; tier: number; refsUsed: number; model: string; renderTier: RenderTier }> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
   const size = mapToImageSize(w, h);
+  const renderTier: RenderTier = opts?.tier ?? "hero";
+
+  // Consume one unit of the job's render budget per helper invocation (model
+  // fallbacks within a single invocation are free — they only fire on failure).
+  opts?.budget?.take(renderTier);
 
   // Multimodal content: text prompt followed by each reference as image_url.
   // Order matters — the "Reference N = ..." legend in the prompt references
@@ -332,14 +391,7 @@ async function renderWithGptImageEdits(
     }
   }
 
-  // Fallback chain — Pro first for highest quality, Flash variants as fallbacks
-  // if Pro fails or times out on its 90s per-model deadline.
-  const models = [
-    "google/gemini-3-pro-image-preview",
-    "google/gemini-3.1-flash-image-preview",
-    "google/gemini-2.5-flash-image",
-  ];
-
+  const models = renderTier === "support" ? SUPPORT_MODEL_LADDER : HERO_MODEL_LADDER;
 
   let lastErr = "";
   for (let i = 0; i < models.length; i++) {
@@ -359,12 +411,14 @@ async function renderWithGptImageEdits(
     const timeoutId = setTimeout(() => controller.abort(), 90_000);
     let resp: Response;
     try {
+      // maxRetries = 0: the model ladder below already provides redundancy, so
+      // an inner retry is a duplicate (billable) cost path.
       resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body,
         signal: controller.signal,
-      }, 1);
+      }, 0);
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
       console.warn(`[render] ${model} threw (${lastErr}) — falling through to next model`);
@@ -377,8 +431,8 @@ async function renderWithGptImageEdits(
       const data = await resp.json();
       const b64: string | undefined = data?.data?.[0]?.b64_json;
       if (b64) {
-        console.log(`[render] ${model} ok — ${attached} ref(s) attached`);
-        return { b64, tier: i, refsUsed: attached };
+        console.log(`[render] ${model} ok (${renderTier}) — ${attached} ref(s) attached`);
+        return { b64, tier: i, refsUsed: attached, model, renderTier };
       }
       lastErr = "empty response";
       continue;
@@ -391,6 +445,7 @@ async function renderWithGptImageEdits(
   }
   throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
 }
+
 
 
 
