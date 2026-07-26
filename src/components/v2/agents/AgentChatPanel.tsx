@@ -649,16 +649,24 @@ export default function AgentChatPanel({
               }
             }}
             rows={1}
-            placeholder={`Message your ${agent.role}…`}
+            placeholder={
+              isRoundtable
+                ? `Ask the roundtable (${panelIds.length} agents)…`
+                : `Message your ${agent.role}…`
+            }
             className="resize-none min-h-[44px] max-h-32 rounded-2xl"
           />
           <Button
             size="icon"
             onClick={() => send()}
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || roundtableBusy || !input.trim()}
             className="rounded-2xl h-11 w-11 shrink-0"
           >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {isLoading || roundtableBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>
