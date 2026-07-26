@@ -219,6 +219,7 @@ export default function AgentChatPanel({
 
   const newThread = () => {
     threadIdRef.current = null;
+    freshThreadRef.current = null;
     setThreadId(null);
     setInitialMessages([]);
     setMessages([]);
