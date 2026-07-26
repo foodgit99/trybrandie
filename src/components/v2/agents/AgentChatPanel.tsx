@@ -600,6 +600,20 @@ export default function AgentChatPanel({
             {isRoundtable ? `Roundtable · ${panelIds.length}` : "Roundtable"}
           </span>
         </Button>
+
+        {live && !showLive && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 shrink-0 rounded-full text-[11px]"
+            onClick={() => setShowLive(true)}
+            title="Show each agent's take side by side"
+          >
+            <Columns2 className="h-3 w-3" />
+            <span className="ml-1 hidden sm:inline">Live takes</span>
+          </Button>
+        )}
+
       </div>
 
       {/* Roundtable panel picker */}
