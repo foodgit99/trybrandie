@@ -4159,7 +4159,10 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
 
         for (const r of innerResults) if (r) slides.push(r);
         slides.sort((a, b) => a.slide_index - b.slide_index);
+        for (const [k, v] of Object.entries(carouselRenderBudget.snapshot())) tracer.setMetric(k, v);
+        console.log(`[carousel] render budget: ${JSON.stringify(carouselRenderBudget.snapshot())}`);
         await heartbeat(95, "carousel_finalizing");
+
 
       } catch (renderErr) {
         console.error("[carousel] hard render failure — cleaning up partial carousel:", renderErr);
