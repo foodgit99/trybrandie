@@ -140,7 +140,7 @@ export default function StageLogsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md lg:max-w-4xl flex flex-col p-0"
+        className={`w-full flex flex-col p-0 transition-[max-width] ${chatting ? "sm:max-w-md lg:max-w-4xl" : "sm:max-w-md"}`}
       >
         <SheetHeader className="p-6 pb-4 border-b">
           <div className="flex items-center gap-2">
