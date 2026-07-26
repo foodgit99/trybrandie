@@ -307,15 +307,74 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
   return `data:${blob.type || "image/png"};base64,${btoa(binary)}`;
 }
 
+// --- PHASE 0: RENDER BUDGET ---
+// Image rendering is ~93% of AI spend. Every render (including retries and
+// extra best-of-N candidates) is metered against a hard per-job ceiling so a
+// pathological job can never burn unbounded credits.
+type RenderTier = "hero" | "support";
+
+class RenderBudget {
+  used = 0;
+  hero = 0;
+  support = 0;
+  refused = 0;
+  constructor(public readonly limit: number) {}
+
+  take(tier: RenderTier) {
+    if (this.used >= this.limit) {
+      this.refused += 1;
+      throw new Error("RENDER_BUDGET_EXHAUSTED");
+    }
+    this.used += 1;
+    if (tier === "hero") this.hero += 1;
+    else this.support += 1;
+  }
+
+  get remaining() {
+    return Math.max(0, this.limit - this.used);
+  }
+
+  snapshot() {
+    return {
+      render_budget: this.limit,
+      render_calls_used: this.used,
+      hero_renders: this.hero,
+      support_renders: this.support,
+      renders_refused: this.refused,
+    };
+  }
+}
+
+// Hero renders (single designs, carousel cover) establish the visual system —
+// they stay on Pro. Support renders (inner carousel slides) inherit palette,
+// type lockup and motif from the cover reference image, so they start on the
+// much cheaper Flash Image tier with Pro kept only as a last-resort fallback.
+const HERO_MODEL_LADDER = [
+  "google/gemini-3-pro-image-preview",
+  "google/gemini-3.1-flash-image-preview",
+  "google/gemini-2.5-flash-image",
+];
+const SUPPORT_MODEL_LADDER = [
+  "google/gemini-3.1-flash-image-preview",
+  "google/gemini-2.5-flash-image",
+  "google/gemini-3-pro-image-preview",
+];
+
 async function renderWithGptImageEdits(
   prompt: string,
   refs: CollectedRef[],
   w: number,
   h: number,
-): Promise<{ b64: string; tier: number; refsUsed: number }> {
+  opts?: { tier?: RenderTier; budget?: RenderBudget | null },
+): Promise<{ b64: string; tier: number; refsUsed: number; model: string; renderTier: RenderTier }> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
   const size = mapToImageSize(w, h);
+  const renderTier: RenderTier = opts?.tier ?? "hero";
+
+  // Consume one unit of the job's render budget per helper invocation (model
+  // fallbacks within a single invocation are free — they only fire on failure).
+  opts?.budget?.take(renderTier);
 
   // Multimodal content: text prompt followed by each reference as image_url.
   // Order matters — the "Reference N = ..." legend in the prompt references
@@ -332,14 +391,7 @@ async function renderWithGptImageEdits(
     }
   }
 
-  // Fallback chain — Pro first for highest quality, Flash variants as fallbacks
-  // if Pro fails or times out on its 90s per-model deadline.
-  const models = [
-    "google/gemini-3-pro-image-preview",
-    "google/gemini-3.1-flash-image-preview",
-    "google/gemini-2.5-flash-image",
-  ];
-
+  const models = renderTier === "support" ? SUPPORT_MODEL_LADDER : HERO_MODEL_LADDER;
 
   let lastErr = "";
   for (let i = 0; i < models.length; i++) {
@@ -359,12 +411,14 @@ async function renderWithGptImageEdits(
     const timeoutId = setTimeout(() => controller.abort(), 90_000);
     let resp: Response;
     try {
+      // maxRetries = 0: the model ladder below already provides redundancy, so
+      // an inner retry is a duplicate (billable) cost path.
       resp = await retryFetch("https://ai.gateway.lovable.dev/v1/images/generations", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body,
         signal: controller.signal,
-      }, 1);
+      }, 0);
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
       console.warn(`[render] ${model} threw (${lastErr}) — falling through to next model`);
@@ -377,8 +431,8 @@ async function renderWithGptImageEdits(
       const data = await resp.json();
       const b64: string | undefined = data?.data?.[0]?.b64_json;
       if (b64) {
-        console.log(`[render] ${model} ok — ${attached} ref(s) attached`);
-        return { b64, tier: i, refsUsed: attached };
+        console.log(`[render] ${model} ok (${renderTier}) — ${attached} ref(s) attached`);
+        return { b64, tier: i, refsUsed: attached, model, renderTier };
       }
       lastErr = "empty response";
       continue;
@@ -391,6 +445,7 @@ async function renderWithGptImageEdits(
   }
   throw new Error(`Failed to generate image: ${lastErr.slice(0, 200)}`);
 }
+
 
 
 
@@ -676,9 +731,20 @@ async function runFullHandler(req: Request): Promise<Response> {
     const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
     const contentIdeaId: string | null = _parsedReqBody?.content_idea_id ?? null;
-    // Best-of-N quality selection. Default 1 (Studio path), Blueprint/autopilot
-    // bumps this to 2 so the critic can pick the stronger of two renders.
+    // Best-of-N quality selection. Phase 0: this is now an UPPER BOUND, not a
+    // fixed count — candidate B only renders if candidate A scores below the
+    // quality gate. Default 1 (Studio path); Blueprint/autopilot sends 2.
     const candidateCount: number = Math.max(1, Math.min(3, Number(_parsedReqBody?.candidate_count) || 1));
+    // Score at or above which candidate A is accepted without a second render.
+    const BEST_OF_N_GATE = 70;
+    // Per-brand escape hatch: force the Pro ladder on every slide.
+    const forceHeroRender: boolean = (brand as any)?.always_hero_render === true;
+    // Hard render ceiling for this job. Carousel budget is set once numSlides
+    // is known; single designs get 1 render + up to (candidateCount-1) extra
+    // candidates + 1 spare retry.
+    const singleRenderBudget = new RenderBudget(1 + Math.max(0, candidateCount - 1) + 1);
+
+
 
 
     // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
@@ -2951,9 +3017,15 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         tracer.setMetric("refs_skipped", skippedRefs.map((s) => s.role));
         if (droppedForBudget.length > 0) tracer.setMetric("prompt_budget_dropped", droppedForBudget);
 
-        // Render via gpt-image-2 (/v1/images/edits) with real reference image blobs attached.
-        const renderResult = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h);
+        // Single designs are always hero-tier renders (they establish their own
+        // visual system and are the asset the founder actually publishes).
+        const renderResult = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h, {
+          tier: "hero",
+          budget: singleRenderBudget,
+        });
         tracer.setMetric("render_tier_used", renderResult.tier);
+        tracer.setMetric("render_model_used", renderResult.model);
+
         let binaryData = Uint8Array.from(atob(renderResult.b64), (c) => c.charCodeAt(0));
 
         // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
@@ -3065,41 +3137,72 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       tracer.setMetric("creative_director_fired", layoutSchema !== null);
       if (layoutSchema?.regions) tracer.setMetric("layout_schema_regions", layoutSchema.regions.length);
 
-      // --- BEST-OF-N QUALITY SELECTION ---
-      // For Blueprint/autopilot calls (candidate_count > 1), render N variants in
-      // parallel, score each with the multimodal critic, and keep the highest-scoring
-      // one. For Studio (N=1) we still score the single render so the client can
-      // surface actionable signals to the user.
-      const variantLabels = ["A", "B", "C"].slice(0, candidateCount);
-      const renderedVariants = await Promise.all(
-        variantLabels.map((lbl) => renderVariation(genomeData, genomeScores, lbl)),
-      );
-      tracer.setMetric("candidate_count", candidateCount);
+      // --- ADAPTIVE BEST-OF-N QUALITY SELECTION (Phase 0) ---
+      // `candidate_count` is an UPPER BOUND. We always render + score candidate
+      // A; further candidates only render when A fails the quality gate. On a
+      // healthy pass rate this removes ~most of the second render while keeping
+      // the safety net exactly where it matters.
+      const allLabels = ["A", "B", "C"].slice(0, candidateCount);
 
       const briefForScorer = (designPrompt || userPrompt || "").slice(0, 1200);
       const brandColors = [
         ...((brand?.primary_colors as string[]) || []),
         ...((brand?.accent_colors as string[]) || []),
       ].slice(0, 3);
-      const scoreResults: (QualityResult | null)[] = await Promise.all(
-        renderedVariants.map((v) =>
-          scoreDesignImage({
-            imageUrl: v.image_url,
-            brief: briefForScorer,
-            brandName: brand?.name ?? null,
-            brandColors,
-            copy: copyStructure
-              ? {
-                  headline: copyStructure.headline,
-                  subheadline: copyStructure.subheadline,
-                  cta: copyStructure.cta,
-                }
-              : null,
-            category: resolvedCategory,
-            apiKey: LOVABLE_API_KEY,
-          }).catch(() => null),
-        ),
-      );
+
+      const scoreVariant = (v: { image_url: string }) =>
+        scoreDesignImage({
+          imageUrl: v.image_url,
+          brief: briefForScorer,
+          brandName: brand?.name ?? null,
+          brandColors,
+          copy: copyStructure
+            ? {
+                headline: copyStructure.headline,
+                subheadline: copyStructure.subheadline,
+                cta: copyStructure.cta,
+              }
+            : null,
+          category: resolvedCategory,
+          apiKey: LOVABLE_API_KEY,
+        }).catch(() => null);
+
+      const variantLabels: string[] = [];
+      const renderedVariants: Array<Awaited<ReturnType<typeof renderVariation>>> = [];
+      const scoreResults: (QualityResult | null)[] = [];
+
+      for (const lbl of allLabels) {
+        if (renderedVariants.length > 0) {
+          // Gate: only spend another render when the best so far is weak.
+          const bestSoFar = scoreResults.reduce<number | null>((acc, s) => {
+            if (!s) return acc;
+            return acc === null ? s.scores.overall : Math.max(acc, s.scores.overall);
+          }, null);
+          const anyFail = scoreResults.some((s) => s?.verdict === "fail");
+          const passes = bestSoFar !== null && bestSoFar >= BEST_OF_N_GATE && !anyFail;
+          if (passes) break;
+          if (singleRenderBudget.remaining <= 0) {
+            console.warn("[best-of-n] render budget exhausted — keeping current best candidate");
+            break;
+          }
+        }
+        try {
+          const v = await renderVariation(genomeData, genomeScores, lbl);
+          variantLabels.push(lbl);
+          renderedVariants.push(v);
+          scoreResults.push(await scoreVariant(v));
+        } catch (e) {
+          if (e instanceof Error && e.message === "RENDER_BUDGET_EXHAUSTED" && renderedVariants.length > 0) {
+            console.warn("[best-of-n] budget refused an extra candidate — keeping current best");
+            break;
+          }
+          throw e;
+        }
+      }
+
+      tracer.setMetric("candidate_count_requested", candidateCount);
+      tracer.setMetric("candidate_count_rendered", renderedVariants.length);
+      tracer.setMetric("second_candidate_fired", renderedVariants.length > 1);
 
       // Pick the winner. Prefer the AI's `overall`; break ties on a weighted
       // composite that favours brief faithfulness + brand fidelity + readability.
@@ -3137,12 +3240,14 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       tracer.setMetric("quality_winner_label", variantLabels[winnerIdx]);
       tracer.setMetric("quality_winner_overall", winnerScoreResult?.scores.overall ?? null);
       tracer.setMetric("quality_signal_count", winnerScoreResult?.signals.length ?? 0);
-      if (candidateCount > 1 && winnerIdx !== 0 && scoreResults[0]?.scores.overall != null) {
+      if (renderedVariants.length > 1 && winnerIdx !== 0 && scoreResults[0]?.scores.overall != null) {
         tracer.setMetric(
           "best_of_n_uplift",
           (winnerScoreResult?.scores.overall ?? 0) - (scoreResults[0]?.scores.overall ?? 0),
         );
       }
+      for (const [k, v] of Object.entries(singleRenderBudget.snapshot())) tracer.setMetric(k, v);
+
 
 
 
@@ -3213,8 +3318,12 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
       const numSlides = Math.min(10, Math.max(2, slide_count || 5));
+      // Phase 0: hard render ceiling — one render per slide plus 2 spare
+      // attempts for the whole job (cover retry + one slide retry).
+      const carouselRenderBudget = new RenderBudget(numSlides + 2);
       // Carousel pricing: floor(slides * 1.5), quality-independent. Single still uses render_quality.
       const creditCost = Math.floor(numSlides * 1.5);
+
 
       // Pre-check credits — actual deduction happens AFTER all slides successfully render.
       let pendingCarouselDeduction: null | (() => Promise<void>) = null;
@@ -3841,7 +3950,19 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         const slideRefLegend = buildRefLegend(slideRefs);
         const slidePromptWithRefs = slideRefLegend ? `${slidePromptWithProduct}\n\n${slideRefLegend}` : slidePromptWithProduct;
 
-        const { b64: imageBase64 } = await renderWithGptImageEdits(slidePromptWithRefs, slideRefs, w, h);
+        // Cover = hero tier (it defines the visual system). Inner slides inherit
+        // that system from the attached cover reference, so they render on the
+        // cheaper Flash Image ladder unless the brand forces hero rendering.
+        const slideTier: RenderTier = i === 0 || forceHeroRender ? "hero" : "support";
+        const { b64: imageBase64, model: slideModel } = await renderWithGptImageEdits(
+          slidePromptWithRefs,
+          slideRefs,
+          w,
+          h,
+          { tier: slideTier, budget: carouselRenderBudget },
+        );
+        console.log(`[carousel] slide ${i + 1} rendered on ${slideModel} (${slideTier})`);
+
         let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
         binaryData = await enforceCanvasDimensions(binaryData, w, h);
 
@@ -3925,12 +4046,17 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         await heartbeat(10, `cover_1_of_${numSlides}`);
         const coverNextSlide = numSlides > 1 ? carouselPlan.slides[1] : null;
         let coverResult: SlideResult;
+        // Phase 0: the cover gets exactly ONE extra attempt, shared between the
+        // hard-failure path and the critic fail-verdict path.
+        let coverRetryAvailable = true;
         try {
           coverResult = await renderSlide(0, null, null, coverNextSlide, 0);
         } catch (firstErr) {
           console.warn(`[carousel] cover failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
+          coverRetryAvailable = false;
           coverResult = await renderSlide(0, null, null, coverNextSlide, 1);
         }
+
 
         // Score the cover; on fail-verdict, single retry (unchanged behaviour).
         try {
@@ -3947,8 +4073,13 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           if (score) {
             coverResult.quality_score = { ...score.scores, verdict: score.verdict };
             coverResult.quality_signals = score.signals;
-            if (score.verdict === "fail") {
+            if (score.verdict === "fail" && !coverRetryAvailable) {
+              console.warn(`[carousel] cover scored "fail" (${score.scores.overall}) — retry already spent, keeping it`);
+            } else if (score.verdict === "fail" && carouselRenderBudget.remaining <= 0) {
+              console.warn(`[carousel] cover scored "fail" — render budget exhausted, keeping it`);
+            } else if (score.verdict === "fail") {
               console.warn(`[carousel] cover scored "fail" (${score.scores.overall}) — single retry`);
+              coverRetryAvailable = false;
               try {
                 await adminClient.from("designs").delete().eq("id", coverResult.design_id);
                 try {
@@ -3961,6 +4092,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
                 console.error(`[carousel] cover retry after fail-verdict threw:`, retryErr);
               }
             }
+
             await adminClient.from("designs").update({
               quality_score: coverResult.quality_score,
               quality_signals: coverResult.quality_signals,
@@ -4002,9 +4134,14 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
                 try {
                   result = await renderSlide(i, coverImageUrl, coverSlidePlan, nextSlide, 0);
                 } catch (firstErr) {
+                  if (carouselRenderBudget.remaining <= 0) {
+                    console.error(`[carousel] slide ${i + 1} failed and render budget is exhausted — no retry`);
+                    throw firstErr;
+                  }
                   console.warn(`[carousel] slide ${i + 1} failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
                   result = await renderSlide(i, coverImageUrl, coverSlidePlan, nextSlide, 1);
                 }
+
                 innerResults[localIdx] = result;
                 completedInner += 1;
                 await heartbeat(
@@ -4022,7 +4159,10 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
 
         for (const r of innerResults) if (r) slides.push(r);
         slides.sort((a, b) => a.slide_index - b.slide_index);
+        for (const [k, v] of Object.entries(carouselRenderBudget.snapshot())) tracer.setMetric(k, v);
+        console.log(`[carousel] render budget: ${JSON.stringify(carouselRenderBudget.snapshot())}`);
         await heartbeat(95, "carousel_finalizing");
+
 
       } catch (renderErr) {
         console.error("[carousel] hard render failure — cleaning up partial carousel:", renderErr);
