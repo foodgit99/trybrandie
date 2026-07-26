@@ -215,6 +215,16 @@ export default function AgentChatPanel({
     const tid = await ensureThread(text);
     if (!tid) return;
     setRoundtableBusy(true);
+    setLive({
+      question: text,
+      turns: panelIds.map((id) => ({
+        id,
+        role: STAGE_AGENTS[id].role,
+        status: "waiting" as const,
+      })),
+      synthesisStatus: "idle",
+    });
+    setShowLive(true);
     const userMsg = { id: `u-${Date.now()}`, role: "user", content: text } as any;
     setMessages([...(messages as any[]), userMsg] as any);
     try {
@@ -248,14 +258,109 @@ export default function AgentChatPanel({
           }),
         },
       );
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload?.error ?? "Roundtable failed");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error ?? "Roundtable failed");
+      }
+      if (!res.body) throw new Error("Roundtable stream unavailable");
 
-      const sections = (payload.turns ?? []).map(
-        (t: any) => `### ${t.role}\n\n${t.text}`,
-      );
-      if (payload.synthesis) {
-        sections.push(`### 🧭 Reconciled call\n\n${payload.synthesis}`);
+      // NDJSON stream — one event per line, rendered into the live panel as it lands.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalTurns: any[] = [];
+      let finalSynthesis = "";
+      let streamError: string | null = null;
+
+      const handle = (evt: any) => {
+        switch (evt.type) {
+          case "start":
+            setLive((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    turns: (evt.panel ?? []).map((p: any) => ({
+                      id: p.id,
+                      role: p.role,
+                      status: "waiting" as const,
+                    })),
+                  }
+                : prev,
+            );
+            break;
+          case "turn_start":
+            setLive((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    turns: prev.turns.map((t) =>
+                      t.id === evt.agent ? { ...t, status: "thinking" as const } : t,
+                    ),
+                  }
+                : prev,
+            );
+            break;
+          case "turn":
+            setLive((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    turns: prev.turns.map((t) =>
+                      t.id === evt.agent
+                        ? { ...t, status: evt.failed ? ("failed" as const) : ("done" as const), text: evt.text }
+                        : t,
+                    ),
+                  }
+                : prev,
+            );
+            break;
+          case "synthesis_start":
+            setLive((prev) => (prev ? { ...prev, synthesisStatus: "thinking" as const } : prev));
+            break;
+          case "synthesis":
+            finalSynthesis = evt.text ?? "";
+            setLive((prev) =>
+              prev ? { ...prev, synthesis: evt.text ?? "", synthesisStatus: "done" as const } : prev,
+            );
+            break;
+          case "done":
+            finalTurns = evt.turns ?? [];
+            finalSynthesis = evt.synthesis ?? finalSynthesis;
+            break;
+          case "error":
+            streamError = evt.message ?? "Roundtable failed";
+            break;
+        }
+      };
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            handle(JSON.parse(line));
+          } catch {
+            /* partial or malformed line — ignore */
+          }
+        }
+      }
+      if (buffer.trim()) {
+        try {
+          handle(JSON.parse(buffer));
+        } catch {
+          /* ignore */
+        }
+      }
+      if (streamError) throw new Error(streamError);
+
+      const sections = finalTurns.map((t: any) => `### ${t.role}\n\n${t.text}`);
+      if (finalSynthesis) {
+        sections.push(`### 🧭 Reconciled call\n\n${finalSynthesis}`);
       }
       const content = sections.join("\n\n---\n\n");
       setMessages([
@@ -263,7 +368,7 @@ export default function AgentChatPanel({
         userMsg,
         { id: `rt-${Date.now()}`, role: "assistant", content },
       ] as any);
-      if (userId) {
+      if (userId && content) {
         await supabase.from("agent_messages").insert({
           conversation_id: tid,
           user_id: userId,
@@ -283,6 +388,7 @@ export default function AgentChatPanel({
       composerRef.current?.focus();
     }
   };
+
 
   const send = async (textOverride?: string) => {
     const text = (textOverride ?? input).trim();
