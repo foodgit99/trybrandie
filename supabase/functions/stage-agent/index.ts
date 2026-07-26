@@ -193,7 +193,16 @@ Deno.serve(async (req) => {
       maxSteps: 50,
     });
 
-    return result.toDataStreamResponse({ headers: corsHeaders });
+    return result.toDataStreamResponse({
+      headers: corsHeaders,
+      getErrorMessage: (err: any) => {
+        console.error("stage-agent stream error", err);
+        const msg = err?.message ?? String(err);
+        if (/402|payment|credit/i.test(msg)) return "AI credits exhausted. Add credits to keep chatting.";
+        if (/429|rate/i.test(msg)) return "The AI is rate limited right now — try again in a moment.";
+        return msg.slice(0, 300);
+      },
+    });
   } catch (e: any) {
     console.error("stage-agent error", e);
     return jsonErr(500, e?.message ?? "Unknown error");
