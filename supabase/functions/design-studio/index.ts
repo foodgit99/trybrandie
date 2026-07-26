@@ -3318,8 +3318,12 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
       const numSlides = Math.min(10, Math.max(2, slide_count || 5));
+      // Phase 0: hard render ceiling — one render per slide plus 2 spare
+      // attempts for the whole job (cover retry + one slide retry).
+      const carouselRenderBudget = new RenderBudget(numSlides + 2);
       // Carousel pricing: floor(slides * 1.5), quality-independent. Single still uses render_quality.
       const creditCost = Math.floor(numSlides * 1.5);
+
 
       // Pre-check credits — actual deduction happens AFTER all slides successfully render.
       let pendingCarouselDeduction: null | (() => Promise<void>) = null;
