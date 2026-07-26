@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { STAGE_AGENTS, agentChannel, type StageAgentId } from "@/lib/stageAgents";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportAgentTranscript, copyTranscriptToClipboard } from "@/lib/agentTranscript";
 
 type Thread = { id: string; title: string | null; last_message_at: string | null };
 
