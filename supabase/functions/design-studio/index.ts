@@ -4073,8 +4073,13 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           if (score) {
             coverResult.quality_score = { ...score.scores, verdict: score.verdict };
             coverResult.quality_signals = score.signals;
-            if (score.verdict === "fail") {
+            if (score.verdict === "fail" && !coverRetryAvailable) {
+              console.warn(`[carousel] cover scored "fail" (${score.scores.overall}) — retry already spent, keeping it`);
+            } else if (score.verdict === "fail" && carouselRenderBudget.remaining <= 0) {
+              console.warn(`[carousel] cover scored "fail" — render budget exhausted, keeping it`);
+            } else if (score.verdict === "fail") {
               console.warn(`[carousel] cover scored "fail" (${score.scores.overall}) — single retry`);
+              coverRetryAvailable = false;
               try {
                 await adminClient.from("designs").delete().eq("id", coverResult.design_id);
                 try {
@@ -4087,6 +4092,7 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
                 console.error(`[carousel] cover retry after fail-verdict threw:`, retryErr);
               }
             }
+
             await adminClient.from("designs").update({
               quality_score: coverResult.quality_score,
               quality_signals: coverResult.quality_signals,
