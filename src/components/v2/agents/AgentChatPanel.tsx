@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files, Users } from "lucide-react";
+import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files, Users, Columns2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
