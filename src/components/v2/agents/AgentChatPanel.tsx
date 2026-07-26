@@ -43,6 +43,7 @@ export default function AgentChatPanel({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
   const threadIdRef = useRef<string | null>(null);
+  const freshThreadRef = useRef<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<any[]>([]);
   const [booting, setBooting] = useState(true);
   const [token, setToken] = useState<string | null>(null);
@@ -89,6 +90,9 @@ export default function AgentChatPanel({
         setInitialMessages([]);
         return;
       }
+      // A thread we just created in this session already has its messages in
+      // useChat state — re-hydrating from the DB would duplicate them.
+      if (threadId === freshThreadRef.current) return;
       const { data } = await supabase
         .from("agent_messages")
         .select("id,role,parts,created_at")
@@ -186,6 +190,7 @@ export default function AgentChatPanel({
       return null;
     }
     threadIdRef.current = data.id;
+    freshThreadRef.current = data.id;
     setThreadId(data.id);
     setThreads((prev) => [data as Thread, ...prev]);
     return data.id;
@@ -273,6 +278,7 @@ export default function AgentChatPanel({
               key={t.id}
               onClick={() => {
                 threadIdRef.current = t.id;
+                freshThreadRef.current = null;
                 setThreadId(t.id);
               }}
               className={cn(
