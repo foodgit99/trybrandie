@@ -3017,9 +3017,15 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         tracer.setMetric("refs_skipped", skippedRefs.map((s) => s.role));
         if (droppedForBudget.length > 0) tracer.setMetric("prompt_budget_dropped", droppedForBudget);
 
-        // Render via gpt-image-2 (/v1/images/edits) with real reference image blobs attached.
-        const renderResult = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h);
+        // Single designs are always hero-tier renders (they establish their own
+        // visual system and are the asset the founder actually publishes).
+        const renderResult = await renderWithGptImageEdits(finalPrompt, collectedRefs, w, h, {
+          tier: "hero",
+          budget: singleRenderBudget,
+        });
         tracer.setMetric("render_tier_used", renderResult.tier);
+        tracer.setMetric("render_model_used", renderResult.model);
+
         let binaryData = Uint8Array.from(atob(renderResult.b64), (c) => c.charCodeAt(0));
 
         // Strict platform-aspect enforcement: center-crop + resize to exact target dims.
