@@ -731,9 +731,20 @@ async function runFullHandler(req: Request): Promise<Response> {
     const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
     const contentIdeaId: string | null = _parsedReqBody?.content_idea_id ?? null;
-    // Best-of-N quality selection. Default 1 (Studio path), Blueprint/autopilot
-    // bumps this to 2 so the critic can pick the stronger of two renders.
+    // Best-of-N quality selection. Phase 0: this is now an UPPER BOUND, not a
+    // fixed count — candidate B only renders if candidate A scores below the
+    // quality gate. Default 1 (Studio path); Blueprint/autopilot sends 2.
     const candidateCount: number = Math.max(1, Math.min(3, Number(_parsedReqBody?.candidate_count) || 1));
+    // Score at or above which candidate A is accepted without a second render.
+    const BEST_OF_N_GATE = 70;
+    // Per-brand escape hatch: force the Pro ladder on every slide.
+    const forceHeroRender: boolean = (brand as any)?.always_hero_render === true;
+    // Hard render ceiling for this job. Carousel budget is set once numSlides
+    // is known; single designs get 1 render + up to (candidateCount-1) extra
+    // candidates + 1 spare retry.
+    const singleRenderBudget = new RenderBudget(1 + Math.max(0, candidateCount - 1) + 1);
+
+
 
 
     // M6: Deterministic PRNG seeded by job_id (or a stable fallback) so genome mutation
