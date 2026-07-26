@@ -3137,41 +3137,72 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       tracer.setMetric("creative_director_fired", layoutSchema !== null);
       if (layoutSchema?.regions) tracer.setMetric("layout_schema_regions", layoutSchema.regions.length);
 
-      // --- BEST-OF-N QUALITY SELECTION ---
-      // For Blueprint/autopilot calls (candidate_count > 1), render N variants in
-      // parallel, score each with the multimodal critic, and keep the highest-scoring
-      // one. For Studio (N=1) we still score the single render so the client can
-      // surface actionable signals to the user.
-      const variantLabels = ["A", "B", "C"].slice(0, candidateCount);
-      const renderedVariants = await Promise.all(
-        variantLabels.map((lbl) => renderVariation(genomeData, genomeScores, lbl)),
-      );
-      tracer.setMetric("candidate_count", candidateCount);
+      // --- ADAPTIVE BEST-OF-N QUALITY SELECTION (Phase 0) ---
+      // `candidate_count` is an UPPER BOUND. We always render + score candidate
+      // A; further candidates only render when A fails the quality gate. On a
+      // healthy pass rate this removes ~most of the second render while keeping
+      // the safety net exactly where it matters.
+      const allLabels = ["A", "B", "C"].slice(0, candidateCount);
 
       const briefForScorer = (designPrompt || userPrompt || "").slice(0, 1200);
       const brandColors = [
         ...((brand?.primary_colors as string[]) || []),
         ...((brand?.accent_colors as string[]) || []),
       ].slice(0, 3);
-      const scoreResults: (QualityResult | null)[] = await Promise.all(
-        renderedVariants.map((v) =>
-          scoreDesignImage({
-            imageUrl: v.image_url,
-            brief: briefForScorer,
-            brandName: brand?.name ?? null,
-            brandColors,
-            copy: copyStructure
-              ? {
-                  headline: copyStructure.headline,
-                  subheadline: copyStructure.subheadline,
-                  cta: copyStructure.cta,
-                }
-              : null,
-            category: resolvedCategory,
-            apiKey: LOVABLE_API_KEY,
-          }).catch(() => null),
-        ),
-      );
+
+      const scoreVariant = (v: { image_url: string }) =>
+        scoreDesignImage({
+          imageUrl: v.image_url,
+          brief: briefForScorer,
+          brandName: brand?.name ?? null,
+          brandColors,
+          copy: copyStructure
+            ? {
+                headline: copyStructure.headline,
+                subheadline: copyStructure.subheadline,
+                cta: copyStructure.cta,
+              }
+            : null,
+          category: resolvedCategory,
+          apiKey: LOVABLE_API_KEY,
+        }).catch(() => null);
+
+      const variantLabels: string[] = [];
+      const renderedVariants: Array<Awaited<ReturnType<typeof renderVariation>>> = [];
+      const scoreResults: (QualityResult | null)[] = [];
+
+      for (const lbl of allLabels) {
+        if (renderedVariants.length > 0) {
+          // Gate: only spend another render when the best so far is weak.
+          const bestSoFar = scoreResults.reduce<number | null>((acc, s) => {
+            if (!s) return acc;
+            return acc === null ? s.scores.overall : Math.max(acc, s.scores.overall);
+          }, null);
+          const anyFail = scoreResults.some((s) => s?.verdict === "fail");
+          const passes = bestSoFar !== null && bestSoFar >= BEST_OF_N_GATE && !anyFail;
+          if (passes) break;
+          if (singleRenderBudget.remaining <= 0) {
+            console.warn("[best-of-n] render budget exhausted — keeping current best candidate");
+            break;
+          }
+        }
+        try {
+          const v = await renderVariation(genomeData, genomeScores, lbl);
+          variantLabels.push(lbl);
+          renderedVariants.push(v);
+          scoreResults.push(await scoreVariant(v));
+        } catch (e) {
+          if (e instanceof Error && e.message === "RENDER_BUDGET_EXHAUSTED" && renderedVariants.length > 0) {
+            console.warn("[best-of-n] budget refused an extra candidate — keeping current best");
+            break;
+          }
+          throw e;
+        }
+      }
+
+      tracer.setMetric("candidate_count_requested", candidateCount);
+      tracer.setMetric("candidate_count_rendered", renderedVariants.length);
+      tracer.setMetric("second_candidate_fired", renderedVariants.length > 1);
 
       // Pick the winner. Prefer the AI's `overall`; break ties on a weighted
       // composite that favours brief faithfulness + brand fidelity + readability.
@@ -3209,12 +3240,14 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       tracer.setMetric("quality_winner_label", variantLabels[winnerIdx]);
       tracer.setMetric("quality_winner_overall", winnerScoreResult?.scores.overall ?? null);
       tracer.setMetric("quality_signal_count", winnerScoreResult?.signals.length ?? 0);
-      if (candidateCount > 1 && winnerIdx !== 0 && scoreResults[0]?.scores.overall != null) {
+      if (renderedVariants.length > 1 && winnerIdx !== 0 && scoreResults[0]?.scores.overall != null) {
         tracer.setMetric(
           "best_of_n_uplift",
           (winnerScoreResult?.scores.overall ?? 0) - (scoreResults[0]?.scores.overall ?? 0),
         );
       }
+      for (const [k, v] of Object.entries(singleRenderBudget.snapshot())) tracer.setMetric(k, v);
+
 
 
 
