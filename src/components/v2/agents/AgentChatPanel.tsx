@@ -509,8 +509,10 @@ export default function AgentChatPanel({
   }, [messages, isLoading]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex relative">
+      <div className="flex-1 min-w-0 flex flex-col">
       {/* Threads */}
+
       <div className="px-4 py-2 border-b border-border/60 flex items-center gap-2">
         <div className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0">
         <Button size="sm" variant="outline" className="h-7 shrink-0 rounded-full text-[11px]" onClick={newThread}>
