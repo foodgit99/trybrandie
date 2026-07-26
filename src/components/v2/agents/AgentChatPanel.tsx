@@ -59,6 +59,11 @@ export default function AgentChatPanel({
   const [input, setInput] = useState("");
   const [approving, setApproving] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [invited, setInvited] = useState<StageAgentId[]>([]);
+  const [showPanelPicker, setShowPanelPicker] = useState(false);
+  const [roundtableBusy, setRoundtableBusy] = useState(false);
+  const isRoundtable = invited.length > 0;
+  const panelIds = useMemo(() => [agentId, ...invited], [agentId, invited]);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
