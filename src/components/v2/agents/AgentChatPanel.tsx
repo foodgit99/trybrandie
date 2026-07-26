@@ -621,6 +621,13 @@ export default function AgentChatPanel({
           </div>
         ))}
 
+        {roundtableBusy && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {panelIds.length} agents are debating
+            this…
+          </div>
+        )}
+
         {statusLabel && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> {statusLabel}
