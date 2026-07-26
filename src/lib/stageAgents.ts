@@ -30,7 +30,7 @@ export const STAGE_AGENTS: Record<StageAgentId, StageAgent> = {
       "Which audience pain should I lead with this month?",
       "What are my competitors doing that I'm not?",
     ],
-    link: { label: "Open Trend Lab", to: "/trend-lab" },
+    link: { label: "Open Trends", to: "/hub?tab=trends" },
   },
   ideation: {
     id: "ideation",
