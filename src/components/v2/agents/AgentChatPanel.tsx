@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files, Users } from "lucide-react";
+import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files, Users, Columns2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { exportAgentTranscript, copyTranscriptToClipboard } from "@/lib/agentTranscript";
+import RoundtableLivePanel, { type RoundtableLive } from "@/components/v2/agents/RoundtableLivePanel";
+
 
 type Thread = { id: string; title: string | null; last_message_at: string | null };
 
@@ -62,6 +64,9 @@ export default function AgentChatPanel({
   const [invited, setInvited] = useState<StageAgentId[]>([]);
   const [showPanelPicker, setShowPanelPicker] = useState(false);
   const [roundtableBusy, setRoundtableBusy] = useState(false);
+  const [live, setLive] = useState<RoundtableLive | null>(null);
+  const [showLive, setShowLive] = useState(true);
+
   const isRoundtable = invited.length > 0;
   const panelIds = useMemo(() => [agentId, ...invited], [agentId, invited]);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -215,6 +220,16 @@ export default function AgentChatPanel({
     const tid = await ensureThread(text);
     if (!tid) return;
     setRoundtableBusy(true);
+    setLive({
+      question: text,
+      turns: panelIds.map((id) => ({
+        id,
+        role: STAGE_AGENTS[id].role,
+        status: "waiting" as const,
+      })),
+      synthesisStatus: "idle",
+    });
+    setShowLive(true);
     const userMsg = { id: `u-${Date.now()}`, role: "user", content: text } as any;
     setMessages([...(messages as any[]), userMsg] as any);
     try {
@@ -248,14 +263,109 @@ export default function AgentChatPanel({
           }),
         },
       );
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload?.error ?? "Roundtable failed");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error ?? "Roundtable failed");
+      }
+      if (!res.body) throw new Error("Roundtable stream unavailable");
 
-      const sections = (payload.turns ?? []).map(
-        (t: any) => `### ${t.role}\n\n${t.text}`,
-      );
-      if (payload.synthesis) {
-        sections.push(`### 🧭 Reconciled call\n\n${payload.synthesis}`);
+      // NDJSON stream — one event per line, rendered into the live panel as it lands.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalTurns: any[] = [];
+      let finalSynthesis = "";
+      let streamError: string | null = null;
+
+      const handle = (evt: any) => {
+        switch (evt.type) {
+          case "start":
+            setLive((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    turns: (evt.panel ?? []).map((p: any) => ({
+                      id: p.id,
+                      role: p.role,
+                      status: "waiting" as const,
+                    })),
+                  }
+                : prev,
+            );
+            break;
+          case "turn_start":
+            setLive((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    turns: prev.turns.map((t) =>
+                      t.id === evt.agent ? { ...t, status: "thinking" as const } : t,
+                    ),
+                  }
+                : prev,
+            );
+            break;
+          case "turn":
+            setLive((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    turns: prev.turns.map((t) =>
+                      t.id === evt.agent
+                        ? { ...t, status: evt.failed ? ("failed" as const) : ("done" as const), text: evt.text }
+                        : t,
+                    ),
+                  }
+                : prev,
+            );
+            break;
+          case "synthesis_start":
+            setLive((prev) => (prev ? { ...prev, synthesisStatus: "thinking" as const } : prev));
+            break;
+          case "synthesis":
+            finalSynthesis = evt.text ?? "";
+            setLive((prev) =>
+              prev ? { ...prev, synthesis: evt.text ?? "", synthesisStatus: "done" as const } : prev,
+            );
+            break;
+          case "done":
+            finalTurns = evt.turns ?? [];
+            finalSynthesis = evt.synthesis ?? finalSynthesis;
+            break;
+          case "error":
+            streamError = evt.message ?? "Roundtable failed";
+            break;
+        }
+      };
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            handle(JSON.parse(line));
+          } catch {
+            /* partial or malformed line — ignore */
+          }
+        }
+      }
+      if (buffer.trim()) {
+        try {
+          handle(JSON.parse(buffer));
+        } catch {
+          /* ignore */
+        }
+      }
+      if (streamError) throw new Error(streamError);
+
+      const sections = finalTurns.map((t: any) => `### ${t.role}\n\n${t.text}`);
+      if (finalSynthesis) {
+        sections.push(`### 🧭 Reconciled call\n\n${finalSynthesis}`);
       }
       const content = sections.join("\n\n---\n\n");
       setMessages([
@@ -263,7 +373,7 @@ export default function AgentChatPanel({
         userMsg,
         { id: `rt-${Date.now()}`, role: "assistant", content },
       ] as any);
-      if (userId) {
+      if (userId && content) {
         await supabase.from("agent_messages").insert({
           conversation_id: tid,
           user_id: userId,
@@ -283,6 +393,7 @@ export default function AgentChatPanel({
       composerRef.current?.focus();
     }
   };
+
 
   const send = async (textOverride?: string) => {
     const text = (textOverride ?? input).trim();
@@ -398,8 +509,10 @@ export default function AgentChatPanel({
   }, [messages, isLoading]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex relative">
+      <div className="flex-1 min-w-0 flex flex-col">
       {/* Threads */}
+
       <div className="px-4 py-2 border-b border-border/60 flex items-center gap-2">
         <div className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0">
         <Button size="sm" variant="outline" className="h-7 shrink-0 rounded-full text-[11px]" onClick={newThread}>
@@ -487,6 +600,20 @@ export default function AgentChatPanel({
             {isRoundtable ? `Roundtable · ${panelIds.length}` : "Roundtable"}
           </span>
         </Button>
+
+        {live && !showLive && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 shrink-0 rounded-full text-[11px]"
+            onClick={() => setShowLive(true)}
+            title="Show each agent's take side by side"
+          >
+            <Columns2 className="h-3 w-3" />
+            <span className="ml-1 hidden sm:inline">Live takes</span>
+          </Button>
+        )}
+
       </div>
 
       {/* Roundtable panel picker */}
@@ -670,6 +797,24 @@ export default function AgentChatPanel({
           </Button>
         </div>
       </div>
+      </div>
+
+      {/* Live takes — side column on wide screens, slide-over on narrow ones */}
+      {live && showLive && (
+        <>
+          <RoundtableLivePanel
+            live={live}
+            onClose={() => setShowLive(false)}
+            className="hidden lg:flex w-[320px] shrink-0"
+          />
+          <RoundtableLivePanel
+            live={live}
+            onClose={() => setShowLive(false)}
+            className="lg:hidden absolute inset-y-0 right-0 z-20 w-[88%] max-w-[340px] bg-background shadow-xl"
+          />
+        </>
+      )}
     </div>
+
   );
 }

@@ -103,16 +103,36 @@ Deno.serve(async (req) => {
 
     const turns: { agent: AgentId; role: string; text: string }[] = [];
 
-    for (const id of panel) {
-      const persona = PERSONAS[id];
-      const others = panel.filter((p) => p !== id).map((p) => PERSONAS[p].role).join(", ");
-      const table = turns.length
-        ? `\n\nWhat your teammates have already said in this roundtable:\n\n${turns
-            .map((t) => `**${t.role}:** ${t.text}`)
-            .join("\n\n")}\n\nBuild on what you agree with, and say clearly and respectfully where you disagree and why. Do not repeat their points.`
-        : "";
+    // Stream NDJSON events so the client can render each take the moment it lands.
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const emit = (event: Record<string, unknown>) => {
+          try {
+            controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+          } catch (_) {
+            /* client went away */
+          }
+        };
 
-      const system = `${buildSystemPrompt(persona, ctx.brand, ctx.context, seasonal, settings)}
+        emit({
+          type: "start",
+          panel: panel.map((id) => ({ id, role: PERSONAS[id].role })),
+        });
+
+        try {
+          for (const id of panel) {
+            const persona = PERSONAS[id];
+            emit({ type: "turn_start", agent: id, role: persona.role });
+
+            const others = panel.filter((p) => p !== id).map((p) => PERSONAS[p].role).join(", ");
+            const table = turns.length
+              ? `\n\nWhat your teammates have already said in this roundtable:\n\n${turns
+                  .map((t) => `**${t.role}:** ${t.text}`)
+                  .join("\n\n")}\n\nBuild on what you agree with, and say clearly and respectfully where you disagree and why. Do not repeat their points.`
+              : "";
+
+            const system = `${buildSystemPrompt(persona, ctx.brand, ctx.context, seasonal, settings)}
 
 # Roundtable mode
 You are in a live working session with: ${others}. Speak only from your own lane.
@@ -120,49 +140,70 @@ Keep it to 120 words or fewer. No preamble, no greeting — go straight to your 
 End with one line starting with "My call:" giving your single clearest recommendation.
 Do not create, schedule or change anything in this mode; you may read data only.`;
 
-      const prompt = `${priorTranscript ? `Earlier in this thread:\n${priorTranscript}\n\n` : ""}The founder asks: ${question}${table}`;
+            const prompt = `${priorTranscript ? `Earlier in this thread:\n${priorTranscript}\n\n` : ""}The founder asks: ${question}${table}`;
 
-      let text = "";
-      try {
-        const res = await generateText({
-          model: provider(MODEL),
-          system,
-          prompt,
-          tools: readTools as any,
-          maxSteps: 6,
-        });
-        text = (res.text ?? "").trim();
-      } catch (e: any) {
-        console.error("[roundtable] agent failed", id, e?.message);
-        text = `_${persona.role} couldn't weigh in this round (${String(e?.message ?? "error").slice(0, 120)})._`;
-      }
-      turns.push({ agent: id, role: persona.role, text: text || "_No response._" });
-    }
+            let text = "";
+            let failed = false;
+            try {
+              const res = await generateText({
+                model: provider(MODEL),
+                system,
+                prompt,
+                tools: readTools as any,
+                maxSteps: 6,
+              });
+              text = (res.text ?? "").trim();
+            } catch (e: any) {
+              console.error("[roundtable] agent failed", id, e?.message);
+              failed = true;
+              text = `_${persona.role} couldn't weigh in this round (${String(e?.message ?? "error").slice(0, 120)})._`;
+            }
+            const turn = { agent: id, role: persona.role, text: text || "_No response._" };
+            turns.push(turn);
+            emit({ type: "turn", ...turn, failed });
+          }
 
-    // Facilitator: reconcile the panel into one decision.
-    const panelText = turns.map((t) => `**${t.role}:**\n${t.text}`).join("\n\n");
-    let synthesis = "";
-    try {
-      const res = await generateText({
-        model: provider(MODEL),
-        system: `You are the Chief of Staff facilitating a roundtable for the brand "${ctx.brand.name}".
+          // Facilitator: reconcile the panel into one decision.
+          emit({ type: "synthesis_start" });
+          const panelText = turns.map((t) => `**${t.role}:**\n${t.text}`).join("\n\n");
+          let synthesis = "";
+          try {
+            const res = await generateText({
+              model: provider(MODEL),
+              system: `You are the Chief of Staff facilitating a roundtable for the brand "${ctx.brand.name}".
 Your job is to reconcile the specialists' takes into one decision the founder can act on today.
 Format exactly:
 **Where they agree** — 1-2 bullets.
 **Where they conflict** — name each disagreement, who holds which position, and rule on it with a reason.
 **The call** — 2-4 numbered, concrete next actions, each owned by one of the specialists by role name.
 Be decisive. No hedging, no new ideas the panel didn't raise. Under 180 words.`,
-        prompt: `Founder's question: ${question}\n\nPanel:\n\n${panelText}`,
-      });
-      synthesis = (res.text ?? "").trim();
-    } catch (e: any) {
-      console.error("[roundtable] synthesis failed", e?.message);
-      synthesis = "";
-    }
+              prompt: `Founder's question: ${question}\n\nPanel:\n\n${panelText}`,
+            });
+            synthesis = (res.text ?? "").trim();
+          } catch (e: any) {
+            console.error("[roundtable] synthesis failed", e?.message);
+            synthesis = "";
+          }
 
-    return new Response(JSON.stringify({ turns, synthesis }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+          emit({ type: "synthesis", text: synthesis });
+          emit({ type: "done", turns, synthesis });
+        } catch (e: any) {
+          console.error("[roundtable] stream error", e?.message);
+          emit({ type: "error", message: String(e?.message ?? "Roundtable failed") });
+        } finally {
+          controller.close();
+        }
+      },
     });
+
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+    });
+
   } catch (e: any) {
     console.error("agent-roundtable error", e);
     const msg = e?.message ?? "Unknown error";
