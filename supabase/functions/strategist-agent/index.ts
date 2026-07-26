@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     const systemPrompt = buildSystemPrompt(brand, settings);
 
     const result = streamText({
-      model: provider("google/gemini-3-flash-preview"),
+      model: provider("google/gemini-3.6-flash"),
       system: systemPrompt,
       messages: convertToCoreMessages(messages as any),
       tools: tools as any,
