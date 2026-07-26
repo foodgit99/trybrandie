@@ -474,7 +474,68 @@ export default function AgentChatPanel({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          size="sm"
+          variant={isRoundtable ? "default" : "ghost"}
+          className="h-7 shrink-0 rounded-full text-[11px]"
+          onClick={() => setShowPanelPicker((v) => !v)}
+          title="Invite other agents into this chat"
+        >
+          <Users className="h-3 w-3" />
+          <span className="ml-1 hidden sm:inline">
+            {isRoundtable ? `Roundtable · ${panelIds.length}` : "Roundtable"}
+          </span>
+        </Button>
       </div>
+
+      {/* Roundtable panel picker */}
+      {showPanelPicker && (
+        <div className="px-4 py-2.5 border-b border-border/60 bg-muted/30 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Invite teammates to answer alongside your {agent.role}. Each one speaks in turn, reads
+            the others, and a facilitator reconciles any conflicts into one call.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="rounded-full border border-foreground bg-foreground text-background px-2.5 py-1 text-[11px]">
+              {agent.role} (host)
+            </span>
+            {Object.values(STAGE_AGENTS)
+              .filter((a) => a.id !== agentId)
+              .map((a) => {
+                const on = invited.includes(a.id);
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() =>
+                      setInvited((prev) =>
+                        on ? prev.filter((x) => x !== a.id) : prev.length >= 3 ? prev : [...prev, a.id],
+                      )
+                    }
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+                      on ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary/60",
+                    )}
+                  >
+                    {on && <Check className="h-3 w-3 mr-1 inline-block align-[-1px]" />}
+                    {a.role}
+                  </button>
+                );
+              })}
+          </div>
+          {invited.length > 0 && (
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-muted-foreground flex-1">
+                Roundtable is read-only — agents advise but won't schedule or change anything.
+              </p>
+              <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setInvited([])}>
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* Transcript */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
