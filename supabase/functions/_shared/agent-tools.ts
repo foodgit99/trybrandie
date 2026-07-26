@@ -174,7 +174,7 @@ export function buildTools(session: AgentSession) {
   return {
     get_brand_snapshot: tool({
       description: "Get the current brand profile, target audiences, content pillars, and series.",
-      inputSchema: z.object({}),
+      parameters: z.object({}),
       execute: guarded(session, "get_brand_snapshot", "read", async () => {
         const [brand, audiences, pillars, series, campaigns, products] = await Promise.all([
           sb.from("brands").select("name,tagline,description,vibe,tone_of_voice,personality_traits,primary_colors,secondary_colors,accent_colors,typography_primary,special_instructions").eq("id", brandId).single(),
@@ -199,7 +199,7 @@ export function buildTools(session: AgentSession) {
 
     get_blueprint: tool({
       description: "Get scheduled/draft content ideas for a date range (defaults to next 14 days).",
-      inputSchema: z.object({
+      parameters: z.object({
         days_ahead: z.number().int().min(1).max(60).default(14),
       }),
       execute: guarded(session, "get_blueprint", "read", async ({ days_ahead }: any) => {
@@ -220,7 +220,7 @@ export function buildTools(session: AgentSession) {
 
     get_recent_designs: tool({
       description: "Get the most recent designs with prompts and vote scores.",
-      inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(10) }),
+      parameters: z.object({ limit: z.number().int().min(1).max(50).default(10) }),
       execute: guarded(session, "get_recent_designs", "read", async ({ limit }: any) => {
         const { data, error } = await sb.from("designs")
           .select("id,title,prompt,vote,created_at,trend_used")
@@ -235,7 +235,7 @@ export function buildTools(session: AgentSession) {
 
     query_holidays: tool({
       description: "Fetch upcoming regional holidays and cultural events for this brand.",
-      inputSchema: z.object({ days: z.number().int().min(1).max(60).default(30) }),
+      parameters: z.object({ days: z.number().int().min(1).max(60).default(30) }),
       execute: guarded(session, "query_holidays", "read", async ({ days }: any) => {
         const r = await callEdge(session, "holiday-feed", { brand_id: brandId, days });
         await logAction(session, "query_holidays", { days }, { status: r.status });
@@ -245,7 +245,7 @@ export function buildTools(session: AgentSession) {
 
     query_trends: tool({
       description: "Get the latest trend intelligence stored for this brand.",
-      inputSchema: z.object({}),
+      parameters: z.object({}),
       execute: guarded(session, "query_trends", "read", async () => {
         const { data } = await sb.from("brand_trend_intel").select("trends_data,generated_at").eq("brand_id", brandId).maybeSingle();
         await logAction(session, "query_trends", {}, { has_data: !!data });
@@ -255,7 +255,7 @@ export function buildTools(session: AgentSession) {
 
     create_campaign: tool({
       description: "Create a new campaign (draft) for this brand.",
-      inputSchema: z.object({
+      parameters: z.object({
         name: z.string().min(1).max(120),
         description: z.string().max(800).optional(),
         post_count: z.number().int().min(1).max(30).default(5),
@@ -279,7 +279,7 @@ export function buildTools(session: AgentSession) {
 
     create_content_pillar: tool({
       description: "Add a new content pillar for the brand.",
-      inputSchema: z.object({
+      parameters: z.object({
         name: z.string().min(1).max(80),
         description: z.string().max(500),
       }),
@@ -299,7 +299,7 @@ export function buildTools(session: AgentSession) {
 
     draft_content_idea: tool({
       description: "Draft a single content idea (caption + pillar) for the brand. Does NOT generate the design.",
-      inputSchema: z.object({
+      parameters: z.object({
         title: z.string().min(1).max(200),
         caption: z.string().min(1).max(2000),
         pillar: z.string().optional(),
@@ -328,7 +328,7 @@ export function buildTools(session: AgentSession) {
 
     schedule_idea: tool({
       description: "Schedule an existing draft idea to be posted at a specific time.",
-      inputSchema: z.object({
+      parameters: z.object({
         idea_id: z.string().uuid(),
         scheduled_for: z.string().datetime(),
       }),
@@ -349,7 +349,7 @@ export function buildTools(session: AgentSession) {
 
     update_idea_caption: tool({
       description: "Edit the caption of an existing draft idea.",
-      inputSchema: z.object({
+      parameters: z.object({
         idea_id: z.string().uuid(),
         caption: z.string().min(1).max(2000),
       }),
@@ -370,7 +370,7 @@ export function buildTools(session: AgentSession) {
 
     enqueue_design_generation: tool({
       description: "Generate a branded design from a prompt. Costs credits.",
-      inputSchema: z.object({
+      parameters: z.object({
         prompt: z.string().min(5).max(2000),
         idea_id: z.string().uuid().optional(),
       }),
