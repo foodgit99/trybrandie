@@ -4134,9 +4134,14 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
                 try {
                   result = await renderSlide(i, coverImageUrl, coverSlidePlan, nextSlide, 0);
                 } catch (firstErr) {
+                  if (carouselRenderBudget.remaining <= 0) {
+                    console.error(`[carousel] slide ${i + 1} failed and render budget is exhausted — no retry`);
+                    throw firstErr;
+                  }
                   console.warn(`[carousel] slide ${i + 1} failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
                   result = await renderSlide(i, coverImageUrl, coverSlidePlan, nextSlide, 1);
                 }
+
                 innerResults[localIdx] = result;
                 completedInner += 1;
                 await heartbeat(
