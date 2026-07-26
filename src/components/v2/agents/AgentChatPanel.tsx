@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check } from "lucide-react";
+import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { STAGE_AGENTS, agentChannel, type StageAgentId } from "@/lib/stageAgents";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportAgentTranscript, copyTranscriptToClipboard } from "@/lib/agentTranscript";
 
 type Thread = { id: string; title: string | null; last_message_at: string | null };
 
@@ -49,6 +58,7 @@ export default function AgentChatPanel({
   const [token, setToken] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [approving, setApproving] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -255,6 +265,47 @@ export default function AgentChatPanel({
     }
   };
 
+  const activeThread = threads.find((t) => t.id === threadId) ?? null;
+  const hasSaved = Boolean(activeThread);
+
+  const runExport = async (format: "md" | "txt" | "json", scope: "current" | "all") => {
+    const list = scope === "all" ? threads : activeThread ? [activeThread] : [];
+    if (list.length === 0) {
+      toast({ title: "Nothing to export yet", description: "Send a message first." });
+      return;
+    }
+    setExporting(true);
+    try {
+      const name = await exportAgentTranscript({
+        agentRole: agent.role,
+        brandId,
+        threads: list,
+        format,
+      });
+      toast({ title: "Transcript exported", description: name });
+    } catch (e: any) {
+      toast({ title: "Export failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const runCopy = async () => {
+    if (!activeThread) {
+      toast({ title: "Nothing to copy yet", description: "Send a message first." });
+      return;
+    }
+    setExporting(true);
+    try {
+      await copyTranscriptToClipboard({ agentRole: agent.role, brandId, threads: [activeThread] });
+      toast({ title: "Transcript copied", description: "Markdown is on your clipboard." });
+    } catch (e: any) {
+      toast({ title: "Copy failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const statusLabel = useMemo(() => {
     if (!isLoading) return null;
     const last = [...messages].reverse().find((m: any) => m.role === "assistant") as any;
@@ -267,7 +318,8 @@ export default function AgentChatPanel({
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       {/* Threads */}
-      <div className="px-4 py-2 border-b border-border/60 flex items-center gap-2 overflow-x-auto">
+      <div className="px-4 py-2 border-b border-border/60 flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0">
         <Button size="sm" variant="outline" className="h-7 shrink-0 rounded-full text-[11px]" onClick={newThread}>
           <Plus className="h-3 w-3 mr-1" /> New
         </Button>
@@ -295,6 +347,51 @@ export default function AgentChatPanel({
             </button>
           ))
         )}
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 rounded-full text-[11px]"
+              disabled={exporting}
+              title="Save or export this conversation"
+            >
+              {exporting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3" />
+              )}
+              <span className="ml-1 hidden sm:inline">Export</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuLabel className="text-[11px]">This conversation</DropdownMenuLabel>
+            <DropdownMenuItem disabled={!hasSaved} onClick={() => runExport("md", "current")}>
+              <FileText className="h-3.5 w-3.5 mr-2" /> Download Markdown (.md)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!hasSaved} onClick={() => runExport("txt", "current")}>
+              <FileText className="h-3.5 w-3.5 mr-2" /> Download plain text (.txt)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!hasSaved} onClick={() => runExport("json", "current")}>
+              <FileJson className="h-3.5 w-3.5 mr-2" /> Download JSON (.json)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!hasSaved} onClick={runCopy}>
+              <Copy className="h-3.5 w-3.5 mr-2" /> Copy transcript
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[11px]">
+              All conversations ({threads.length})
+            </DropdownMenuLabel>
+            <DropdownMenuItem disabled={threads.length === 0} onClick={() => runExport("md", "all")}>
+              <Files className="h-3.5 w-3.5 mr-2" /> Knowledge pack (.md)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={threads.length === 0} onClick={() => runExport("json", "all")}>
+              <FileJson className="h-3.5 w-3.5 mr-2" /> Full archive (.json)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Transcript */}
