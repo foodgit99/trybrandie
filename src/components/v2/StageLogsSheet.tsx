@@ -214,13 +214,20 @@ export default function StageLogsSheet({
         </div>
 
         <div className="p-4 border-t flex flex-col gap-2">
-          {link && (
-            <Button asChild variant="outline" className="w-full">
-              <Link to={link.to} onClick={() => onOpenChange(false)}>
-                {link.label}
-                <ExternalLink className="h-3.5 w-3.5 ml-2" />
-              </Link>
+          {agent ? (
+            <Button className="w-full" onClick={() => setView("chat")}>
+              <MessageSquare className="h-3.5 w-3.5 mr-2" />
+              Chat with your {agent.role}
             </Button>
+          ) : (
+            link && (
+              <Button asChild variant="outline" className="w-full">
+                <Link to={link.to} onClick={() => onOpenChange(false)}>
+                  {link.label}
+                  <ExternalLink className="h-3.5 w-3.5 ml-2" />
+                </Link>
+              </Button>
+            )
           )}
           {isAdmin && (
             <Button asChild variant="ghost" size="sm" className="w-full">
@@ -231,7 +238,10 @@ export default function StageLogsSheet({
             </Button>
           )}
         </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
+
   );
 }
