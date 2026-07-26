@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files } from "lucide-react";
+import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +59,11 @@ export default function AgentChatPanel({
   const [input, setInput] = useState("");
   const [approving, setApproving] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [invited, setInvited] = useState<StageAgentId[]>([]);
+  const [showPanelPicker, setShowPanelPicker] = useState(false);
+  const [roundtableBusy, setRoundtableBusy] = useState(false);
+  const isRoundtable = invited.length > 0;
+  const panelIds = useMemo(() => [agentId, ...invited], [agentId, invited]);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -206,14 +211,91 @@ export default function AgentChatPanel({
     return data.id;
   };
 
+  const runRoundtable = async (text: string) => {
+    const tid = await ensureThread(text);
+    if (!tid) return;
+    setRoundtableBusy(true);
+    const userMsg = { id: `u-${Date.now()}`, role: "user", content: text } as any;
+    setMessages([...(messages as any[]), userMsg] as any);
+    try {
+      if (userId) {
+        await supabase.from("agent_messages").insert({
+          conversation_id: tid,
+          user_id: userId,
+          role: "user",
+          parts: [{ type: "text", text }],
+        });
+      }
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-roundtable`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sess.session?.access_token}`,
+            apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+          },
+          body: JSON.stringify({
+            brand_id: brandId,
+            conversation_id: tid,
+            question: text,
+            agents: panelIds,
+            history: (messages as any[]).slice(-8).map((m: any) => ({
+              role: m.role,
+              text: m.content ?? "",
+            })),
+          }),
+        },
+      );
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error ?? "Roundtable failed");
+
+      const sections = (payload.turns ?? []).map(
+        (t: any) => `### ${t.role}\n\n${t.text}`,
+      );
+      if (payload.synthesis) {
+        sections.push(`### 🧭 Reconciled call\n\n${payload.synthesis}`);
+      }
+      const content = sections.join("\n\n---\n\n");
+      setMessages([
+        ...(messages as any[]),
+        userMsg,
+        { id: `rt-${Date.now()}`, role: "assistant", content },
+      ] as any);
+      if (userId) {
+        await supabase.from("agent_messages").insert({
+          conversation_id: tid,
+          user_id: userId,
+          role: "assistant",
+          parts: [{ type: "text", text: content }],
+        });
+        await supabase
+          .from("agent_conversations")
+          .update({ last_message_at: new Date().toISOString() })
+          .eq("id", tid);
+        loadThreads(false);
+      }
+    } catch (e: any) {
+      toast({ title: "Roundtable failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setRoundtableBusy(false);
+      composerRef.current?.focus();
+    }
+  };
+
   const send = async (textOverride?: string) => {
     const text = (textOverride ?? input).trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || roundtableBusy) return;
     if (!brandId) {
       toast({ title: "Pick a brand first", variant: "destructive" });
       return;
     }
     setInput("");
+    if (isRoundtable) {
+      await runRoundtable(text);
+      return;
+    }
     const tid = await ensureThread(text);
     if (!tid) return;
     if (userId) {
@@ -392,7 +474,68 @@ export default function AgentChatPanel({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          size="sm"
+          variant={isRoundtable ? "default" : "ghost"}
+          className="h-7 shrink-0 rounded-full text-[11px]"
+          onClick={() => setShowPanelPicker((v) => !v)}
+          title="Invite other agents into this chat"
+        >
+          <Users className="h-3 w-3" />
+          <span className="ml-1 hidden sm:inline">
+            {isRoundtable ? `Roundtable · ${panelIds.length}` : "Roundtable"}
+          </span>
+        </Button>
       </div>
+
+      {/* Roundtable panel picker */}
+      {showPanelPicker && (
+        <div className="px-4 py-2.5 border-b border-border/60 bg-muted/30 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Invite teammates to answer alongside your {agent.role}. Each one speaks in turn, reads
+            the others, and a facilitator reconciles any conflicts into one call.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="rounded-full border border-foreground bg-foreground text-background px-2.5 py-1 text-[11px]">
+              {agent.role} (host)
+            </span>
+            {Object.values(STAGE_AGENTS)
+              .filter((a) => a.id !== agentId)
+              .map((a) => {
+                const on = invited.includes(a.id);
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() =>
+                      setInvited((prev) =>
+                        on ? prev.filter((x) => x !== a.id) : prev.length >= 3 ? prev : [...prev, a.id],
+                      )
+                    }
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+                      on ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary/60",
+                    )}
+                  >
+                    {on && <Check className="h-3 w-3 mr-1 inline-block align-[-1px]" />}
+                    {a.role}
+                  </button>
+                );
+              })}
+          </div>
+          {invited.length > 0 && (
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-muted-foreground flex-1">
+                Roundtable is read-only — agents advise but won't schedule or change anything.
+              </p>
+              <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setInvited([])}>
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* Transcript */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
@@ -478,6 +621,13 @@ export default function AgentChatPanel({
           </div>
         ))}
 
+        {roundtableBusy && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {panelIds.length} agents are debating
+            this…
+          </div>
+        )}
+
         {statusLabel && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> {statusLabel}
@@ -499,16 +649,24 @@ export default function AgentChatPanel({
               }
             }}
             rows={1}
-            placeholder={`Message your ${agent.role}…`}
+            placeholder={
+              isRoundtable
+                ? `Ask the roundtable (${panelIds.length} agents)…`
+                : `Message your ${agent.role}…`
+            }
             className="resize-none min-h-[44px] max-h-32 rounded-2xl"
           />
           <Button
             size="icon"
             onClick={() => send()}
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || roundtableBusy || !input.trim()}
             className="rounded-2xl h-11 w-11 shrink-0"
           >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {isLoading || roundtableBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>
