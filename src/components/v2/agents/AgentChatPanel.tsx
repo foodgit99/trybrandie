@@ -265,6 +265,47 @@ export default function AgentChatPanel({
     }
   };
 
+  const activeThread = threads.find((t) => t.id === threadId) ?? null;
+  const hasSaved = Boolean(activeThread);
+
+  const runExport = async (format: "md" | "txt" | "json", scope: "current" | "all") => {
+    const list = scope === "all" ? threads : activeThread ? [activeThread] : [];
+    if (list.length === 0) {
+      toast({ title: "Nothing to export yet", description: "Send a message first." });
+      return;
+    }
+    setExporting(true);
+    try {
+      const name = await exportAgentTranscript({
+        agentRole: agent.role,
+        brandId,
+        threads: list,
+        format,
+      });
+      toast({ title: "Transcript exported", description: name });
+    } catch (e: any) {
+      toast({ title: "Export failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const runCopy = async () => {
+    if (!activeThread) {
+      toast({ title: "Nothing to copy yet", description: "Send a message first." });
+      return;
+    }
+    setExporting(true);
+    try {
+      await copyTranscriptToClipboard({ agentRole: agent.role, brandId, threads: [activeThread] });
+      toast({ title: "Transcript copied", description: "Markdown is on your clipboard." });
+    } catch (e: any) {
+      toast({ title: "Copy failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const statusLabel = useMemo(() => {
     if (!isLoading) return null;
     const last = [...messages].reverse().find((m: any) => m.role === "assistant") as any;
