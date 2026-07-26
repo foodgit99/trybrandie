@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
   let assistantText = "";
   try {
     const r = await generateText({
-      model: provider("google/gemini-3-flash-preview"),
+      model: provider("google/gemini-3.6-flash"),
       system: `You are the Autonomous Brand Strategist. You are answering via an external channel (${channel}). Be concise — fit under 600 characters when possible. Use tools to act, then summarize crisply.`,
       messages: [...priorMessages, { role: "user", content: message }],
       tools: tools as any,

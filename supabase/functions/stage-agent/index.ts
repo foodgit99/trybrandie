@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     });
 
     const result = streamText({
-      model: provider("google/gemini-3-flash-preview"),
+      model: provider("google/gemini-3.6-flash"),
       system,
       onError: ({ error }: any) => {
         console.error("[stage-agent] streamText onError", {
