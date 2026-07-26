@@ -9,7 +9,7 @@ import { buildTools, AgentSession, ToolMode } from "../_shared/agent-tools.ts";
 import { buildBrandContext } from "../_shared/brand-context.ts";
 import { getSeasonalContextStringAsync, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { sanitise } from "../_shared/sanitise.ts";
-import { PERSONAS, buildSystemPrompt, type AgentId, type Persona } from "../_shared/stage-personas.ts";
+import { PERSONAS, buildSystemPrompt, type AgentId } from "../_shared/stage-personas.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
