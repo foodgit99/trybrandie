@@ -783,6 +783,24 @@ export default function AgentChatPanel({
           </Button>
         </div>
       </div>
+      </div>
+
+      {/* Live takes — side column on wide screens, slide-over on narrow ones */}
+      {live && showLive && (
+        <>
+          <RoundtableLivePanel
+            live={live}
+            onClose={() => setShowLive(false)}
+            className="hidden lg:flex w-[320px] shrink-0"
+          />
+          <RoundtableLivePanel
+            live={live}
+            onClose={() => setShowLive(false)}
+            className="lg:hidden absolute inset-y-0 right-0 z-20 w-[88%] max-w-[340px] bg-background shadow-xl"
+          />
+        </>
+      )}
     </div>
+
   );
 }
