@@ -8,8 +8,17 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  ExternalLink,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  ArrowLeft,
+  MessageSquare,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { STAGE_AGENTS, isStageAgentId } from "@/lib/stageAgents";
+import AgentChatPanel from "@/components/v2/agents/AgentChatPanel";
 
 export type StageLogEntry = {
   id: string;
