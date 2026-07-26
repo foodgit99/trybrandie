@@ -18,6 +18,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { exportAgentTranscript, copyTranscriptToClipboard } from "@/lib/agentTranscript";
+import RoundtableLivePanel, { type RoundtableLive } from "@/components/v2/agents/RoundtableLivePanel";
+
 
 type Thread = { id: string; title: string | null; last_message_at: string | null };
 
