@@ -367,6 +367,7 @@ export default function PipelineTelemetry({
         stage={activeStage}
         state={activeStage ? data?.[activeStage.id] ?? null : null}
         now={now}
+        brandId={brandId}
       />
     </section>
   );
