@@ -206,14 +206,91 @@ export default function AgentChatPanel({
     return data.id;
   };
 
+  const runRoundtable = async (text: string) => {
+    const tid = await ensureThread(text);
+    if (!tid) return;
+    setRoundtableBusy(true);
+    const userMsg = { id: `u-${Date.now()}`, role: "user", content: text } as any;
+    setMessages([...(messages as any[]), userMsg] as any);
+    try {
+      if (userId) {
+        await supabase.from("agent_messages").insert({
+          conversation_id: tid,
+          user_id: userId,
+          role: "user",
+          parts: [{ type: "text", text }],
+        });
+      }
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-roundtable`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sess.session?.access_token}`,
+            apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+          },
+          body: JSON.stringify({
+            brand_id: brandId,
+            conversation_id: tid,
+            question: text,
+            agents: panelIds,
+            history: (messages as any[]).slice(-8).map((m: any) => ({
+              role: m.role,
+              text: m.content ?? "",
+            })),
+          }),
+        },
+      );
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error ?? "Roundtable failed");
+
+      const sections = (payload.turns ?? []).map(
+        (t: any) => `### ${t.role}\n\n${t.text}`,
+      );
+      if (payload.synthesis) {
+        sections.push(`### 🧭 Reconciled call\n\n${payload.synthesis}`);
+      }
+      const content = sections.join("\n\n---\n\n");
+      setMessages([
+        ...(messages as any[]),
+        userMsg,
+        { id: `rt-${Date.now()}`, role: "assistant", content },
+      ] as any);
+      if (userId) {
+        await supabase.from("agent_messages").insert({
+          conversation_id: tid,
+          user_id: userId,
+          role: "assistant",
+          parts: [{ type: "text", text: content }],
+        });
+        await supabase
+          .from("agent_conversations")
+          .update({ last_message_at: new Date().toISOString() })
+          .eq("id", tid);
+        loadThreads(false);
+      }
+    } catch (e: any) {
+      toast({ title: "Roundtable failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setRoundtableBusy(false);
+      composerRef.current?.focus();
+    }
+  };
+
   const send = async (textOverride?: string) => {
     const text = (textOverride ?? input).trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || roundtableBusy) return;
     if (!brandId) {
       toast({ title: "Pick a brand first", variant: "destructive" });
       return;
     }
     setInput("");
+    if (isRoundtable) {
+      await runRoundtable(text);
+      return;
+    }
     const tid = await ensureThread(text);
     if (!tid) return;
     if (userId) {
