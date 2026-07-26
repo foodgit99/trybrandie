@@ -185,9 +185,25 @@ Deno.serve(async (req) => {
 
     const system = buildSystemPrompt(persona, ctx.brand, ctx.context, seasonal, settings);
 
+    console.log("[stage-agent] start", {
+      agent,
+      brand_id,
+      messages: messages.length,
+      tools: Object.keys(tools),
+      system_chars: system.length,
+    });
+
     const result = streamText({
       model: provider("google/gemini-3-flash-preview"),
       system,
+      onError: ({ error }: any) => {
+        console.error("[stage-agent] streamText onError", {
+          name: error?.name,
+          message: error?.message,
+          statusCode: error?.statusCode,
+          responseBody: typeof error?.responseBody === "string" ? error.responseBody.slice(0, 800) : undefined,
+        });
+      },
       messages: convertToCoreMessages(messages as any),
       tools: tools as any,
       maxSteps: 50,
