@@ -3950,7 +3950,19 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         const slideRefLegend = buildRefLegend(slideRefs);
         const slidePromptWithRefs = slideRefLegend ? `${slidePromptWithProduct}\n\n${slideRefLegend}` : slidePromptWithProduct;
 
-        const { b64: imageBase64 } = await renderWithGptImageEdits(slidePromptWithRefs, slideRefs, w, h);
+        // Cover = hero tier (it defines the visual system). Inner slides inherit
+        // that system from the attached cover reference, so they render on the
+        // cheaper Flash Image ladder unless the brand forces hero rendering.
+        const slideTier: RenderTier = i === 0 || forceHeroRender ? "hero" : "support";
+        const { b64: imageBase64, model: slideModel } = await renderWithGptImageEdits(
+          slidePromptWithRefs,
+          slideRefs,
+          w,
+          h,
+          { tier: slideTier, budget: carouselRenderBudget },
+        );
+        console.log(`[carousel] slide ${i + 1} rendered on ${slideModel} (${slideTier})`);
+
         let binaryData = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
         binaryData = await enforceCanvasDimensions(binaryData, w, h);
 
