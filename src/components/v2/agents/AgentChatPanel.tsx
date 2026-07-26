@@ -58,6 +58,7 @@ export default function AgentChatPanel({
   const [token, setToken] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [approving, setApproving] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
