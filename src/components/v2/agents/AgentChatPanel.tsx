@@ -347,6 +347,51 @@ export default function AgentChatPanel({
             </button>
           ))
         )}
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 rounded-full text-[11px]"
+              disabled={exporting}
+              title="Save or export this conversation"
+            >
+              {exporting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3" />
+              )}
+              <span className="ml-1 hidden sm:inline">Export</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuLabel className="text-[11px]">This conversation</DropdownMenuLabel>
+            <DropdownMenuItem disabled={!hasSaved} onClick={() => runExport("md", "current")}>
+              <FileText className="h-3.5 w-3.5 mr-2" /> Download Markdown (.md)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!hasSaved} onClick={() => runExport("txt", "current")}>
+              <FileText className="h-3.5 w-3.5 mr-2" /> Download plain text (.txt)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!hasSaved} onClick={() => runExport("json", "current")}>
+              <FileJson className="h-3.5 w-3.5 mr-2" /> Download JSON (.json)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!hasSaved} onClick={runCopy}>
+              <Copy className="h-3.5 w-3.5 mr-2" /> Copy transcript
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[11px]">
+              All conversations ({threads.length})
+            </DropdownMenuLabel>
+            <DropdownMenuItem disabled={threads.length === 0} onClick={() => runExport("md", "all")}>
+              <Files className="h-3.5 w-3.5 mr-2" /> Knowledge pack (.md)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={threads.length === 0} onClick={() => runExport("json", "all")}>
+              <FileJson className="h-3.5 w-3.5 mr-2" /> Full archive (.json)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Transcript */}
