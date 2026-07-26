@@ -4046,12 +4046,17 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
         await heartbeat(10, `cover_1_of_${numSlides}`);
         const coverNextSlide = numSlides > 1 ? carouselPlan.slides[1] : null;
         let coverResult: SlideResult;
+        // Phase 0: the cover gets exactly ONE extra attempt, shared between the
+        // hard-failure path and the critic fail-verdict path.
+        let coverRetryAvailable = true;
         try {
           coverResult = await renderSlide(0, null, null, coverNextSlide, 0);
         } catch (firstErr) {
           console.warn(`[carousel] cover failed (${firstErr instanceof Error ? firstErr.message : firstErr}) — retrying once`);
+          coverRetryAvailable = false;
           coverResult = await renderSlide(0, null, null, coverNextSlide, 1);
         }
+
 
         // Score the cover; on fail-verdict, single retry (unchanged behaviour).
         try {
