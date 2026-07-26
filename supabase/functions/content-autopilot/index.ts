@@ -511,9 +511,11 @@ async function processIdea(
     action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: canvasSize,
     content_idea_id: idea.id,
-    // Best-of-N: render two candidates and let the critic pick the stronger one.
+    // Best-of-N ceiling: design-studio renders candidate A, scores it, and only
+    // spends a second render when A misses the quality gate.
     // Carousels skip this (already multi-image and cost-sensitive).
     ...(isCarousel ? {} : { candidate_count: 2 }),
+
     ...(isCarousel && { slide_count: slideCount }),
 
     messages: [{ role: "user", content: idea.prompt }],
