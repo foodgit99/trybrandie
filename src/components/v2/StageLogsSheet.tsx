@@ -8,8 +8,17 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  ExternalLink,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  ArrowLeft,
+  MessageSquare,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { STAGE_AGENTS, isStageAgentId } from "@/lib/stageAgents";
+import AgentChatPanel from "@/components/v2/agents/AgentChatPanel";
 
 export type StageLogEntry = {
   id: string;
@@ -82,14 +91,18 @@ export default function StageLogsSheet({
   stage,
   state,
   now,
+  brandId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   stage: StageDef | null;
   state: StageState | null;
   now: number;
+  brandId?: string;
 }) {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [view, setView] = useState<"logs" | "chat">("logs");
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +110,7 @@ export default function StageLogsSheet({
       const { data } = await supabase.auth.getUser();
       const uid = data.user?.id;
       if (!uid) return;
+      if (!cancelled) setUserId(uid);
       const { data: row } = await supabase
         .from("user_roles")
         .select("role")
@@ -110,10 +124,17 @@ export default function StageLogsSheet({
     };
   }, []);
 
+  // Always reopen on the logs view for a new stage.
+  useEffect(() => {
+    setView("logs");
+  }, [stage?.id, open]);
+
   if (!stage) return null;
   const copy = STAGE_COPY[stage.id] ?? { title: stage.label, body: stage.sub };
   const link = FOOTER_LINK[stage.id];
   const events = state?.events ?? [];
+  const agent = isStageAgentId(stage.id) ? STAGE_AGENTS[stage.id] : null;
+  const chatting = view === "chat" && !!agent;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -122,22 +143,43 @@ export default function StageLogsSheet({
         className="w-full sm:max-w-md flex flex-col p-0"
       >
         <SheetHeader className="p-6 pb-4 border-b">
-          <div className="text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
-            Stage logs
+          <div className="flex items-center gap-2">
+            {chatting && (
+              <button
+                onClick={() => setView("logs")}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Back to stage logs"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
+            <div className="text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
+              {chatting ? agent!.role : "Stage logs"}
+            </div>
           </div>
           <SheetTitle className="font-serif text-2xl tracking-tight">
             {copy.title}
           </SheetTitle>
-          <SheetDescription className="text-sm">{copy.body}</SheetDescription>
-          <div className="flex items-center gap-2 pt-2 text-[11px] text-muted-foreground">
-            <span className="rounded-full border border-border px-2 py-0.5 capitalize">
-              {state?.status ?? "idle"}
-            </span>
-            <span>
-              Last activity: {relTime(state?.lastAt ?? null, now)}
-            </span>
-          </div>
+          <SheetDescription className="text-sm">
+            {chatting ? agent!.blurb : copy.body}
+          </SheetDescription>
+          {!chatting && (
+            <div className="flex items-center gap-2 pt-2 text-[11px] text-muted-foreground">
+              <span className="rounded-full border border-border px-2 py-0.5 capitalize">
+                {state?.status ?? "idle"}
+              </span>
+              <span>
+                Last activity: {relTime(state?.lastAt ?? null, now)}
+              </span>
+            </div>
+          )}
         </SheetHeader>
+
+        {chatting ? (
+          <AgentChatPanel agentId={stage.id as any} brandId={brandId} userId={userId} />
+        ) : (
+          <>
+
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
           {events.length === 0 ? (
@@ -181,13 +223,20 @@ export default function StageLogsSheet({
         </div>
 
         <div className="p-4 border-t flex flex-col gap-2">
-          {link && (
-            <Button asChild variant="outline" className="w-full">
-              <Link to={link.to} onClick={() => onOpenChange(false)}>
-                {link.label}
-                <ExternalLink className="h-3.5 w-3.5 ml-2" />
-              </Link>
+          {agent ? (
+            <Button className="w-full" onClick={() => setView("chat")}>
+              <MessageSquare className="h-3.5 w-3.5 mr-2" />
+              Chat with your {agent.role}
             </Button>
+          ) : (
+            link && (
+              <Button asChild variant="outline" className="w-full">
+                <Link to={link.to} onClick={() => onOpenChange(false)}>
+                  {link.label}
+                  <ExternalLink className="h-3.5 w-3.5 ml-2" />
+                </Link>
+              </Button>
+            )
           )}
           {isAdmin && (
             <Button asChild variant="ghost" size="sm" className="w-full">
@@ -198,7 +247,10 @@ export default function StageLogsSheet({
             </Button>
           )}
         </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
+
   );
 }
