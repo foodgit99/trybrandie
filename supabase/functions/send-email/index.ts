@@ -1317,6 +1317,48 @@ Deno.serve(async (req) => {
 </td></tr></table>
 </body></html>`;
         break;
+      case "autopilot_paused_dormant": {
+        const bName = data?.brand_name || "your brand";
+        const days = data?.days ?? 15;
+        subject = `Autopilot paused for ${bName} — we missed you 💤`;
+        html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:40px 20px;">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-radius:16px;overflow:hidden;">
+  <tr><td style="background:#1a1a2e;padding:32px 40px;text-align:center;">
+    <p style="font-size:48px;margin:0 0 8px;">💤</p>
+    <h1 style="color:#c4a265;font-size:26px;margin:0;font-weight:700;">Autopilot Paused</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      We've paused Autopilot for <strong>${bName}</strong> because there hasn't been any sign-in activity on your account for over ${days} days.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 16px;">
+      Nothing is lost — your brand, blueprint and content queue are exactly as you left them. We simply stopped generating and sending new posts so nothing runs unattended.
+    </p>
+    <p style="font-size:16px;color:#1a1a2e;line-height:1.6;margin:0 0 24px;">
+      Ready to pick things back up? Sign in and switch the engine back on — it takes one tap.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center" style="padding-bottom:12px;">
+      <a href="${APP_URL}/settings" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+        Resume Autopilot
+      </a>
+    </td></tr><tr><td align="center">
+      <a href="${APP_URL}/blueprint" style="display:inline-block;color:#c4a265;font-weight:500;font-size:14px;text-decoration:underline;">
+        View this week's Blueprint
+      </a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 40px 32px;text-align:center;">
+    <p style="font-size:13px;color:#9ca3af;margin:0;">You received this because Autopilot was automatically paused on your Brandie account.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+        break;
+      }
       case "affiliate_monthly_digest":
         subject = `Your Brandie affiliate report — ${data?.month || "this month"} 📊`;
         html = affiliateMonthlyDigestHtml(data || {});

@@ -4,6 +4,7 @@
 // drafts next week's ideas via brand-engine. Idempotent on weekly_plan_last_run.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
+import { pauseDormantBrands } from "../_shared/pause-dormant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -351,14 +352,9 @@ Deno.serve(async (req) => {
       nextWeekDates.push(isoDate(d));
     }
 
-    // Dormancy guard: pause autopilot for brands whose owner hasn't signed in for 15+ days.
-    try {
-      const { data: pausedCount, error: pauseErr } = await supabase.rpc("pause_dormant_autopilot", { p_days: 15 });
-      if (pauseErr) console.error("[autopilot-planner] dormancy pause failed:", pauseErr.message);
-      else if (pausedCount) console.log(`[autopilot-planner] paused ${pausedCount} dormant brand(s)`);
-    } catch (e) {
-      console.error("[autopilot-planner] dormancy pause threw:", e);
-    }
+    // Dormancy guard: pause autopilot for brands whose owner hasn't signed in for 15+ days,
+    // and email each owner so the pause is never silent.
+    await pauseDormantBrands(supabase, supabaseUrl, serviceRoleKey, "[autopilot-planner]");
 
     // 1. Find all brands with autopilot enabled (assisted OR autonomous; skip manual)
     const { data: settings, error: settingsErr } = await supabase
