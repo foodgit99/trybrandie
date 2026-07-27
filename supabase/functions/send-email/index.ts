@@ -1320,6 +1320,9 @@ Deno.serve(async (req) => {
       case "autopilot_paused_dormant": {
         const bName = data?.brand_name || "your brand";
         const days = data?.days ?? 15;
+        // Deep link straight to this brand's Autopilot controls in Settings.
+        const brandQs = data?.brand_id ? `brand=${encodeURIComponent(String(data.brand_id))}&` : "";
+        const resumeUrl = `${APP_URL}/settings?${brandQs}resume=1#autopilot-settings`;
         subject = `Autopilot paused for ${bName} — we missed you 💤`;
         html = `
 <!DOCTYPE html>
