@@ -1320,6 +1320,9 @@ Deno.serve(async (req) => {
       case "autopilot_paused_dormant": {
         const bName = data?.brand_name || "your brand";
         const days = data?.days ?? 15;
+        // Deep link straight to this brand's Autopilot controls in Settings.
+        const brandQs = data?.brand_id ? `brand=${encodeURIComponent(String(data.brand_id))}&` : "";
+        const resumeUrl = `${APP_URL}/settings?${brandQs}resume=1#autopilot-settings`;
         subject = `Autopilot paused for ${bName} — we missed you 💤`;
         html = `
 <!DOCTYPE html>
@@ -1342,7 +1345,7 @@ Deno.serve(async (req) => {
       Ready to pick things back up? Sign in and switch the engine back on — it takes one tap.
     </p>
     <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center" style="padding-bottom:12px;">
-      <a href="${APP_URL}/settings" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
+      <a href="${resumeUrl}" style="display:inline-block;background:#c4a265;color:#1a1a2e;font-weight:600;font-size:16px;padding:14px 32px;border-radius:12px;text-decoration:none;">
         Resume Autopilot
       </a>
     </td></tr><tr><td align="center">
