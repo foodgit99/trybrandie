@@ -489,6 +489,8 @@ const SettingsV2 = () => {
             </div>
           </div>
         </Section>
+        </div>
+
 
         <Section label="Daily nudge">
           <Row title="WhatsApp number" subtitle="We'll ping you when each post is ready.">
