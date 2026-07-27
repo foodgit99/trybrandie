@@ -322,7 +322,24 @@ const SettingsV2 = () => {
           </button>
         </Section>
 
+        <div
+          id="autopilot-settings"
+          className={
+            highlightAutopilot
+              ? "scroll-mt-24 rounded-2xl ring-2 ring-primary/60 transition-shadow"
+              : "scroll-mt-24 rounded-2xl transition-shadow"
+          }
+        >
         <Section label="Autopilot">
+          {wantsResume && !autopilot?.enabled && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+              <p className="text-sm font-medium">Autopilot is paused</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                We paused it after a stretch of inactivity. Flip the switch below to resume
+                {brand?.name ? ` ${brand.name}` : ""}.
+              </p>
+            </div>
+          )}
           <Row
             title="Run the engine"
             subtitle="Brandie drafts the week and renders each day for you."
@@ -332,6 +349,7 @@ const SettingsV2 = () => {
               onCheckedChange={(v) => saveAutopilot({ enabled: v })}
             />
           </Row>
+
 
           <div className="space-y-2">
             <p className="font-medium text-sm">Delivery window</p>
