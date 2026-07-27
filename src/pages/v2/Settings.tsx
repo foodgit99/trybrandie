@@ -98,9 +98,35 @@ const Row: React.FC<{
 
 const SettingsV2 = () => {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { brand, isLoading: brandLoading } = useBrand(user);
+  const { brand, brands, isLoading: brandLoading, setActiveBrand } = useBrand(user);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Deep-link support: /settings?brand=<id>&resume=1 (used by the
+  // "Autopilot paused" email) switches to that brand and jumps straight
+  // to the Autopilot controls.
+  const deepLinkBrandId = searchParams.get("brand");
+  const wantsResume = searchParams.get("resume") === "1";
+  const [highlightAutopilot, setHighlightAutopilot] = useState(false);
+
+  useEffect(() => {
+    if (!deepLinkBrandId || brandLoading) return;
+    if (brand?.id === deepLinkBrandId) return;
+    if (!brands.some((b: any) => b.id === deepLinkBrandId)) return;
+    setActiveBrand(deepLinkBrandId);
+  }, [deepLinkBrandId, brandLoading, brand?.id, brands, setActiveBrand]);
+
+  useEffect(() => {
+    if (!wantsResume || brandLoading) return;
+    const el = document.getElementById("autopilot-settings");
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightAutopilot(true);
+    const t = setTimeout(() => setHighlightAutopilot(false), 2600);
+    return () => clearTimeout(t);
+  }, [wantsResume, brandLoading, brand?.id]);
+
 
   const [whatsapp, setWhatsapp] = useState("");
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
