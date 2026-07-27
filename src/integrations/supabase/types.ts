@@ -3573,7 +3573,16 @@ export type Database = {
         Returns: boolean
       }
       lock_autopilot_idea: { Args: { p_idea_id: string }; Returns: string }
-      pause_dormant_autopilot: { Args: { p_days?: number }; Returns: number }
+      pause_dormant_autopilot: {
+        Args: { p_days?: number }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          email: string
+          last_sign_in_at: string
+          user_id: string
+        }[]
+      }
       process_referral: { Args: { p_user_id: string }; Returns: Json }
       record_preset_feedback: {
         Args: { p_design_id: string; p_vote: number }
