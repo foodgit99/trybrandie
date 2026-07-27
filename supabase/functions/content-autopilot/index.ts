@@ -109,6 +109,15 @@ Deno.serve(async (req) => {
 
     console.log(`[autopilot] Running for delivery_time=${deliveryWindow}${forceBrandId ? ` brand=${forceBrandId} force=${force}` : ""}`);
 
+    // Dormancy guard: pause autopilot for brands whose owner hasn't signed in for 15+ days.
+    try {
+      const { data: pausedCount, error: pauseErr } = await supabase.rpc("pause_dormant_autopilot", { p_days: 15 });
+      if (pauseErr) console.error("[autopilot] dormancy pause failed:", pauseErr.message);
+      else if (pausedCount) console.log(`[autopilot] paused ${pausedCount} dormant brand(s)`);
+    } catch (e) {
+      console.error("[autopilot] dormancy pause threw:", e);
+    }
+
     const runId = run?.id;
 
 
