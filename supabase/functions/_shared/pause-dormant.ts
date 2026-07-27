@@ -41,6 +41,7 @@ export async function pauseDormantBrands(
               type: "autopilot_paused_dormant",
               to: row.email,
               data: {
+                brand_id: row.brand_id,
                 brand_name: row.brand_name || "your brand",
                 days: DORMANT_DAYS,
                 last_sign_in_at: row.last_sign_in_at,
