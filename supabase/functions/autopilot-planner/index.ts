@@ -351,6 +351,15 @@ Deno.serve(async (req) => {
       nextWeekDates.push(isoDate(d));
     }
 
+    // Dormancy guard: pause autopilot for brands whose owner hasn't signed in for 15+ days.
+    try {
+      const { data: pausedCount, error: pauseErr } = await supabase.rpc("pause_dormant_autopilot", { p_days: 15 });
+      if (pauseErr) console.error("[autopilot-planner] dormancy pause failed:", pauseErr.message);
+      else if (pausedCount) console.log(`[autopilot-planner] paused ${pausedCount} dormant brand(s)`);
+    } catch (e) {
+      console.error("[autopilot-planner] dormancy pause threw:", e);
+    }
+
     // 1. Find all brands with autopilot enabled (assisted OR autonomous; skip manual)
     const { data: settings, error: settingsErr } = await supabase
       .from("autopilot_settings")

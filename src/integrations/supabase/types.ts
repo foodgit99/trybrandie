@@ -567,6 +567,8 @@ export type Database = {
           marketing_email_reply_to: string | null
           min_queue_threshold: number
           mode: string
+          paused_at: string | null
+          paused_reason: string | null
           timezone: string
           updated_at: string
           user_id: string
@@ -591,6 +593,8 @@ export type Database = {
           marketing_email_reply_to?: string | null
           min_queue_threshold?: number
           mode?: string
+          paused_at?: string | null
+          paused_reason?: string | null
           timezone?: string
           updated_at?: string
           user_id: string
@@ -615,6 +619,8 @@ export type Database = {
           marketing_email_reply_to?: string | null
           min_queue_threshold?: number
           mode?: string
+          paused_at?: string | null
+          paused_reason?: string | null
           timezone?: string
           updated_at?: string
           user_id?: string
@@ -3562,7 +3568,12 @@ export type Database = {
         Args: { _brand_id: string; _user_id: string }
         Returns: boolean
       }
+      is_user_dormant: {
+        Args: { _days?: number; _user_id: string }
+        Returns: boolean
+      }
       lock_autopilot_idea: { Args: { p_idea_id: string }; Returns: string }
+      pause_dormant_autopilot: { Args: { p_days?: number }; Returns: number }
       process_referral: { Args: { p_user_id: string }; Returns: Json }
       record_preset_feedback: {
         Args: { p_design_id: string; p_vote: number }
