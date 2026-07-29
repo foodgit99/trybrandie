@@ -107,10 +107,32 @@ Deno.serve(async (req) => {
       console.error("[autopilot:reconcile] failed", e);
     }
 
+    // ── Backlog hygiene ──
+    // The retry window is 3 days; anything older can never be delivered on time
+    // and only clogs every subsequent tick. Park it as 'expired' so the queue
+    // reflects deliverable work only.
+    try {
+      const expiryCutoff = new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10);
+      const { data: expired } = await supabase
+        .from("content_ideas")
+        .update({ autopilot_status: "expired" } as any)
+        .eq("autopilot", true)
+        .in("status", ["suggested", "scheduled"])
+        .lt("scheduled_for", expiryCutoff)
+        .or("autopilot_status.is.null,autopilot_status.in.(pending,failed_error,failed_no_credits)")
+        .select("id");
+      if ((expired || []).length > 0) {
+        console.log(`[autopilot:expire] parked ${expired!.length} undeliverable idea(s) older than ${expiryCutoff}`);
+      }
+    } catch (e) {
+      console.error("[autopilot:expire] failed", e);
+    }
 
     if (reconcileOnly) {
       return jsonResponse({ reconciled: true });
     }
+
+
 
 
     if (!VALID_DELIVERY_TIMES.includes(deliveryWindow)) {
