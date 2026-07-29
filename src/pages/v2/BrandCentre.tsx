@@ -137,7 +137,9 @@ const BrandCentre = () => {
           )}
         </header>
 
-        <Block label="Identity" href="/brand/editor">
+        <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
+        <Block label="Basics" href="/brand/editor">
+
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground">
