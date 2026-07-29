@@ -83,6 +83,31 @@ const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode 
   );
 };
 
+const EmptyState = ({
+  title,
+  body,
+  cta = "Add it now",
+  href = "/brand/editor",
+}: {
+  title: string;
+  body: string;
+  cta?: string;
+  href?: string;
+}) => (
+  <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center space-y-2">
+    <p className="text-sm font-medium">{title}</p>
+    <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">{body}</p>
+    <Link
+      to={href}
+      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline pt-1"
+    >
+      {cta} <ArrowRight className="h-3 w-3" />
+    </Link>
+  </div>
+);
+
+
+
 
 
 
@@ -165,16 +190,71 @@ const BrandCentre = () => {
           )}
         </header>
 
+        {(() => {
+          const todo = [
+            !brand.description && { label: "Add a brand description", href: "/brand/editor" },
+            palette.length === 0 && { label: "Set your brand colours", href: "/brand/editor" },
+            !brand.typography_display && !brand.typography_primary && {
+              label: "Choose your fonts",
+              href: "/brand/editor",
+            },
+            !audience && {
+              label: "Build your audience profile",
+              href: "/brand/editor#audience-intelligence",
+            },
+            products.length === 0 && {
+              label: "Add a product or service",
+              href: "/brand/editor",
+            },
+          ].filter(Boolean) as { label: string; href: string }[];
+          if (todo.length === 0) return null;
+          return (
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <div>
+                <p className="text-sm font-medium">Finish setting up {brand.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {todo.length} {todo.length === 1 ? "thing" : "things"} left. Each one makes
+                  Brandie's output sharper and more on-brand.
+                </p>
+              </div>
+              <ul className="space-y-1.5">
+                {todo.map((t) => (
+                  <li key={t.label}>
+                    <Link
+                      to={t.href}
+                      className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                    >
+                      {t.label} <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
+
+
+
         <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
         <Block label="Basics" href="/brand/editor">
-
+          {!brand.description && !brand.tone_of_voice ? (
+            <EmptyState
+              title="Brandie doesn't know what you do yet"
+              body="Add a one-paragraph description and your tone of voice. Every caption and design is written from these two lines."
+              cta="Describe your brand"
+            />
+          ) : (
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground">
                 Description
               </p>
               <p className="text-sm leading-relaxed">
-                {brand.description || "-"}
+                {brand.description || (
+                  <span className="text-muted-foreground">
+                    Missing, add it so copy sounds like your business.
+                  </span>
+                )}
               </p>
             </div>
             <div className="space-y-1.5">
@@ -182,15 +262,24 @@ const BrandCentre = () => {
                 Voice
               </p>
               <p className="text-sm leading-relaxed">
-                {brand.tone_of_voice || "-"}
+                {brand.tone_of_voice || (
+                  <span className="text-muted-foreground">
+                    Missing, captions will default to a neutral tone.
+                  </span>
+                )}
               </p>
             </div>
           </div>
+          )}
         </Block>
 
         <Block label="Palette" href="/brand/editor">
           {palette.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No colors set.</p>
+            <EmptyState
+              title="No brand colours yet"
+              body="Add 2 to 4 hex codes. Without them Brandie picks its own palette and your posts won't look consistent."
+              cta="Set your colours"
+            />
           ) : (
             <div className="flex flex-wrap gap-5">
               {palette.map((hex) => (
@@ -201,6 +290,13 @@ const BrandCentre = () => {
         </Block>
 
         <Block label="Typography" href="/brand/editor">
+          {!brand.typography_display && !brand.typography_primary ? (
+            <EmptyState
+              title="No fonts chosen"
+              body="Pick a display font for headlines and a body font for supporting copy so every design uses the same type system."
+              cta="Choose fonts"
+            />
+          ) : (
           <div className="grid sm:grid-cols-2 gap-5">
             <div>
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground mb-1">
@@ -210,7 +306,9 @@ const BrandCentre = () => {
                 className="text-2xl"
                 style={{ fontFamily: brand.typography_display || undefined }}
               >
-                {brand.typography_display || "-"}
+                {brand.typography_display || (
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                )}
               </p>
             </div>
             <div>
@@ -221,11 +319,15 @@ const BrandCentre = () => {
                 className="text-base"
                 style={{ fontFamily: brand.typography_primary || undefined }}
               >
-                {brand.typography_primary || "-"}
+                {brand.typography_primary || (
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                )}
               </p>
             </div>
           </div>
+          )}
         </Block>
+
         </Group>
 
         <Group title="Strategy" hint="Who you are talking to and what you are selling.">
@@ -248,8 +350,16 @@ const BrandCentre = () => {
               ["Trigger", pick("buying_trigger", "trigger", "moment")],
             ];
             if (!audience || rows.every(([, v]) => !v)) {
-              return <p className="text-sm text-muted-foreground">No audience profile yet.</p>;
+              return (
+                <EmptyState
+                  title="No audience profile yet"
+                  body="Answer the JTBD questions, who they are, what they struggle with, and what makes them buy. This is what turns generic posts into content that converts."
+                  cta="Build the profile"
+                  href="/brand/editor#audience-intelligence"
+                />
+              );
             }
+
             return (
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                 {rows.map(([label, value]) => (
@@ -267,8 +377,13 @@ const BrandCentre = () => {
 
         <Block label="Offer" href="/brand/editor">
           {products.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No products or services yet.</p>
+            <EmptyState
+              title="Nothing to sell yet"
+              body="Add your products or services with photos and prices. Promotional posts and carousels are built directly from this list."
+              cta="Add a product or service"
+            />
           ) : (
+
             <ul className="divide-y divide-border -my-2">
               {products.map((p: any) => (
                 <li key={p.id} className="py-3 flex items-center gap-3">
@@ -301,6 +416,11 @@ const BrandCentre = () => {
 
         <Group title="Assets" hint="Real photos Brandie prioritises over generated imagery.">
           <Block label="Gallery">
+            <p className="text-xs text-muted-foreground -mt-1 mb-3 leading-relaxed">
+              Upload real photos, products, team, premises, screenshots, and label them.
+              Brandie uses these exact images before it generates anything, so designs match reality.
+            </p>
+
             <BrandGalleryPanel
               brandId={brand.id}
               userId={user.id}
