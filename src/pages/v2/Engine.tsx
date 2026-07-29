@@ -411,22 +411,23 @@ const Engine = () => {
         {/* LIVE STATS */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           {[
-            { label: "Queued", value: queueStats?.queued ?? 0, sub: "next 14 days" },
-            { label: "Approved", value: queueStats?.approved ?? 0, sub: "ready to ship" },
-            { label: "Processing", value: queueStats?.processing ?? 0, sub: "rendering now" },
-            { label: "Shipped", value: queueStats?.shipped ?? 0, sub: "this period" },
+            { label: "Queued", value: queueStats?.queued ?? 0, sub: "next 14 days", tone: "" },
+            { label: "Approved", value: queueStats?.approved ?? 0, sub: "ready to ship", tone: "text-brandie-teal" },
+            { label: "Processing", value: queueStats?.processing ?? 0, sub: "rendering now", tone: "text-brandie-violet" },
+            { label: "Shipped", value: queueStats?.shipped ?? 0, sub: "this period", tone: "" },
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-2xl border border-border bg-card p-4 space-y-1"
+              className="rounded-2xl border border-border bg-card p-4 space-y-1 shadow-flat"
             >
-              <p className="text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
-                {s.label}
+              <p className="eyebrow">{s.label}</p>
+              <p className={`font-serif text-3xl tracking-tight ${s.value > 0 ? s.tone : ""}`}>
+                {s.value}
               </p>
-              <p className="font-serif text-3xl tracking-tight">{s.value}</p>
               <p className="text-[11px] text-muted-foreground">{s.sub}</p>
             </div>
           ))}
+
         </section>
 
         {/* PIPELINE, live telemetry */}
