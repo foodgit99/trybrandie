@@ -41,7 +41,7 @@ const NewAppHeader = () => {
   const { activeBrandId } = useBrand();
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm lg:pl-24">
+    <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm lg:pl-24 after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-gradient-spectrum after:opacity-25">
       <div
         className="flex items-center gap-2 cursor-pointer"
         onClick={() => navigate("/cockpit")}
