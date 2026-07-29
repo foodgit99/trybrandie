@@ -252,13 +252,30 @@ Deno.serve(async (req) => {
     console.log(`[autopilot] ${allIdeas.length} ideas to process`);
     await updateRunProgress(supabase, runId, { ideas_found: allIdeas.length });
 
-    // Chunk to survive edge wall-clock. Each idea takes ~60-90s and edge fns die
-    // around 150s of continuous work, so we process a small batch per invocation
-    // and self-continue via fire-and-forget fetch when leftovers remain.
-    const MAX_IDEAS_PER_TICK = 6;
-    const totalFound = allIdeas.length;
-    const remaining = allIdeas.slice(MAX_IDEAS_PER_TICK);
-    const thisTick = allIdeas.slice(0, MAX_IDEAS_PER_TICK);
+    // ── Fair per-brand round-robin ──
+    // Previously we took a flat slice of the globally sorted list, so one brand
+    // with a large backlog starved every other brand for days. Now we interleave
+    // brands: pass 1 takes each brand's most urgent idea, pass 2 the next, etc.
+    const byBrand = new Map<string, any[]>();
+    for (const idea of allIdeas) {
+      const list = byBrand.get(idea.brand_id) || [];
+      list.push(idea);
+      byBrand.set(idea.brand_id, list);
+    }
+    const interleaved: any[] = [];
+    const maxDepth = Math.max(...Array.from(byBrand.values(), (l) => l.length));
+    for (let depth = 0; depth < maxDepth; depth++) {
+      for (const list of byBrand.values()) {
+        if (list[depth]) interleaved.push(list[depth]);
+      }
+    }
+
+    // Enqueueing is cheap (a DB insert per idea), so the per-tick ceiling is now
+    // about queue hygiene rather than wall-clock survival.
+    const MAX_IDEAS_PER_TICK = 60;
+    const totalFound = interleaved.length;
+    const remaining = interleaved.slice(MAX_IDEAS_PER_TICK);
+    const thisTick = interleaved.slice(0, MAX_IDEAS_PER_TICK);
 
     let processed = 0;
     let skipped = 0;
@@ -297,14 +314,15 @@ Deno.serve(async (req) => {
           changes: { autopilot_status: "processing" },
         });
 
-        const result = await processIdea(supabase, idea, supabaseUrl, serviceRoleKey, runId, baseMeta);
+        const result = await enqueueIdea(supabase, idea, runId, baseMeta);
         if (result.success) {
           processed++;
           await updateRunProgress(supabase, runId, { processed, skipped, errors });
-          await logEvent(supabase, runId, idea.id, idea.brand_id, "completed", undefined, {
+          await logEvent(supabase, runId, idea.id, idea.brand_id, "queued", undefined, {
             ...baseMeta,
-            design_id: result.design_id,
-            carousel_id: result.carousel_id,
+            action: "insert",
+            table: "design_jobs",
+            job_id: result.job_id,
           });
         } else {
           skipped++;
@@ -312,7 +330,7 @@ Deno.serve(async (req) => {
           await logEvent(supabase, runId, idea.id, idea.brand_id, result.status || "failed_error", result.error, baseMeta);
         }
       } catch (ideaErr) {
-        console.error(`[autopilot] Error processing idea ${idea.id}:`, ideaErr);
+        console.error(`[autopilot] Error queueing idea ${idea.id}:`, ideaErr);
         // Leave as 'pending' so a subsequent tick / retry sweep can pick it up
         // instead of parking it in failed_error until tomorrow.
         await supabase
@@ -326,52 +344,27 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Serial processing + inter-idea jitter so a single cron tick doesn't
-    // fan out across many brands and trip the gateway's per-trace rate limit.
-    // design-studio takes 60-90s; with the in-call 429 retry above this still
-    // clears the queue within the wall-clock budget.
-    const CONCURRENCY = 1;
+    // Enqueue in small parallel batches — no rendering happens here, so there is
+    // no gateway rate-limit exposure and the whole tick finishes in seconds.
+    const CONCURRENCY = 5;
     try {
       for (let i = 0; i < thisTick.length; i += CONCURRENCY) {
         const batch = thisTick.slice(i, i + CONCURRENCY);
         await Promise.allSettled(batch.map(handleIdea));
-        if (i + CONCURRENCY < thisTick.length) {
-          const jitter = 1500 + Math.floor(Math.random() * 1500);
-          await new Promise((r) => setTimeout(r, jitter));
-        }
       }
     } finally {
       await finalizeRun(supabase, runId, totalFound, processed, skipped, errors, errorDetails);
     }
 
-    // If more ideas remain, self-continue with force=true so the next isolate
-    // bypasses the hour-window and picks up the leftovers without waiting for
-    // the next cron tick. Fire-and-forget; failure just means the next cron
-    // (or autopilot-retry) will catch these.
     if (remaining.length > 0) {
-      console.log(`[autopilot] ${remaining.length} leftover ideas — self-continuing`);
-      const continuation = fetch(`${supabaseUrl}/functions/v1/content-autopilot`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({
-          delivery_time: deliveryWindow,
-          force: true,
-          continuation: true,
-        }),
-      }).catch((e) => console.warn("[autopilot] self-continue kick failed", e));
-      // @ts-ignore EdgeRuntime is available at runtime on Supabase edge
-      if (typeof EdgeRuntime !== "undefined" && (EdgeRuntime as any).waitUntil) {
-        // @ts-ignore
-        (EdgeRuntime as any).waitUntil(continuation);
-      }
+      console.log(`[autopilot] ${remaining.length} leftover ideas — next tick will queue them`);
     }
 
-    console.log(`[autopilot] Done (${deliveryWindow}). Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}, Leftover: ${remaining.length}`);
+    console.log(`[autopilot] Done (${deliveryWindow}). Queued: ${processed}, Skipped: ${skipped}, Errors: ${errors}, Leftover: ${remaining.length}`);
 
     return jsonResponse({ processed, skipped, errors, total: totalFound, leftover: remaining.length, delivery_time: deliveryWindow });
+
+
 
   } catch (err) {
     console.error("[autopilot] Fatal error:", err);
