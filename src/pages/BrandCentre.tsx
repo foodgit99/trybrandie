@@ -79,16 +79,39 @@ const EMPTY_INPUTS = {
 
 type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality" | "special_instructions";
 
-const EditorGroup: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({ title, hint, children }) => (
-  <section className="space-y-4 pt-2">
-    <div className="flex items-baseline gap-4">
-      <h2 className="font-serif text-2xl tracking-tight leading-none shrink-0">{title}</h2>
-      <span className="h-px flex-1 bg-border" />
-    </div>
-    {hint && <p className="text-sm text-muted-foreground -mt-2">{hint}</p>}
-    <div className="space-y-6">{children}</div>
-  </section>
-);
+const EditorGroup: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({ title, hint, children }) => {
+  const storageKey = `brandeditor:group:${title}`;
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem(storageKey) !== "closed";
+  });
+
+  const toggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem(storageKey, next ? "open" : "closed"); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  return (
+    <section className="space-y-4 pt-2">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="w-full flex items-baseline gap-4 text-left group/gh"
+      >
+        <h2 className="font-serif text-2xl tracking-tight leading-none shrink-0 group-hover/gh:text-primary transition-colors">{title}</h2>
+        <span className="h-px flex-1 bg-border" />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {hint && open && <p className="text-sm text-muted-foreground -mt-2">{hint}</p>}
+      {open && <div className="space-y-6">{children}</div>}
+    </section>
+  );
+};
+
 
 const BrandCentre = () => {
 
