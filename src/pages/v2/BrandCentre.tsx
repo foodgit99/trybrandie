@@ -198,8 +198,11 @@ const BrandCentre = () => {
             </div>
           </div>
         </Block>
+        </Group>
 
+        <Group title="Strategy" hint="Who you are talking to and what you are selling.">
         <Block label="Audience (JTBD)" href="/brand/editor">
+
           {(() => {
             const raw = ((audience as any)?.raw_inputs ?? {}) as Record<string, any>;
             const jtbd = ((audience as any)?.jtbd_profile ?? {}) as Record<string, any>;
