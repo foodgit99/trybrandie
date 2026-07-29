@@ -82,9 +82,9 @@ const EMPTY_INPUTS = {
 
 type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality" | "special_instructions";
 
-const EditorGroup: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({ title, hint, children }) => {
+const EditorGroup: React.FC<{ title: string; hint?: string; defaultOpen?: boolean; children: React.ReactNode }> = ({ title, hint, defaultOpen = true, children }) => {
   const storageKey = `brandeditor:group:${title}`;
-  const [open, setOpen] = useState(() => readGroupOpen(storageKey));
+  const [open, setOpen] = useState(() => readGroupOpen(storageKey, defaultOpen));
 
   const toggle = () => {
     setOpen((prev) => {
