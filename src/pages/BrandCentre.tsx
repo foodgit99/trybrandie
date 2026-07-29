@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star, Globe, Search, Zap } from "lucide-react";
+import { useScrollRestoration, readGroupOpen, writeGroupOpen } from "@/hooks/useScrollRestoration";
 import { Checkbox } from "@/components/ui/checkbox";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
@@ -81,18 +82,16 @@ type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | 
 
 const EditorGroup: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({ title, hint, children }) => {
   const storageKey = `brandeditor:group:${title}`;
-  const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(storageKey) !== "closed";
-  });
+  const [open, setOpen] = useState(() => readGroupOpen(storageKey));
 
   const toggle = () => {
     setOpen((prev) => {
       const next = !prev;
-      try { window.localStorage.setItem(storageKey, next ? "open" : "closed"); } catch { /* ignore */ }
+      writeGroupOpen(storageKey, next);
       return next;
     });
   };
+
 
   return (
     <section className="space-y-4 pt-2">
@@ -699,7 +698,10 @@ const BrandCentre = () => {
     }
   };
 
+  useScrollRestoration("brand-editor", !!brand);
+
   if (!brand) return null;
+
 
   const isService = productForm.product_type === "service";
 
