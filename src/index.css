@@ -51,7 +51,36 @@
     --brandie-charcoal: 220 16% 16%;
     --brandie-stone: 36 10% 60%;
     --brandie-neon: 110 100% 60%;
+
+    /* Logo spectrum */
+    --brandie-coral: 16 96% 58%;
+    --brandie-magenta: 342 82% 56%;
+    --brandie-violet: 261 74% 57%;
+    --brandie-indigo: 221 80% 53%;
+    --brandie-teal: 173 72% 40%;
+
+    --gradient-spectrum: linear-gradient(
+      100deg,
+      hsl(var(--brandie-coral)),
+      hsl(var(--brandie-magenta)),
+      hsl(var(--brandie-violet)),
+      hsl(var(--brandie-indigo)),
+      hsl(var(--brandie-teal))
+    );
+    --gradient-brand-soft: linear-gradient(
+      100deg,
+      hsl(var(--brandie-coral) / 0.06),
+      hsl(var(--brandie-violet) / 0.05),
+      hsl(var(--brandie-teal) / 0.06)
+    );
+
+    --glow-accent: 0 0 0 1px hsl(var(--brandie-violet) / 0.28), 0 8px 26px -12px hsl(var(--brandie-violet) / 0.45);
+    --glow-soft: 0 6px 22px -14px hsl(var(--brandie-indigo) / 0.5);
+    --glow-focus: 0 0 0 3px hsl(var(--brandie-violet) / 0.22);
+    --shadow-flat: 0 1px 2px hsl(220 20% 10% / 0.04);
+    --shadow-raised: 0 10px 30px -18px hsl(220 20% 10% / 0.28);
   }
+
   .dark {
     --background: 220 20% 6%;
     --foreground: 40 20% 96%;
