@@ -245,10 +245,22 @@ const NewFloatingNav = () => {
               )
             }
           >
-            <Icon className="h-5 w-5" />
-            <span>{label}</span>
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cn(
+                    "grid h-8 w-12 place-items-center rounded-xl transition-all",
+                    isActive && "nav-active-pill"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
+
 
         <Popover open={desktopOpen} onOpenChange={setDesktopOpen}>
           <PopoverTrigger asChild>
