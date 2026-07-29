@@ -101,7 +101,7 @@ export default function NextBestActionCard({ brandId, onAction }: NextBestAction
   };
 
   return (
-    <Card className={`${style.ring} ${style.bg}`}>
+    <Card className={`section-accent-rail ${style.ring} ${style.bg}`}>
       <CardContent className="p-4 space-y-2.5">
         <div className="flex items-center gap-2">
           {style.icon}
