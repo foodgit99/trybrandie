@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TourStep } from "@/components/v2/GuidedTour";
 
 type TourState = "pending" | "active" | "done" | "dismissed";
@@ -132,6 +132,18 @@ export function useFirstRunTour(
       write(brandId, "done");
     }
   }, [state, ready, steps.length, brandId]);
+
+  // Detect a step that got completed while the tour was paused.
+  const prevIds = useRef<string[] | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const ids = steps.map((s) => s.id);
+    const before = prevIds.current;
+    prevIds.current = ids;
+    if (!before) return;
+    const finished = before.find((id) => !ids.includes(id));
+    if (finished) setJustCompleted(finished);
+  }, [steps, ready]);
 
   // Keep the index inside bounds as steps complete.
   useEffect(() => {

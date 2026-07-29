@@ -162,7 +162,44 @@ const BrandCentre = () => {
 
   useBrandParamSync();
 
+  const { data: galleryCount = 0 } = useQuery({
+    queryKey: ["v2-brand-gallery-count", brand?.id],
+    queryFn: async () => {
+      if (!brand?.id) return 0;
+      const { count } = await supabase
+        .from("brand_inspiration")
+        .select("id", { count: "exact", head: true })
+        .eq("brand_id", brand.id);
+      return count ?? 0;
+    },
+    enabled: !!brand?.id,
+  });
+
   useScrollRestoration("brand-centre", !authLoading && !brandLoading && !!brand);
+
+  const paletteCount = [
+    ...((brand as any)?.primary_colors ?? []),
+    ...((brand as any)?.secondary_colors ?? []),
+    ...((brand as any)?.accent_colors ?? []),
+  ].filter(Boolean).length;
+
+  const tour = useFirstRunTour(
+    brand?.id,
+    {
+      hasDescription: !!brand?.description,
+      hasPalette: paletteCount > 0,
+      hasTypography: !!(brand as any)?.typography_display || !!(brand as any)?.typography_primary,
+      hasAudience: !!audience,
+      hasProducts: products.length > 0,
+      hasGallery: galleryCount > 0,
+    },
+    {
+      editor: brandHref("/brand/editor", brand?.id),
+      audience: brandHref("/brand/editor#audience-intelligence", brand?.id),
+      gallery: brandHref("/brand#tour-gallery", brand?.id),
+    },
+    !authLoading && !brandLoading && !!brand,
+  );
 
   if (authLoading || brandLoading) {
 
@@ -198,6 +235,15 @@ const BrandCentre = () => {
             </h1>
             {brand.tagline && (
               <p className="text-muted-foreground max-w-xl">{brand.tagline}</p>
+            )}
+            {tour.remaining > 0 && !tour.showWelcome && !tour.active && (
+              <button
+                type="button"
+                onClick={tour.replay}
+                className="text-xs text-primary hover:underline"
+              >
+                Replay setup tour
+              </button>
             )}
           </div>
           {brand.logo_url && (
@@ -251,6 +297,28 @@ const BrandCentre = () => {
             </div>
           );
         })()}
+
+        {tour.showWelcome && (
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 flex flex-wrap items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">
+                Let's finish your brand memory, {tour.remaining} quick{" "}
+                {tour.remaining === 1 ? "step" : "steps"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                I'll walk you through each empty section and show the next best action.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" className="rounded-full" onClick={tour.start}>
+                Start tour
+              </Button>
+              <Button size="sm" variant="ghost" className="rounded-full" onClick={tour.dismiss}>
+                Not now
+              </Button>
+            </div>
+          </div>
+        )}
 
 
 
@@ -487,6 +555,18 @@ const BrandCentre = () => {
             </Link>
           </Button>
         </div>
+
+        {tour.active && (
+          <GuidedTour
+            steps={tour.steps}
+            index={tour.index}
+            onNext={tour.next}
+            onSkipStep={tour.next}
+            onClose={tour.close}
+            onAction={tour.pauseForAction}
+            justCompletedLabel={tour.justCompleted}
+          />
+        )}
       </main>
     </div>
   );
