@@ -115,7 +115,7 @@ const BrandCentre = () => {
       <NewAppHeader />
 
 
-      <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
+      <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-14">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-2 min-w-0">
             <p className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
