@@ -543,7 +543,12 @@ const Cockpit = () => {
         <CEOBriefingPreview brandId={brand?.id} brandName={brand?.name} />
 
         {/* APPROVAL ACTION */}
-        <section className="rounded-3xl border border-border bg-foreground text-background p-7 sm:p-10 space-y-5">
+        <section className="relative overflow-hidden rounded-3xl border border-border bg-foreground text-background p-7 sm:p-10 space-y-5 shadow-raised">
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-[3px] bg-gradient-spectrum"
+          />
+
           {totalThisWeek === 0 ? (
             <>
               <h3 className="font-serif text-3xl tracking-tight">Plant this week.</h3>
