@@ -54,18 +54,16 @@ const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode 
   children,
 }) => {
   const storageKey = `brandcentre:group:${title}`;
-  const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(storageKey) !== "closed";
-  });
+  const [open, setOpen] = useState(() => readGroupOpen(storageKey));
 
   const toggle = () => {
     setOpen((prev) => {
       const next = !prev;
-      try { window.localStorage.setItem(storageKey, next ? "open" : "closed"); } catch { /* ignore */ }
+      writeGroupOpen(storageKey, next);
       return next;
     });
   };
+
 
   return (
     <section className="space-y-6">
