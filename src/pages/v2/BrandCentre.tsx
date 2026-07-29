@@ -371,6 +371,11 @@ const BrandCentre = () => {
 
         <Group title="Assets" hint="Real photos Brandie prioritises over generated imagery.">
           <Block label="Gallery">
+            <p className="text-xs text-muted-foreground -mt-1 mb-3 leading-relaxed">
+              Upload real photos, products, team, premises, screenshots, and label them.
+              Brandie uses these exact images before it generates anything, so designs match reality.
+            </p>
+
             <BrandGalleryPanel
               brandId={brand.id}
               userId={user.id}
