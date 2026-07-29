@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useScrollRestoration, readGroupOpen, writeGroupOpen } from "@/hooks/useScrollRestoration";
 import { useBrandParamSync, brandHref } from "@/hooks/useBrandParamSync";
 import { Link, Navigate } from "react-router-dom";
@@ -14,6 +14,8 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import TeamMembersPanel from "@/components/team/TeamMembersPanel";
 import BrandUsagePanel from "@/components/brands/BrandUsagePanel";
 import BrandGalleryPanel from "@/components/brands/BrandGalleryPanel";
+import GuidedTour from "@/components/v2/GuidedTour";
+import { useFirstRunTour } from "@/hooks/useFirstRunTour";
 
 const Swatch = ({ hex }: { hex: string }) => (
   <div className="flex flex-col items-center gap-1.5">
@@ -28,12 +30,13 @@ const Swatch = ({ hex }: { hex: string }) => (
   </div>
 );
 
-const Block: React.FC<{ label: string; children: React.ReactNode; href?: string }> = ({
+const Block: React.FC<{ label: string; children: React.ReactNode; href?: string; id?: string }> = ({
   label,
   children,
   href,
+  id,
 }) => (
-  <section className="space-y-3">
+  <section className="space-y-3" id={id}>
     <div className="flex items-center justify-between">
       <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">{label}</h3>
       {href && (
@@ -64,6 +67,19 @@ const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode 
       return next;
     });
   };
+
+  // The guided walkthrough expands the group it is about to highlight.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { title?: string } | undefined;
+      if (detail?.title === title) {
+        setOpen(true);
+        writeGroupOpen(storageKey, true);
+      }
+    };
+    window.addEventListener("brandie-tour:open-group", onOpen);
+    return () => window.removeEventListener("brandie-tour:open-group", onOpen);
+  }, [title, storageKey]);
 
 
   return (
@@ -146,7 +162,44 @@ const BrandCentre = () => {
 
   useBrandParamSync();
 
+  const { data: galleryCount = 0 } = useQuery({
+    queryKey: ["v2-brand-gallery-count", brand?.id],
+    queryFn: async () => {
+      if (!brand?.id) return 0;
+      const { count } = await supabase
+        .from("brand_inspiration")
+        .select("id", { count: "exact", head: true })
+        .eq("brand_id", brand.id);
+      return count ?? 0;
+    },
+    enabled: !!brand?.id,
+  });
+
   useScrollRestoration("brand-centre", !authLoading && !brandLoading && !!brand);
+
+  const paletteCount = [
+    ...((brand as any)?.primary_colors ?? []),
+    ...((brand as any)?.secondary_colors ?? []),
+    ...((brand as any)?.accent_colors ?? []),
+  ].filter(Boolean).length;
+
+  const tour = useFirstRunTour(
+    brand?.id,
+    {
+      hasDescription: !!brand?.description,
+      hasPalette: paletteCount > 0,
+      hasTypography: !!(brand as any)?.typography_display || !!(brand as any)?.typography_primary,
+      hasAudience: !!audience,
+      hasProducts: products.length > 0,
+      hasGallery: galleryCount > 0,
+    },
+    {
+      editor: brandHref("/brand/editor", brand?.id),
+      audience: brandHref("/brand/editor#audience-intelligence", brand?.id),
+      gallery: brandHref("/brand#tour-gallery", brand?.id),
+    },
+    !authLoading && !brandLoading && !!brand,
+  );
 
   if (authLoading || brandLoading) {
 
@@ -182,6 +235,15 @@ const BrandCentre = () => {
             </h1>
             {brand.tagline && (
               <p className="text-muted-foreground max-w-xl">{brand.tagline}</p>
+            )}
+            {tour.remaining > 0 && !tour.showWelcome && !tour.active && (
+              <button
+                type="button"
+                onClick={tour.replay}
+                className="text-xs text-primary hover:underline"
+              >
+                Replay setup tour
+              </button>
             )}
           </div>
           {brand.logo_url && (
@@ -236,10 +298,32 @@ const BrandCentre = () => {
           );
         })()}
 
+        {tour.showWelcome && (
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 flex flex-wrap items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">
+                Let's finish your brand memory, {tour.remaining} quick{" "}
+                {tour.remaining === 1 ? "step" : "steps"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                I'll walk you through each empty section and show the next best action.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" className="rounded-full" onClick={tour.start}>
+                Start tour
+              </Button>
+              <Button size="sm" variant="ghost" className="rounded-full" onClick={tour.dismiss}>
+                Not now
+              </Button>
+            </div>
+          </div>
+        )}
+
 
 
         <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
-        <Block label="Basics" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-basics" label="Basics" href={brandHref("/brand/editor", brand.id)}>
           {!brand.description && !brand.tone_of_voice ? (
             <EmptyState
               title="Brandie doesn't know what you do yet"
@@ -276,7 +360,7 @@ const BrandCentre = () => {
           )}
         </Block>
 
-        <Block label="Palette" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-palette" label="Palette" href={brandHref("/brand/editor", brand.id)}>
           {palette.length === 0 ? (
             <EmptyState
               title="No brand colours yet"
@@ -292,7 +376,7 @@ const BrandCentre = () => {
           )}
         </Block>
 
-        <Block label="Typography" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-typography" label="Typography" href={brandHref("/brand/editor", brand.id)}>
           {!brand.typography_display && !brand.typography_primary ? (
             <EmptyState
               title="No fonts chosen"
@@ -334,7 +418,7 @@ const BrandCentre = () => {
         </Group>
 
         <Group title="Strategy" hint="Who you are talking to and what you are selling.">
-        <Block label="Audience (JTBD)" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-audience" label="Audience (JTBD)" href={brandHref("/brand/editor", brand.id)}>
 
           {(() => {
             const raw = ((audience as any)?.raw_inputs ?? {}) as Record<string, any>;
@@ -378,7 +462,7 @@ const BrandCentre = () => {
           })()}
         </Block>
 
-        <Block label="Offer" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-offer" label="Offer" href={brandHref("/brand/editor", brand.id)}>
           {products.length === 0 ? (
             <EmptyState
               title="Nothing to sell yet"
@@ -418,7 +502,7 @@ const BrandCentre = () => {
         </Group>
 
         <Group title="Assets" hint="Real photos Brandie prioritises over generated imagery.">
-          <Block label="Gallery">
+          <Block id="tour-gallery" label="Gallery">
             <p className="text-xs text-muted-foreground -mt-1 mb-3 leading-relaxed">
               Upload real photos, products, team, premises, screenshots, and label them.
               Brandie uses these exact images before it generates anything, so designs match reality.
@@ -471,6 +555,39 @@ const BrandCentre = () => {
             </Link>
           </Button>
         </div>
+
+        {tour.justFinished && (
+          <div className="rounded-2xl border border-border bg-card p-5 flex flex-wrap items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Your brand memory is ready</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Brandie now has enough to plan and design your week.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button asChild size="sm" className="rounded-full gap-1.5">
+                <Link to={brandHref("/blueprint", brand.id)}>
+                  Open Blueprint <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+              <Button size="sm" variant="ghost" className="rounded-full" onClick={tour.clearFinished}>
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {tour.active && (
+          <GuidedTour
+            steps={tour.steps}
+            index={tour.index}
+            onNext={tour.next}
+            onSkipStep={tour.next}
+            onClose={tour.close}
+            onAction={tour.pauseForAction}
+            justCompletedLabel={tour.justCompleted}
+          />
+        )}
       </main>
     </div>
   );
