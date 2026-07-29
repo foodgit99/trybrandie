@@ -118,7 +118,7 @@ export default function NextBestActionCard({ brandId, onAction }: NextBestAction
         <p className="text-xs text-muted-foreground leading-relaxed">{rec.reason}</p>
 
         <div className="pt-1">
-          <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={handleClick}>
+          <Button size="sm" variant="hero" className="h-8 gap-1.5 text-xs" onClick={handleClick}>
             {rec.cta_label}
             <ChevronRight className="h-3 w-3" />
           </Button>
