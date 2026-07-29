@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import SEO from "@/components/SEO";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useBrandParamSync, brandHref } from "@/hooks/useBrandParamSync";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/hooks/useBrand";
 import { useAuth } from "@/hooks/useAuth";
@@ -155,6 +156,7 @@ const BrandCentre = () => {
   // Audience Intelligence, multiple profiles
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  useBrandParamSync();
   const [audienceOpen, setAudienceOpen] = useState(false);
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | null>(null);
   const [audienceEditing, setAudienceEditing] = useState(false);
@@ -963,7 +965,7 @@ const BrandCentre = () => {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-2">
-              <Button variant="ghost" size="sm" className="gap-1.5 pl-0" onClick={() => navigate("/brand")}>
+              <Button variant="ghost" size="sm" className="gap-1.5 pl-0" onClick={() => navigate(brandHref("/brand", brand?.id))}>
                 <ArrowLeft className="h-3.5 w-3.5" /> Back to Brand Centre
               </Button>
               <div className="flex items-center gap-2">
