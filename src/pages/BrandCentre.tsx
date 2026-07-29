@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star, Globe, Search, Zap } from "lucide-react";
 import { useScrollRestoration, readGroupOpen, writeGroupOpen } from "@/hooks/useScrollRestoration";
+import { useEditorStateMemory } from "@/hooks/useEditorStateMemory";
 import { Checkbox } from "@/components/ui/checkbox";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
@@ -700,7 +701,30 @@ const BrandCentre = () => {
     }
   };
 
-  useScrollRestoration("brand-editor", !!brand);
+  useScrollRestoration(`brand-editor:${brand?.id || "none"}`, !!brand);
+
+  // Remember open panels / edit focus per brand and restore on return.
+  useEditorStateMemory(
+    brand?.id,
+    {
+      editing,
+      audienceOpen,
+      selectedAudienceId,
+      audienceEditing,
+      trendLabOpen,
+      researchLabOpen,
+      editingProductId,
+    },
+    (saved) => {
+      if (saved.editing !== undefined) setEditing(saved.editing as EditingField);
+      if (saved.audienceOpen !== undefined) setAudienceOpen(!!saved.audienceOpen);
+      if (saved.selectedAudienceId) setSelectedAudienceId(saved.selectedAudienceId);
+      if (saved.audienceEditing !== undefined) setAudienceEditing(!!saved.audienceEditing);
+      if (saved.trendLabOpen !== undefined) setTrendLabOpen(!!saved.trendLabOpen);
+      if (saved.researchLabOpen !== undefined) setResearchLabOpen(!!saved.researchLabOpen);
+      if (saved.editingProductId !== undefined) setEditingProductId(saved.editingProductId);
+    },
+  );
 
   if (!brand) return null;
 
