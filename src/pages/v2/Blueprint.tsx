@@ -555,10 +555,12 @@ const Blueprint = () => {
                 {!approvedAll && (
                   <Button
                     size="sm"
+                    variant="hero"
                     onClick={approveWeek}
                     disabled={approvingWeek}
                     className="rounded-full h-9 px-3 gap-1.5"
                   >
+
                     {approvingWeek ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
