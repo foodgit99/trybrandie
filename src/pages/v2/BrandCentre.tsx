@@ -190,6 +190,51 @@ const BrandCentre = () => {
           )}
         </header>
 
+        {(() => {
+          const todo = [
+            !brand.description && { label: "Add a brand description", href: "/brand/editor" },
+            palette.length === 0 && { label: "Set your brand colours", href: "/brand/editor" },
+            !brand.typography_display && !brand.typography_primary && {
+              label: "Choose your fonts",
+              href: "/brand/editor",
+            },
+            !audience && {
+              label: "Build your audience profile",
+              href: "/brand/editor#audience-intelligence",
+            },
+            products.length === 0 && {
+              label: "Add a product or service",
+              href: "/brand/editor",
+            },
+          ].filter(Boolean) as { label: string; href: string }[];
+          if (todo.length === 0) return null;
+          return (
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <div>
+                <p className="text-sm font-medium">Finish setting up {brand.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {todo.length} {todo.length === 1 ? "thing" : "things"} left. Each one makes
+                  Brandie's output sharper and more on-brand.
+                </p>
+              </div>
+              <ul className="space-y-1.5">
+                {todo.map((t) => (
+                  <li key={t.label}>
+                    <Link
+                      to={t.href}
+                      className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                    >
+                      {t.label} <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
+
+
+
         <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
         <Block label="Basics" href="/brand/editor">
           {!brand.description && !brand.tone_of_voice ? (
