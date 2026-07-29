@@ -269,31 +269,36 @@ const BrandCentre = () => {
             </ul>
           )}
         </Block>
+        </Group>
 
-        <Block label="Gallery">
-          <BrandGalleryPanel
-            brandId={brand.id}
-            userId={user.id}
-            preferGalleryFirst={(brand as any).prefer_gallery_first ?? true}
-          />
-        </Block>
-
-        <section className="space-y-3">
-          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Team</h2>
-          <TeamMembersPanel />
-        </section>
-
-        {(brand as any).__role !== "member" && (
-          <section className="space-y-3">
-            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Usage</h2>
-            <BrandUsagePanel
+        <Group title="Assets" hint="Real photos Brandie prioritises over generated imagery.">
+          <Block label="Gallery">
+            <BrandGalleryPanel
               brandId={brand.id}
-              ownerUserId={user.id}
-              ownerName={(user.user_metadata as any)?.full_name || user.email || "Owner"}
-              isOwner={(brand as any).__role !== "member"}
+              userId={user.id}
+              preferGalleryFirst={(brand as any).prefer_gallery_first ?? true}
             />
-          </section>
-        )}
+          </Block>
+        </Group>
+
+        <Group title="Workspace" hint="People and activity on this brand.">
+          <Block label="Team">
+            <TeamMembersPanel />
+          </Block>
+
+          {(brand as any).__role !== "member" && (
+            <div className="space-y-3">
+              <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Usage</h3>
+              <BrandUsagePanel
+                brandId={brand.id}
+                ownerUserId={user.id}
+                ownerName={(user.user_metadata as any)?.full_name || user.email || "Owner"}
+                isOwner={(brand as any).__role !== "member"}
+              />
+            </div>
+          )}
+        </Group>
+
 
 
 
