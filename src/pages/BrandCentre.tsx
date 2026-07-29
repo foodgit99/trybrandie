@@ -699,7 +699,10 @@ const BrandCentre = () => {
     }
   };
 
+  useScrollRestoration("brand-editor", !!brand);
+
   if (!brand) return null;
+
 
   const isService = productForm.product_type === "service";
 

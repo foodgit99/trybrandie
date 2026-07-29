@@ -119,7 +119,10 @@ const BrandCentre = () => {
     enabled: !!brand?.id,
   });
 
+  useScrollRestoration("brand-centre", !authLoading && !brandLoading && !!brand);
+
   if (authLoading || brandLoading) {
+
     return (
       <div className="min-h-dvh grid place-items-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
