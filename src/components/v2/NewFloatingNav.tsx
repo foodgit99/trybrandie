@@ -11,6 +11,8 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useBrand } from "@/hooks/useBrand";
+import { brandHref } from "@/hooks/useBrandParamSync";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -71,6 +73,7 @@ const moreActivePrefixes = moreItems.map((i) => i.to);
 
 const NewFloatingNav = () => {
   const { user } = useAuth();
+  const { activeBrandId } = useBrand();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
@@ -109,7 +112,7 @@ const NewFloatingNav = () => {
           return (
             <li key={to}>
               <Link
-                to={to}
+                to={to === "/brand" ? brandHref(to, activeBrandId) : to}
                 onClick={() => {
                   setMobileOpen(false);
                   setDesktopOpen(false);

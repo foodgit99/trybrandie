@@ -4,6 +4,8 @@ import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BrandSwitcher from "@/components/BrandSwitcher";
+import { useBrand } from "@/hooks/useBrand";
+import { brandHref } from "@/hooks/useBrandParamSync";
 import CreditsBadge from "@/components/CreditsBadge";
 import {
   DropdownMenu,
@@ -36,6 +38,7 @@ const NewAppHeader = () => {
   const { signOut } = useAuth();
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
+  const { activeBrandId } = useBrand();
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm lg:pl-24">
@@ -78,7 +81,7 @@ const NewAppHeader = () => {
               <Cpu className="h-4 w-4" />
               Engine
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/brand/editor")}>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate(brandHref("/brand/editor", activeBrandId))}>
               <Palette className="h-4 w-4" />
               Brand Centre
             </DropdownMenuItem>

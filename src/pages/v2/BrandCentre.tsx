@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useScrollRestoration, readGroupOpen, writeGroupOpen } from "@/hooks/useScrollRestoration";
+import { useBrandParamSync, brandHref } from "@/hooks/useBrandParamSync";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -143,6 +144,8 @@ const BrandCentre = () => {
     enabled: !!brand?.id,
   });
 
+  useBrandParamSync();
+
   useScrollRestoration("brand-centre", !authLoading && !brandLoading && !!brand);
 
   if (authLoading || brandLoading) {
@@ -192,19 +195,19 @@ const BrandCentre = () => {
 
         {(() => {
           const todo = [
-            !brand.description && { label: "Add a brand description", href: "/brand/editor" },
-            palette.length === 0 && { label: "Set your brand colours", href: "/brand/editor" },
+            !brand.description && { label: "Add a brand description", href: brandHref("/brand/editor", brand.id) },
+            palette.length === 0 && { label: "Set your brand colours", href: brandHref("/brand/editor", brand.id) },
             !brand.typography_display && !brand.typography_primary && {
               label: "Choose your fonts",
-              href: "/brand/editor",
+              href: brandHref("/brand/editor", brand.id),
             },
             !audience && {
               label: "Build your audience profile",
-              href: "/brand/editor#audience-intelligence",
+              href: brandHref("/brand/editor#audience-intelligence", brand.id),
             },
             products.length === 0 && {
               label: "Add a product or service",
-              href: "/brand/editor",
+              href: brandHref("/brand/editor", brand.id),
             },
           ].filter(Boolean) as { label: string; href: string }[];
           if (todo.length === 0) return null;
@@ -236,7 +239,7 @@ const BrandCentre = () => {
 
 
         <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
-        <Block label="Basics" href="/brand/editor">
+        <Block label="Basics" href={brandHref("/brand/editor", brand.id)}>
           {!brand.description && !brand.tone_of_voice ? (
             <EmptyState
               title="Brandie doesn't know what you do yet"
@@ -273,7 +276,7 @@ const BrandCentre = () => {
           )}
         </Block>
 
-        <Block label="Palette" href="/brand/editor">
+        <Block label="Palette" href={brandHref("/brand/editor", brand.id)}>
           {palette.length === 0 ? (
             <EmptyState
               title="No brand colours yet"
@@ -289,7 +292,7 @@ const BrandCentre = () => {
           )}
         </Block>
 
-        <Block label="Typography" href="/brand/editor">
+        <Block label="Typography" href={brandHref("/brand/editor", brand.id)}>
           {!brand.typography_display && !brand.typography_primary ? (
             <EmptyState
               title="No fonts chosen"
@@ -331,7 +334,7 @@ const BrandCentre = () => {
         </Group>
 
         <Group title="Strategy" hint="Who you are talking to and what you are selling.">
-        <Block label="Audience (JTBD)" href="/brand/editor">
+        <Block label="Audience (JTBD)" href={brandHref("/brand/editor", brand.id)}>
 
           {(() => {
             const raw = ((audience as any)?.raw_inputs ?? {}) as Record<string, any>;
@@ -355,7 +358,7 @@ const BrandCentre = () => {
                   title="No audience profile yet"
                   body="Answer the JTBD questions, who they are, what they struggle with, and what makes them buy. This is what turns generic posts into content that converts."
                   cta="Build the profile"
-                  href="/brand/editor#audience-intelligence"
+                  href={brandHref("/brand/editor#audience-intelligence", brand.id)}
                 />
               );
             }
@@ -375,7 +378,7 @@ const BrandCentre = () => {
           })()}
         </Block>
 
-        <Block label="Offer" href="/brand/editor">
+        <Block label="Offer" href={brandHref("/brand/editor", brand.id)}>
           {products.length === 0 ? (
             <EmptyState
               title="Nothing to sell yet"
@@ -463,7 +466,7 @@ const BrandCentre = () => {
             </p>
           </div>
           <Button asChild variant="secondary" size="lg" className="rounded-full h-12 gap-2 shrink-0">
-            <Link to="/brand/editor">
+            <Link to={brandHref("/brand/editor", brand.id)}>
               Open editor <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
