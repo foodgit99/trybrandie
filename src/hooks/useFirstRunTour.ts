@@ -48,6 +48,7 @@ export function useFirstRunTour(
   const [state, setState] = useState<TourState>("pending");
   const [index, setIndex] = useState(0);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  const [justFinished, setJustFinished] = useState(false);
 
   useEffect(() => {
     if (!brandId) return;
@@ -171,6 +172,7 @@ export function useFirstRunTour(
     setIndex((i) => {
       if (i >= steps.length - 1) {
         setState("done");
+        setJustFinished(true);
         write(brandId, "done");
         return i;
       }
@@ -187,6 +189,7 @@ export function useFirstRunTour(
     setState("active");
     setIndex(0);
     setJustCompleted(null);
+    setJustFinished(false);
     write(brandId, "active");
   }, [brandId]);
 
@@ -197,6 +200,8 @@ export function useFirstRunTour(
     showWelcome,
     justCompleted,
     setJustCompleted,
+    justFinished,
+    clearFinished: () => setJustFinished(false),
     start,
     dismiss,
     close,

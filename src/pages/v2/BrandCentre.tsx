@@ -556,6 +556,27 @@ const BrandCentre = () => {
           </Button>
         </div>
 
+        {tour.justFinished && (
+          <div className="rounded-2xl border border-border bg-card p-5 flex flex-wrap items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Your brand memory is ready</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Brandie now has enough to plan and design your week.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button asChild size="sm" className="rounded-full gap-1.5">
+                <Link to={brandHref("/blueprint", brand.id)}>
+                  Open Blueprint <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+              <Button size="sm" variant="ghost" className="rounded-full" onClick={tour.clearFinished}>
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
+
         {tour.active && (
           <GuidedTour
             steps={tour.steps}
