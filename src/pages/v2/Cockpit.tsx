@@ -517,9 +517,9 @@ const Cockpit = () => {
 
 
         {/* STUDIO CARD */}
-        <section className="rounded-3xl border border-border bg-card p-7 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+        <section className="rounded-3xl border border-border bg-muted/30 p-7 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div className="space-y-2 max-w-md">
-            <div className="inline-flex items-center gap-2 text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+            <div className="eyebrow inline-flex items-center gap-2">
               <Sparkles className="h-3 w-3" /> Studio
             </div>
             <h3 className="font-serif text-3xl tracking-tight">Create something off-script.</h3>
@@ -530,11 +530,13 @@ const Cockpit = () => {
           <Button
             onClick={() => navigate("/studio")}
             size="lg"
-            className="rounded-full h-12 px-6 gap-2 text-base shrink-0"
+            variant="outline"
+            className="rounded-full h-12 px-6 gap-2 text-base shrink-0 bg-background"
           >
             Open the Studio <ArrowRight className="h-4 w-4" />
           </Button>
         </section>
+
 
         {/* PUSH OPT-IN */}
         <PushOptInCard />
@@ -543,7 +545,12 @@ const Cockpit = () => {
         <CEOBriefingPreview brandId={brand?.id} brandName={brand?.name} />
 
         {/* APPROVAL ACTION */}
-        <section className="rounded-3xl border border-border bg-foreground text-background p-7 sm:p-10 space-y-5">
+        <section className="relative overflow-hidden rounded-3xl border border-border bg-foreground text-background p-7 sm:p-10 space-y-5 shadow-raised">
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-[3px] bg-gradient-spectrum"
+          />
+
           {totalThisWeek === 0 ? (
             <>
               <h3 className="font-serif text-3xl tracking-tight">Plant this week.</h3>

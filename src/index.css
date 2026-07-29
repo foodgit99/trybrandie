@@ -51,7 +51,36 @@
     --brandie-charcoal: 220 16% 16%;
     --brandie-stone: 36 10% 60%;
     --brandie-neon: 110 100% 60%;
+
+    /* Logo spectrum */
+    --brandie-coral: 16 96% 58%;
+    --brandie-magenta: 342 82% 56%;
+    --brandie-violet: 261 74% 57%;
+    --brandie-indigo: 221 80% 53%;
+    --brandie-teal: 173 72% 40%;
+
+    --gradient-spectrum: linear-gradient(
+      100deg,
+      hsl(var(--brandie-coral)),
+      hsl(var(--brandie-magenta)),
+      hsl(var(--brandie-violet)),
+      hsl(var(--brandie-indigo)),
+      hsl(var(--brandie-teal))
+    );
+    --gradient-brand-soft: linear-gradient(
+      100deg,
+      hsl(var(--brandie-coral) / 0.06),
+      hsl(var(--brandie-violet) / 0.05),
+      hsl(var(--brandie-teal) / 0.06)
+    );
+
+    --glow-accent: 0 0 0 1px hsl(var(--brandie-violet) / 0.28), 0 8px 26px -12px hsl(var(--brandie-violet) / 0.45);
+    --glow-soft: 0 6px 22px -14px hsl(var(--brandie-indigo) / 0.5);
+    --glow-focus: 0 0 0 3px hsl(var(--brandie-violet) / 0.22);
+    --shadow-flat: 0 1px 2px hsl(220 20% 10% / 0.04);
+    --shadow-raised: 0 10px 30px -18px hsl(220 20% 10% / 0.28);
   }
+
   .dark {
     --background: 220 20% 6%;
     --foreground: 40 20% 96%;
@@ -95,8 +124,29 @@
     --brandie-charcoal: 40 20% 96%;
     --brandie-stone: 220 10% 50%;
     --brandie-neon: 110 100% 60%;
+
+    /* Logo spectrum — brighter on dark so glows read correctly */
+    --brandie-coral: 16 98% 64%;
+    --brandie-magenta: 342 88% 64%;
+    --brandie-violet: 261 84% 68%;
+    --brandie-indigo: 221 88% 64%;
+    --brandie-teal: 173 70% 48%;
+
+    --gradient-brand-soft: linear-gradient(
+      100deg,
+      hsl(var(--brandie-coral) / 0.1),
+      hsl(var(--brandie-violet) / 0.09),
+      hsl(var(--brandie-teal) / 0.1)
+    );
+
+    --glow-accent: 0 0 0 1px hsl(var(--brandie-violet) / 0.4), 0 8px 30px -12px hsl(var(--brandie-violet) / 0.6);
+    --glow-soft: 0 6px 24px -14px hsl(var(--brandie-indigo) / 0.7);
+    --glow-focus: 0 0 0 3px hsl(var(--brandie-violet) / 0.32);
+    --shadow-flat: 0 1px 2px hsl(0 0% 0% / 0.3);
+    --shadow-raised: 0 12px 34px -18px hsl(0 0% 0% / 0.7);
   }
 }
+
 
 @layer base {
   * {
@@ -128,3 +178,70 @@
     font-family: 'Instrument Serif', Georgia, serif;
   }
 }
+
+@layer components {
+  /* Quiet elevated surface used to chunk a page into readable sections */
+  .section-surface {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: var(--shadow-flat);
+  }
+
+  /* 2px spectrum rail marking the single most important section on a screen */
+  .section-accent-rail {
+    position: relative;
+    overflow: hidden;
+  }
+  .section-accent-rail::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: var(--gradient-spectrum);
+    opacity: 0.9;
+  }
+
+  /* Very low-intensity brand wash for hero/next-best-action blocks */
+  .surface-brand-wash {
+    background-image: var(--gradient-brand-soft);
+  }
+
+  .glow-ring {
+    box-shadow: var(--glow-accent);
+  }
+  .glow-soft {
+    box-shadow: var(--glow-soft);
+  }
+
+  /* Small uppercase eyebrow for section headers */
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
+  }
+
+  /* Status dots — colour plus an always-present text label at call sites */
+  .status-dot {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full;
+  }
+  .status-dot-live {
+    background-color: hsl(var(--brandie-teal));
+    box-shadow: 0 0 0 3px hsl(var(--brandie-teal) / 0.16);
+  }
+  .status-dot-running {
+    background-color: hsl(var(--brandie-violet));
+    box-shadow: 0 0 0 3px hsl(var(--brandie-violet) / 0.16);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  .status-dot-warn {
+    background-color: hsl(var(--brandie-coral));
+    box-shadow: 0 0 0 3px hsl(var(--brandie-coral) / 0.16);
+  }
+  .status-dot-idle {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Active navigation pill */
+  .nav-active-pill {
+    background-image: var(--gradient-brand-soft);
+    box-shadow: inset 0 0 0 1px hsl(var(--brandie-violet) / 0.22);
+  }
+}
+

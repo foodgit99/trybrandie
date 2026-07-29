@@ -168,14 +168,26 @@ const NewFloatingNav = () => {
                 to={to}
                 className={({ isActive }) =>
                   cn(
-                    "flex flex-col items-center gap-1 py-2.5 text-[11px] tracking-wide",
+                    "flex flex-col items-center gap-1 py-2.5 text-[11px] tracking-wide transition-colors",
                     isActive ? "text-foreground" : "text-muted-foreground"
                   )
                 }
               >
-                <Icon className="h-5 w-5" />
-                <span>{label}</span>
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={cn(
+                        "grid h-7 w-12 place-items-center rounded-full transition-all",
+                        isActive && "nav-active-pill"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span>{label}</span>
+                  </>
+                )}
               </NavLink>
+
             </li>
           ))}
           <li>
@@ -233,10 +245,22 @@ const NewFloatingNav = () => {
               )
             }
           >
-            <Icon className="h-5 w-5" />
-            <span>{label}</span>
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cn(
+                    "grid h-8 w-12 place-items-center rounded-xl transition-all",
+                    isActive && "nav-active-pill"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
+
 
         <Popover open={desktopOpen} onOpenChange={setDesktopOpen}>
           <PopoverTrigger asChild>

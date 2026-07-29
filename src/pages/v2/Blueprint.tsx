@@ -555,10 +555,12 @@ const Blueprint = () => {
                 {!approvedAll && (
                   <Button
                     size="sm"
+                    variant="hero"
                     onClick={approveWeek}
                     disabled={approvingWeek}
                     className="rounded-full h-9 px-3 gap-1.5"
                   >
+
                     {approvingWeek ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
@@ -632,12 +634,13 @@ const Blueprint = () => {
                     <div
                       className={`h-10 w-10 rounded-full border-2 grid place-items-center text-[10px] font-medium ${
                         isToday
-                          ? "bg-foreground text-background border-foreground"
+                          ? "bg-foreground text-background border-foreground shadow-glow"
                           : dayIdeas.length
                           ? "bg-background border-foreground text-foreground"
                           : "bg-background border-border text-muted-foreground"
                       }`}
                     >
+
                       {date.getDate()}
                     </div>
                   </div>
@@ -668,8 +671,13 @@ const Blueprint = () => {
                               initial={{ opacity: 0, y: 6 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -6 }}
-                              className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3"
+                              className={`rounded-2xl border bg-card p-4 sm:p-5 space-y-3 transition-shadow ${
+                                isToday
+                                  ? "border-brandie-violet/30 shadow-glow-soft"
+                                  : "border-border"
+                              }`}
                             >
+
                               <div className="flex items-center justify-between gap-2 text-[11px] tracking-wider uppercase text-muted-foreground">
                                 <div className="flex items-center gap-2 min-w-0">
                                   {meta && (

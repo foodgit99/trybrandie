@@ -395,12 +395,13 @@ const Engine = () => {
               >
                 {merged.enabled ? (
                   <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brandie-teal opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brandie-teal" />
                   </span>
                 ) : (
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                  <span className="status-dot status-dot-idle" />
                 )}
+
                 Last plan: {lastRunLabel}
               </div>
             </div>
@@ -410,22 +411,23 @@ const Engine = () => {
         {/* LIVE STATS */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           {[
-            { label: "Queued", value: queueStats?.queued ?? 0, sub: "next 14 days" },
-            { label: "Approved", value: queueStats?.approved ?? 0, sub: "ready to ship" },
-            { label: "Processing", value: queueStats?.processing ?? 0, sub: "rendering now" },
-            { label: "Shipped", value: queueStats?.shipped ?? 0, sub: "this period" },
+            { label: "Queued", value: queueStats?.queued ?? 0, sub: "next 14 days", tone: "" },
+            { label: "Approved", value: queueStats?.approved ?? 0, sub: "ready to ship", tone: "text-brandie-teal" },
+            { label: "Processing", value: queueStats?.processing ?? 0, sub: "rendering now", tone: "text-brandie-violet" },
+            { label: "Shipped", value: queueStats?.shipped ?? 0, sub: "this period", tone: "" },
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-2xl border border-border bg-card p-4 space-y-1"
+              className="rounded-2xl border border-border bg-card p-4 space-y-1 shadow-flat"
             >
-              <p className="text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
-                {s.label}
+              <p className="eyebrow">{s.label}</p>
+              <p className={`font-serif text-3xl tracking-tight ${s.value > 0 ? s.tone : ""}`}>
+                {s.value}
               </p>
-              <p className="font-serif text-3xl tracking-tight">{s.value}</p>
               <p className="text-[11px] text-muted-foreground">{s.sub}</p>
             </div>
           ))}
+
         </section>
 
         {/* PIPELINE, live telemetry */}

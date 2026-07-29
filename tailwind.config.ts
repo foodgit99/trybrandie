@@ -67,7 +67,23 @@ export default {
           charcoal: "hsl(var(--brandie-charcoal))",
           stone: "hsl(var(--brandie-stone))",
           neon: "hsl(var(--brandie-neon))",
+          coral: "hsl(var(--brandie-coral))",
+          magenta: "hsl(var(--brandie-magenta))",
+          violet: "hsl(var(--brandie-violet))",
+          indigo: "hsl(var(--brandie-indigo))",
+          teal: "hsl(var(--brandie-teal))",
         },
+      },
+      backgroundImage: {
+        "gradient-spectrum": "var(--gradient-spectrum)",
+        "gradient-brand-soft": "var(--gradient-brand-soft)",
+      },
+      boxShadow: {
+        glow: "var(--glow-accent)",
+        "glow-soft": "var(--glow-soft)",
+        focusglow: "var(--glow-focus)",
+        flat: "var(--shadow-flat)",
+        raised: "var(--shadow-raised)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -87,12 +103,18 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.45" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.5s ease-out",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
+
     },
   },
   plugins: [require("tailwindcss-animate")],
