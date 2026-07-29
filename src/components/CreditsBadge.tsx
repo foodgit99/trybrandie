@@ -129,18 +129,31 @@ function BreakdownBody({ b }: { b: Breakdown }) {
 export default function CreditsBadge() {
   const b = useCreditsBreakdown();
   const total = b?.total ?? 0;
+  const low = !!b && total < 3;
 
   const trigger = (
     <button
       type="button"
-      className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-secondary text-xs sm:text-sm hover:bg-secondary/80 transition-colors"
+      className={
+        "flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs sm:text-sm transition-all " +
+        (low
+          ? "bg-brandie-coral/10 text-brandie-coral ring-1 ring-brandie-coral/30 hover:bg-brandie-coral/15"
+          : "bg-secondary hover:bg-secondary/80")
+      }
       aria-label="Credits breakdown"
     >
-      <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+      <Sparkles
+        className={
+          "h-3 w-3 sm:h-3.5 sm:w-3.5 " + (low ? "text-brandie-coral" : "text-brandie-violet")
+        }
+      />
       <span className="font-medium">{total}</span>
-      <span className="text-muted-foreground hidden sm:inline">credits</span>
+      <span className={low ? "hidden sm:inline" : "text-muted-foreground hidden sm:inline"}>
+        credits
+      </span>
     </button>
   );
+
 
   if (!b) return trigger;
 
