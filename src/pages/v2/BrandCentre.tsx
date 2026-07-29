@@ -83,6 +83,26 @@ const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode 
   );
 };
 
+const EmptyState: React.FC<{
+  title: string;
+  body: string;
+  cta?: string;
+  href?: string;
+}> = ({ title, body, cta = "Add it now", href = "/brand/editor" }) => (
+  <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center space-y-2">
+    <p className="text-sm font-medium">{title}</p>
+    <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">{body}</p>
+    <Link
+      to={href}
+      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline pt-1"
+    >
+      {cta} <ArrowRight className="h-3 w-3" />
+    </Link>
+  </div>
+);
+
+
+
 
 
 
