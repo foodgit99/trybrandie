@@ -31,7 +31,7 @@ const Block: React.FC<{ label: string; children: React.ReactNode; href?: string 
 }) => (
   <section className="space-y-3">
     <div className="flex items-center justify-between">
-      <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">{label}</h2>
+      <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">{label}</h3>
       {href && (
         <Link
           to={href}
@@ -44,6 +44,22 @@ const Block: React.FC<{ label: string; children: React.ReactNode; href?: string 
     <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">{children}</div>
   </section>
 );
+
+const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({
+  title,
+  hint,
+  children,
+}) => (
+  <section className="space-y-6">
+    <div className="flex items-baseline gap-4">
+      <h2 className="font-serif text-2xl tracking-tight leading-none shrink-0">{title}</h2>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+    {hint && <p className="text-sm text-muted-foreground -mt-3">{hint}</p>}
+    <div className="space-y-6">{children}</div>
+  </section>
+);
+
 
 const BrandCentre = () => {
   const { user, loading: authLoading } = useAuth();
@@ -99,7 +115,7 @@ const BrandCentre = () => {
       <NewAppHeader />
 
 
-      <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-10">
+      <main className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 space-y-14">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-2 min-w-0">
             <p className="text-xs tracking-[0.22em] uppercase text-muted-foreground">
@@ -121,7 +137,9 @@ const BrandCentre = () => {
           )}
         </header>
 
-        <Block label="Identity" href="/brand/editor">
+        <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
+        <Block label="Basics" href="/brand/editor">
+
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground">
@@ -180,8 +198,11 @@ const BrandCentre = () => {
             </div>
           </div>
         </Block>
+        </Group>
 
+        <Group title="Strategy" hint="Who you are talking to and what you are selling.">
         <Block label="Audience (JTBD)" href="/brand/editor">
+
           {(() => {
             const raw = ((audience as any)?.raw_inputs ?? {}) as Record<string, any>;
             const jtbd = ((audience as any)?.jtbd_profile ?? {}) as Record<string, any>;
@@ -248,31 +269,38 @@ const BrandCentre = () => {
             </ul>
           )}
         </Block>
+        </Group>
 
-        <Block label="Gallery">
-          <BrandGalleryPanel
-            brandId={brand.id}
-            userId={user.id}
-            preferGalleryFirst={(brand as any).prefer_gallery_first ?? true}
-          />
-        </Block>
-
-        <section className="space-y-3">
-          <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Team</h2>
-          <TeamMembersPanel />
-        </section>
-
-        {(brand as any).__role !== "member" && (
-          <section className="space-y-3">
-            <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Usage</h2>
-            <BrandUsagePanel
+        <Group title="Assets" hint="Real photos Brandie prioritises over generated imagery.">
+          <Block label="Gallery">
+            <BrandGalleryPanel
               brandId={brand.id}
-              ownerUserId={user.id}
-              ownerName={(user.user_metadata as any)?.full_name || user.email || "Owner"}
-              isOwner={(brand as any).__role !== "member"}
+              userId={user.id}
+              preferGalleryFirst={(brand as any).prefer_gallery_first ?? true}
             />
-          </section>
-        )}
+          </Block>
+        </Group>
+
+        <Group title="Workspace" hint="People and activity on this brand.">
+          <div className="space-y-3">
+            <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Team</h3>
+            <TeamMembersPanel />
+          </div>
+
+
+          {(brand as any).__role !== "member" && (
+            <div className="space-y-3">
+              <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Usage</h3>
+              <BrandUsagePanel
+                brandId={brand.id}
+                ownerUserId={user.id}
+                ownerName={(user.user_metadata as any)?.full_name || user.email || "Owner"}
+                isOwner={(brand as any).__role !== "member"}
+              />
+            </div>
+          )}
+        </Group>
+
 
 
 
