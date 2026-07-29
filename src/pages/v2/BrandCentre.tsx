@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2, Pencil } from "lucide-react";
+import { ArrowRight, ChevronDown, Loader2, Pencil } from "lucide-react";
+
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import TeamMembersPanel from "@/components/team/TeamMembersPanel";
@@ -49,15 +51,39 @@ const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode 
   title,
   hint,
   children,
-}) => (
-  <section className="space-y-6">
-    <div className="flex items-baseline gap-4">
-      <h2 className="font-serif text-2xl tracking-tight leading-none shrink-0">{title}</h2>
-      <span className="h-px flex-1 bg-border" />
-    </div>
-    {hint && <p className="text-sm text-muted-foreground -mt-3">{hint}</p>}
-    <div className="space-y-6">{children}</div>
-  </section>
+}) => {
+  const storageKey = `brandcentre:group:${title}`;
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem(storageKey) !== "closed";
+  });
+
+  const toggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem(storageKey, next ? "open" : "closed"); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  return (
+    <section className="space-y-6">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="w-full flex items-baseline gap-4 text-left group/gh"
+      >
+        <h2 className="font-serif text-2xl tracking-tight leading-none shrink-0 group-hover/gh:text-primary transition-colors">{title}</h2>
+        <span className="h-px flex-1 bg-border" />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {hint && open && <p className="text-sm text-muted-foreground -mt-3">{hint}</p>}
+      {open && <div className="space-y-6">{children}</div>}
+    </section>
+  );
+};
+
 );
 
 
