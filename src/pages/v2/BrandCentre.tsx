@@ -274,7 +274,7 @@ const BrandCentre = () => {
           ].filter(Boolean) as { label: string; href: string }[];
           if (todo.length === 0) return null;
           return (
-            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <div className="section-accent-rail rounded-2xl border border-border bg-card p-5 pl-6 space-y-3 shadow-flat">
               <div>
                 <p className="text-sm font-medium">Finish setting up {brand.name}</p>
                 <p className="text-xs text-muted-foreground mt-1">
