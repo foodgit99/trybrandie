@@ -56,6 +56,17 @@ Deno.serve(async (req) => {
       const stuckRows = (stuck || []) as any[];
       if (stuckRows.length > 0) console.log(`[autopilot:reconcile] inspecting ${stuckRows.length} stuck idea(s)`);
       for (const row of stuckRows) {
+        // Skip ideas whose render is still in flight — the design_jobs worker
+        // (design-dispatch → design-studio → autopilot-notify) owns them.
+        const { data: liveJob } = await supabase
+          .from("design_jobs")
+          .select("id")
+          .in("status", ["queued", "running"])
+          .contains("input", { content_idea_id: row.id })
+          .limit(1)
+          .maybeSingle();
+        if (liveJob?.id) continue;
+
         const { data: linked } = await supabase
           .from("designs")
           .select("id, carousel_id, slide_index, created_at")
@@ -63,6 +74,7 @@ Deno.serve(async (req) => {
           .order("slide_index", { ascending: true, nullsFirst: false });
         const designs = (linked || []) as any[];
         if (designs.length === 0) {
+
           await supabase
             .from("content_ideas")
             .update({ autopilot_status: "failed_error" } as any)
