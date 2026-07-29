@@ -670,8 +670,13 @@ const Blueprint = () => {
                               initial={{ opacity: 0, y: 6 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -6 }}
-                              className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3"
+                              className={`rounded-2xl border bg-card p-4 sm:p-5 space-y-3 transition-shadow ${
+                                isToday
+                                  ? "border-brandie-violet/30 shadow-glow-soft"
+                                  : "border-border"
+                              }`}
                             >
+
                               <div className="flex items-center justify-between gap-2 text-[11px] tracking-wider uppercase text-muted-foreground">
                                 <div className="flex items-center gap-2 min-w-0">
                                   {meta && (
