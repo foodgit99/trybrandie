@@ -84,7 +84,7 @@ const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode 
   );
 };
 
-);
+
 
 
 const BrandCentre = () => {
