@@ -634,12 +634,13 @@ const Blueprint = () => {
                     <div
                       className={`h-10 w-10 rounded-full border-2 grid place-items-center text-[10px] font-medium ${
                         isToday
-                          ? "bg-foreground text-background border-foreground"
+                          ? "bg-foreground text-background border-foreground shadow-glow"
                           : dayIdeas.length
                           ? "bg-background border-foreground text-foreground"
                           : "bg-background border-border text-muted-foreground"
                       }`}
                     >
+
                       {date.getDate()}
                     </div>
                   </div>
