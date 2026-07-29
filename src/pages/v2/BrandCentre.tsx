@@ -282,9 +282,11 @@ const BrandCentre = () => {
         </Group>
 
         <Group title="Workspace" hint="People and activity on this brand.">
-          <Block label="Team">
+          <div className="space-y-3">
+            <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Team</h3>
             <TeamMembersPanel />
-          </Block>
+          </div>
+
 
           {(brand as any).__role !== "member" && (
             <div className="space-y-3">
