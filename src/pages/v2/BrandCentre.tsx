@@ -192,14 +192,24 @@ const BrandCentre = () => {
 
         <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
         <Block label="Basics" href="/brand/editor">
-
+          {!brand.description && !brand.tone_of_voice ? (
+            <EmptyState
+              title="Brandie doesn't know what you do yet"
+              body="Add a one-paragraph description and your tone of voice. Every caption and design is written from these two lines."
+              cta="Describe your brand"
+            />
+          ) : (
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground">
                 Description
               </p>
               <p className="text-sm leading-relaxed">
-                {brand.description || "-"}
+                {brand.description || (
+                  <span className="text-muted-foreground">
+                    Missing, add it so copy sounds like your business.
+                  </span>
+                )}
               </p>
             </div>
             <div className="space-y-1.5">
@@ -207,15 +217,24 @@ const BrandCentre = () => {
                 Voice
               </p>
               <p className="text-sm leading-relaxed">
-                {brand.tone_of_voice || "-"}
+                {brand.tone_of_voice || (
+                  <span className="text-muted-foreground">
+                    Missing, captions will default to a neutral tone.
+                  </span>
+                )}
               </p>
             </div>
           </div>
+          )}
         </Block>
 
         <Block label="Palette" href="/brand/editor">
           {palette.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No colors set.</p>
+            <EmptyState
+              title="No brand colours yet"
+              body="Add 2 to 4 hex codes. Without them Brandie picks its own palette and your posts won't look consistent."
+              cta="Set your colours"
+            />
           ) : (
             <div className="flex flex-wrap gap-5">
               {palette.map((hex) => (
@@ -226,6 +245,13 @@ const BrandCentre = () => {
         </Block>
 
         <Block label="Typography" href="/brand/editor">
+          {!brand.typography_display && !brand.typography_primary ? (
+            <EmptyState
+              title="No fonts chosen"
+              body="Pick a display font for headlines and a body font for supporting copy so every design uses the same type system."
+              cta="Choose fonts"
+            />
+          ) : (
           <div className="grid sm:grid-cols-2 gap-5">
             <div>
               <p className="text-[11px] tracking-wider uppercase text-muted-foreground mb-1">
@@ -235,7 +261,9 @@ const BrandCentre = () => {
                 className="text-2xl"
                 style={{ fontFamily: brand.typography_display || undefined }}
               >
-                {brand.typography_display || "-"}
+                {brand.typography_display || (
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                )}
               </p>
             </div>
             <div>
@@ -246,11 +274,15 @@ const BrandCentre = () => {
                 className="text-base"
                 style={{ fontFamily: brand.typography_primary || undefined }}
               >
-                {brand.typography_primary || "-"}
+                {brand.typography_primary || (
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                )}
               </p>
             </div>
           </div>
+          )}
         </Block>
+
         </Group>
 
         <Group title="Strategy" hint="Who you are talking to and what you are selling.">
