@@ -305,8 +305,16 @@ const BrandCentre = () => {
               ["Trigger", pick("buying_trigger", "trigger", "moment")],
             ];
             if (!audience || rows.every(([, v]) => !v)) {
-              return <p className="text-sm text-muted-foreground">No audience profile yet.</p>;
+              return (
+                <EmptyState
+                  title="No audience profile yet"
+                  body="Answer the JTBD questions, who they are, what they struggle with, and what makes them buy. This is what turns generic posts into content that converts."
+                  cta="Build the profile"
+                  href="/brand/editor#audience-intelligence"
+                />
+              );
             }
+
             return (
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                 {rows.map(([label, value]) => (
