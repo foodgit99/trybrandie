@@ -31,7 +31,7 @@ const Block: React.FC<{ label: string; children: React.ReactNode; href?: string 
 }) => (
   <section className="space-y-3">
     <div className="flex items-center justify-between">
-      <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">{label}</h2>
+      <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">{label}</h3>
       {href && (
         <Link
           to={href}
@@ -44,6 +44,22 @@ const Block: React.FC<{ label: string; children: React.ReactNode; href?: string 
     <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">{children}</div>
   </section>
 );
+
+const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({
+  title,
+  hint,
+  children,
+}) => (
+  <section className="space-y-6">
+    <div className="flex items-baseline gap-4">
+      <h2 className="font-serif text-2xl tracking-tight leading-none shrink-0">{title}</h2>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+    {hint && <p className="text-sm text-muted-foreground -mt-3">{hint}</p>}
+    <div className="space-y-6">{children}</div>
+  </section>
+);
+
 
 const BrandCentre = () => {
   const { user, loading: authLoading } = useAuth();
