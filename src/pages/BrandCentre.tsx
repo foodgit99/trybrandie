@@ -79,7 +79,19 @@ const EMPTY_INPUTS = {
 
 type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality" | "special_instructions";
 
+const EditorGroup: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({ title, hint, children }) => (
+  <section className="space-y-4 pt-2">
+    <div className="flex items-baseline gap-4">
+      <h2 className="font-serif text-2xl tracking-tight leading-none shrink-0">{title}</h2>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+    {hint && <p className="text-sm text-muted-foreground -mt-2">{hint}</p>}
+    <div className="space-y-6">{children}</div>
+  </section>
+);
+
 const BrandCentre = () => {
+
   const { brand, refetch } = useBrand();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -941,8 +953,10 @@ const BrandCentre = () => {
           )}
 
 
+          <EditorGroup title="Identity" hint="How your brand looks and sounds in every generated asset.">
           {/* Brand Info */}
           {renderSection("Brand Info", "info",
+
             <div className="space-y-2">
               <h2 className="text-2xl font-serif">{brand.name}</h2>
               {brand.tagline && <p className="text-muted-foreground">{brand.tagline}</p>}
@@ -1074,8 +1088,11 @@ const BrandCentre = () => {
               ))}
             </div>
           )}
+          </EditorGroup>
 
+          <EditorGroup title="Offer & Assets" hint="What you sell and the real imagery Brandie features in your designs.">
           {/* Products & Services */}
+
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Products & Services</h3>
@@ -1214,9 +1231,12 @@ const BrandCentre = () => {
               <p className="text-sm text-muted-foreground">No gallery images yet. Upload real brand photos so your designs look like your business.</p>
             )}
           </div>
+          </EditorGroup>
 
+          <EditorGroup title="Audience & Rules" hint="Who you are talking to, and the rules Brandie must always follow.">
           {/* Special Instructions */}
           {renderSection("Special Instructions", "special_instructions",
+
             (brand as any).special_instructions ? (
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{(brand as any).special_instructions}</p>
             ) : (
@@ -1302,8 +1322,11 @@ const BrandCentre = () => {
               </div>
             )}
           </div>
+          </EditorGroup>
 
+          <EditorGroup title="Intelligence" hint="Trend styling and research tuning that shape what Brandie creates each week.">
           {/* Trend Lab */}
+
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
             <button onClick={() => setTrendLabOpen(!trendLabOpen)} className="w-full flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1491,6 +1514,8 @@ const BrandCentre = () => {
               </div>
             );
           })()}
+          </EditorGroup>
+
         </motion.div>
       </main>
 
