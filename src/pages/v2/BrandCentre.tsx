@@ -332,8 +332,13 @@ const BrandCentre = () => {
 
         <Block label="Offer" href="/brand/editor">
           {products.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No products or services yet.</p>
+            <EmptyState
+              title="Nothing to sell yet"
+              body="Add your products or services with photos and prices. Promotional posts and carousels are built directly from this list."
+              cta="Add a product or service"
+            />
           ) : (
+
             <ul className="divide-y divide-border -my-2">
               {products.map((p: any) => (
                 <li key={p.id} className="py-3 flex items-center gap-3">
