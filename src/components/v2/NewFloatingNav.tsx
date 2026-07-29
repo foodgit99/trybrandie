@@ -112,7 +112,7 @@ const NewFloatingNav = () => {
           return (
             <li key={to}>
               <Link
-                to={to}
+                to={to === "/brand" ? brandHref(to, activeBrandId) : to}
                 onClick={() => {
                   setMobileOpen(false);
                   setDesktopOpen(false);
