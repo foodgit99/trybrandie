@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useScrollRestoration, readGroupOpen, writeGroupOpen } from "@/hooks/useScrollRestoration";
 import { useBrandParamSync, brandHref } from "@/hooks/useBrandParamSync";
 import { Link, Navigate } from "react-router-dom";
@@ -14,6 +14,8 @@ import NewAppHeader from "@/components/v2/NewAppHeader";
 import TeamMembersPanel from "@/components/team/TeamMembersPanel";
 import BrandUsagePanel from "@/components/brands/BrandUsagePanel";
 import BrandGalleryPanel from "@/components/brands/BrandGalleryPanel";
+import GuidedTour from "@/components/v2/GuidedTour";
+import { useFirstRunTour } from "@/hooks/useFirstRunTour";
 
 const Swatch = ({ hex }: { hex: string }) => (
   <div className="flex flex-col items-center gap-1.5">
@@ -28,12 +30,13 @@ const Swatch = ({ hex }: { hex: string }) => (
   </div>
 );
 
-const Block: React.FC<{ label: string; children: React.ReactNode; href?: string }> = ({
+const Block: React.FC<{ label: string; children: React.ReactNode; href?: string; id?: string }> = ({
   label,
   children,
   href,
+  id,
 }) => (
-  <section className="space-y-3">
+  <section className="space-y-3" id={id}>
     <div className="flex items-center justify-between">
       <h3 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">{label}</h3>
       {href && (
@@ -64,6 +67,19 @@ const Group: React.FC<{ title: string; hint?: string; children: React.ReactNode 
       return next;
     });
   };
+
+  // The guided walkthrough expands the group it is about to highlight.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { title?: string } | undefined;
+      if (detail?.title === title) {
+        setOpen(true);
+        writeGroupOpen(storageKey, true);
+      }
+    };
+    window.addEventListener("brandie-tour:open-group", onOpen);
+    return () => window.removeEventListener("brandie-tour:open-group", onOpen);
+  }, [title, storageKey]);
 
 
   return (
@@ -239,7 +255,7 @@ const BrandCentre = () => {
 
 
         <Group title="Identity" hint="How your brand looks and sounds in every generated asset.">
-        <Block label="Basics" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-basics" label="Basics" href={brandHref("/brand/editor", brand.id)}>
           {!brand.description && !brand.tone_of_voice ? (
             <EmptyState
               title="Brandie doesn't know what you do yet"
@@ -276,7 +292,7 @@ const BrandCentre = () => {
           )}
         </Block>
 
-        <Block label="Palette" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-palette" label="Palette" href={brandHref("/brand/editor", brand.id)}>
           {palette.length === 0 ? (
             <EmptyState
               title="No brand colours yet"
@@ -292,7 +308,7 @@ const BrandCentre = () => {
           )}
         </Block>
 
-        <Block label="Typography" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-typography" label="Typography" href={brandHref("/brand/editor", brand.id)}>
           {!brand.typography_display && !brand.typography_primary ? (
             <EmptyState
               title="No fonts chosen"
@@ -334,7 +350,7 @@ const BrandCentre = () => {
         </Group>
 
         <Group title="Strategy" hint="Who you are talking to and what you are selling.">
-        <Block label="Audience (JTBD)" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-audience" label="Audience (JTBD)" href={brandHref("/brand/editor", brand.id)}>
 
           {(() => {
             const raw = ((audience as any)?.raw_inputs ?? {}) as Record<string, any>;
@@ -378,7 +394,7 @@ const BrandCentre = () => {
           })()}
         </Block>
 
-        <Block label="Offer" href={brandHref("/brand/editor", brand.id)}>
+        <Block id="tour-offer" label="Offer" href={brandHref("/brand/editor", brand.id)}>
           {products.length === 0 ? (
             <EmptyState
               title="Nothing to sell yet"
@@ -418,7 +434,7 @@ const BrandCentre = () => {
         </Group>
 
         <Group title="Assets" hint="Real photos Brandie prioritises over generated imagery.">
-          <Block label="Gallery">
+          <Block id="tour-gallery" label="Gallery">
             <p className="text-xs text-muted-foreground -mt-1 mb-3 leading-relaxed">
               Upload real photos, products, team, premises, screenshots, and label them.
               Brandie uses these exact images before it generates anything, so designs match reality.
