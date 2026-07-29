@@ -435,18 +435,20 @@ async function logEvent(supabase: any, runId: string | undefined, ideaId: string
     .insert({ run_id: runId, idea_id: ideaId, brand_id: brandId, status, error_message: errorMessage || null, metadata: metadata || null });
 }
 
-// ─── Process a single idea ──────────────────────────────
+// ─── Enqueue a single idea as a design job ───────────────
+//
+// content-autopilot no longer renders inline (that made each tick a 60-90s per
+// idea marathon that the edge isolate could not survive, so queues drained over
+// days). It now builds the design payload, inserts a design_jobs row and
+// returns. design-dispatch (sweeping every 10s, concurrency-capped) runs the
+// render, and autopilot-notify finalises the idea + sends the email/push.
 
-async function processIdea(
+async function enqueueIdea(
   supabase: any,
   idea: any,
-  supabaseUrl: string,
-  serviceRoleKey: string,
   runId?: string,
-  baseMeta?: Record<string, any>,
-): Promise<{ success: boolean; status?: string; error?: string; design_id?: string; carousel_id?: string }> {
-
-  // Load brand
+  _baseMeta?: Record<string, any>,
+): Promise<{ success: boolean; status?: string; error?: string; job_id?: string }> {
   const { data: brand } = await supabase
     .from("brands")
     .select("*")
@@ -454,38 +456,29 @@ async function processIdea(
     .single();
 
   if (!brand) {
-    console.warn(`[autopilot] No brand found for idea ${idea.id}`);
     await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
     return { success: false, status: "failed_error", error: "brand_not_found" };
   }
 
-  // Load user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("user_id")
     .eq("user_id", idea.user_id)
-    .single();
+    .maybeSingle();
 
   if (!profile) {
-    console.warn(`[autopilot] No profile for user ${idea.user_id}`);
     await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
     return { success: false, status: "failed_error", error: "profile_not_found" };
   }
 
-  // Get user email
-  const { data: authUser } = await supabase.auth.admin.getUserById(idea.user_id);
-  const userEmail = authUser?.user?.email;
-
-  // Load audience (optional) — select id so design-studio can join the JTBD profile.
   const { data: audience } = await supabase
     .from("target_audiences")
-    .select("id, jtbd_profile, label")
+    .select("id")
     .eq("brand_id", idea.brand_id)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  // Load trend preferences (optional)
   const { data: trendPref } = await supabase
     .from("brand_trend_preferences")
     .select("selected_trend, default_trend_intensity, trend_enabled")
@@ -494,28 +487,17 @@ async function processIdea(
 
   const isCarousel = idea.content_format === "carousel";
   const slideCount = isCarousel ? Math.min(10, Math.max(2, Number(idea.slide_count) || 5)) : 0;
-  console.log(`[autopilot] idea ${idea.id} format=${isCarousel ? "carousel" : "graphic"}${isCarousel ? ` slides=${slideCount}` : ""}`);
-
-  // Canvas size: per-idea override (planner can set portrait/square per idea),
-  // else portrait 1080x1350 for single graphics (best IG feed performance),
-  // else 1080x1080 for carousels.
-  const canvasSize: string = (typeof (idea as any).canvas_size === "string" && (idea as any).canvas_size)
-    ? (idea as any).canvas_size
+  const canvasSize: string = (typeof idea.canvas_size === "string" && idea.canvas_size)
+    ? idea.canvas_size
     : (isCarousel ? "1080x1080" : "1080x1350");
 
-  // Build design payload
   const designPayload: Record<string, any> = {
     user_id: idea.user_id,
     action: isCarousel ? "generate_carousel" : "generate",
     canvas_size: canvasSize,
     content_idea_id: idea.id,
-    // Best-of-N ceiling: design-studio renders candidate A, scores it, and only
-    // spends a second render when A misses the quality gate.
-    // Carousels skip this (already multi-image and cost-sensitive).
-    ...(isCarousel ? {} : { candidate_count: 2 }),
-
-    ...(isCarousel && { slide_count: slideCount }),
-
+    autopilot_notify_idea_id: idea.id,
+    ...(isCarousel ? { slide_count: slideCount } : { candidate_count: 2 }),
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
       id: brand.id,
@@ -536,222 +518,46 @@ async function processIdea(
     },
   };
 
-  // Pass the actual UUID so design-studio's `.eq("id", audience_id)` resolves
-  // and the JTBD profile flows into the Brief Agent. Previously a label string
-  // was sent here, which silently dropped the entire audience context.
-  if (audience?.id) {
-    designPayload.audience_id = audience.id;
-  }
-
+  if (audience?.id) designPayload.audience_id = audience.id;
 
   if (trendPref?.trend_enabled && trendPref.selected_trend && trendPref.selected_trend !== "none") {
     designPayload.trend = trendPref.selected_trend;
     designPayload.trend_intensity = trendPref.default_trend_intensity || 40;
   }
 
-  // Call design-studio with bounded retry on 429 (gateway per-trace rate limit).
-  // We parse the "Retry after Nms" hint and back off + jitter before retrying.
-  const MAX_429_RETRIES = 2;
-  let designRes: Response | null = null;
-  let errBody = "";
-  for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
-    designRes = await fetch(`${supabaseUrl}/functions/v1/design-studio`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
-      body: JSON.stringify(designPayload),
-    });
-    if (designRes.ok) { errBody = ""; break; }
-    errBody = await designRes.text();
+  // Idempotency: never stack a second job for an idea that already has one in flight.
+  const { data: inFlight } = await supabase
+    .from("design_jobs")
+    .select("id")
+    .in("status", ["queued", "running"])
+    .eq("brand_id", idea.brand_id)
+    .contains("input", { content_idea_id: idea.id })
+    .limit(1)
+    .maybeSingle();
 
-    if (designRes.status === 429 && attempt < MAX_429_RETRIES) {
-      const m = errBody.match(/Retry after\s+(\d+)\s*ms/i);
-      const waitMs = (m ? Number(m[1]) : 8000) + 500 + Math.floor(Math.random() * 1500);
-      console.warn(`[autopilot] 429 on idea ${idea.id}, attempt ${attempt + 1}/${MAX_429_RETRIES}, waiting ${waitMs}ms`);
-      await logEvent(supabase, runId, idea.id, idea.brand_id, "rate_limited", `wait_ms=${waitMs}`, baseMeta);
-      await new Promise((r) => setTimeout(r, waitMs));
-      continue;
-    }
-    break;
+  if (inFlight?.id) {
+    console.log(`[autopilot] idea ${idea.id} already has job ${inFlight.id} in flight`);
+    return { success: true, job_id: inFlight.id };
   }
 
-  if (!designRes || !designRes.ok) {
-    console.error(`[autopilot] design-studio failed for idea ${idea.id}: ${designRes?.status} ${errBody}`);
-
-    if (designRes?.status === 402) {
-      await supabase.from("content_ideas").update({ autopilot_status: "failed_no_credits" } as any).eq("id", idea.id);
-      if (userEmail) {
-        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-          body: JSON.stringify({ type: "autopilot_no_credits", to: userEmail, data: { idea_title: idea.title } }),
-        }).catch(() => {});
-      }
-      return { success: false, status: "failed_no_credits", error: errBody };
-    }
-
-    // 429 after exhausting in-call retries: leave the idea RETRYABLE (pending)
-    // so the next cron tick (or autopilot-retry) can pick it up automatically.
-    if (designRes?.status === 429) {
-      await supabase.from("content_ideas").update({ autopilot_status: "pending" } as any).eq("id", idea.id);
-      return { success: false, status: "rate_limited", error: errBody };
-    }
-
-    await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-    return { success: false, status: "failed_error", error: errBody };
-  }
-
-  const designData = await designRes.json();
-
-  let coverImageUrl: string | undefined;
-  let coverDesignId: string | undefined;
-
-  if (isCarousel) {
-    const slides = Array.isArray(designData?.slides) ? designData.slides : [];
-    if (slides.length === 0) {
-      console.error(`[autopilot] No slides returned for carousel idea ${idea.id}`);
-      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-      return { success: false, status: "failed_error", error: "no_slides" };
-    }
-    const sorted = [...slides].sort((a: any, b: any) => (a.slide_index ?? 0) - (b.slide_index ?? 0));
-    const cover = sorted[0];
-    coverImageUrl = cover?.image_url;
-    coverDesignId = cover?.design_id;
-
-    if (!coverDesignId) {
-      console.error(`[autopilot] Carousel cover missing design_id for idea ${idea.id}`);
-      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-      return { success: false, status: "failed_error", error: "no_cover_design_id" };
-    }
-    // Reject partial carousels: every slide must carry a non-empty design_id.
-    const incomplete = sorted.find((s: any) => !s?.design_id);
-    if (incomplete) {
-      console.error(`[autopilot] Carousel slide ${incomplete?.slide_index} missing design_id for idea ${idea.id}`);
-      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-      return { success: false, status: "failed_error", error: "incomplete_carousel" };
-    }
-
-
-    await logEvent(supabase, runId, idea.id, idea.brand_id, "designs_inserted", undefined, {
-      ...(baseMeta || {}),
-      action: "insert",
-      table: "designs",
-      carousel_id: designData?.carousel_id,
-      slide_count: sorted.length,
-      design_ids: sorted.map((s: any) => s.design_id).filter(Boolean),
-      cover_design_id: coverDesignId,
-    });
-
-    // Defense-in-depth: ensure caption is persisted on cover slide for the post page.
-    if (designData?.caption) {
-      try {
-        await supabase
-          .from("designs")
-          .update({ caption: designData.caption })
-          .eq("id", coverDesignId);
-      } catch (e) {
-        console.error(`[autopilot] Failed to persist caption on cover ${coverDesignId}:`, e);
-      }
-    }
-  } else {
-    if (!designData?.image_url) {
-      console.error(`[autopilot] No image_url returned for idea ${idea.id}`);
-      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-      return { success: false, status: "failed_error", error: "no_image_url" };
-    }
-
-    // Save design (single graphic only — carousels are saved by design-studio per slide).
-    const { data: savedDesign, error: saveErr } = await supabase
-      .from("designs")
-      .insert({
-        user_id: idea.user_id,
-        brand_id: idea.brand_id,
-        title: idea.title.slice(0, 100),
-        prompt: designData.design_prompt || idea.prompt,
-        image_url: designData.image_url,
-        canvas_size: canvasSize,
-        vote: 0,
-        content_idea_id: idea.id,
-        ...(designData.genome && { genome: designData.genome }),
-        ...(designData.caption && { caption: designData.caption }),
-        ...(designData.copy_structure && { copy_structure: designData.copy_structure }),
-        ...(designData.quality_score && { quality_score: designData.quality_score }),
-        ...(Array.isArray(designData.quality_signals) && designData.quality_signals.length > 0 && {
-          quality_signals: designData.quality_signals,
-        }),
-        ...(trendPref?.trend_enabled && trendPref.selected_trend !== "none" && {
-          trend_used: trendPref.selected_trend,
-          trend_intensity: trendPref.default_trend_intensity,
-        }),
-
-      } as any)
-      .select("id")
-      .single();
-
-
-    if (saveErr) {
-      console.error(`[autopilot] Failed to save design for idea ${idea.id}:`, saveErr);
-      await supabase.from("content_ideas").update({ autopilot_status: "failed_error" } as any).eq("id", idea.id);
-      return { success: false, status: "failed_error", error: saveErr.message };
-    }
-
-    coverImageUrl = designData.image_url;
-    coverDesignId = savedDesign.id;
-
-    await logEvent(supabase, runId, idea.id, idea.brand_id, "design_inserted", undefined, {
-      ...(baseMeta || {}),
-      action: "insert",
-      table: "designs",
-      design_id: coverDesignId,
-    });
-  }
-
-  // Update content_ideas
-  await supabase
-    .from("content_ideas")
-    .update({ design_id: coverDesignId, status: "created", autopilot_status: "completed" } as any)
-    .eq("id", idea.id);
-
-  await logEvent(supabase, runId, idea.id, idea.brand_id, "idea_finalized", undefined, {
-    ...(baseMeta || {}),
-    action: "update",
-    table: "content_ideas",
-    changes: { design_id: coverDesignId, status: "created", autopilot_status: "completed" },
-  });
-
-
-
-  // Send email notification
-  const emailRemindersEnabled = (profile as any)?.email_reminders_enabled !== false;
-  if (userEmail && coverImageUrl && emailRemindersEnabled) {
-    const emailTitle = isCarousel ? `${idea.title} (carousel, ${slideCount} slides)` : idea.title;
-    await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-      body: JSON.stringify({
-        type: "autopilot_design_ready",
-        to: userEmail,
-        data: { idea_title: emailTitle, image_url: coverImageUrl, design_id: coverDesignId },
-      }),
-    }).catch((e) => console.error(`[autopilot] Email failed for idea ${idea.id}:`, e));
-  }
-
-  // Send push notification (fire-and-forget)
-  fetch(`${supabaseUrl}/functions/v1/push-send`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-    body: JSON.stringify({
+  const { data: job, error: jobErr } = await supabase
+    .from("design_jobs")
+    .insert({
       user_id: idea.user_id,
-      title: "Today's post is ready",
-      body: idea.title,
-      url: `/post/${idea.id}`,
-      tag: `idea-${idea.id}`,
-      data: { idea_id: idea.id, design_id: coverDesignId },
-    }),
-  }).catch((e) => console.error(`[autopilot] Push failed for idea ${idea.id}:`, e));
+      brand_id: idea.brand_id,
+      kind: isCarousel ? "carousel" : "single",
+      status: "queued",
+      priority: idea.scheduled_for === idea.__local_today ? 10 : 5,
+      input: designPayload,
+    } as any)
+    .select("id")
+    .single();
 
-  console.log(`[autopilot] ✅ Processed idea ${idea.id} → design ${coverDesignId}${isCarousel ? ` (carousel ${designData.carousel_id})` : ""}`);
-  return { success: true, design_id: coverDesignId, carousel_id: isCarousel ? designData.carousel_id : undefined };
+  if (jobErr || !job) {
+    await supabase.from("content_ideas").update({ autopilot_status: "pending" } as any).eq("id", idea.id);
+    return { success: false, status: "failed_error", error: jobErr?.message || "job_insert_failed" };
+  }
+
+  console.log(`[autopilot] queued idea ${idea.id} → job ${job.id} (${isCarousel ? `carousel x${slideCount}` : "single"})`);
+  return { success: true, job_id: job.id };
 }
