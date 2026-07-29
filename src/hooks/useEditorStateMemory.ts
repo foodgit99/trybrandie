@@ -56,13 +56,15 @@ export function useEditorStateMemory(
     if (saved) restoreRef.current(saved);
   }, [brandId]);
 
+  const serialized = JSON.stringify(snapshot);
+
   // Save on every change (only after restore ran, to avoid clobbering).
   useEffect(() => {
     if (!brandId || restoredFor.current !== brandId) return;
     try {
-      window.sessionStorage.setItem(keyFor(brandId), JSON.stringify(snapshot));
+      window.sessionStorage.setItem(keyFor(brandId), serialized);
     } catch {
       /* ignore */
     }
-  }, [brandId, snapshot]);
+  }, [brandId, serialized]);
 }

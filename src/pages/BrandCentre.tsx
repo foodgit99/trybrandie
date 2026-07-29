@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Pencil, Upload, X, ChevronDown, ChevronUp, Target, Loader2, RefreshCw, Plus, Trash2, Users, Palette, Sparkles, Star, Globe, Search, Zap } from "lucide-react";
 import { useScrollRestoration, readGroupOpen, writeGroupOpen } from "@/hooks/useScrollRestoration";
+import { useEditorStateMemory } from "@/hooks/useEditorStateMemory";
 import { Checkbox } from "@/components/ui/checkbox";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import LogoDesignerDialog from "@/components/LogoDesignerDialog";
