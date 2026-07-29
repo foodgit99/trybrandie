@@ -4353,6 +4353,23 @@ serve(async (req) => {
     );
   }
 
+  // Autopilot completion hook: when content-autopilot enqueued this job it sets
+  // autopilot_notify_idea_id so delivery (idea finalisation + email + push)
+  // happens here, decoupled from the autopilot isolate's wall-clock.
+  const notifyIdeaId: string | undefined = parsed?.autopilot_notify_idea_id;
+  const notifyAutopilot = async (outcome: "succeeded" | "failed", errorText?: string) => {
+    if (!notifyIdeaId) return;
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/autopilot-notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({ idea_id: notifyIdeaId, job_id: jobId, outcome, error: errorText || null }),
+      });
+    } catch (e) {
+      console.error("[design-studio] autopilot-notify failed:", e);
+    }
+  };
+
   const work = (async () => {
     try {
       const res = await runFullHandler(cloneReq());
@@ -4370,6 +4387,7 @@ serve(async (req) => {
           error: { message: data?.error || `HTTP ${res.status}`, status: res.status },
           finished_at: new Date().toISOString(),
         }).eq("id", jobId);
+        await notifyAutopilot("failed", `${res.status} ${data?.error || ""}`);
       } else {
         await admin.from("design_jobs").update({
           status: "succeeded",
@@ -4378,6 +4396,7 @@ serve(async (req) => {
           stage: "done",
           finished_at: new Date().toISOString(),
         }).eq("id", jobId);
+        await notifyAutopilot("succeeded");
       }
     } catch (e) {
       try {
@@ -4387,8 +4406,10 @@ serve(async (req) => {
           finished_at: new Date().toISOString(),
         }).eq("id", jobId);
       } catch {}
+      await notifyAutopilot("failed", e instanceof Error ? e.message : "unknown");
     }
   })();
+
 
   if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
     EdgeRuntime.waitUntil(work);
