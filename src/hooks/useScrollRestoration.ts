@@ -73,12 +73,14 @@ export function useScrollRestoration(key: string, ready: boolean = true) {
 }
 
 /** Collapsible section state persisted in localStorage. */
-export function readGroupOpen(storageKey: string) {
-  if (typeof window === "undefined") return true;
+export function readGroupOpen(storageKey: string, defaultOpen: boolean = true) {
+  if (typeof window === "undefined") return defaultOpen;
   try {
-    return window.localStorage.getItem(storageKey) !== "closed";
+    const raw = window.localStorage.getItem(storageKey);
+    if (raw === null) return defaultOpen;
+    return raw !== "closed";
   } catch {
-    return true;
+    return defaultOpen;
   }
 }
 

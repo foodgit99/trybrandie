@@ -82,9 +82,9 @@ const EMPTY_INPUTS = {
 
 type EditingField = null | "info" | "colors" | "typography" | "vibe" | "logo" | "tone" | "personality" | "special_instructions";
 
-const EditorGroup: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({ title, hint, children }) => {
+const EditorGroup: React.FC<{ title: string; hint?: string; defaultOpen?: boolean; children: React.ReactNode }> = ({ title, hint, defaultOpen = true, children }) => {
   const storageKey = `brandeditor:group:${title}`;
-  const [open, setOpen] = useState(() => readGroupOpen(storageKey));
+  const [open, setOpen] = useState(() => readGroupOpen(storageKey, defaultOpen));
 
   const toggle = () => {
     setOpen((prev) => {
@@ -1141,7 +1141,7 @@ const BrandCentre = () => {
           )}
           </EditorGroup>
 
-          <EditorGroup title="Offer & Assets" hint="What you sell and the real imagery Brandie features in your designs.">
+          <EditorGroup title="Offer & Assets" hint="What you sell and the real imagery Brandie features in your designs." defaultOpen={false}>
           {/* Products & Services */}
 
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
@@ -1284,7 +1284,7 @@ const BrandCentre = () => {
           </div>
           </EditorGroup>
 
-          <EditorGroup title="Audience & Rules" hint="Who you are talking to, and the rules Brandie must always follow.">
+          <EditorGroup title="Audience & Rules" hint="Who you are talking to, and the rules Brandie must always follow." defaultOpen={false}>
           {/* Special Instructions */}
           {renderSection("Special Instructions", "special_instructions",
 
@@ -1375,7 +1375,7 @@ const BrandCentre = () => {
           </div>
           </EditorGroup>
 
-          <EditorGroup title="Intelligence" hint="Trend styling and research tuning that shape what Brandie creates each week.">
+          <EditorGroup title="Intelligence" hint="Trend styling and research tuning that shape what Brandie creates each week." defaultOpen={false}>
           {/* Trend Lab */}
 
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
