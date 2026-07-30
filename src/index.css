@@ -333,4 +333,21 @@
   .dark .nav-active-pill {
     box-shadow: inset 0 0 0 1px hsl(var(--brandie-violet) / 0.3);
   }
+  .dark .skeleton-surface {
+    background-color: hsl(var(--muted) / 0.55);
+    box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.7);
+  }
+  .dark .skeleton-surface::after {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--brandie-violet) / 0.16),
+      hsl(var(--brandie-teal) / 0.12),
+      transparent
+    );
+  }
+  .dark .empty-medallion {
+    box-shadow: inset 0 0 0 1px hsl(var(--brandie-violet) / 0.32);
+  }
 }
+
