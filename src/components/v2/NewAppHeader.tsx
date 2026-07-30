@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import BrandSwitcher from "@/components/BrandSwitcher";
 import { useBrand } from "@/hooks/useBrand";
@@ -30,6 +31,8 @@ import {
   LifeBuoy,
   User,
   Map,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 
@@ -39,6 +42,8 @@ const NewAppHeader = () => {
   const { isAdmin } = useAdminRole();
   const navigate = useNavigate();
   const { activeBrandId } = useBrand();
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-border bg-background/95 backdrop-blur-sm lg:pl-24 after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-gradient-spectrum after:opacity-25">
@@ -126,6 +131,16 @@ const NewAppHeader = () => {
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/settings")}>
               <Settings className="h-4 w-4" />
               Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 rounded-lg cursor-pointer"
+              onSelect={(e) => {
+                e.preventDefault();
+                setTheme(isDark ? "light" : "dark");
+              }}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {isDark ? "Light mode" : "Dark mode"}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />

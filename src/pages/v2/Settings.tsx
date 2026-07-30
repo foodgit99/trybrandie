@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useTheme } from "next-themes";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Sun, Moon, Monitor } from "lucide-react";
 import {
   ArrowRight,
   Bell,
@@ -102,6 +104,9 @@ const SettingsV2 = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { theme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => setThemeMounted(true), []);
 
   // Deep-link support: /settings?brand=<id>&resume=1 (used by the
   // "Autopilot paused" email) switches to that brand and jumps straight
@@ -777,7 +782,43 @@ const SettingsV2 = () => {
           </Row>
         </Section>
 
+        <Section label="Appearance">
+          <Row
+            title="Theme"
+            subtitle="Dark keeps the same layout and brand accents, just calmer surfaces."
+          >
+            <div className="flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1">
+              {[
+                { value: "light", label: "Light", icon: Sun },
+                { value: "dark", label: "Dark", icon: Moon },
+                { value: "system", label: "Auto", icon: Monitor },
+              ].map(({ value, label, icon: Icon }) => {
+                const active = themeMounted && theme === value;
+                return (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    aria-pressed={active}
+                    onClick={() => setTheme(value)}
+                    className={`h-8 rounded-full gap-1.5 px-3 text-xs ${
+                      active
+                        ? "nav-active-pill text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Button>
+                );
+              })}
+            </div>
+          </Row>
+        </Section>
+
         <Section label="Experience">
+
           <Row
             title="Use new Brandie by default"
             subtitle="When on, signing in lands you on the Cockpit. Off sends you to the legacy chat-canvas."
