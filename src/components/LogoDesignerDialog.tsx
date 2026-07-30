@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -56,7 +57,7 @@ function GeneratingState() {
     <div className="flex flex-col items-center justify-center py-10 space-y-6">
       {/* Pulsing skeleton logo placeholder */}
       <div className="relative">
-        <div className="w-28 h-28 rounded-2xl bg-secondary animate-pulse" />
+        <Skeleton className="w-28 h-28 rounded-2xl" />
         <motion.div
           className="absolute inset-0 rounded-2xl border-2 border-primary/30"
           animate={{ scale: [1, 1.08, 1], opacity: [0.5, 1, 0.5] }}

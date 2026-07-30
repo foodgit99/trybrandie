@@ -1,4 +1,5 @@
 import SEO from "@/components/SEO";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -364,7 +365,7 @@ const DesignHistory = () => {
               {isLoading ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="aspect-square rounded-xl bg-secondary/60 animate-pulse" />
+                    <Skeleton key={i} className="aspect-square rounded-xl" />
                   ))}
                 </div>
               ) : filteredDesigns.length === 0 ? (
