@@ -371,7 +371,7 @@ const Cockpit = () => {
                   ) : dayIdeas.length === 0 ? (
                     <span
                       className={`text-[10px] mt-auto ${
-                        isToday ? "text-background/40" : "text-muted-foreground/40"
+                        isToday ? "text-background/70" : "text-muted-foreground"
                       }`}
                       aria-label="No posts"
                     >

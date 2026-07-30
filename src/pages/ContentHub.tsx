@@ -1503,7 +1503,7 @@ const ContentHub = () => {
                 <p className="text-sm text-muted-foreground">
                   Analyzing your brand and building your content strategy…
                 </p>
-                <p className="text-xs text-muted-foreground/60">
+                <p className="text-xs text-muted-foreground">
                   This may take up to 30 seconds
                 </p>
               </CardContent>
@@ -1612,7 +1612,7 @@ const ContentHub = () => {
                                     {conflictHoliday!.name}, nothing scheduled
                                   </span>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground/50">-</span>
+                                  <span className="text-xs text-muted-foreground/80">-</span>
                                 )}
                               </div>
                             ) : (

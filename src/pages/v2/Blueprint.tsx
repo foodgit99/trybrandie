@@ -911,7 +911,7 @@ const Blueprint = () => {
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
                     placeholder='e.g. "Plan this week" · "Refresh the entire week" · "Change Thursday to a restock announcement"'
-                    className="min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-1 text-[15px] placeholder:text-muted-foreground/60"
+                    className="min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-1 text-[15px] placeholder:text-muted-foreground"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                         e.preventDefault();

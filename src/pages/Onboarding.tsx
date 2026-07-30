@@ -359,7 +359,7 @@ const Onboarding = () => {
                           ? "bg-primary text-primary-foreground"
                           : bootStep === i
                           ? "bg-primary/20 text-primary"
-                          : "bg-secondary text-muted-foreground/40"
+                          : "bg-secondary text-muted-foreground"
                       }`}
                     >
                       {bootStep > i ? <Check className="h-2.5 w-2.5" /> : bootStep === i ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : null}

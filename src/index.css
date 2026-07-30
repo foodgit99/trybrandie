@@ -100,16 +100,16 @@
     --secondary-foreground: 40 18% 94%;
 
     --muted: 222 13% 14%;
-    --muted-foreground: 220 9% 64%;
+    --muted-foreground: 220 9% 68%;
 
     --accent: 222 13% 18%;
     --accent-foreground: 40 18% 94%;
 
-    --destructive: 0 62% 46%;
-    --destructive-foreground: 40 18% 96%;
+    --destructive: 0 72% 60%;
+    --destructive-foreground: 0 40% 10%;
 
-    --border: 220 12% 18%;
-    --input: 220 12% 20%;
+    --border: 220 12% 24%;
+    --input: 220 12% 40%;
     --ring: 261 60% 66%;
 
     --sidebar-background: 222 18% 9%;
@@ -118,13 +118,13 @@
     --sidebar-primary-foreground: 222 18% 7%;
     --sidebar-accent: 222 13% 14%;
     --sidebar-accent-foreground: 40 18% 94%;
-    --sidebar-border: 220 12% 18%;
+    --sidebar-border: 220 12% 24%;
     --sidebar-ring: 261 60% 66%;
 
     --brandie-warm: 222 15% 12%;
     --brandie-gold: 38 54% 58%;
     --brandie-charcoal: 40 18% 94%;
-    --brandie-stone: 220 9% 56%;
+    --brandie-stone: 220 9% 64%;
     --brandie-neon: 110 70% 62%;
 
     /* Logo spectrum — lifted lightness, slightly lower chroma so accents
