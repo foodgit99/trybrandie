@@ -506,7 +506,7 @@ const Engine = () => {
                         />
                         <span
                           className={`text-[9px] tracking-[0.22em] uppercase transition-colors ${
-                            i === safeIdx ? "text-foreground" : "text-muted-foreground/60"
+                            i === safeIdx ? "text-foreground" : "text-muted-foreground"
                           }`}
                         >
                           0{i + 1}
@@ -717,7 +717,7 @@ const Engine = () => {
                         />
                         <span
                           className={`text-[9px] tracking-[0.22em] uppercase transition-colors ${
-                            i === safeIdx ? "text-foreground" : "text-muted-foreground/60"
+                            i === safeIdx ? "text-foreground" : "text-muted-foreground"
                           }`}
                         >
                           0{i + 1}
