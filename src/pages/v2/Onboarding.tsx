@@ -366,7 +366,7 @@ const Onboarding = () => {
                 />
                 <p
                   className={`text-[11px] tracking-wider uppercase transition-colors ${
-                    i === step ? "text-foreground" : "text-muted-foreground/60"
+                    i === step ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {s.label}
