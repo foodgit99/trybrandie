@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -65,7 +66,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (loading || brandLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading…</div>
+        <LoadingState label="Loading" />
       </div>
     );
   }
@@ -81,7 +82,7 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
   if (loading || brandLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading…</div>
+        <LoadingState label="Loading" />
       </div>
     );
   }
@@ -151,7 +152,7 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading…</div>
+        <LoadingState label="Loading" />
       </div>
     );
   }
@@ -172,7 +173,7 @@ function LandingOrCockpit() {
   if (loading || brandLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading…</div>
+        <LoadingState label="Loading" />
       </div>
     );
   }
@@ -188,7 +189,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   if (authLoading || adminLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading…</div>
+        <LoadingState label="Loading" />
       </div>
     );
   }

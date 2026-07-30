@@ -111,7 +111,7 @@ const EmptyState = ({
   cta?: string;
   href?: string;
 }) => (
-  <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center space-y-2">
+  <div className="empty-surface px-4 py-5 space-y-2">
     <p className="text-sm font-medium">{title}</p>
     <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">{body}</p>
     <Link
@@ -122,6 +122,7 @@ const EmptyState = ({
     </Link>
   </div>
 );
+
 
 
 

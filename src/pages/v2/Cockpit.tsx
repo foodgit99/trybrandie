@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -364,8 +365,8 @@ const Cockpit = () => {
                   </p>
                   {ideasLoading ? (
                     <div className="mt-auto space-y-1" aria-hidden>
-                      <div className="h-1.5 w-3/4 rounded-full bg-muted animate-pulse" />
-                      <div className="h-1.5 w-1/2 rounded-full bg-muted animate-pulse" />
+                      <Skeleton className="h-1.5 w-3/4 rounded-full" />
+                      <Skeleton className="h-1.5 w-1/2 rounded-full" />
                     </div>
                   ) : dayIdeas.length === 0 ? (
                     <span

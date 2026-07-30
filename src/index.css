@@ -246,7 +246,74 @@
     background-image: var(--gradient-brand-soft);
     box-shadow: inset 0 0 0 1px hsl(var(--brandie-violet) / 0.22);
   }
+
+  /* ---- Loading + empty state language ------------------------------- */
+
+  /* Skeletons: muted base + a single low-intensity spectrum sweep */
+  .skeleton-surface {
+    position: relative;
+    overflow: hidden;
+    background-color: hsl(var(--muted) / 0.7);
+    box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.6);
+  }
+  .skeleton-surface::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--brandie-violet) / 0.1),
+      hsl(var(--brandie-teal) / 0.08),
+      transparent
+    );
+    animation: skeleton-sweep 1.6s ease-in-out infinite;
+  }
+
+  /* Spinner: conic spectrum ring, calm and legible on both themes */
+  .spinner-ring {
+    border-radius: 9999px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      hsl(var(--brandie-violet) / 0.15) 120deg,
+      hsl(var(--brandie-violet)) 300deg,
+      hsl(var(--brandie-teal)) 360deg
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    animation: spin 0.9s linear infinite;
+  }
+
+  /* Empty states: dashed container + brand-washed icon medallion */
+  .empty-surface {
+    @apply rounded-xl border border-dashed border-border text-center;
+    background-image: var(--gradient-brand-soft);
+  }
+  .empty-medallion {
+    @apply inline-flex items-center justify-center rounded-2xl;
+    background-image: var(--gradient-brand-soft);
+    box-shadow: inset 0 0 0 1px hsl(var(--brandie-violet) / 0.24);
+    color: hsl(var(--brandie-violet));
+  }
+
+  @keyframes skeleton-sweep {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-surface::after {
+      animation: none;
+    }
+    .spinner-ring {
+      animation-duration: 2.4s;
+    }
+  }
 }
+
 
 
 @layer base {
@@ -266,4 +333,21 @@
   .dark .nav-active-pill {
     box-shadow: inset 0 0 0 1px hsl(var(--brandie-violet) / 0.3);
   }
+  .dark .skeleton-surface {
+    background-color: hsl(var(--muted) / 0.55);
+    box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.7);
+  }
+  .dark .skeleton-surface::after {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--brandie-violet) / 0.16),
+      hsl(var(--brandie-teal) / 0.12),
+      transparent
+    );
+  }
+  .dark .empty-medallion {
+    box-shadow: inset 0 0 0 1px hsl(var(--brandie-violet) / 0.32);
+  }
 }
+
