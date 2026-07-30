@@ -2797,6 +2797,7 @@ export type Database = {
           referral_code: string | null
           referred_by: string | null
           subscription_tier: string
+          theme_preference: string
           timezone: string | null
           trend_intel_gen_count: number
           trend_intel_gen_reset_at: string
@@ -2835,6 +2836,7 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
+          theme_preference?: string
           timezone?: string | null
           trend_intel_gen_count?: number
           trend_intel_gen_reset_at?: string
@@ -2873,6 +2875,7 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           subscription_tier?: string
+          theme_preference?: string
           timezone?: string | null
           trend_intel_gen_count?: number
           trend_intel_gen_reset_at?: string
