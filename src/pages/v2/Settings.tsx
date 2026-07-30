@@ -104,6 +104,9 @@ const SettingsV2 = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { theme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => setThemeMounted(true), []);
 
   // Deep-link support: /settings?brand=<id>&resume=1 (used by the
   // "Autopilot paused" email) switches to that brand and jumps straight
