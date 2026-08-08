@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import ColorPickerField from "@/components/ui/color-picker-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, ArrowRight, Upload, X, Check, Sparkles, Globe, Loader2, Power, Zap } from "lucide-react";
@@ -533,18 +534,15 @@ const Onboarding = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 {(["primary", "secondary", "accent"] as const).map((field) => (
-                  <div key={field} className="space-y-2">
-                    <label className="text-xs uppercase tracking-wider text-muted-foreground">{field}</label>
-                    <input
-                      type="color"
-                      value={data[field]}
-                      onChange={(e) => update(field, e.target.value)}
-                      className="w-full h-20 rounded-xl border border-border cursor-pointer"
-                    />
-                    <span className="text-[11px] font-mono text-muted-foreground block text-center">{data[field]}</span>
-                  </div>
+                  <ColorPickerField
+                    key={field}
+                    label={field}
+                    value={data[field]}
+                    onChange={(hex) => update(field, hex)}
+                  />
                 ))}
               </div>
+
 
               <div className="rounded-xl border border-border bg-secondary/40 p-4 text-xs text-muted-foreground space-y-1">
                 <p className="font-medium text-foreground">After this, your engine starts with:</p>

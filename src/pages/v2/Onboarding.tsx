@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import ColorPickerField from "@/components/ui/color-picker-field";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -567,25 +569,25 @@ const Onboarding = () => {
 
                 <div className="space-y-3">
                   <p className="text-sm font-medium">Colours</p>
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    Tap a swatch to open the picker, drag to fine-tune, or paste a hex code.
+                  </p>
                   <div className="grid grid-cols-3 gap-3">
                     {([
                       ["Primary", primary, setPrimary],
                       ["Surface", secondary, setSecondary],
                       ["Accent", accent, setAccent],
                     ] as const).map(([label, value, setter]) => (
-                      <label key={label} className="space-y-2 block">
-                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
-                        <input
-                          type="color"
-                          value={value}
-                          onChange={(e) => setter(e.target.value)}
-                          className="h-20 w-full rounded-xl border border-border cursor-pointer"
-                        />
-                        <span className="block text-center text-[11px] font-mono text-muted-foreground">{value}</span>
-                      </label>
+                      <ColorPickerField
+                        key={label}
+                        label={label}
+                        value={value}
+                        onChange={setter}
+                      />
                     ))}
                   </div>
                 </div>
+
 
                 <div className="rounded-2xl border border-border bg-secondary/40 p-5">
                   <p className="font-serif text-2xl" style={{ color: primary, background: secondary, padding: "0.5rem 0.75rem", borderRadius: "0.5rem" }}>
