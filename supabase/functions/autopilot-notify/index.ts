@@ -68,9 +68,10 @@ Deno.serve(async (req) => {
     // ── Success path ───────────────────────────────────────
     const { data: linked } = await supabase
       .from("designs")
-      .select("id, image_url, slide_index, carousel_id")
+      .select("id, image_url, slide_index, carousel_id, caption")
       .eq("content_idea_id", ideaId)
       .order("slide_index", { ascending: true, nullsFirst: false });
+
 
     const designs = (linked || []) as any[];
     if (designs.length === 0) {
