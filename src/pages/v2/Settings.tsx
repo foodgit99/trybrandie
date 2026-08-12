@@ -18,11 +18,13 @@ import {
   Loader2,
   LogOut,
   Mail,
+  MessageCircle,
   RefreshCw,
   Sparkles,
   User,
   XCircle,
 } from "lucide-react";
+
 
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
