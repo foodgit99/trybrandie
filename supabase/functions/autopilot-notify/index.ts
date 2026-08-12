@@ -128,6 +128,24 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // WhatsApp DM: cover image + caption + deep link (no-ops if disabled).
+    const captionText = String((cover as any)?.caption || "").trim();
+    await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({
+        user_id: idea.user_id,
+        idea_id: idea.id,
+        title: isCarousel
+          ? `Today's post is ready — ${idea.title} (carousel, ${designs.length} slides)`
+          : `Today's post is ready — ${idea.title}`,
+        body: captionText,
+        image_url: cover.image_url,
+        url: `/post/${idea.id}`,
+      }),
+    }).catch((e) => console.error("[autopilot-notify] whatsapp failed:", e));
+
+
     console.log(`[autopilot-notify] idea ${ideaId} delivered → design ${cover.id}`);
     return json({ ok: true, design_id: cover.id, slides: designs.length });
   } catch (e) {
