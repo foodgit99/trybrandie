@@ -565,6 +565,31 @@ const SettingsV2 = () => {
               </Button>
             </div>
           </Row>
+          <Row
+            title="Send posts to WhatsApp"
+            subtitle="Each finished post arrives as an image with its caption and a link."
+          >
+            <div className="flex items-center gap-2">
+              <MessageCircle
+                className={`h-3.5 w-3.5 ${waDelivery ? "text-foreground" : "text-muted-foreground"}`}
+              />
+              <Switch
+                checked={waDelivery}
+                disabled={savingWaDelivery}
+                onCheckedChange={toggleWaDelivery}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={sendWhatsappTest}
+                disabled={testingWa || !whatsapp.trim()}
+              >
+                {testingWa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send test"}
+              </Button>
+            </div>
+          </Row>
+
           <Row title="Email reminders" subtitle="Sent each morning with your post.">
             <div className="flex items-center gap-2">
               <Bell className={`h-3.5 w-3.5 ${emailReminders ? "text-foreground" : "text-muted-foreground"}`} />
