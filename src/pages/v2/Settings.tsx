@@ -272,6 +272,52 @@ const SettingsV2 = () => {
     }
   };
 
+  const toggleWaDelivery = async (checked: boolean) => {
+    if (!user) return;
+    if (checked && !whatsapp.trim()) {
+      toast({
+        title: "Add your WhatsApp number first",
+        description: "Save a number above, then turn delivery on.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setWaDelivery(checked);
+    setSavingWaDelivery(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ whatsapp_delivery_enabled: checked } as any)
+      .eq("user_id", user.id);
+    setSavingWaDelivery(false);
+    if (error) {
+      setWaDelivery(!checked);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const sendWhatsappTest = async () => {
+    setTestingWa(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-send", {
+        body: {
+          test: true,
+          title: "Brandie test message",
+          body: "If you can read this, WhatsApp delivery is working. Your daily posts will arrive here.",
+          url: "/cockpit",
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error(JSON.stringify((data as any).details ?? (data as any).error));
+      toast({ title: "Test message sent to WhatsApp." });
+    } catch (err: any) {
+      toast({ title: "WhatsApp test failed", description: err.message, variant: "destructive" });
+    } finally {
+      setTestingWa(false);
+    }
+  };
+
+
+
   const saveAutopilot = async (next: Partial<AutopilotSettings>) => {
     if (!autopilot || !user) return;
     const merged = { ...autopilot, ...next };
