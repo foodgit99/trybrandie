@@ -136,6 +136,10 @@ const SettingsV2 = () => {
 
 
   const [whatsapp, setWhatsapp] = useState("");
+  const [waDelivery, setWaDelivery] = useState(false);
+  const [savingWaDelivery, setSavingWaDelivery] = useState(false);
+  const [testingWa, setTestingWa] = useState(false);
+
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
   const [v2Default, setV2Default] = useState<boolean>(true);
   const [briefingHour, setBriefingHour] = useState<number>(7);
