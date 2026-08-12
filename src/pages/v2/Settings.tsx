@@ -157,15 +157,17 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("whatsapp_number, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone, email_reminders_enabled")
+        .select("whatsapp_number, whatsapp_delivery_enabled, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone, email_reminders_enabled")
         .eq("user_id", user.id)
         .maybeSingle();
       setWhatsapp((data?.whatsapp_number as string) ?? "");
+      setWaDelivery(!!(data as any)?.whatsapp_delivery_enabled);
       setV2Default(!!(data as any)?.v2_enabled);
       setBriefingHour(((data as any)?.monday_briefing_hour as number) ?? 7);
       setPushHour(((data as any)?.daily_push_hour as number) ?? 8);
       setPushTz(((data as any)?.posting_timezone as string) ?? "Africa/Lagos");
       setEmailReminders(((data as any)?.email_reminders_enabled as boolean) ?? true);
+
     })();
   }, [user]);
 
