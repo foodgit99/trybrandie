@@ -68,9 +68,10 @@ Deno.serve(async (req) => {
     // ── Success path ───────────────────────────────────────
     const { data: linked } = await supabase
       .from("designs")
-      .select("id, image_url, slide_index, carousel_id")
+      .select("id, image_url, slide_index, carousel_id, caption")
       .eq("content_idea_id", ideaId)
       .order("slide_index", { ascending: true, nullsFirst: false });
+
 
     const designs = (linked || []) as any[];
     if (designs.length === 0) {
@@ -126,6 +127,24 @@ Deno.serve(async (req) => {
         data: { idea_id: idea.id, design_id: cover.id },
       }),
     }).catch(() => {});
+
+    // WhatsApp DM: cover image + caption + deep link (no-ops if disabled).
+    const captionText = String((cover as any)?.caption || "").trim();
+    await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({
+        user_id: idea.user_id,
+        idea_id: idea.id,
+        title: isCarousel
+          ? `Today's post is ready — ${idea.title} (carousel, ${designs.length} slides)`
+          : `Today's post is ready — ${idea.title}`,
+        body: captionText,
+        image_url: cover.image_url,
+        url: `/post/${idea.id}`,
+      }),
+    }).catch((e) => console.error("[autopilot-notify] whatsapp failed:", e));
+
 
     console.log(`[autopilot-notify] idea ${ideaId} delivered → design ${cover.id}`);
     return json({ ok: true, design_id: cover.id, slides: designs.length });

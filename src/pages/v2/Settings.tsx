@@ -18,11 +18,13 @@ import {
   Loader2,
   LogOut,
   Mail,
+  MessageCircle,
   RefreshCw,
   Sparkles,
   User,
   XCircle,
 } from "lucide-react";
+
 
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
@@ -134,6 +136,10 @@ const SettingsV2 = () => {
 
 
   const [whatsapp, setWhatsapp] = useState("");
+  const [waDelivery, setWaDelivery] = useState(false);
+  const [savingWaDelivery, setSavingWaDelivery] = useState(false);
+  const [testingWa, setTestingWa] = useState(false);
+
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
   const [v2Default, setV2Default] = useState<boolean>(true);
   const [briefingHour, setBriefingHour] = useState<number>(7);
@@ -151,15 +157,17 @@ const SettingsV2 = () => {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("whatsapp_number, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone, email_reminders_enabled")
+        .select("whatsapp_number, whatsapp_delivery_enabled, v2_enabled, monday_briefing_hour, daily_push_hour, posting_timezone, email_reminders_enabled")
         .eq("user_id", user.id)
         .maybeSingle();
       setWhatsapp((data?.whatsapp_number as string) ?? "");
+      setWaDelivery(!!(data as any)?.whatsapp_delivery_enabled);
       setV2Default(!!(data as any)?.v2_enabled);
       setBriefingHour(((data as any)?.monday_briefing_hour as number) ?? 7);
       setPushHour(((data as any)?.daily_push_hour as number) ?? 8);
       setPushTz(((data as any)?.posting_timezone as string) ?? "Africa/Lagos");
       setEmailReminders(((data as any)?.email_reminders_enabled as boolean) ?? true);
+
     })();
   }, [user]);
 
@@ -263,6 +271,52 @@ const SettingsV2 = () => {
       setSaving(false);
     }
   };
+
+  const toggleWaDelivery = async (checked: boolean) => {
+    if (!user) return;
+    if (checked && !whatsapp.trim()) {
+      toast({
+        title: "Add your WhatsApp number first",
+        description: "Save a number above, then turn delivery on.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setWaDelivery(checked);
+    setSavingWaDelivery(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ whatsapp_delivery_enabled: checked } as any)
+      .eq("user_id", user.id);
+    setSavingWaDelivery(false);
+    if (error) {
+      setWaDelivery(!checked);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const sendWhatsappTest = async () => {
+    setTestingWa(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-send", {
+        body: {
+          test: true,
+          title: "Brandie test message",
+          body: "If you can read this, WhatsApp delivery is working. Your daily posts will arrive here.",
+          url: "/cockpit",
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error(JSON.stringify((data as any).details ?? (data as any).error));
+      toast({ title: "Test message sent to WhatsApp." });
+    } catch (err: any) {
+      toast({ title: "WhatsApp test failed", description: err.message, variant: "destructive" });
+    } finally {
+      setTestingWa(false);
+    }
+  };
+
+
 
   const saveAutopilot = async (next: Partial<AutopilotSettings>) => {
     if (!autopilot || !user) return;
@@ -511,6 +565,31 @@ const SettingsV2 = () => {
               </Button>
             </div>
           </Row>
+          <Row
+            title="Send posts to WhatsApp"
+            subtitle="Each finished post arrives as an image with its caption and a link."
+          >
+            <div className="flex items-center gap-2">
+              <MessageCircle
+                className={`h-3.5 w-3.5 ${waDelivery ? "text-foreground" : "text-muted-foreground"}`}
+              />
+              <Switch
+                checked={waDelivery}
+                disabled={savingWaDelivery}
+                onCheckedChange={toggleWaDelivery}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={sendWhatsappTest}
+                disabled={testingWa || !whatsapp.trim()}
+              >
+                {testingWa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send test"}
+              </Button>
+            </div>
+          </Row>
+
           <Row title="Email reminders" subtitle="Sent each morning with your post.">
             <div className="flex items-center gap-2">
               <Bell className={`h-3.5 w-3.5 ${emailReminders ? "text-foreground" : "text-muted-foreground"}`} />

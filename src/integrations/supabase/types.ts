@@ -2804,6 +2804,7 @@ export type Database = {
           updated_at: string
           user_id: string
           v2_enabled: boolean
+          whatsapp_delivery_enabled: boolean
           whatsapp_number: string | null
         }
         Insert: {
@@ -2843,6 +2844,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           v2_enabled?: boolean
+          whatsapp_delivery_enabled?: boolean
           whatsapp_number?: string | null
         }
         Update: {
@@ -2882,6 +2884,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           v2_enabled?: boolean
+          whatsapp_delivery_enabled?: boolean
           whatsapp_number?: string | null
         }
         Relationships: []
@@ -3539,6 +3542,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           week_start_date?: string
+        }
+        Relationships: []
+      }
+      whatsapp_deliveries: {
+        Row: {
+          created_at: string
+          error_text: string | null
+          id: string
+          idea_id: string | null
+          message_sid: string | null
+          status: string
+          to_number: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          idea_id?: string | null
+          message_sid?: string | null
+          status?: string
+          to_number: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          idea_id?: string | null
+          message_sid?: string | null
+          status?: string
+          to_number?: string
+          user_id?: string
         }
         Relationships: []
       }
