@@ -305,6 +305,54 @@ export default function LogoDesignerDialog({
               </div>
             </div>
 
+            {/* Sketch upload */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Sketch or reference <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              {sketch ? (
+                <div className="flex items-center gap-3 rounded-xl border border-border p-2">
+                  <img src={sketch} alt="Uploaded sketch" className="h-14 w-14 rounded-lg object-contain bg-secondary/40" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs truncate">{sketchName || "sketch.png"}</p>
+                    <p className="text-[11px] text-muted-foreground">Brandie will follow this closely.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSketch(null); setSketchName(""); }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground"
+                    aria-label="Remove sketch"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 h-20 rounded-xl border-2 border-dashed border-border hover:border-foreground/40 transition-colors cursor-pointer text-sm text-muted-foreground">
+                  <Upload className="h-4 w-4" />
+                  Upload a sketch of your idea
+                  <input type="file" accept="image/*" className="hidden" onChange={handleSketchSelect} />
+                </label>
+              )}
+            </div>
+
+            {/* Brand colours in play */}
+            {paletteColors.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Brand colours in play</label>
+                <div className="flex items-center gap-2">
+                  {paletteColors.map((c) => (
+                    <span
+                      key={c}
+                      className="h-7 w-7 rounded-full border border-border"
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                  <span className="text-xs text-muted-foreground">Pulled from your brand palette.</span>
+                </div>
+              </div>
+            )}
+
             {/* Notes */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Additional Notes <span className="text-muted-foreground font-normal">(optional)</span></label>
@@ -315,6 +363,7 @@ export default function LogoDesignerDialog({
                 maxLength={200}
               />
             </div>
+
 
             {logoGenUsed !== null && logoGenUsed > 0 && (
               <p className="text-xs text-muted-foreground text-center">This will use 1 credit from your balance.</p>
