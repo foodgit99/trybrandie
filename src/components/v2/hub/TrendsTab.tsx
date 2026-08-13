@@ -299,7 +299,7 @@ export default function TrendsTab({
                 </div>
               )}
 
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-end gap-2 flex-wrap">
                 <Button
                   size="sm"
                   variant="outline"
@@ -307,6 +307,9 @@ export default function TrendsTab({
                   onClick={() => onSeedStudio(`${t.title} — ${t.summary}`)}
                 >
                   Turn into a post <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                </Button>
+                <Button size="sm" className="rounded-xl" onClick={() => setCampaignFor(t)}>
+                  <Megaphone className="h-3.5 w-3.5 mr-1.5" /> Turn into a campaign
                 </Button>
               </div>
             </motion.li>
