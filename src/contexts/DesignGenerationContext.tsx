@@ -39,6 +39,13 @@ export interface GenerationParams {
   trend_intensity?: number;
   user_image_url?: string;
   content_idea_id?: string;
+  /** Campaign planning layer forwarded to the renderer as creative context. */
+  campaign_id?: string | null;
+  funnel_stage?: string | null;
+  campaign_rationale?: string | null;
+  funnel_rationale?: string | null;
+  strategic_arc?: string | null;
+
   /** "Use product images" selector — which product photos may be referenced. */
   product_image_mode?: "auto" | "selected" | "off";
   product_ids?: string[];
