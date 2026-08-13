@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +56,7 @@ const Onboarding = () => {
   const [scanMsg, setScanMsg] = useState("");
   const [scanSucceeded, setScanSucceeded] = useState(false);
   const playbook = getPlaybook(playbookId || "general");
+  const detailsRef = useRef<HTMLDivElement>(null);
 
   // step 1, Look & feel
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -408,7 +409,12 @@ const Onboarding = () => {
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => setPlaybookId(p.id)}
+                        onClick={() => {
+                          setPlaybookId(p.id);
+                          requestAnimationFrame(() => {
+                            detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          });
+                        }}
                         className={`text-left p-3 rounded-xl border transition-all ${
                           active
                             ? "border-foreground bg-foreground text-background"
@@ -425,7 +431,7 @@ const Onboarding = () => {
                   })}
                 </div>
 
-                <div className="space-y-5">
+                <div ref={detailsRef} className="space-y-5 scroll-mt-6">
                   <div>
                     <label className="text-sm font-medium block mb-1.5">Brand name</label>
                     <Input
