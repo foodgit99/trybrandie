@@ -588,6 +588,20 @@ function CampaignQuotaCard({
           </div>
         </button>
         <div className="flex items-center gap-1 shrink-0">
+          {normalisePriority(campaign.priority) !== 2 && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "rounded-full text-[10px]",
+                normalisePriority(campaign.priority) === 3
+                  ? "border-primary/40 text-primary"
+                  : "text-muted-foreground",
+              )}
+              title={priorityMeta(campaign.priority).hint}
+            >
+              {priorityMeta(campaign.priority).label} priority
+            </Badge>
+          )}
           {category && (
             <Badge variant="outline" className={cn("rounded-full text-[10px]", category.badgeClass)}>
               {category.emoji} {category.short}

@@ -152,7 +152,7 @@ const Hub = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("campaigns")
-        .select("id,name,description,post_count,content_category,created_at")
+        .select("id,name,description,post_count,priority,content_category,created_at")
         .eq("brand_id", brand!.id)
         .order("created_at", { ascending: false })
         .limit(40);
