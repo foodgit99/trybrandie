@@ -71,6 +71,32 @@ Deno.serve(async (req) => {
     const ideaId = typeof body?.idea_id === "string" ? body.idea_id : null;
     const isTest = body?.test === true;
 
+    // Every non-send outcome is logged too, so "nothing arrived" is always
+    // explainable from the delivery table instead of being silent.
+    const logOutcome = async (
+      status: string,
+      reason: string,
+      extra: Record<string, unknown> = {},
+    ) => {
+      if (isTest) return;
+      await supabase
+        .from("whatsapp_deliveries")
+        .upsert(
+          {
+            user_id: userId,
+            idea_id: ideaId,
+            to_number: (extra as any).to_number ?? "unknown",
+            status,
+            reason,
+            ...extra,
+          } as any,
+          ideaId ? { onConflict: "idea_id" } : undefined,
+        )
+        .then(({ error }) => {
+          if (error) console.error("[whatsapp-send] log failed:", error.message);
+        });
+    };
+
     // ── Preferences ───────────────────────────────────────
     const { data: profile } = await supabase
       .from("profiles")
@@ -79,16 +105,32 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const enabled = (profile as any)?.whatsapp_delivery_enabled === true;
-    if (!enabled && !isTest) return json({ ok: true, skipped: "delivery_disabled" });
+    if (!enabled && !isTest) {
+      await logOutcome("skipped", "delivery_disabled", {
+        to_number: (profile as any)?.whatsapp_number || "unknown",
+      });
+      return json({ ok: true, skipped: "delivery_disabled" });
+    }
 
     const to = toE164((profile as any)?.whatsapp_number || "");
-    if (!to) return json({ error: "no_valid_whatsapp_number" }, 400);
+    if (!to) {
+      await logOutcome("skipped", "no_valid_whatsapp_number", {
+        to_number: (profile as any)?.whatsapp_number || "unknown",
+      });
+      return json({ error: "no_valid_whatsapp_number" }, 400);
+    }
 
     const from = Deno.env.get("TWILIO_WHATSAPP_FROM");
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const twilioKey = Deno.env.get("TWILIO_API_KEY");
-    if (!from) return json({ error: "TWILIO_WHATSAPP_FROM is not configured" }, 500);
-    if (!lovableKey || !twilioKey) return json({ error: "Twilio connection is not configured" }, 500);
+    if (!from) {
+      await logOutcome("failed", "missing_sender_config", { to_number: to });
+      return json({ error: "TWILIO_WHATSAPP_FROM is not configured" }, 500);
+    }
+    if (!lovableKey || !twilioKey) {
+      await logOutcome("failed", "missing_twilio_connection", { to_number: to });
+      return json({ error: "Twilio connection is not configured" }, 500);
+    }
 
     // ── Idempotency (one WhatsApp message per idea) ────────
     if (ideaId) {
@@ -101,6 +143,7 @@ Deno.serve(async (req) => {
         return json({ ok: true, skipped: "already_sent" });
       }
     }
+
 
     const link = linkPath
       ? (linkPath.startsWith("http") ? linkPath : `${APP_BASE_URL}${linkPath}`)
