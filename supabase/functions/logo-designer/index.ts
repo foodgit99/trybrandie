@@ -240,6 +240,15 @@ serve(async (req) => {
         passedContext.accent_colors?.length ? `Accent colors: ${passedContext.accent_colors.join(", ")}` : "",
       ].filter(Boolean).join(". ");
 
+      paletteHexes.push(
+        ...([
+          ...(passedContext.primary_colors || []),
+          ...(passedContext.secondary_colors || []),
+          ...(passedContext.accent_colors || []),
+        ].filter(Boolean) as string[]),
+      );
+
+
       brandContext = [
         passedContext.name ? `Brand name: "${passedContext.name}"` : "",
         passedContext.tagline ? `Tagline: "${passedContext.tagline}"` : "",
