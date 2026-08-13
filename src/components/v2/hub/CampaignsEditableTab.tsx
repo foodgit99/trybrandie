@@ -648,23 +648,26 @@ function CampaignQuotaCard({
             <span className="text-xs text-muted-foreground"> assigned</span>
           </div>
         </div>
-        <Badge
-          variant="outline"
-          className={cn(
-            "rounded-full text-[10px]",
-            isOver
-              ? "border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10"
+        <div className="text-right shrink-0">
+          <div className="text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Open slots</div>
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full text-[11px] font-semibold px-2.5 py-0.5",
+              isOver
+                ? "border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10"
+                : remaining > 0
+                  ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+                  : "text-muted-foreground"
+            )}
+          >
+            {isOver
+              ? `Over by ${assigned - target}`
               : remaining > 0
-                ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-                : "text-muted-foreground"
-          )}
-        >
-          {isOver
-            ? `Over by ${assigned - target}`
-            : remaining > 0
-              ? `${remaining} slot${remaining === 1 ? "" : "s"} left`
-              : "Full"}
-        </Badge>
+                ? `${remaining} slot${remaining === 1 ? "" : "s"} left`
+                : "Full"}
+          </Badge>
+        </div>
       </div>
       <div
         className="mt-1.5 h-1.5 rounded-full bg-secondary overflow-hidden"
