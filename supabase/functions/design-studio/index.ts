@@ -1688,14 +1688,17 @@ TREND RULES:
       let productImageContext = "";
       let productLabels: string[] = [];
       let hasPinnedProduct = false;
-      if (brand?.id) {
+      if (brand?.id && productImageMode !== "off") {
         try {
-          const { data: productData } = await adminClient
+          const { data: productDataRaw } = await adminClient
             .from("brand_products")
             .select("id, image_url, label, description, product_type, price, features, duration, pricing_model, is_featured, gallery_images")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
-            .limit(6);
+            .limit(12);
+          const productData = productIdFilter
+            ? (productDataRaw ?? []).filter((p: any) => productIdFilter.has(p.id))
+            : (productDataRaw ?? []).slice(0, 6);
           if (productData && productData.length > 0) {
             // If this design was launched from a content idea anchored on a
             // specific product, surface that product's images FIRST and add a
