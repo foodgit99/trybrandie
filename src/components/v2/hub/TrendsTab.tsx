@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, RefreshCw, TrendingUp, ArrowRight, Radio } from "lucide-react";
+import { Sparkles, RefreshCw, TrendingUp, ArrowRight, Radio, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Trend = {
