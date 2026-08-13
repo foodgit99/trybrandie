@@ -125,8 +125,16 @@ export default function LogoDesignerDialog({
   const [notes, setNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [fidelity, setFidelity] = useState<{
+    sketch_fidelity: number;
+    colour_fidelity: number;
+    overall: number;
+    deviations: string[];
+    verdict: "pass" | "warn" | "fail";
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [logoGenUsed, setLogoGenUsed] = useState<number | null>(null);
+
 
   const [sketch, setSketch] = useState<string | null>(null);
   const [sketchName, setSketchName] = useState<string>("");
@@ -197,6 +205,8 @@ export default function LogoDesignerDialog({
     }
     setGenerating(true);
     setGeneratedImage(null);
+    setFidelity(null);
+
     try {
       const body: Record<string, unknown> = { style, visual_feel: feel, notes };
       if (sketch) body.sketch_image = sketch;
@@ -219,8 +229,10 @@ export default function LogoDesignerDialog({
       }
       if (!data?.image) throw new Error("No image returned");
       setGeneratedImage(data.image);
+      setFidelity(data.fidelity ?? null);
       // Update local credit state
       setLogoGenUsed((prev) => (prev ?? 0) + 1);
+
     } catch (e: any) {
       toast({ title: "Generation failed", description: e.message || "Please try again.", variant: "destructive" });
     } finally {
@@ -273,6 +285,8 @@ export default function LogoDesignerDialog({
 
   const handleClose = () => {
     setGeneratedImage(null);
+    setFidelity(null);
+
     setStyle("wordmark");
     setFeel("Minimal");
     setNotes("");
@@ -429,7 +443,39 @@ export default function LogoDesignerDialog({
                 className="max-h-48 object-contain"
               />
             </div>
+
+            {fidelity && (
+              <div className="rounded-xl border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Sketch fidelity check</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full border ${
+                      fidelity.verdict === "pass"
+                        ? "border-primary/40 text-primary bg-primary/10"
+                        : fidelity.verdict === "warn"
+                          ? "border-border text-muted-foreground"
+                          : "border-destructive/40 text-destructive bg-destructive/10"
+                    }`}
+                  >
+                    {fidelity.overall}% match
+                  </span>
+                </div>
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <span>Sketch shape: {fidelity.sketch_fidelity}%</span>
+                  <span>Brand colours: {fidelity.colour_fidelity}%</span>
+                </div>
+                {fidelity.deviations.length > 0 && (
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                    {fidelity.deviations.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground text-center">Trying again will use 1 credit.</p>
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => { setGeneratedImage(null); handleGenerate(); }} disabled={generating} className="flex-1 gap-1">
                 {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
