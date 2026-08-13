@@ -6,7 +6,9 @@ import {
   Check,
   Megaphone,
   MoreVertical,
+  Pause,
   Pencil,
+  Play,
   Plus,
   Search,
   Trash2,
@@ -146,8 +148,14 @@ export type CampaignRow = {
   post_count: number;
   priority?: number | null;
   content_category: string | null;
+  is_active?: boolean | null;
   created_at: string;
 };
+
+/** Campaigns default to active; only an explicit false means paused. */
+export function isCampaignActive(c: { is_active?: boolean | null }): boolean {
+  return c.is_active !== false;
+}
 
 /** 1 = Low, 2 = Normal, 3 = High. Tells the weekly planner what to fill first. */
 export const CAMPAIGN_PRIORITIES = [
@@ -186,6 +194,25 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
 
   const invalidate = () => invalidateKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
 
+  const toggleActive = async (c: CampaignRow) => {
+    const next = !isCampaignActive(c);
+    const { error } = await supabase
+      .from("campaigns")
+      .update({ is_active: next } as never)
+      .eq("id", c.id);
+    if (error) {
+      toast({ title: "Couldn't update campaign", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: next ? "Campaign activated" : "Campaign deactivated",
+      description: next
+        ? "The planner and Autopilot will fill this campaign again."
+        : "Brandie will stop planning and generating posts for this campaign.",
+    });
+    invalidate();
+  };
+
   const openNew = () => { setEditing(null); setEditorOpen(true); };
   const openEdit = (c: CampaignRow) => { setEditing(c); setEditorOpen(true); };
 
@@ -193,6 +220,7 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
   const totals = useMemo(() => {
     let target = 0, assigned = 0;
     for (const c of campaigns) {
+      if (!isCampaignActive(c)) continue;
       const a = ideas.filter((i) => i.campaign_id === c.id).length;
       target += Math.max(0, c.post_count || 0);
       assigned += a;
@@ -237,6 +265,9 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
         <div className="grid sm:grid-cols-2 gap-3">
           {[...campaigns]
             .sort((a, b) => {
+              const aa = isCampaignActive(a) ? 0 : 1;
+              const ba = isCampaignActive(b) ? 0 : 1;
+              if (aa !== ba) return aa - ba;
               const pa = normalisePriority(a.priority);
               const pb = normalisePriority(b.priority);
               if (pb !== pa) return pb - pa;
@@ -267,6 +298,7 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
                   onOpenPost={onOpenPost}
                   onEdit={() => openEdit(c)}
                   onManage={() => setAssignFor(c)}
+                  onToggleActive={() => toggleActive(c)}
                   onDelete={() => setDeleteFor(c)}
                 />
               );
@@ -786,6 +818,7 @@ function CampaignQuotaCard({
   onOpenPost,
   onEdit,
   onManage,
+  onToggleActive,
   onDelete,
 }: {
   campaign: CampaignRow;
@@ -800,15 +833,22 @@ function CampaignQuotaCard({
   onOpenPost: (id: string) => void;
   onEdit: () => void;
   onManage: () => void;
+  onToggleActive: () => void;
   onDelete: () => void;
 }) {
   const [showReasons, setShowReasons] = useState(false);
   const firstIdea = linkedIdeas[0];
   const eta = estimateDelivery({ priority: campaign.priority, remaining, linkedIdeas });
+  const active = isCampaignActive(campaign);
 
 
   return (
-    <div className="relative rounded-2xl border border-border bg-card/40 p-4">
+    <div
+      className={cn(
+        "relative rounded-2xl border border-border bg-card/40 p-4",
+        !active && "opacity-70 border-dashed",
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <button
           type="button"
@@ -822,7 +862,12 @@ function CampaignQuotaCard({
           </div>
         </button>
         <div className="flex items-center gap-1 shrink-0">
-          {normalisePriority(campaign.priority) !== 2 && (
+          {!active && (
+            <Badge variant="outline" className="rounded-full text-[10px] text-muted-foreground">
+              Paused
+            </Badge>
+          )}
+          {active && normalisePriority(campaign.priority) !== 2 && (
             <Badge
               variant="outline"
               className={cn(
@@ -853,6 +898,13 @@ function CampaignQuotaCard({
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={onManage}>
                 <Users className="h-3.5 w-3.5 mr-2" /> Manage posts
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onToggleActive}>
+                {active ? (
+                  <><Pause className="h-3.5 w-3.5 mr-2" /> Deactivate</>
+                ) : (
+                  <><Play className="h-3.5 w-3.5 mr-2" /> Activate</>
+                )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

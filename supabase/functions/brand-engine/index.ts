@@ -721,7 +721,7 @@ Each campaign should target a specific content category. Vary categories across 
           .order("last_used_at", { ascending: true, nullsFirst: true })
           .order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
-        supabase.from("campaigns").select("*").eq("brand_id", brand_id),
+        supabase.from("campaigns").select("*").eq("brand_id", brand_id).eq("is_active", true),
         supabase.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brand_id).maybeSingle(),
         (() => {
           // Widen to 28 days and pull title + prompt so the planner can avoid
@@ -1191,7 +1191,7 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       const [pillarsRes, seriesRes, campaignsRes, recentIdeasRes] = await Promise.all([
         supabase.from("content_pillars").select("*").eq("brand_id", brand_id).order("sort_order"),
         supabase.from("post_series").select("*").eq("brand_id", brand_id),
-        supabase.from("campaigns").select("*").eq("brand_id", brand_id),
+        supabase.from("campaigns").select("*").eq("brand_id", brand_id).eq("is_active", true),
         (() => {
           const since = new Date();
           since.setDate(since.getDate() - 14);

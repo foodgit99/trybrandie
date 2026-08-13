@@ -1088,6 +1088,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_active: boolean
           name: string
           post_count: number
           priority: number
@@ -1099,6 +1100,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_active?: boolean
           name: string
           post_count?: number
           priority?: number
@@ -1110,6 +1112,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           post_count?: number
           priority?: number

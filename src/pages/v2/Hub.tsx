@@ -89,7 +89,9 @@ type Campaign = {
   post_count: number;
   priority?: number | null;
   content_category: string | null;
+  is_active?: boolean | null;
   created_at: string;
+
 };
 
 type Blueprint = {
@@ -153,7 +155,7 @@ const Hub = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("campaigns")
-        .select("id,name,description,post_count,priority,content_category,created_at")
+        .select("id,name,description,post_count,priority,content_category,is_active,created_at")
         .eq("brand_id", brand!.id)
         .order("priority", { ascending: false })
         .order("created_at", { ascending: false })
