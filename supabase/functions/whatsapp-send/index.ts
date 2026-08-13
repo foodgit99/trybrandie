@@ -106,41 +106,61 @@ Deno.serve(async (req) => {
       ? (linkPath.startsWith("http") ? linkPath : `${APP_BASE_URL}${linkPath}`)
       : null;
 
-    const messageBody = [title, caption, link ? `Open in Brandie: ${link}` : null]
-      .filter(Boolean)
-      .join("\n\n")
-      .slice(0, 1550);
-
-    const form = new URLSearchParams({
-      To: `whatsapp:${to}`,
-      From: `whatsapp:${toE164(from) || from}`,
-    });
-
-    // Business-initiated messages outside the 24h window need an approved
-    // template. When one is configured we send it; Twilio falls back to the
-    // free-form body inside an open conversation window.
     const templateSid = Deno.env.get("TWILIO_WHATSAPP_TEMPLATE_SID");
-    if (templateSid) {
-      form.set("ContentSid", templateSid);
-      form.set("ContentVariables", JSON.stringify({ "1": title, "2": link || APP_BASE_URL }));
-    } else {
-      form.set("Body", messageBody);
+
+    const buildForm = (withMedia: boolean) => {
+      const body = [
+        title,
+        caption,
+        !withMedia && imageUrl ? `Design: ${imageUrl}` : null,
+        link ? `Open in Brandie: ${link}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+        .slice(0, 1550);
+
+      const f = new URLSearchParams({
+        To: `whatsapp:${to}`,
+        From: `whatsapp:${toE164(from) || from}`,
+      });
+      // Business-initiated messages outside the 24h window need an approved
+      // template. When one is configured we send it; Twilio falls back to the
+      // free-form body inside an open conversation window.
+      if (templateSid) {
+        f.set("ContentSid", templateSid);
+        f.set("ContentVariables", JSON.stringify({ "1": title, "2": link || APP_BASE_URL }));
+      } else {
+        f.set("Body", body);
+      }
+      if (withMedia && imageUrl) f.set("MediaUrl", imageUrl);
+      return f;
+    };
+
+    const send = (withMedia: boolean) =>
+      fetch(`${GATEWAY_URL}/Messages.json`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "X-Connection-Api-Key": twilioKey,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: buildForm(withMedia),
+      });
+
+    let resp = await send(!!imageUrl);
+    let text = await resp.text();
+
+    // Trial Twilio accounts reject media params outright — retry text-only
+    // with the image as a link so delivery still succeeds.
+    if (!resp.ok && imageUrl && /disallowed parameters|trial account/i.test(text)) {
+      console.warn("[whatsapp-send] media rejected by provider, retrying text-only");
+      resp = await send(false);
+      text = await resp.text();
     }
-    if (imageUrl) form.set("MediaUrl", imageUrl);
 
-    const resp = await fetch(`${GATEWAY_URL}/Messages.json`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": twilioKey,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: form,
-    });
-
-    const text = await resp.text();
     let payload: any = null;
     try { payload = JSON.parse(text); } catch { /* keep raw text */ }
+
 
     if (!resp.ok) {
       console.error(`[whatsapp-send] gateway failed [${resp.status}]: ${text}`);
