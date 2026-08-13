@@ -1961,7 +1961,8 @@ ${brand.special_instructions}
 
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
-          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const campaignCtx = (await campaignContextPromise).promptText;
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + campaignCtx + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
           const briefMessages = [
             { role: "system", content: briefSystemContent },
             ...compressedMessages.slice(0, -1),
