@@ -19,6 +19,7 @@ import SEO from "@/components/SEO";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { supabase } from "@/integrations/supabase/client";
+import ProductImagePicker, { defaultProductImageSelection, productImagePayload, type ProductImageSelection } from "@/components/design/ProductImagePicker";
 import { useBrand } from "@/hooks/useBrand";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -190,6 +191,7 @@ const DesignStudio = () => {
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("chat");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | "none">("none");
+  const [productImages, setProductImages] = useState<ProductImageSelection>(defaultProductImageSelection);
   const [selectedTrend, setSelectedTrend] = useState<string>("none");
   const [trendIntensity, setTrendIntensity] = useState(40);
   const [trendRecommendation, setTrendRecommendation] = useState<{ trend_id: string; reason: string } | null>(null);
@@ -706,6 +708,7 @@ const DesignStudio = () => {
       messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       brand: brandPayload,
       ...(selectedAudienceId && selectedAudienceId !== "none" && { audience_id: selectedAudienceId }),
+      ...productImagePayload(productImages),
       ...(selectedTrend !== "none" && { trend: selectedTrend, trend_intensity: trendIntensity }),
       ...(userMsg.attachedImageUrl && { user_image_url: userMsg.attachedImageUrl }),
       ...(isEdit && {
@@ -2022,6 +2025,11 @@ const DesignStudio = () => {
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <ProductImagePicker
+                      brandId={brand?.id}
+                      value={productImages}
+                      onChange={setProductImages}
+                    />
                   </>
                 )}
               </div>

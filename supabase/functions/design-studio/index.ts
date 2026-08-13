@@ -731,6 +731,24 @@ async function runFullHandler(req: Request): Promise<Response> {
     const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
     const contentIdeaId: string | null = _parsedReqBody?.content_idea_id ?? null;
+    // "Use product images" selector (Studio / Post UI).
+    //  auto     — Brandie decides (default, legacy behaviour)
+    //  selected — only the product ids in product_ids may be referenced
+    //  off      — never attach product photos
+    const productImageMode: "auto" | "selected" | "off" =
+      _parsedReqBody?.product_image_mode === "off"
+        ? "off"
+        : _parsedReqBody?.product_image_mode === "selected"
+          ? "selected"
+          : "auto";
+    const selectedProductIds: string[] = Array.isArray(_parsedReqBody?.product_ids)
+      ? (_parsedReqBody.product_ids as unknown[]).filter((v): v is string => typeof v === "string" && v.length > 0)
+      : [];
+    const productImagesDisabled = productImageMode === "off" ||
+      (productImageMode === "selected" && selectedProductIds.length === 0);
+    const productIdFilter = productImageMode === "selected" && selectedProductIds.length > 0
+      ? new Set(selectedProductIds)
+      : null;
     // Best-of-N quality selection. Phase 0: this is now an UPPER BOUND, not a
     // fixed count — candidate B only renders if candidate A scores below the
     // quality gate. Default 1 (Studio path); Blueprint/autopilot sends 2.
@@ -1670,14 +1688,17 @@ TREND RULES:
       let productImageContext = "";
       let productLabels: string[] = [];
       let hasPinnedProduct = false;
-      if (brand?.id) {
+      if (brand?.id && productImageMode !== "off") {
         try {
-          const { data: productData } = await adminClient
+          const { data: productDataRaw } = await adminClient
             .from("brand_products")
             .select("id, image_url, label, description, product_type, price, features, duration, pricing_model, is_featured, gallery_images")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
-            .limit(6);
+            .limit(12);
+          const productData = productIdFilter
+            ? (productDataRaw ?? []).filter((p: any) => productIdFilter.has(p.id))
+            : (productDataRaw ?? []).slice(0, 6);
           if (productData && productData.length > 0) {
             // If this design was launched from a content idea anchored on a
             // specific product, surface that product's images FIRST and add a
@@ -1709,7 +1730,8 @@ TREND RULES:
             });
             productImageUrls = sorted.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
             productLabels = sorted.map((p: any) => String(p.label || "").trim()).filter((l: string) => l.length >= 3);
-            hasPinnedProduct = !!pinnedProductId;
+            // An explicit user selection is as binding as an idea-level pin.
+            hasPinnedProduct = !!pinnedProductId || !!productIdFilter;
             const catalogueLines = sorted.map((p: any, i: number) => {
               const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
@@ -1724,9 +1746,12 @@ TREND RULES:
               }
               return parts.join(" ");
             }).join("\n");
-            const pinnedDirective = pinnedProductLabel
-              ? `\n\nTHIS DESIGN IS ANCHORED ON "${pinnedProductLabel}" — its reference image is attached FIRST. The product MUST appear as a real, recognisable hero or supporting visual. Honour its actual colours, shape, materials and details. Do NOT invent a different product.`
+            const selectionDirective = productIdFilter
+              ? `\n\nUSER-SELECTED PRODUCTS: the user explicitly chose ${sorted.map((p: any) => `"${p.label || "Untitled"}"`).join(", ")} for this graphic. Their attached photos MUST be used verbatim as the product visual — no substitutes, no invented products, and do not feature any other product.`
               : "";
+            const pinnedDirective = (pinnedProductLabel
+              ? `\n\nTHIS DESIGN IS ANCHORED ON "${pinnedProductLabel}" — its reference image is attached FIRST. The product MUST appear as a real, recognisable hero or supporting visual. Honour its actual colours, shape, materials and details. Do NOT invent a different product.`
+              : "") + selectionDirective;
             productImageContext = `\n\nPRODUCTS & SERVICES:\n${catalogueLines}\n\nPRODUCT/SERVICE IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products/services, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For services, use the image as a portfolio/cover visual. Use specific names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.${pinnedDirective}`;
           }
         } catch (e) {
@@ -3000,11 +3025,12 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         // actual products/services, or when the idea is pinned to a product.
         const combinedBrief = `${userPrompt} ${designPrompt}`.toLowerCase();
         const namesAProduct = productLabels.some((l) => combinedBrief.includes(l.toLowerCase()));
-        const isProductRelevant =
+        const isProductRelevant = !productImagesDisabled && (
           hasPinnedProduct ||
           namesAProduct ||
           productKeywords.test(userPrompt) ||
-          productKeywords.test(designPrompt);
+          productKeywords.test(designPrompt)
+        );
         const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
@@ -3518,14 +3544,17 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           console.log("[carousel gallery-memory] lookup failed:", e instanceof Error ? e.message : e);
         }
       }
-      if (brand?.id) {
+      if (brand?.id && productImageMode !== "off") {
         try {
-          const { data: productData } = await adminClient
+          const { data: productDataRaw } = await adminClient
             .from("brand_products")
             .select("id, label, description, features, product_type, price, image_url, gallery_images, is_featured, pricing_model, duration")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
-            .limit(8);
+            .limit(16);
+          const productData = productIdFilter
+            ? (productDataRaw ?? []).filter((p: any) => productIdFilter.has(p.id))
+            : (productDataRaw ?? []).slice(0, 8);
           if (productData && productData.length > 0) {
             // Featured-first, then any product matching the seed idea is bumped to the top.
             const sorted = [...productData].sort((a: any, b: any) => {
@@ -3574,7 +3603,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       const validProductKeys = productRoster.map((p) => p.key);
       const seedProductKey = seedProductId ? productRoster.find((p) => p.id === seedProductId)?.key || null : null;
       const productsContext = productSummaries.length
-        ? `\nPRODUCTS / SERVICES ROSTER (each prefixed with a key like P1, P2 — use these keys in slide.product_ref to anchor a slide to a specific product):\n${productSummaries.join("\n")}${seedProductKey ? `\n\nThis carousel was launched from an idea anchored on ${seedProductKey} "${productKeyToLabel[seedProductKey]}" — at least one slide MUST set product_ref to "${seedProductKey}".` : ""}`
+        ? `\nPRODUCTS / SERVICES ROSTER (each prefixed with a key like P1, P2 — use these keys in slide.product_ref to anchor a slide to a specific product):\n${productSummaries.join("\n")}${seedProductKey ? `\n\nThis carousel was launched from an idea anchored on ${seedProductKey} "${productKeyToLabel[seedProductKey]}" — at least one slide MUST set product_ref to "${seedProductKey}".` : ""}${productIdFilter ? `\n\nUSER-SELECTED PRODUCTS: the user restricted this carousel to the roster above. Anchor at least one slide on each roster key, never feature any other product, and use the attached photos verbatim.` : ""}`
         : "";
 
       const trendContextArc = trend && trend !== "none"

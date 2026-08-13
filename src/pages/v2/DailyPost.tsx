@@ -31,6 +31,7 @@ import GenerationLoader from "@/components/GenerationLoader";
 import { useDesignGeneration } from "@/contexts/DesignGenerationContext";
 import { getCategoryMeta, parseCategoryIds } from "@/lib/contentCategories";
 import { Carousel, CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import ProductImagePicker, { defaultProductImageSelection, productImagePayload, type ProductImageSelection } from "@/components/design/ProductImagePicker";
 
 type Idea = {
   id: string;
@@ -287,6 +288,8 @@ const DailyPost = () => {
     return { isCarousel: true, slides };
   };
 
+  const [productImages, setProductImages] = useState<ProductImageSelection>(defaultProductImageSelection);
+
   const handleGenerate = (forceCarousel = false) => {
     if (!idea || !brand || !user) return;
     const msg = { role: "user", content: idea.prompt || idea.title };
@@ -304,6 +307,7 @@ const DailyPost = () => {
       brand_id: brand.id,
       title: idea.title,
       content_idea_id: idea.id,
+      ...productImagePayload(productImages),
       user_email: user.email || undefined,
     });
     toast({
@@ -659,6 +663,14 @@ const DailyPost = () => {
                 <p className="text-sm text-muted-foreground">
                   No render yet. Tap below and Brandie will draft this post now.
                 </p>
+                <div className="flex justify-center">
+                  <ProductImagePicker
+                    brandId={brand?.id}
+                    value={productImages}
+                    onChange={setProductImages}
+                    align="start"
+                  />
+                </div>
                 <Button onClick={() => handleGenerate()} className="rounded-full" size="sm">
                   Generate now
                 </Button>
@@ -668,7 +680,13 @@ const DailyPost = () => {
 
           {/* Regenerate */}
           {design && !generating && (
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-2">
+              <ProductImagePicker
+                brandId={brand?.id}
+                value={productImages}
+                onChange={setProductImages}
+                align="end"
+              />
               <Button
                 onClick={() => handleGenerate(detectCarouselIntent(idea).isCarousel)}
                 variant="outline"
