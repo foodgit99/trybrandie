@@ -613,6 +613,26 @@ const SettingsV2 = () => {
               </Button>
             </div>
           </Row>
+          {waLastDelivery && (
+            <p className="px-1 pb-2 text-xs text-muted-foreground">
+              Last delivery:{" "}
+              <span
+                className={
+                  waLastDelivery.status === "sent"
+                    ? "text-foreground"
+                    : waLastDelivery.status === "failed"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                }
+              >
+                {waLastDelivery.status}
+              </span>
+              {waLastDelivery.reason ? ` — ${waLastDelivery.reason.replace(/_/g, " ")}` : ""}
+              {" · "}
+              {new Date(waLastDelivery.created_at).toLocaleString()}
+            </p>
+          )}
+
 
           <Row title="Email reminders" subtitle="Sent each morning with your post.">
             <div className="flex items-center gap-2">
