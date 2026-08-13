@@ -27,6 +27,7 @@ import {
 } from "../_shared/render-refs.ts";
 import { scoreDesignImage, weightedOverall, type QualityResult } from "../_shared/design-scorer.ts";
 import { OGILVY_COPY_DOCTRINE } from "../_shared/ogilvy-copy-doctrine.ts";
+import { fetchCampaignContext } from "../_shared/campaign-context.ts";
 
 
 
@@ -1023,6 +1024,13 @@ When you have brand context, reference it naturally in your advice — suggest u
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+      // Campaign / funnel-stage creative context (kicked off early, awaited by the brief).
+      const campaignContextPromise = fetchCampaignContext(
+        adminClient,
+        contentIdeaId,
+        _parsedReqBody?.campaign_id ?? null,
+      );
+
       // Fetch audience intelligence for the brand
       let audienceContext = "";
       let audienceProfile: any = null;
@@ -1953,7 +1961,8 @@ ${brand.special_instructions}
 
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
-          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const campaignCtx = (await campaignContextPromise).promptText;
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + campaignCtx + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
           const briefMessages = [
             { role: "system", content: briefSystemContent },
             ...compressedMessages.slice(0, -1),
@@ -2640,8 +2649,9 @@ ${brand.special_instructions}
         if (policy === "required") return "\n\nCTA POLICY: A clear, specific CTA is REQUIRED for this category. Never leave the cta field empty.";
         return "";
       })();
-      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "";
-      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "";
+      const campaignCopyContext = (await campaignContextPromise).promptText;
+      const copyCategoryContext = (resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "") + campaignCopyContext;
+      const captionCategoryContext = (resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "") + campaignCopyContext;
 
       const trendPresetForCopy = trend && trend !== "none" ? (({
         "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
@@ -3355,6 +3365,13 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+      // Campaign / funnel-stage creative context for the whole carousel.
+      const carouselCampaignContext = (await fetchCampaignContext(
+        adminClient,
+        contentIdeaId,
+        _parsedReqBody?.campaign_id ?? null,
+      )).promptText;
+
       const numSlides = Math.min(10, Math.max(2, slide_count || 5));
       // Phase 0: hard render ceiling — one render per slide plus 2 spare
       // attempts for the whole job (cover retry + one slide retry).
@@ -3615,7 +3632,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
 
 You are a senior creative director planning an Instagram carousel with exactly ${numSlides} slides. Apply the doctrine: the entire carousel serves ONE objective, opens with a strong hook (never "We…"), advances one new beat per slide, and closes with one clear CTA. No invented proof. No empty motivational filler.
 
-${brandContext}${audienceContext}${productsContext}${trendContextArc}
+${brandContext}${audienceContext}${productsContext}${trendContextArc}${carouselCampaignContext}
 
 User request: "${userPrompt}"
 
