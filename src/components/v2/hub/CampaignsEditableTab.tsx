@@ -48,6 +48,83 @@ import { cn } from "@/lib/utils";
 import IdeaThumb from "@/components/v2/IdeaThumb";
 import { CONTENT_CATEGORIES, getCategoryMeta } from "@/lib/contentCategories";
 
+/* -------------------- Campaign form validation -------------------- */
+
+export const CAMPAIGN_QUOTA_MIN = 1;
+export const CAMPAIGN_QUOTA_MAX = 30;
+
+/**
+ * Builds a zod schema for the campaign editor. `minQuota` is the number of posts
+ * already assigned to the campaign — the quota can never drop below it, otherwise
+ * the planner would be over-committed the moment it saves.
+ */
+const campaignSchema = (minQuota: number) =>
+  z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, { message: "Give the campaign a name." })
+      .max(120, { message: "Name must be under 120 characters." }),
+    description: z
+      .string()
+      .trim()
+      .max(500, { message: "Description must be under 500 characters." }),
+    post_count: z
+      .number({ invalid_type_error: "Post quota must be a whole number." })
+      .int({ message: "Post quota must be a whole number." })
+      .min(CAMPAIGN_QUOTA_MIN, { message: `Post quota must be at least ${CAMPAIGN_QUOTA_MIN}.` })
+      .max(CAMPAIGN_QUOTA_MAX, { message: `Post quota can't exceed ${CAMPAIGN_QUOTA_MAX}.` })
+      .refine((v) => v >= minQuota, {
+        message: `You already have ${minQuota} post${minQuota === 1 ? "" : "s"} assigned — unassign posts first or keep the quota at ${minQuota} or above.`,
+      }),
+    priority: z
+      .number()
+      .int()
+      .min(1, { message: "Pick a priority level." })
+      .max(3, { message: "Pick a priority level." }),
+  });
+
+type CampaignFormValues = {
+  name: string;
+  description: string;
+  post_count: number;
+  priority: number;
+};
+
+function validateCampaignForm(
+  raw: { name: string; description: string; postCount: string; priority: number },
+  minQuota: number,
+): { success: boolean; data: CampaignFormValues; errors: Record<string, string> } {
+  const trimmed = raw.postCount.trim();
+  const parsedQuota = /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  const result = campaignSchema(minQuota).safeParse({
+    name: raw.name,
+    description: raw.description,
+    post_count: parsedQuota,
+    priority: raw.priority,
+  });
+
+  const fallback: CampaignFormValues = {
+    name: raw.name.trim(),
+    description: raw.description.trim(),
+    post_count: Number.isFinite(parsedQuota)
+      ? Math.min(CAMPAIGN_QUOTA_MAX, Math.max(minQuota, parsedQuota))
+      : Math.max(minQuota, CAMPAIGN_QUOTA_MIN),
+    priority: raw.priority,
+  };
+
+  if (result.success) {
+    return { success: true, data: result.data, errors: {} };
+  }
+  const errors: Record<string, string> = {};
+  for (const issue of result.error.issues) {
+    const key = String(issue.path[0] ?? "form");
+    if (!errors[key]) errors[key] = issue.message;
+  }
+  if (!trimmed) errors.post_count = "Enter a post quota.";
+  return { success: false, data: fallback, errors };
+}
+
 export type CampaignIdea = {
   id: string;
   title: string;
