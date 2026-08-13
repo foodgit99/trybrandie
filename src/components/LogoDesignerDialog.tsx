@@ -128,6 +128,9 @@ export default function LogoDesignerDialog({
   const [saving, setSaving] = useState(false);
   const [logoGenUsed, setLogoGenUsed] = useState<number | null>(null);
 
+  const [sketch, setSketch] = useState<string | null>(null);
+  const [sketchName, setSketchName] = useState<string>("");
+
   useEffect(() => {
     if (!open || !user) return;
     supabase
@@ -140,6 +143,25 @@ export default function LogoDesignerDialog({
       });
   }, [open, user]);
 
+  const handleSketchSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Unsupported file", description: "Please upload a PNG or JPG image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Please upload a sketch under 6MB.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSketch(String(reader.result));
+      setSketchName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleGenerate = async () => {
     if (!brandId && !brandContext) {
       toast({ title: "No brand info", description: "Please add your brand name first.", variant: "destructive" });
@@ -149,6 +171,7 @@ export default function LogoDesignerDialog({
     setGeneratedImage(null);
     try {
       const body: Record<string, unknown> = { style, visual_feel: feel, notes };
+      if (sketch) body.sketch_image = sketch;
       if (brandId) {
         body.brand_id = brandId;
       } else {
@@ -176,6 +199,7 @@ export default function LogoDesignerDialog({
       setGenerating(false);
     }
   };
+
 
   const handleUseLogo = async () => {
     if (!generatedImage) return;
