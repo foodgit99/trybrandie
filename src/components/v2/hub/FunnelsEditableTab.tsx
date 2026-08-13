@@ -151,14 +151,20 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
       </div>
 
       {/* Stage lists */}
-      {stages.map((s) => {
+      {stages.map((s, stageIdx) => {
         const bucketAll = stageBuckets[s.id] ?? [];
         const items = bucketAll.slice(0, 8);
+        const isOpen = openStages[s.id] ?? stageIdx === 0;
 
         const Icon = s.icon;
         return (
           <div key={s.id} className="rounded-2xl border border-border bg-card/40">
-            <div className="flex items-center justify-between p-4 border-b border-border">
+            <button
+              type="button"
+              onClick={() => setOpenStages((prev) => ({ ...prev, [s.id]: !isOpen }))}
+              aria-expanded={isOpen}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors rounded-2xl"
+            >
               <div className="flex items-center gap-2">
                 <Icon className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-medium">{s.label}</h3>
@@ -166,7 +172,16 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
                   {bucketAll.length}
                 </Badge>
               </div>
-            </div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform",
+                  isOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {isOpen && (
+            <div className="border-t border-border">
+
             {items.length === 0 ? (
               <div className="p-5 text-xs text-muted-foreground">
                 No content here yet. Move a post in, or ask the strategist to generate {s.label.toLowerCase()} ideas.
