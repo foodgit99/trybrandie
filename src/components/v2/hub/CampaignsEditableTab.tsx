@@ -709,7 +709,69 @@ function ManagePostsDialog({
 
 export default CampaignsEditableTab;
 
+/* -------------------- Estimated delivery timeline -------------------- */
+
+/** Posts the planner can realistically ship per day for a given priority. */
+function cadencePerDay(priority: number | null | undefined) {
+  const p = normalisePriority(priority);
+  if (p === 3) return 2; // High: up to 2 posts/day
+  if (p === 1) return 0.5; // Low: roughly every other day
+  return 1; // Normal
+}
+
+function formatEstDate(d: Date) {
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function estimateDelivery({
+  priority,
+  remaining,
+  linkedIdeas,
+}: {
+  priority: number | null | undefined;
+  remaining: number;
+  linkedIdeas: CampaignIdea[];
+}): { label: string; hint: string } {
+  const rate = cadencePerDay(priority);
+  const pLabel = priorityMeta(priority).label.toLowerCase();
+
+  const pending = linkedIdeas.filter(
+    (i) => i.status !== "completed" && i.status !== "posted",
+  );
+  const scheduled = pending
+    .map((i) => (i.scheduled_for ? new Date(i.scheduled_for) : null))
+    .filter((d): d is Date => !!d && !Number.isNaN(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const lastScheduled = scheduled[scheduled.length - 1] ?? null;
+
+  if (remaining <= 0) {
+    if (!pending.length) return { label: "All delivered", hint: "Every post in this campaign has shipped." };
+    if (lastScheduled)
+      return {
+        label: `Wraps ~${formatEstDate(lastScheduled)}`,
+        hint: `${pending.length} post${pending.length === 1 ? "" : "s"} still queued — last one is scheduled for ${formatEstDate(lastScheduled)}.`,
+      };
+    return {
+      label: `${pending.length} awaiting schedule`,
+      hint: "Quota is full but some posts have no date yet.",
+    };
+  }
+
+  // Fresh slots start after whatever is already scheduled (or today).
+  const start = lastScheduled && lastScheduled.getTime() > Date.now() ? lastScheduled : new Date();
+  const daysNeeded = Math.ceil(remaining / rate);
+  const end = new Date(start);
+  end.setDate(end.getDate() + daysNeeded);
+
+  return {
+    label: `~${daysNeeded} day${daysNeeded === 1 ? "" : "s"} · by ${formatEstDate(end)}`,
+    hint: `${remaining} open slot${remaining === 1 ? "" : "s"} at ${pLabel} priority (~${rate} post/day) finishes around ${formatEstDate(end)}${lastScheduled ? ", starting after the posts already scheduled" : ""}.`,
+  };
+}
+
 /* -------------------- Campaign Quota Card (per-card view) -------------------- */
+
 
 function CampaignQuotaCard({
   campaign,
