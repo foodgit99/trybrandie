@@ -24,6 +24,12 @@ import {
 } from "../_shared/design-schema.ts";
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { creditGate } from "../_shared/credit-gate.ts";
+import {
+  applyGenomeDecor,
+  artStyleSuffix,
+  genomeDirective,
+  resolveGenome,
+} from "../_shared/design-art-direction.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -262,22 +268,24 @@ const PATCH_TOOL = {
   },
 };
 
-function designSystemPrompt(w: number, h: number) {
+function designSystemPrompt(w: number, h: number, directive: string) {
   return `You are Brandie's Creative Director. You do not write image prompts — you produce a DESIGN DOCUMENT: an exact, production-ready layout for a ${w}x${h}px social graphic.
 
 Rules you must obey:
 - Coordinates are absolute pixels inside 0,0 → ${w},${h}. Nothing may sit outside the canvas.
-- Keep a safe margin of at least ${Math.round(w * 0.07)}px on every edge.
+- Keep a safe margin of at least ${Math.round(w * 0.07)}px on every edge for TEXT and the logo (decorative shapes and imagery may bleed past the edge).
 - Text elements: give each a generous box (w/h) so long copy can wrap. Set maxLines honestly.
 - Strong hierarchy: exactly ONE headline, at ${Math.round(h * 0.055)}–${Math.round(h * 0.11)}px. Subhead roughly 35–45% of the headline size. CTA button height ${Math.round(h * 0.06)}–${Math.round(h * 0.085)}px.
 - Never overlap two text boxes. Text over photography must sit on a scrim, solid shape, or a calm region.
 - EVERY text element MUST include an explicit "color", and every button MUST include "fill" and "textColor". Never omit them.
 - Use only brand colours supplied plus white/near-black. Contrast rule: on a dark background use #FFFFFF (or a very light brand tint) for copy; on a light background use near-black. Never place dark text on a dark background or light text on a light background.
 - Place the brand logo (asset key "brand_logo") as a type:"logo" element, small, in a corner, when a logo is available.
-- Product/gallery images available to you are listed as asset keys — prefer them over generating new art.
-- Only request generated art when the design genuinely needs photography, texture or an illustrated background. Requested art NEVER contains text.
+- Product/gallery images available to you are listed as asset keys — prefer them over generating new art, and place them as real type:"image" elements.
+- Requested art NEVER contains text, letters or logos — it is raw photography/illustration/texture Brandie composes type onto.
 - Copy is yours to write: short, concrete, benefit-led. Headline max 7 words. Subhead max 14 words. CTA max 3 words.
-- Output must validate against the tool schema exactly. No extra fields.`;
+- Output must validate against the tool schema exactly. No extra fields.
+
+${directive}`;
 }
 
 function brandBlock(brand: any, extra: Record<string, unknown>) {
@@ -534,14 +542,16 @@ serve(async (req) => {
       assetLines.push(`- ${key}${g.label ? ` — ${g.label}` : ""}${g.role ? ` (${g.role})` : ""}`);
     });
 
+    // Visual Style Genome drives the design concept; the Brand Centre constrains it.
+    const genome = resolveGenome(brand, body.genome);
+
     const userBlock = `${brandBlock(brand, {
       Audience: body.audience_summary,
-      Genome: body.genome ? JSON.stringify(body.genome).slice(0, 800) : "",
       Trend: body.trend,
       Category: body.content_category,
     })}
 
-Available asset keys (prefer these over generating art):
+Available asset keys (prefer these over generating art, and place them as real image elements):
 ${assetLines.length ? assetLines.join("\n") : "- none"}
 
 Design request: "${prompt}"`;
@@ -552,7 +562,7 @@ Design request: "${prompt}"`;
         body: JSON.stringify({
           model,
           messages: [
-            { role: "system", content: designSystemPrompt(w, h) },
+            { role: "system", content: designSystemPrompt(w, h, genomeDirective(genome, w, h)) },
             { role: "user", content: userBlock },
           ],
           tools: [SCHEMA_TOOL],
@@ -576,9 +586,28 @@ Design request: "${prompt}"`;
     const cd = JSON.parse(args);
 
     // ------- asset generation (art only, max 2)
-    const requests = (cd.asset_requests || []).slice(0, 2);
+    const requests: any[] = (cd.asset_requests || []).slice(0, 2);
+
+    // Richness guarantee: if the Creative Director asked for no art AND placed no
+    // real gallery/product image, brief one genome-led background asset ourselves.
+    const usesGalleryImage = (cd.elements || []).some(
+      (e: any) => e?.type === "image" && assets[e?.source],
+    );
+    if (!requests.length && !usesGalleryImage && (cd.background?.type !== "image")) {
+      requests.push({
+        key: "bg_art",
+        prompt: `Abstract, on-brand background artwork for a social graphic about: ${prompt}. ${
+          brand?.name ? `Brand: ${brand.name}.` : ""
+        } Composition leaves calm space for typography.`,
+      });
+      if (cd.background) {
+        cd.background = { ...cd.background, type: "image", source: "bg_art", overlay_color: cd.background.overlay_color || (cd.background.color || "#111111"), overlay_opacity: cd.background.overlay_opacity ?? 0.45 };
+      }
+    }
+
     for (const r of requests) {
       if (!r?.key || !r?.prompt) continue;
+      r.prompt = `${r.prompt}\n\n${artStyleSuffix(genome, brand)}`;
       const dims =
         r.orientation === "portrait"
           ? { w: 1024, h: 1536 }
@@ -614,7 +643,7 @@ Design request: "${prompt}"`;
           : {}),
       },
       fonts: {
-        heading: headingFontFor(cd.heading_personality || body.genome?.typography?.font_personality),
+        heading: headingFontFor(cd.heading_personality || genome.typography.font_personality),
         body: "Poppins",
       },
       assets,
@@ -623,7 +652,12 @@ Design request: "${prompt}"`;
         if (e?.type === "image" || e?.type === "logo") return !!assets[e.source];
         return true;
       }),
-      meta: { rationale: cd.rationale, model: modelUsed, generated_at: new Date().toISOString() },
+      meta: {
+        rationale: cd.rationale,
+        model: modelUsed,
+        genome,
+        generated_at: new Date().toISOString(),
+      },
     };
 
     // Background art that failed to generate degrades to a solid brand colour.
@@ -634,7 +668,33 @@ Design request: "${prompt}"`;
       } as any;
     }
 
-    const schema = normaliseSchema(schemaInput, { width: w, height: h });
+    // Generated art that the layout never referenced becomes the background so a
+    // paid-for asset is never wasted and the design keeps its imagery.
+    const orphanArt = Object.keys(assets).find(
+      (k) =>
+        !k.startsWith("gallery_") &&
+        k !== "brand_logo" &&
+        schemaInput.background.source !== k &&
+        !schemaInput.elements.some((e: any) => e?.source === k),
+    );
+    if (orphanArt && schemaInput.background.type !== "image") {
+      const base = (schemaInput.background.color as string) || (brand?.primary_colors?.[0] as string) || "#111111";
+      schemaInput.background = {
+        type: "image",
+        source: orphanArt,
+        color: base,
+        overlay: { color: base, opacity: 0.45 },
+      } as any;
+    }
+
+    // Genome-led beautification safety net: shapes, depth and gradient logic.
+    const decorated = applyGenomeDecor(schemaInput, genome, brand);
+    if (decorated.injected.length) {
+      (schemaInput.meta as any).decor_injected = decorated.injected;
+      console.log("[design-structured] decor injected:", decorated.injected.join(", "));
+    }
+
+    const schema = normaliseSchema(decorated.schema, { width: w, height: h });
     if (!schema.elements.length) return json({ error: "The design came back empty — please retry." }, 502);
 
     const png = await renderSchemaToPng(schema);
