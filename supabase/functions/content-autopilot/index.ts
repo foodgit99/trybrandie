@@ -268,6 +268,29 @@ Deno.serve(async (req) => {
 
     }
 
+    // ── Respect deactivated campaigns ──
+    // Ideas routed to a paused campaign must not be generated or delivered.
+    if (allIdeas.length > 0) {
+      try {
+        const { data: pausedCampaigns } = await supabase
+          .from("campaigns")
+          .select("id")
+          .in("brand_id", eligibleBrandIds)
+          .eq("is_active", false);
+        const pausedIds = new Set(((pausedCampaigns || []) as any[]).map((c) => c.id));
+        if (pausedIds.size > 0) {
+          const before = allIdeas.length;
+          allIdeas = allIdeas.filter((i) => !(i.campaign_id && pausedIds.has(i.campaign_id)));
+          if (before !== allIdeas.length) {
+            console.log(`[autopilot] skipped ${before - allIdeas.length} idea(s) in deactivated campaigns`);
+          }
+        }
+      } catch (e) {
+        console.error("[autopilot] paused-campaign filter failed", e);
+      }
+    }
+
+
     if (allIdeas.length === 0) {
       console.log(`[autopilot] No autopilot ideas to process.`);
       await finalizeRun(supabase, runId, 0, 0, 0, 0, []);
