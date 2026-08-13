@@ -183,6 +183,8 @@ serve(async (req) => {
     }
 
     let brandContext = "";
+    const paletteHexes: string[] = [];
+
 
     if (brand_id) {
       // Load brand context from DB
