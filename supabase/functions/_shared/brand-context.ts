@@ -25,7 +25,7 @@ export async function buildBrandContext(
     sb.from("content_pillars").select("name, description").eq("brand_id", brandId).order("sort_order"),
     sb.from("post_series").select("name, description, recurrence, preferred_day").eq("brand_id", brandId),
     sb.from("campaigns").select("name, description, post_count").eq("brand_id", brandId),
-    sb.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured").eq("brand_id", brandId),
+    sb.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured, image_url, gallery_images").eq("brand_id", brandId),
     sb.from("brand_inspiration").select("label").eq("brand_id", brandId),
     sb.from("designs").select("title, prompt, trend_used, vote, content_category, created_at").eq("brand_id", brandId).order("created_at", { ascending: false }).limit(12),
     sb.from("content_ideas").select("title, scheduled_for, status, content_category, funnel_stage").eq("brand_id", brandId).order("scheduled_for", { ascending: true }).limit(15),
@@ -78,8 +78,12 @@ ${products.length ? products
     let line = `${i + 1}. ${p.is_featured ? "⭐ " : ""}**${p.label || "Untitled"}** (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${p.duration ? `, ${p.duration}` : ""})`;
     if (p.description) line += ` — ${p.description}`;
     if (p.features?.length) line += `\n   Includes: ${p.features.join(", ")}`;
+    const shots = [p.image_url, ...((p.gallery_images as string[]) || [])].filter(Boolean).length;
+    line += `\n   Real photos on file: ${shots > 0 ? `${shots} (use these exact images when referencing this ${p.product_type === "service" ? "service" : "product"} — never invent a substitute)` : "none yet (advise the user to upload one in Brand Centre)"}`;
     return line;
   }).join("\n") : "None added yet."}
+
+*Product imagery rule: when copy, a plan, or a design references a specific product or service, use its stored photo(s) verbatim. Only fabricate imagery for products with no photo on file.*
 
 ## Target Audiences (JTBD)
 ${audiences.length ? audiences.map((a: any) => {
