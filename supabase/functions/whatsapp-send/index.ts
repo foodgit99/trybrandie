@@ -176,10 +176,18 @@ Deno.serve(async (req) => {
           ideaId ? { onConflict: "idea_id" } : undefined,
         );
       }
+      const code = payload?.code;
+      const hint =
+        code === 572002 || code === 63007 || code === 21211
+          ? `WhatsApp couldn't reach ${to}. On a trial WhatsApp sender the number must first opt in to the sandbox (send the join code from that phone), and it must be saved in full international format.`
+          : code === 63016
+            ? "WhatsApp needs an approved message template to start a conversation. Add a template SID to enable business-initiated messages."
+            : payload?.message || "WhatsApp delivery failed.";
       return json(
-        { error: "whatsapp_send_failed", status: resp.status, details: payload ?? text },
+        { error: "whatsapp_send_failed", status: resp.status, hint, to, details: payload ?? text },
         resp.status,
       );
+
     }
 
     const sid = payload?.sid ?? null;
