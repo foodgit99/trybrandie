@@ -27,6 +27,7 @@ import {
   Shield,
   Cpu,
   Wand2,
+  Layers,
   History,
   LifeBuoy,
   User,
