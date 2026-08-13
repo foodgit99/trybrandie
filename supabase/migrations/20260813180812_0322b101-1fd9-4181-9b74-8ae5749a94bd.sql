@@ -1,0 +1,1 @@
+ALTER TABLE public.whatsapp_deliveries ADD COLUMN IF NOT EXISTS reason text;

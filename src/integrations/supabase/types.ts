@@ -3605,6 +3605,7 @@ export type Database = {
           id: string
           idea_id: string | null
           message_sid: string | null
+          reason: string | null
           status: string
           to_number: string
           user_id: string
@@ -3615,6 +3616,7 @@ export type Database = {
           id?: string
           idea_id?: string | null
           message_sid?: string | null
+          reason?: string | null
           status?: string
           to_number: string
           user_id: string
@@ -3625,6 +3627,7 @@ export type Database = {
           id?: string
           idea_id?: string | null
           message_sid?: string | null
+          reason?: string | null
           status?: string
           to_number?: string
           user_id?: string

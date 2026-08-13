@@ -139,6 +139,10 @@ const SettingsV2 = () => {
   const [waDelivery, setWaDelivery] = useState(false);
   const [savingWaDelivery, setSavingWaDelivery] = useState(false);
   const [testingWa, setTestingWa] = useState(false);
+  const [waLastDelivery, setWaLastDelivery] = useState<
+    { status: string; reason: string | null; created_at: string } | null
+  >(null);
+
 
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
   const [v2Default, setV2Default] = useState<boolean>(true);
@@ -168,8 +172,17 @@ const SettingsV2 = () => {
       setPushTz(((data as any)?.posting_timezone as string) ?? "Africa/Lagos");
       setEmailReminders(((data as any)?.email_reminders_enabled as boolean) ?? true);
 
+      const { data: delivery } = await supabase
+        .from("whatsapp_deliveries")
+        .select("status, reason, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setWaLastDelivery((delivery as any) ?? null);
     })();
   }, [user]);
+
 
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [outboxFromName, setOutboxFromName] = useState("");
@@ -600,6 +613,26 @@ const SettingsV2 = () => {
               </Button>
             </div>
           </Row>
+          {waLastDelivery && (
+            <p className="px-1 pb-2 text-xs text-muted-foreground">
+              Last delivery:{" "}
+              <span
+                className={
+                  waLastDelivery.status === "sent"
+                    ? "text-foreground"
+                    : waLastDelivery.status === "failed"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                }
+              >
+                {waLastDelivery.status}
+              </span>
+              {waLastDelivery.reason ? ` — ${waLastDelivery.reason.replace(/_/g, " ")}` : ""}
+              {" · "}
+              {new Date(waLastDelivery.created_at).toLocaleString()}
+            </p>
+          )}
+
 
           <Row title="Email reminders" subtitle="Sent each morning with your post.">
             <div className="flex items-center gap-2">

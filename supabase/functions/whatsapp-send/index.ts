@@ -71,6 +71,32 @@ Deno.serve(async (req) => {
     const ideaId = typeof body?.idea_id === "string" ? body.idea_id : null;
     const isTest = body?.test === true;
 
+    // Every non-send outcome is logged too, so "nothing arrived" is always
+    // explainable from the delivery table instead of being silent.
+    const logOutcome = async (
+      status: string,
+      reason: string,
+      extra: Record<string, unknown> = {},
+    ) => {
+      if (isTest) return;
+      await supabase
+        .from("whatsapp_deliveries")
+        .upsert(
+          {
+            user_id: userId,
+            idea_id: ideaId,
+            to_number: (extra as any).to_number ?? "unknown",
+            status,
+            reason,
+            ...extra,
+          } as any,
+          ideaId ? { onConflict: "idea_id" } : undefined,
+        )
+        .then(({ error }) => {
+          if (error) console.error("[whatsapp-send] log failed:", error.message);
+        });
+    };
+
     // ── Preferences ───────────────────────────────────────
     const { data: profile } = await supabase
       .from("profiles")
@@ -79,16 +105,32 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const enabled = (profile as any)?.whatsapp_delivery_enabled === true;
-    if (!enabled && !isTest) return json({ ok: true, skipped: "delivery_disabled" });
+    if (!enabled && !isTest) {
+      await logOutcome("skipped", "delivery_disabled", {
+        to_number: (profile as any)?.whatsapp_number || "unknown",
+      });
+      return json({ ok: true, skipped: "delivery_disabled" });
+    }
 
     const to = toE164((profile as any)?.whatsapp_number || "");
-    if (!to) return json({ error: "no_valid_whatsapp_number" }, 400);
+    if (!to) {
+      await logOutcome("skipped", "no_valid_whatsapp_number", {
+        to_number: (profile as any)?.whatsapp_number || "unknown",
+      });
+      return json({ error: "no_valid_whatsapp_number" }, 400);
+    }
 
     const from = Deno.env.get("TWILIO_WHATSAPP_FROM");
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const twilioKey = Deno.env.get("TWILIO_API_KEY");
-    if (!from) return json({ error: "TWILIO_WHATSAPP_FROM is not configured" }, 500);
-    if (!lovableKey || !twilioKey) return json({ error: "Twilio connection is not configured" }, 500);
+    if (!from) {
+      await logOutcome("failed", "missing_sender_config", { to_number: to });
+      return json({ error: "TWILIO_WHATSAPP_FROM is not configured" }, 500);
+    }
+    if (!lovableKey || !twilioKey) {
+      await logOutcome("failed", "missing_twilio_connection", { to_number: to });
+      return json({ error: "Twilio connection is not configured" }, 500);
+    }
 
     // ── Idempotency (one WhatsApp message per idea) ────────
     if (ideaId) {
@@ -101,6 +143,7 @@ Deno.serve(async (req) => {
         return json({ ok: true, skipped: "already_sent" });
       }
     }
+
 
     const link = linkPath
       ? (linkPath.startsWith("http") ? linkPath : `${APP_BASE_URL}${linkPath}`)
@@ -158,52 +201,53 @@ Deno.serve(async (req) => {
       text = await resp.text();
     }
 
+    // Transient provider failures (rate limit / 5xx) get exactly one retry.
+    if (!resp.ok && (resp.status === 429 || resp.status >= 500)) {
+      console.warn(`[whatsapp-send] transient ${resp.status}, retrying once`);
+      await new Promise((r) => setTimeout(r, 1500));
+      resp = await send(!!imageUrl);
+      text = await resp.text();
+    }
+
     let payload: any = null;
     try { payload = JSON.parse(text); } catch { /* keep raw text */ }
 
 
     if (!resp.ok) {
       console.error(`[whatsapp-send] gateway failed [${resp.status}]: ${text}`);
-      if (!isTest) {
-        await supabase.from("whatsapp_deliveries").upsert(
-          {
-            user_id: userId,
-            idea_id: ideaId,
-            to_number: to,
-            status: "failed",
-            error_text: `[${resp.status}] ${text}`.slice(0, 2000),
-          } as any,
-          ideaId ? { onConflict: "idea_id" } : undefined,
-        );
-      }
       const code = payload?.code;
+      const reason =
+        code === 572002 ? "sender_cannot_reach_recipient"
+          : code === 63016 ? "template_required"
+            : code === 63007 ? "invalid_sender"
+              : code === 21211 ? "invalid_recipient"
+                : `provider_error_${code ?? resp.status}`;
+      await logOutcome("failed", reason, {
+        to_number: to,
+        error_text: `[${resp.status}] ${text}`.slice(0, 2000),
+      });
       const hint =
-        code === 572002 || code === 63007 || code === 21211
-          ? `WhatsApp couldn't reach ${to}. On a trial WhatsApp sender the number must first opt in to the sandbox (send the join code from that phone), and it must be saved in full international format.`
-          : code === 63016
-            ? "WhatsApp needs an approved message template to start a conversation. Add a template SID to enable business-initiated messages."
-            : payload?.message || "WhatsApp delivery failed.";
+        code === 572002
+          ? `Twilio couldn't reach ${to}. This account has no WhatsApp-enabled sender for that destination: on a trial account the recipient must be a verified number (or must join the sandbox), and a production sender must be an approved WhatsApp number on the account.`
+          : code === 63007 || code === 21211
+            ? `Twilio rejected the sender or recipient for ${to}. Check that the WhatsApp sender is approved on the account and the number is saved in full international format.`
+            : code === 63016
+              ? "WhatsApp needs an approved message template to start a conversation. Add the approved template SID so business-initiated messages can go out."
+              : payload?.message || "WhatsApp delivery failed.";
       return json(
-        { error: "whatsapp_send_failed", status: resp.status, hint, to, details: payload ?? text },
+        { error: "whatsapp_send_failed", status: resp.status, hint, to, code: code ?? null, details: payload ?? text },
         resp.status,
       );
 
     }
 
     const sid = payload?.sid ?? null;
-    if (!isTest) {
-      await supabase.from("whatsapp_deliveries").upsert(
-        {
-          user_id: userId,
-          idea_id: ideaId,
-          to_number: to,
-          message_sid: sid,
-          status: "sent",
-          error_text: null,
-        } as any,
-        ideaId ? { onConflict: "idea_id" } : undefined,
-      );
-    }
+    await logOutcome("sent", templateSid ? "template" : "freeform", {
+      to_number: to,
+      message_sid: sid,
+      error_text: null,
+    });
+
 
     console.log(`[whatsapp-send] sent to ${to.slice(0, 5)}*** sid=${sid}`);
     return json({ ok: true, sid, status: payload?.status ?? "queued" });
