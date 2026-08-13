@@ -1029,7 +1029,14 @@ When you have brand context, reference it naturally in your advice — suggest u
         adminClient,
         contentIdeaId,
         _parsedReqBody?.campaign_id ?? null,
+        {
+          funnel_stage: _parsedReqBody?.funnel_stage,
+          campaign_rationale: _parsedReqBody?.campaign_rationale,
+          funnel_rationale: _parsedReqBody?.funnel_rationale,
+          strategic_arc: _parsedReqBody?.strategic_arc,
+        },
       );
+
 
       // Fetch audience intelligence for the brand
       let audienceContext = "";
