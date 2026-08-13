@@ -790,18 +790,25 @@ Each campaign should target a specific content category. Vary categories across 
       for (const r of (campaignAssignedRes.data || []) as any[]) {
         if (r.campaign_id) assignedCountByCampaign.set(r.campaign_id, (assignedCountByCampaign.get(r.campaign_id) || 0) + 1);
       }
-      const campaignsWithQuota = campaigns.map((c: any) => {
-        const target = Math.max(0, Number(c.post_count) || 0);
-        const assigned = assignedCountByCampaign.get(c.id) || 0;
-        const remaining = Math.max(0, target - assigned);
-        return { ...c, _assigned: assigned, _remaining: remaining };
-      });
+      const PRIORITY_LABEL: Record<number, string> = { 1: "LOW", 2: "NORMAL", 3: "HIGH" };
+      const campaignsWithQuota = campaigns
+        .map((c: any) => {
+          const target = Math.max(0, Number(c.post_count) || 0);
+          const assigned = assignedCountByCampaign.get(c.id) || 0;
+          const remaining = Math.max(0, target - assigned);
+          const prio = Math.min(3, Math.max(1, Number(c.priority) || 2));
+          return { ...c, _assigned: assigned, _remaining: remaining, _prio: prio };
+        })
+        // Highest priority first, then the emptiest quota — the prompt order
+        // itself is a signal to the planner.
+        .sort((a: any, b: any) => (b._prio - a._prio) || (b._remaining - a._remaining));
       const campaignContext = campaignsWithQuota.length === 0
         ? "(no active campaigns)"
         : campaignsWithQuota
-            .map((c: any) => `- "${c.name}" (id: ${c.id}) — ${c.description || "no description"} | quota ${c._assigned}/${c.post_count} assigned, ${c._remaining} slots remaining`)
+            .map((c: any) => `- "${c.name}" (id: ${c.id}) — ${c.description || "no description"} | priority ${PRIORITY_LABEL[c._prio]} | quota ${c._assigned}/${c.post_count} assigned, ${c._remaining} slots remaining`)
             .join("\n");
       const urgentCampaigns = campaignsWithQuota.filter((c: any) => c._remaining > 0);
+      const highPriorityCampaigns = urgentCampaigns.filter((c: any) => c._prio === 3);
 
 
 
@@ -904,7 +911,7 @@ Each idea MUST be assigned a funnel_stage from: ${STAGE_IDS.join(", ")}. The wee
 
 CRITICAL — CAMPAIGN QUOTAS:
 You will be given a list of active campaigns with their remaining slots. Any campaign with remaining_slots > 0 should receive at least one idea this week (up to its remaining slots — never exceed). Set campaign_id to the campaign's exact id (uuid), or null when the idea is not tied to a campaign. Include a one-line campaign_rationale when you assign a campaign_id.`,
-        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nFUNNEL STAGES (with last-28-day coverage — favour under-served):\n${funnelContext}\nUNDER-SERVED STAGES TO PRIORITISE: ${underServedStages.join(", ")}\n\nCAMPAIGNS (with quota tracking — fill remaining slots first):\n${campaignContext}${urgentCampaigns.length > 0 ? `\nCAMPAIGNS WITH OPEN SLOTS (must be covered this week): ${urgentCampaigns.map((c: any) => `${c.name} [${c._remaining} left]`).join(", ")}` : ""}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
+        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nFUNNEL STAGES (with last-28-day coverage — favour under-served):\n${funnelContext}\nUNDER-SERVED STAGES TO PRIORITISE: ${underServedStages.join(", ")}\n\nCAMPAIGNS (priority + quota tracking — spend the week's ideas on HIGH priority campaigns with open slots first, then NORMAL, then LOW):\n${campaignContext}${urgentCampaigns.length > 0 ? `\nCAMPAIGNS WITH OPEN SLOTS (must be covered this week): ${urgentCampaigns.map((c: any) => `${c.name} [${c._remaining} left, ${PRIORITY_LABEL[c._prio]}]`).join(", ")}` : ""}${highPriorityCampaigns.length > 0 ? `\nHIGH PRIORITY — FILL THESE BEFORE ANYTHING ELSE: ${highPriorityCampaigns.map((c: any) => `${c.name} [${c._remaining} left]`).join(", ")}` : ""}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
         tool: {
           name: "create_weekly_ideas",
           description: "Create post ideas for the week",
@@ -1171,7 +1178,11 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       const campaigns = campaignsRes.data || [];
       const pillarContext = pillars.map((p: any) => `${p.icon_emoji || ""} ${p.name}: ${p.description || ""}`).join("\n");
       const seriesContext = series.map((s: any) => `${s.name} (${s.recurrence}, ${s.preferred_day}): ${s.description || ""}`).join("\n");
-      const campaignContext = campaigns.map((c: any) => `${c.name}: ${c.description || ""}`).join("\n");
+      const campaignContext = campaigns
+        .map((c: any) => ({ ...c, _prio: Math.min(3, Math.max(1, Number(c.priority) || 2)) }))
+        .sort((a: any, b: any) => b._prio - a._prio)
+        .map((c: any) => `${c.name} [priority ${({ 1: "LOW", 2: "NORMAL", 3: "HIGH" } as Record<number, string>)[c._prio]}]: ${c.description || ""}`)
+        .join("\n");
 
       const recent = recentIdeasRes.data || [];
       const recentTitles = recent.slice(0, 30).map((r: any) => r.title).filter(Boolean).join(" | ");
