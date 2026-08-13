@@ -37,7 +37,7 @@ const STEPS = [
   { key: "offer", label: "What you sell" },
 ];
 
-type ProductDraft = { label: string; description: string; price: string };
+type ProductDraft = { label: string; description: string; price: string; image_url?: string };
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -146,8 +146,39 @@ const Onboarding = () => {
 
   // step 3, Offer
   const [products, setProducts] = useState<ProductDraft[]>([
-    { label: "", description: "", price: "" },
+    { label: "", description: "", price: "", image_url: "" },
   ]);
+  const [uploadingProductIdx, setUploadingProductIdx] = useState<number | null>(null);
+
+  const handleProductImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    idx: number,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingProductIdx(idx);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
+      setProducts((prev) => {
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          image_url: urlData.publicUrl,
+          label: copy[idx].label || file.name.replace(/\.[^.]+$/, ""),
+        };
+        return copy;
+      });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err?.message || "Try another image.", variant: "destructive" });
+    } finally {
+      setUploadingProductIdx(null);
+      e.target.value = "";
+    }
+  };
 
   // Auth gate
   useEffect(() => {
@@ -299,7 +330,7 @@ const Onboarding = () => {
             label: p.label.trim(),
             description: p.description.trim(),
             price: p.price.trim(),
-            image_url: "",
+            image_url: p.image_url || "",
           })) as any,
         );
       }
@@ -758,6 +789,49 @@ const Onboarding = () => {
                         className="h-11"
                         maxLength={60}
                       />
+
+                      <div className="flex items-center gap-3">
+                        {p.image_url ? (
+                          <div className="relative">
+                            <img
+                              src={p.image_url}
+                              alt={p.label ? `${p.label} product photo` : "Product photo"}
+                              className="w-16 h-16 rounded-xl object-cover border border-border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const copy = [...products];
+                                copy[idx] = { ...copy[idx], image_url: "" };
+                                setProducts(copy);
+                              }}
+                              className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                              aria-label="Remove product photo"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : null}
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleProductImageUpload(e, idx)}
+                          />
+                          <span className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+                            {uploadingProductIdx === idx ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                            {p.image_url ? "Replace photo" : "Upload product photo"}
+                          </span>
+                        </label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Brandie uses your real photo in designs instead of inventing one.
+                      </p>
                     </div>
                   ))}
 
@@ -765,7 +839,7 @@ const Onboarding = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setProducts([...products, { label: "", description: "", price: "" }])}
+                      onClick={() => setProducts([...products, { label: "", description: "", price: "", image_url: "" }])}
                       className="w-full h-11 gap-2 rounded-xl border-dashed"
                     >
                       <Plus className="h-4 w-4" /> Add another

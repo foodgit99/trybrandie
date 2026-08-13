@@ -1668,6 +1668,8 @@ TREND RULES:
       // Fetch product catalogue for contextual use
       let productImageUrls: string[] = [];
       let productImageContext = "";
+      let productLabels: string[] = [];
+      let hasPinnedProduct = false;
       if (brand?.id) {
         try {
           const { data: productData } = await adminClient
@@ -1706,6 +1708,8 @@ TREND RULES:
               return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
             });
             productImageUrls = sorted.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
+            productLabels = sorted.map((p: any) => String(p.label || "").trim()).filter((l: string) => l.length >= 3);
+            hasPinnedProduct = !!pinnedProductId;
             const catalogueLines = sorted.map((p: any, i: number) => {
               const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
@@ -2992,7 +2996,15 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         // Collect real reference image blobs for /v1/images/edits.
         // Logo (if present) is always Reference 1 and must appear pixel-exact.
         const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
-        const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
+        // A product is also "referenced" when the brief names one of the brand's
+        // actual products/services, or when the idea is pinned to a product.
+        const combinedBrief = `${userPrompt} ${designPrompt}`.toLowerCase();
+        const namesAProduct = productLabels.some((l) => combinedBrief.includes(l.toLowerCase()));
+        const isProductRelevant =
+          hasPinnedProduct ||
+          namesAProduct ||
+          productKeywords.test(userPrompt) ||
+          productKeywords.test(designPrompt);
         const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
