@@ -276,12 +276,15 @@ export default function LogoDesignerDialog({
     setStyle("wordmark");
     setFeel("Minimal");
     setNotes("");
+    setSketch(null);
+    setSketchName("");
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+
         <DialogHeader>
           <DialogTitle className="text-lg">Create a Logo with AI</DialogTitle>
           <DialogDescription>
