@@ -431,7 +431,7 @@ const Onboarding = () => {
                   })}
                 </div>
 
-                <div ref={detailsRef} className="space-y-5 scroll-mt-6">ns
+                <div ref={detailsRef} className="space-y-5 scroll-mt-6">
                   <div>
                     <label className="text-sm font-medium block mb-1.5">Brand name</label>
                     <Input
