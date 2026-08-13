@@ -488,13 +488,30 @@ function CampaignEditorDialog({
               <Input
                 id="c-quota"
                 type="number"
-                min={1}
-                max={30}
+                inputMode="numeric"
+                min={minQuota}
+                max={CAMPAIGN_QUOTA_MAX}
+                step={1}
                 value={postCount}
-                onChange={(e) => setPostCount(e.target.value)}
+                aria-invalid={!!quotaError}
+                aria-describedby="c-quota-hint"
+                className={cn(quotaError && "border-destructive focus-visible:ring-destructive")}
+                onChange={(e) => setPostCount(e.target.value.replace(/[^\d]/g, ""))}
+                onBlur={() => {
+                  const n = parseInt(postCount, 10);
+                  if (!Number.isFinite(n)) return setPostCount(String(minQuota));
+                  setPostCount(String(Math.min(CAMPAIGN_QUOTA_MAX, Math.max(minQuota, n))));
+                }}
               />
-              <p className="text-[11px] text-muted-foreground">
-                How many posts this campaign should receive in total.
+              <p
+                id="c-quota-hint"
+                className={cn("text-[11px]", quotaError ? "text-destructive" : "text-muted-foreground")}
+              >
+                {quotaError
+                  ? quotaError
+                  : isEdit && assignedCount > 0
+                    ? `${assignedCount} already assigned — quota can't go below ${minQuota} (max ${CAMPAIGN_QUOTA_MAX}).`
+                    : `How many posts this campaign should receive in total (${CAMPAIGN_QUOTA_MIN}–${CAMPAIGN_QUOTA_MAX}).`}
               </p>
             </div>
             <div className="space-y-1.5">
