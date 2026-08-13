@@ -408,7 +408,12 @@ const Onboarding = () => {
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => setPlaybookId(p.id)}
+                        onClick={() => {
+                          setPlaybookId(p.id);
+                          requestAnimationFrame(() => {
+                            detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          });
+                        }}
                         className={`text-left p-3 rounded-xl border transition-all ${
                           active
                             ? "border-foreground bg-foreground text-background"
