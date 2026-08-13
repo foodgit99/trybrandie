@@ -826,6 +826,19 @@ Each campaign should target a specific content category. Vary categories across 
         return { day: d, date: date.toISOString().split("T")[0] };
       });
 
+      // Mid-cycle replan: only touch today onward so already-shipped/past days stay put.
+      const todayStr = new Date().toISOString().split("T")[0];
+      const isMidCycleReplan = !!replan_from_today && offset === 0;
+      const planDates = isMidCycleReplan
+        ? weekDates.filter((d) => d.date >= todayStr)
+        : weekDates;
+      const planDayset = new Set(planDates.map((d) => d.day));
+      const replanContext = isMidCycleReplan
+        ? `\n\nMID-CYCLE REPLAN: Only plan the REMAINING days of this week (${planDates.map((d) => d.day).join(", ")}). Generate exactly ${Math.max(1, planDates.length)} ideas — one per remaining day. Reason for replanning: ${typeof replan_reason === "string" && replan_reason.trim() ? replan_reason.trim().slice(0, 240) : "campaign quotas or priorities changed"}. Rebalance the remaining days so the updated campaign quotas and priorities are honoured.`
+        : "";
+
+
+
       // --- Holiday detection (live Firecrawl feed, brand-region aware) ---
       const brandRegion = await resolveBrandRegion(supabase, brand_id);
       const weekHolidays = await getWeekHolidaysAsync(supabase, monday, brandRegion);
