@@ -804,6 +804,8 @@ function CampaignQuotaCard({
 }) {
   const [showReasons, setShowReasons] = useState(false);
   const firstIdea = linkedIdeas[0];
+  const eta = estimateDelivery({ priority: campaign.priority, remaining, linkedIdeas });
+
 
   return (
     <div className="relative rounded-2xl border border-border bg-card/40 p-4">
