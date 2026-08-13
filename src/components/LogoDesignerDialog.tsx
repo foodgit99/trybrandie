@@ -285,6 +285,8 @@ export default function LogoDesignerDialog({
 
   const handleClose = () => {
     setGeneratedImage(null);
+    setFidelity(null);
+
     setStyle("wordmark");
     setFeel("Minimal");
     setNotes("");
