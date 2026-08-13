@@ -340,6 +340,60 @@ export default function TrendsTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!campaignFor} onOpenChange={(o) => !o && setCampaignFor(null)}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Turn this trend into a campaign</DialogTitle>
+            <DialogDescription>
+              Brandie creates the campaign and schedules a post for each angle you keep.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="trend-c-name" className="text-xs">Campaign name</Label>
+              <Input id="trend-c-name" value={cName} onChange={(e) => setCName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="trend-c-desc" className="text-xs">Why it matters</Label>
+              <Textarea id="trend-c-desc" rows={4} value={cDesc} onChange={(e) => setCDesc(e.target.value)} />
+            </div>
+
+            {(campaignFor?.content_angles?.length ?? 0) > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs">Posts to schedule</Label>
+                {campaignFor!.content_angles.map((a, i) => (
+                  <label
+                    key={i}
+                    className="flex items-start gap-2 rounded-xl border border-border p-2.5 text-xs cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={picked.includes(i)}
+                      onCheckedChange={(v) =>
+                        setPicked((prev) => (v ? [...prev, i] : prev.filter((x) => x !== i)))
+                      }
+                    />
+                    <span className="leading-relaxed">{a}</span>
+                  </label>
+                ))}
+                <p className="text-[11px] text-muted-foreground">
+                  Scheduled one per day, starting tomorrow at 9:00.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" className="rounded-xl" onClick={() => setCampaignFor(null)}>
+              Cancel
+            </Button>
+            <Button className="rounded-xl" onClick={createCampaign} disabled={savingCampaign}>
+              {savingCampaign ? "Creating…" : "Create campaign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
