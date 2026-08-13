@@ -2996,7 +2996,15 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         // Collect real reference image blobs for /v1/images/edits.
         // Logo (if present) is always Reference 1 and must appear pixel-exact.
         const productKeywords = /product|promo|promotion|offer|sale|showcase|launch|discount|deal|shop|buy|order|new arrival|collection|menu|service/i;
-        const isProductRelevant = productKeywords.test(userPrompt) || productKeywords.test(designPrompt);
+        // A product is also "referenced" when the brief names one of the brand's
+        // actual products/services, or when the idea is pinned to a product.
+        const combinedBrief = `${userPrompt} ${designPrompt}`.toLowerCase();
+        const namesAProduct = productLabels.some((l) => combinedBrief.includes(l.toLowerCase()));
+        const isProductRelevant =
+          hasPinnedProduct ||
+          namesAProduct ||
+          productKeywords.test(userPrompt) ||
+          productKeywords.test(designPrompt);
         const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
