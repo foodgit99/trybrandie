@@ -306,8 +306,18 @@ const SettingsV2 = () => {
           url: "/cockpit",
         },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error(JSON.stringify((data as any).details ?? (data as any).error));
+      if (error) {
+        // Edge errors carry the real reason in the response body, not the message.
+        let detail = error.message;
+        try {
+          const payload = await (error as any)?.context?.json?.();
+          if (payload?.hint || payload?.error) detail = payload.hint || payload.error;
+        } catch { /* keep generic message */ }
+        throw new Error(detail);
+      }
+      if ((data as any)?.error) {
+        throw new Error((data as any).hint || JSON.stringify((data as any).details ?? (data as any).error));
+      }
       toast({ title: "Test message sent to WhatsApp." });
     } catch (err: any) {
       toast({ title: "WhatsApp test failed", description: err.message, variant: "destructive" });
@@ -315,6 +325,7 @@ const SettingsV2 = () => {
       setTestingWa(false);
     }
   };
+
 
 
 
