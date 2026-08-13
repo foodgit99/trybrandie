@@ -257,12 +257,14 @@ function CampaignEditorDialog({
   onClose,
   brand,
   editing,
+  assignedCount = 0,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   brand: Brand;
   editing: CampaignRow | null;
+  assignedCount?: number;
   onSaved: () => void;
 }) {
   const { user } = useAuth();
@@ -284,19 +286,31 @@ function CampaignEditorDialog({
   }, [open, editing]);
 
   const isEdit = !!editing;
+  const minQuota = isEdit ? Math.max(1, assignedCount) : 1;
+
+  // Live validation of the whole form (client-side guardrails).
+  const validation = useMemo(
+    () => validateCampaignForm({ name, description, postCount, priority }, minQuota),
+    [name, description, postCount, priority, minQuota],
+  );
+  const quotaError = validation.errors.post_count;
 
   const save = async () => {
-    if (!name.trim()) {
-      toast({ title: "Name required", variant: "destructive" });
+    if (!validation.success) {
+      toast({
+        title: "Check the campaign details",
+        description: Object.values(validation.errors)[0],
+        variant: "destructive",
+      });
       return;
     }
     setSaving(true);
     const payload = {
-      name: name.trim(),
-      description: description.trim(),
+      name: validation.data.name,
+      description: validation.data.description,
       content_category: category === "none" ? null : category,
-      post_count: Math.min(30, Math.max(1, parseInt(postCount, 10) || 1)),
-      priority,
+      post_count: validation.data.post_count,
+      priority: validation.data.priority,
     };
     let error: any = null;
     if (isEdit && editing) {
