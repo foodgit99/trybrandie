@@ -27,6 +27,7 @@ import {
   Shield,
   Cpu,
   Wand2,
+  Layers,
   History,
   LifeBuoy,
   User,
@@ -102,6 +103,10 @@ const NewAppHeader = () => {
             <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/studio")}>
               <Wand2 className="h-4 w-4" />
               Studio (Manual)
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/studio/canvas")}>
+              <Layers className="h-4 w-4" />
+              Studio Canvas
             </DropdownMenuItem>
 
 
