@@ -157,35 +157,42 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
-          {campaigns.map((c) => {
-            const cat = getCategoryMeta(c.content_category ?? "");
-            const linkedIdeas = ideas.filter((i) => i.campaign_id === c.id);
-            const done = linkedIdeas.filter((i) => i.status === "completed" || i.status === "posted").length;
-            const target = Math.max(0, c.post_count || 0);
-            const assigned = linkedIdeas.length;
-            const remaining = Math.max(0, target - assigned);
-            const fillPct = target ? Math.min(100, Math.round((assigned / target) * 100)) : 0;
-            const deliveredPct = assigned ? Math.round((done / assigned) * 100) : 0;
-            const isOver = target > 0 && assigned > target;
-            return (
-              <CampaignQuotaCard
-                key={c.id}
-                campaign={c}
-                category={cat}
-                linkedIdeas={linkedIdeas}
-                assigned={assigned}
-                target={target}
-                remaining={remaining}
-                fillPct={fillPct}
-                deliveredPct={deliveredPct}
-                isOver={isOver}
-                onOpenPost={onOpenPost}
-                onEdit={() => openEdit(c)}
-                onManage={() => setAssignFor(c)}
-                onDelete={() => setDeleteFor(c)}
-              />
-            );
-          })}
+          {[...campaigns]
+            .sort((a, b) => {
+              const pa = normalisePriority(a.priority);
+              const pb = normalisePriority(b.priority);
+              if (pb !== pa) return pb - pa;
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            })
+            .map((c) => {
+              const cat = getCategoryMeta(c.content_category ?? "");
+              const linkedIdeas = ideas.filter((i) => i.campaign_id === c.id);
+              const done = linkedIdeas.filter((i) => i.status === "completed" || i.status === "posted").length;
+              const target = Math.max(0, c.post_count || 0);
+              const assigned = linkedIdeas.length;
+              const remaining = Math.max(0, target - assigned);
+              const fillPct = target ? Math.min(100, Math.round((assigned / target) * 100)) : 0;
+              const deliveredPct = assigned ? Math.round((done / assigned) * 100) : 0;
+              const isOver = target > 0 && assigned > target;
+              return (
+                <CampaignQuotaCard
+                  key={c.id}
+                  campaign={c}
+                  category={cat}
+                  linkedIdeas={linkedIdeas}
+                  assigned={assigned}
+                  target={target}
+                  remaining={remaining}
+                  fillPct={fillPct}
+                  deliveredPct={deliveredPct}
+                  isOver={isOver}
+                  onOpenPost={onOpenPost}
+                  onEdit={() => openEdit(c)}
+                  onManage={() => setAssignFor(c)}
+                  onDelete={() => setDeleteFor(c)}
+                />
+              );
+            })}
         </div>
       )}
 
