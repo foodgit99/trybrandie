@@ -3632,7 +3632,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
 
 You are a senior creative director planning an Instagram carousel with exactly ${numSlides} slides. Apply the doctrine: the entire carousel serves ONE objective, opens with a strong hook (never "We…"), advances one new beat per slide, and closes with one clear CTA. No invented proof. No empty motivational filler.
 
-${brandContext}${audienceContext}${productsContext}${trendContextArc}
+${brandContext}${audienceContext}${productsContext}${trendContextArc}${carouselCampaignContext}
 
 User request: "${userPrompt}"
 
