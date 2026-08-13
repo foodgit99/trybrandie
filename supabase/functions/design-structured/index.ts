@@ -271,7 +271,8 @@ Rules you must obey:
 - Text elements: give each a generous box (w/h) so long copy can wrap. Set maxLines honestly.
 - Strong hierarchy: exactly ONE headline, at ${Math.round(h * 0.055)}–${Math.round(h * 0.11)}px. Subhead roughly 35–45% of the headline size. CTA button height ${Math.round(h * 0.06)}–${Math.round(h * 0.085)}px.
 - Never overlap two text boxes. Text over photography must sit on a scrim, solid shape, or a calm region.
-- Use only brand colours supplied plus white/near-black. Ensure high contrast between text colour and whatever sits behind it.
+- EVERY text element MUST include an explicit "color", and every button MUST include "fill" and "textColor". Never omit them.
+- Use only brand colours supplied plus white/near-black. Contrast rule: on a dark background use #FFFFFF (or a very light brand tint) for copy; on a light background use near-black. Never place dark text on a dark background or light text on a light background.
 - Place the brand logo (asset key "brand_logo") as a type:"logo" element, small, in a corner, when a logo is available.
 - Product/gallery images available to you are listed as asset keys — prefer them over generating new art.
 - Only request generated art when the design genuinely needs photography, texture or an illustrated background. Requested art NEVER contains text.
