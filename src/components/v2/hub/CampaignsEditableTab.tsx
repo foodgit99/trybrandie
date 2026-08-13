@@ -66,9 +66,27 @@ export type CampaignRow = {
   name: string;
   description: string | null;
   post_count: number;
+  priority?: number | null;
   content_category: string | null;
   created_at: string;
 };
+
+/** 1 = Low, 2 = Normal, 3 = High. Tells the weekly planner what to fill first. */
+export const CAMPAIGN_PRIORITIES = [
+  { value: 3, label: "High", hint: "Planner fills this campaign before anything else." },
+  { value: 2, label: "Normal", hint: "Filled after high-priority campaigns." },
+  { value: 1, label: "Low", hint: "Only filled when other campaigns are satisfied." },
+] as const;
+
+export function normalisePriority(v: unknown): number {
+  const n = Number(v);
+  return n === 1 || n === 3 ? n : 2;
+}
+
+export function priorityMeta(v: unknown) {
+  const p = normalisePriority(v);
+  return CAMPAIGN_PRIORITIES.find((x) => x.value === p)!;
+}
 
 type Brand = { id: string };
 
@@ -244,6 +262,8 @@ function CampaignEditorDialog({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string | "none">("none");
+  const [postCount, setPostCount] = useState("5");
+  const [priority, setPriority] = useState(2);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -251,6 +271,8 @@ function CampaignEditorDialog({
     setName(editing?.name ?? "");
     setDescription(editing?.description ?? "");
     setCategory(editing?.content_category ?? "none");
+    setPostCount(String(editing ? Math.max(1, editing.post_count || 1) : 5));
+    setPriority(normalisePriority(editing?.priority));
   }, [open, editing]);
 
   const isEdit = !!editing;
@@ -265,6 +287,8 @@ function CampaignEditorDialog({
       name: name.trim(),
       description: description.trim(),
       content_category: category === "none" ? null : category,
+      post_count: Math.min(30, Math.max(1, parseInt(postCount, 10) || 1)),
+      priority,
     };
     let error: any = null;
     if (isEdit && editing) {
@@ -317,6 +341,43 @@ function CampaignEditorDialog({
               placeholder="What's the goal, audience, or hook?"
               maxLength={500}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="c-quota" className="text-xs">Post quota</Label>
+              <Input
+                id="c-quota"
+                type="number"
+                min={1}
+                max={30}
+                value={postCount}
+                onChange={(e) => setPostCount(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                How many posts this campaign should receive in total.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Priority</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {CAMPAIGN_PRIORITIES.map((p) => (
+                  <button
+                    type="button"
+                    key={p.value}
+                    onClick={() => setPriority(p.value)}
+                    className={cn(
+                      "text-[11px] px-2.5 py-1 rounded-full border transition-colors",
+                      priority === p.value
+                        ? "bg-foreground text-background border-foreground"
+                        : "border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">{priorityMeta(priority).hint}</p>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Primary category</Label>
