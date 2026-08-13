@@ -59,14 +59,92 @@ function timeAgo(iso?: string | null) {
 export default function TrendsTab({
   brand,
   onSeedStudio,
+  onCampaignCreated,
 }: {
   brand: { id: string; name: string };
   onSeedStudio: (prompt: string) => void;
+  onCampaignCreated?: () => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [costInfo, setCostInfo] = useState<{ is_free: boolean; credits_required: number; available_credits: number } | null>(null);
+  const [campaignFor, setCampaignFor] = useState<Trend | null>(null);
+  const [cName, setCName] = useState("");
+  const [cDesc, setCDesc] = useState("");
+  const [picked, setPicked] = useState<number[]>([]);
+  const [savingCampaign, setSavingCampaign] = useState(false);
+
+  useEffect(() => {
+    if (!campaignFor) return;
+    setCName(campaignFor.title.slice(0, 80));
+    setCDesc(
+      [campaignFor.summary, campaignFor.relevance_to_brand].filter(Boolean).join("\n\n"),
+    );
+    setPicked((campaignFor.content_angles ?? []).map((_, i) => i));
+  }, [campaignFor]);
+
+  const createCampaign = async () => {
+    if (!campaignFor || !user) return;
+    if (!cName.trim()) {
+      toast({ title: "Name required", variant: "destructive" });
+      return;
+    }
+    setSavingCampaign(true);
+    try {
+      const { data: campaign, error } = await supabase
+        .from("campaigns")
+        .insert({
+          brand_id: brand.id,
+          user_id: user.id,
+          name: cName.trim(),
+          description: cDesc.trim(),
+          content_category: "trending",
+        } as never)
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      const angles = (campaignFor.content_angles ?? []).filter((_, i) => picked.includes(i));
+      if (angles.length > 0) {
+        const rows = angles.map((angle, i) => {
+          const when = new Date();
+          when.setDate(when.getDate() + i + 1);
+          when.setHours(9, 0, 0, 0);
+          return {
+            brand_id: brand.id,
+            user_id: user.id,
+            campaign_id: (campaign as any).id,
+            title: angle.slice(0, 120),
+            prompt: `${campaignFor.title} — ${angle}\n\nTrend context: ${campaignFor.summary}`,
+            content_category: "trending",
+            content_format: "graphic",
+            idea_type: "single",
+            status: "scheduled",
+            scheduled_for: when.toISOString(),
+          };
+        });
+        const { error: ideaErr } = await supabase.from("content_ideas").insert(rows as never);
+        if (ideaErr) throw ideaErr;
+      }
+
+      qc.invalidateQueries({ queryKey: ["hub-campaigns", brand.id] });
+      qc.invalidateQueries({ queryKey: ["hub-ideas", brand.id] });
+      toast({
+        title: "Campaign created",
+        description: angles.length
+          ? `${angles.length} post${angles.length > 1 ? "s" : ""} scheduled from this trend.`
+          : "Add posts to it whenever you're ready.",
+      });
+      setCampaignFor(null);
+      onCampaignCreated?.();
+    } catch (e: any) {
+      toast({ title: "Couldn't create campaign", description: e?.message, variant: "destructive" });
+    } finally {
+      setSavingCampaign(false);
+    }
+  };
 
   const { data: intel, isLoading } = useQuery({
     queryKey: ["hub-trends", brand.id],
