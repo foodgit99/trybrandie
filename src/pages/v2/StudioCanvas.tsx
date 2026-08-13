@@ -62,7 +62,7 @@ type Revision = {
 
 export default function StudioCanvas() {
   const { user } = useAuth();
-  const { activeBrand } = useBrand();
+  const { brand: activeBrand } = useBrand();
   const { toast } = useToast();
   const [params, setParams] = useSearchParams();
 
@@ -302,6 +302,7 @@ export default function StudioCanvas() {
       <SEO
         title="Structured Design Canvas | Brandie"
         description="Generate editable, layered designs where every headline, logo and product shot stays yours to change."
+        path="/studio/canvas"
       />
       <NewAppHeader />
 
