@@ -3544,14 +3544,17 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           console.log("[carousel gallery-memory] lookup failed:", e instanceof Error ? e.message : e);
         }
       }
-      if (brand?.id) {
+      if (brand?.id && productImageMode !== "off") {
         try {
-          const { data: productData } = await adminClient
+          const { data: productDataRaw } = await adminClient
             .from("brand_products")
             .select("id, label, description, features, product_type, price, image_url, gallery_images, is_featured, pricing_model, duration")
             .eq("brand_id", brand.id)
             .order("created_at", { ascending: true })
-            .limit(8);
+            .limit(16);
+          const productData = productIdFilter
+            ? (productDataRaw ?? []).filter((p: any) => productIdFilter.has(p.id))
+            : (productDataRaw ?? []).slice(0, 8);
           if (productData && productData.length > 0) {
             // Featured-first, then any product matching the seed idea is bumped to the top.
             const sorted = [...productData].sort((a: any, b: any) => {
