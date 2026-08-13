@@ -789,6 +789,49 @@ const Onboarding = () => {
                         className="h-11"
                         maxLength={60}
                       />
+
+                      <div className="flex items-center gap-3">
+                        {p.image_url ? (
+                          <div className="relative">
+                            <img
+                              src={p.image_url}
+                              alt={p.label ? `${p.label} product photo` : "Product photo"}
+                              className="w-16 h-16 rounded-xl object-cover border border-border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const copy = [...products];
+                                copy[idx] = { ...copy[idx], image_url: "" };
+                                setProducts(copy);
+                              }}
+                              className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                              aria-label="Remove product photo"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : null}
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleProductImageUpload(e, idx)}
+                          />
+                          <span className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+                            {uploadingProductIdx === idx ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                            {p.image_url ? "Replace photo" : "Upload product photo"}
+                          </span>
+                        </label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Brandie uses your real photo in designs instead of inventing one.
+                      </p>
                     </div>
                   ))}
 
@@ -796,7 +839,7 @@ const Onboarding = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setProducts([...products, { label: "", description: "", price: "" }])}
+                      onClick={() => setProducts([...products, { label: "", description: "", price: "", image_url: "" }])}
                       className="w-full h-11 gap-2 rounded-xl border-dashed"
                     >
                       <Plus className="h-4 w-4" /> Add another
