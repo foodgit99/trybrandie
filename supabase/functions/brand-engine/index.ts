@@ -1010,7 +1010,10 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       const campaignByIdMap = new Map(campaignsWithQuota.map((c: any) => [c.id, c]));
       let driftCount = 0;
 
-      const ideasToInsert = await Promise.all(result.data.ideas.map(async (idea: any) => {
+      const plannedIdeas = isMidCycleReplan
+        ? (result.data.ideas as any[]).filter((i: any) => planDayset.has(String(i?.day || "").toLowerCase()))
+        : (result.data.ideas as any[]);
+      const ideasToInsert = await Promise.all(plannedIdeas.map(async (idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
         const dIdx = dayIndex.get(idea.day);
