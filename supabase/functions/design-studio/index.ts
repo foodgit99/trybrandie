@@ -3603,7 +3603,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       const validProductKeys = productRoster.map((p) => p.key);
       const seedProductKey = seedProductId ? productRoster.find((p) => p.id === seedProductId)?.key || null : null;
       const productsContext = productSummaries.length
-        ? `\nPRODUCTS / SERVICES ROSTER (each prefixed with a key like P1, P2 — use these keys in slide.product_ref to anchor a slide to a specific product):\n${productSummaries.join("\n")}${seedProductKey ? `\n\nThis carousel was launched from an idea anchored on ${seedProductKey} "${productKeyToLabel[seedProductKey]}" — at least one slide MUST set product_ref to "${seedProductKey}".` : ""}`
+        ? `\nPRODUCTS / SERVICES ROSTER (each prefixed with a key like P1, P2 — use these keys in slide.product_ref to anchor a slide to a specific product):\n${productSummaries.join("\n")}${seedProductKey ? `\n\nThis carousel was launched from an idea anchored on ${seedProductKey} "${productKeyToLabel[seedProductKey]}" — at least one slide MUST set product_ref to "${seedProductKey}".` : ""}${productIdFilter ? `\n\nUSER-SELECTED PRODUCTS: the user restricted this carousel to the roster above. Anchor at least one slide on each roster key, never feature any other product, and use the attached photos verbatim.` : ""}`
         : "";
 
       const trendContextArc = trend && trend !== "none"
