@@ -1730,7 +1730,8 @@ TREND RULES:
             });
             productImageUrls = sorted.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
             productLabels = sorted.map((p: any) => String(p.label || "").trim()).filter((l: string) => l.length >= 3);
-            hasPinnedProduct = !!pinnedProductId;
+            // An explicit user selection is as binding as an idea-level pin.
+            hasPinnedProduct = !!pinnedProductId || !!productIdFilter;
             const catalogueLines = sorted.map((p: any, i: number) => {
               const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
