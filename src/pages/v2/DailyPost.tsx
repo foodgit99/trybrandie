@@ -81,8 +81,9 @@ const DailyPost = () => {
       const { data, error } = await supabase
         .from("content_ideas")
         .select(
-          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id, whatsapp_dm, brand_id, content_format, slide_count",
+          "id, title, prompt, content_category, scheduled_for, status, approval_status, design_id, whatsapp_dm, brand_id, content_format, slide_count, campaign_id, funnel_stage, campaign_rationale, funnel_rationale, strategic_arc",
         )
+
         .eq("id", dayId)
         .maybeSingle();
       if (error) throw error;
