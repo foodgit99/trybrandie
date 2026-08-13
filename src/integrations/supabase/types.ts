@@ -1090,6 +1090,7 @@ export type Database = {
           id: string
           name: string
           post_count: number
+          priority: number
           user_id: string
         }
         Insert: {
@@ -1100,6 +1101,7 @@ export type Database = {
           id?: string
           name: string
           post_count?: number
+          priority?: number
           user_id: string
         }
         Update: {
@@ -1110,6 +1112,7 @@ export type Database = {
           id?: string
           name?: string
           post_count?: number
+          priority?: number
           user_id?: string
         }
         Relationships: [
