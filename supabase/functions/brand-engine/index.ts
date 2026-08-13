@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getWeekHolidaysAsync, fetchHolidayFeed, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt, markUpdatesUsed, tierFor } from "../_shared/brand-updates.ts";
 import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
-import { resolveBrandStages, normaliseStageId, STAGE_IDS, type FunnelStageId } from "../_shared/funnel-stages.ts";
+import { resolveBrandStages, normaliseStageId, fetchBrandStages, type FunnelStageId } from "../_shared/funnel-stages.ts";
 import { OGILVY_COPY_DOCTRINE, OGILVY_PILLAR_GUIDE } from "../_shared/ogilvy-copy-doctrine.ts";
 
 const corsHeaders = {
@@ -766,24 +766,30 @@ Each campaign should target a specific content category. Vary categories across 
         .join("\n");
       const seriesContext = series.map((s: any) => `${s.name} (${s.recurrence}, ${s.preferred_day}): ${s.description}`).join("\n");
 
-      // --- Funnel stages (brand-scoped overrides over defaults) ---
+      // --- Funnel stages (brand-owned: renamed, reordered, remapped, custom) ---
       const resolvedStages = resolveBrandStages((brand as any).funnel_stages);
-      const stageCoverageCounts: Record<FunnelStageId, number> = { awareness: 0, consideration: 0, conversion: 0, retention: 0 };
+      const brandStageIds = resolvedStages.map((s) => s.id);
+      const stageCoverageCounts: Record<string, number> = {};
+      for (const id of brandStageIds) stageCoverageCounts[id] = 0;
       for (const row of (stageCoverageRes.data || []) as any[]) {
-        const explicit = normaliseStageId(row.funnel_stage);
-        let stage: FunnelStageId | null = explicit;
+        const explicit = normaliseStageId(row.funnel_stage, resolvedStages);
+        let stage: string | null = explicit;
         if (!stage && row.content_category) {
           stage = (resolvedStages.find((s) => s.categories.includes(row.content_category))?.id) ?? null;
         }
-        if (stage) stageCoverageCounts[stage] += 1;
+        if (stage && stage in stageCoverageCounts) stageCoverageCounts[stage] += 1;
       }
       const funnelContext = resolvedStages
-        .map((s) => `- ${s.id} "${s.label}" — ${s.blurb} (last 28d: ${stageCoverageCounts[s.id]} posts)`) 
+        .map((s) => `- ${s.id} "${s.label}" — ${s.blurb}${s.categories.length ? ` [categories: ${s.categories.join(", ")}]` : ""} (last 28d: ${stageCoverageCounts[s.id]} posts)`)
         .join("\n");
-      const underServedStages = STAGE_IDS
+      // Ask for coverage across roughly three-quarters of the brand's stages,
+      // never more than the stage count and never fewer than two.
+      const minStageCoverage = Math.max(2, Math.min(brandStageIds.length, Math.ceil(brandStageIds.length * 0.75)));
+      const underServedStages = brandStageIds
         .slice()
         .sort((a, b) => stageCoverageCounts[a] - stageCoverageCounts[b])
-        .slice(0, 2);
+        .slice(0, Math.max(1, Math.min(2, brandStageIds.length - 1)));
+
 
       // --- Campaign quotas: remaining = post_count - already-assigned count ---
       const assignedCountByCampaign = new Map<string, number>();
@@ -920,7 +926,8 @@ HOLIDAY IDEAS: If holidays are listed, generate at least one idea per holiday wi
 TREND INTELLIGENCE: If industry trends are provided, weave them naturally into content ideas where relevant. Don't force every trend into every idea.
 
 CRITICAL — FUNNEL STAGE COVERAGE:
-Each idea MUST be assigned a funnel_stage from: ${STAGE_IDS.join(", ")}. The week's 5–7 ideas MUST cover at least 3 of the 4 stages. Weight the mix toward UNDER-SERVED stages (listed below) so the brand's funnel stays balanced over time. Include a one-line stage_rationale for each idea explaining why that stage fits.
+This brand defines its OWN funnel stages (they may be renamed, reordered, or custom). Each idea MUST be assigned a funnel_stage from exactly this list: ${brandStageIds.join(", ")}. The week's ideas MUST cover at least ${minStageCoverage} of the ${brandStageIds.length} stage(s). Weight the mix toward UNDER-SERVED stages (listed below) so the brand's funnel stays balanced over time. Include a one-line stage_rationale for each idea explaining why that stage fits, using the brand's own stage definitions.
+
 
 CRITICAL — CAMPAIGN QUOTAS:
 You will be given a list of active campaigns with their remaining slots. Any campaign with remaining_slots > 0 should receive at least one idea this week (up to its remaining slots — never exceed). Set campaign_id to the campaign's exact id (uuid), or null when the idea is not tied to a campaign. Include a one-line campaign_rationale when you assign a campaign_id.`,
@@ -944,7 +951,7 @@ You will be given a list of active campaigns with their remaining slots. Any cam
                     campaign_name: { type: "string", description: "Optional — leave empty when campaign_id is set or the idea is standalone." },
                     campaign_id: { type: "string", description: "Exact uuid of an active campaign from the CAMPAIGNS list, or empty string if not tied to a campaign." },
                     campaign_rationale: { type: "string", description: "One line explaining why this campaign fits. Empty when no campaign." },
-                    funnel_stage: { type: "string", enum: STAGE_IDS, description: "Which funnel stage this idea serves." },
+                    funnel_stage: { type: "string", enum: brandStageIds, description: "Which of this brand's funnel stages this idea serves." },
                     stage_rationale: { type: "string", description: "One line explaining why this funnel stage fits the idea." },
                     idea_type: { type: "string", enum: ["single", "series_post", "campaign_post", "holiday"] },
                     content_format: { type: "string", enum: ["graphic", "carousel"] },
@@ -1027,11 +1034,12 @@ You will be given a list of active campaigns with their remaining slots. Any cam
               : (allowedCanvas.has(idea.canvas_size) ? idea.canvas_size : "1080x1350"));
 
         // --- Funnel stage: planner's pick wins; fall back to default; never empty. ---
-        let chosenStage: FunnelStageId | null = normaliseStageId(idea.funnel_stage);
+        let chosenStage: FunnelStageId | null = normaliseStageId(idea.funnel_stage, resolvedStages);
         if (!chosenStage) {
           driftCount++;
-          chosenStage = normaliseStageId(defaultFunnelStage) || "awareness";
+          chosenStage = normaliseStageId(defaultFunnelStage, resolvedStages) || resolvedStages[0].id;
         }
+
 
         // --- Campaign: prefer planner's explicit id, then campaign_name, then default, then resolver. ---
         let aiResolvedCampaignId: string | null = null;
@@ -1060,7 +1068,9 @@ You will be given a list of active campaigns with their remaining slots. Any cam
             defaultCampaignId,
             defaultFunnelStage: chosenStage, // honour planner's stage choice, not just user default
             aiResolvedCampaignId,
+            brandStages: resolvedStages,
           });
+
           resolvedCampaignId = r.campaignId;
         }
         if (resolvedCampaignId) {
@@ -1291,6 +1301,10 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
 
       const blueprintId = await ensureBlueprint(serviceClient, brand_id, userId, weekStart);
 
+      // Brand-owned funnel stages so the fill lands on a stage that still exists.
+      const fillStages = await fetchBrandStages(serviceClient, brand_id);
+      const fillStage = normaliseStageId(defaultFunnelStage, fillStages) || fillStages[0].id;
+
       const ideasToInsert = await Promise.all((result.data.ideas || [])
         .filter((idea: any) => allowedDays.has(idea.day))
         .map(async (idea: any) => {
@@ -1308,11 +1322,13 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
               brandId: brand_id,
               userId,
               defaultCampaignId,
-              defaultFunnelStage,
+              defaultFunnelStage: fillStage,
               aiResolvedCampaignId,
+              brandStages: fillStages,
             });
             resolvedCampaignId = r.campaignId;
           }
+
           return {
             brand_id,
             user_id: userId,
@@ -1334,7 +1350,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
             day_of_week: typeof dIdx === "number" ? dIdx : null,
             strategic_arc: arc,
             playbook_role: arc,
-            funnel_stage: defaultFunnelStage,
+            funnel_stage: fillStage,
             funnel_rationale: "Filled into your default funnel stage to keep the week complete.",
             campaign_rationale: resolvedCampaignId ? "Routed via your default campaign for empty-day fill." : null,
             autopilot: autopilotOn,

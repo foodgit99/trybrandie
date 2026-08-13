@@ -1034,7 +1034,9 @@ When you have brand context, reference it naturally in your advice — suggest u
           campaign_rationale: _parsedReqBody?.campaign_rationale,
           funnel_rationale: _parsedReqBody?.funnel_rationale,
           strategic_arc: _parsedReqBody?.strategic_arc,
+          brand_id: brand?.id ?? null,
         },
+
       );
 
 
@@ -3382,7 +3384,9 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           campaign_rationale: _parsedReqBody?.campaign_rationale,
           funnel_rationale: _parsedReqBody?.funnel_rationale,
           strategic_arc: _parsedReqBody?.strategic_arc,
+          brand_id: brand?.id ?? null,
         },
+
       )).promptText;
 
 
