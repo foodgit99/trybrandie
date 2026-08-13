@@ -115,7 +115,7 @@ function validateCampaignForm(
   };
 
   if (result.success) {
-    return { success: true, data: result.data, errors: {} };
+    return { success: true, data: result.data as CampaignFormValues, errors: {} };
   }
   const errors: Record<string, string> = {};
   for (const issue of result.error.issues) {
