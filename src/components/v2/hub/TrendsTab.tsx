@@ -1,10 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, RefreshCw, TrendingUp, ArrowRight, Radio } from "lucide-react";
+import { Sparkles, RefreshCw, TrendingUp, ArrowRight, Radio, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Trend = {
@@ -46,14 +59,92 @@ function timeAgo(iso?: string | null) {
 export default function TrendsTab({
   brand,
   onSeedStudio,
+  onCampaignCreated,
 }: {
   brand: { id: string; name: string };
   onSeedStudio: (prompt: string) => void;
+  onCampaignCreated?: () => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [costInfo, setCostInfo] = useState<{ is_free: boolean; credits_required: number; available_credits: number } | null>(null);
+  const [campaignFor, setCampaignFor] = useState<Trend | null>(null);
+  const [cName, setCName] = useState("");
+  const [cDesc, setCDesc] = useState("");
+  const [picked, setPicked] = useState<number[]>([]);
+  const [savingCampaign, setSavingCampaign] = useState(false);
+
+  useEffect(() => {
+    if (!campaignFor) return;
+    setCName(campaignFor.title.slice(0, 80));
+    setCDesc(
+      [campaignFor.summary, campaignFor.relevance_to_brand].filter(Boolean).join("\n\n"),
+    );
+    setPicked((campaignFor.content_angles ?? []).map((_, i) => i));
+  }, [campaignFor]);
+
+  const createCampaign = async () => {
+    if (!campaignFor || !user) return;
+    if (!cName.trim()) {
+      toast({ title: "Name required", variant: "destructive" });
+      return;
+    }
+    setSavingCampaign(true);
+    try {
+      const { data: campaign, error } = await supabase
+        .from("campaigns")
+        .insert({
+          brand_id: brand.id,
+          user_id: user.id,
+          name: cName.trim(),
+          description: cDesc.trim(),
+          content_category: "trending",
+        } as never)
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      const angles = (campaignFor.content_angles ?? []).filter((_, i) => picked.includes(i));
+      if (angles.length > 0) {
+        const rows = angles.map((angle, i) => {
+          const when = new Date();
+          when.setDate(when.getDate() + i + 1);
+          when.setHours(9, 0, 0, 0);
+          return {
+            brand_id: brand.id,
+            user_id: user.id,
+            campaign_id: (campaign as any).id,
+            title: angle.slice(0, 120),
+            prompt: `${campaignFor.title} — ${angle}\n\nTrend context: ${campaignFor.summary}`,
+            content_category: "trending",
+            content_format: "graphic",
+            idea_type: "single",
+            status: "scheduled",
+            scheduled_for: when.toISOString(),
+          };
+        });
+        const { error: ideaErr } = await supabase.from("content_ideas").insert(rows as never);
+        if (ideaErr) throw ideaErr;
+      }
+
+      qc.invalidateQueries({ queryKey: ["hub-campaigns", brand.id] });
+      qc.invalidateQueries({ queryKey: ["hub-ideas", brand.id] });
+      toast({
+        title: "Campaign created",
+        description: angles.length
+          ? `${angles.length} post${angles.length > 1 ? "s" : ""} scheduled from this trend.`
+          : "Add posts to it whenever you're ready.",
+      });
+      setCampaignFor(null);
+      onCampaignCreated?.();
+    } catch (e: any) {
+      toast({ title: "Couldn't create campaign", description: e?.message, variant: "destructive" });
+    } finally {
+      setSavingCampaign(false);
+    }
+  };
 
   const { data: intel, isLoading } = useQuery({
     queryKey: ["hub-trends", brand.id],
@@ -208,7 +299,7 @@ export default function TrendsTab({
                 </div>
               )}
 
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-end gap-2 flex-wrap">
                 <Button
                   size="sm"
                   variant="outline"
@@ -216,6 +307,9 @@ export default function TrendsTab({
                   onClick={() => onSeedStudio(`${t.title} — ${t.summary}`)}
                 >
                   Turn into a post <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                </Button>
+                <Button size="sm" className="rounded-xl" onClick={() => setCampaignFor(t)}>
+                  <Megaphone className="h-3.5 w-3.5 mr-1.5" /> Turn into a campaign
                 </Button>
               </div>
             </motion.li>
@@ -246,6 +340,60 @@ export default function TrendsTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!campaignFor} onOpenChange={(o) => !o && setCampaignFor(null)}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Turn this trend into a campaign</DialogTitle>
+            <DialogDescription>
+              Brandie creates the campaign and schedules a post for each angle you keep.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="trend-c-name" className="text-xs">Campaign name</Label>
+              <Input id="trend-c-name" value={cName} onChange={(e) => setCName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="trend-c-desc" className="text-xs">Why it matters</Label>
+              <Textarea id="trend-c-desc" rows={4} value={cDesc} onChange={(e) => setCDesc(e.target.value)} />
+            </div>
+
+            {(campaignFor?.content_angles?.length ?? 0) > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs">Posts to schedule</Label>
+                {campaignFor!.content_angles.map((a, i) => (
+                  <label
+                    key={i}
+                    className="flex items-start gap-2 rounded-xl border border-border p-2.5 text-xs cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={picked.includes(i)}
+                      onCheckedChange={(v) =>
+                        setPicked((prev) => (v ? [...prev, i] : prev.filter((x) => x !== i)))
+                      }
+                    />
+                    <span className="leading-relaxed">{a}</span>
+                  </label>
+                ))}
+                <p className="text-[11px] text-muted-foreground">
+                  Scheduled one per day, starting tomorrow at 9:00.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" className="rounded-xl" onClick={() => setCampaignFor(null)}>
+              Cancel
+            </Button>
+            <Button className="rounded-xl" onClick={createCampaign} disabled={savingCampaign}>
+              {savingCampaign ? "Creating…" : "Create campaign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

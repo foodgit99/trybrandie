@@ -396,6 +396,7 @@ const Hub = () => {
               <TrendsTab
                 brand={brand}
                 onSeedStudio={(prompt) => navigate(`/studio?prompt=${encodeURIComponent(prompt)}&category=trending`)}
+                onCampaignCreated={() => setTab("campaigns")}
               />
             )}
             {tab === "competitors" && (
