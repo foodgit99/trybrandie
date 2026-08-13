@@ -2649,8 +2649,9 @@ ${brand.special_instructions}
         if (policy === "required") return "\n\nCTA POLICY: A clear, specific CTA is REQUIRED for this category. Never leave the cta field empty.";
         return "";
       })();
-      const copyCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "";
-      const captionCategoryContext = resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "";
+      const campaignCopyContext = (await campaignContextPromise).promptText;
+      const copyCategoryContext = (resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.copy_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "") + campaignCopyContext;
+      const captionCategoryContext = (resolvedCategoryData ? `\n\nCONTENT CATEGORY: ${resolvedCategoryData.name}\n${resolvedCategoryData.caption_directive}${copyForbiddenContext}${ctaPolicyLine}${researchContext}${updatesContext}` : "") + campaignCopyContext;
 
       const trendPresetForCopy = trend && trend !== "none" ? (({
         "tactile-rebellion": "More expressive and human — use imperfect, authentic, conversational language",
