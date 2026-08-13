@@ -87,6 +87,7 @@ type Campaign = {
   name: string;
   description: string | null;
   post_count: number;
+  priority?: number | null;
   content_category: string | null;
   created_at: string;
 };
