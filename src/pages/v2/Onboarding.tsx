@@ -512,8 +512,29 @@ const Onboarding = () => {
                     What does your brand <em>look like?</em>
                   </h1>
                   <p className="text-muted-foreground mt-3">
-                    Logo and three colours. You can refine everything later.
+                    Pick your three colours first, then your logo. Brandie factors your palette into every logo it designs.
                   </p>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Colours</p>
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    Tap a swatch to open the picker, drag to fine-tune, or paste a hex code.
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {([
+                      ["Primary", primary, setPrimary],
+                      ["Surface", secondary, setSecondary],
+                      ["Accent", accent, setAccent],
+                    ] as const).map(([label, value, setter]) => (
+                      <ColorPickerField
+                        key={label}
+                        label={label}
+                        value={value}
+                        onChange={setter}
+                      />
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -559,7 +580,15 @@ const Onboarding = () => {
                     onOpenChange={setLogoDesignerOpen}
                     brandId={null}
                     brandName={name}
-                    brandContext={{ name, tagline: "", description, vibe: playbook.defaultVibe }}
+                    brandContext={{
+                      name,
+                      tagline: "",
+                      description,
+                      vibe: playbook.defaultVibe,
+                      primary_colors: [primary],
+                      secondary_colors: [secondary],
+                      accent_colors: [accent],
+                    }}
                     onLogoCreated={(imageData) => {
                       setLogoPreview(imageData);
                       setLogoFile(null);
@@ -567,26 +596,6 @@ const Onboarding = () => {
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Colours</p>
-                  <p className="text-xs text-muted-foreground -mt-1">
-                    Tap a swatch to open the picker, drag to fine-tune, or paste a hex code.
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {([
-                      ["Primary", primary, setPrimary],
-                      ["Surface", secondary, setSecondary],
-                      ["Accent", accent, setAccent],
-                    ] as const).map(([label, value, setter]) => (
-                      <ColorPickerField
-                        key={label}
-                        label={label}
-                        value={value}
-                        onChange={setter}
-                      />
-                    ))}
-                  </div>
-                </div>
 
 
                 <div className="rounded-2xl border border-border bg-secondary/40 p-5">

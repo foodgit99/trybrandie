@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, RotateCcw, Check, Download } from "lucide-react";
+import { Loader2, Sparkles, RotateCcw, Check, Download, Upload, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const FUN_MESSAGES = [
@@ -40,9 +40,18 @@ interface LogoDesignerDialogProps {
   brandId: string | null;
   brandName?: string;
   /** Pass brand context directly (for onboarding when brand doesn't exist yet) */
-  brandContext?: { name?: string; tagline?: string; description?: string; vibe?: string };
+  brandContext?: {
+    name?: string;
+    tagline?: string;
+    description?: string;
+    vibe?: string;
+    primary_colors?: string[];
+    secondary_colors?: string[];
+    accent_colors?: string[];
+  };
   onLogoCreated: (logoUrl: string) => void;
 }
+
 function GeneratingState() {
   const [msgIndex, setMsgIndex] = useState(0);
 
@@ -119,6 +128,18 @@ export default function LogoDesignerDialog({
   const [saving, setSaving] = useState(false);
   const [logoGenUsed, setLogoGenUsed] = useState<number | null>(null);
 
+  const [sketch, setSketch] = useState<string | null>(null);
+  const [sketchName, setSketchName] = useState<string>("");
+  const [brandPalette, setBrandPalette] = useState<string[]>([]);
+
+  const paletteColors = brandId
+    ? brandPalette
+    : [
+        ...(brandContext?.primary_colors || []),
+        ...(brandContext?.secondary_colors || []),
+        ...(brandContext?.accent_colors || []),
+      ].filter(Boolean);
+
   useEffect(() => {
     if (!open || !user) return;
     supabase
@@ -131,6 +152,44 @@ export default function LogoDesignerDialog({
       });
   }, [open, user]);
 
+  useEffect(() => {
+    if (!open || !brandId) return;
+    supabase
+      .from("brands")
+      .select("primary_colors, secondary_colors, accent_colors")
+      .eq("id", brandId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setBrandPalette(
+          [
+            ...(data?.primary_colors || []),
+            ...(data?.secondary_colors || []),
+            ...(data?.accent_colors || []),
+          ].filter(Boolean) as string[],
+        );
+      });
+  }, [open, brandId]);
+
+
+  const handleSketchSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Unsupported file", description: "Please upload a PNG or JPG image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Please upload a sketch under 6MB.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSketch(String(reader.result));
+      setSketchName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleGenerate = async () => {
     if (!brandId && !brandContext) {
       toast({ title: "No brand info", description: "Please add your brand name first.", variant: "destructive" });
@@ -140,6 +199,7 @@ export default function LogoDesignerDialog({
     setGeneratedImage(null);
     try {
       const body: Record<string, unknown> = { style, visual_feel: feel, notes };
+      if (sketch) body.sketch_image = sketch;
       if (brandId) {
         body.brand_id = brandId;
       } else {
@@ -167,6 +227,7 @@ export default function LogoDesignerDialog({
       setGenerating(false);
     }
   };
+
 
   const handleUseLogo = async () => {
     if (!generatedImage) return;
@@ -215,12 +276,15 @@ export default function LogoDesignerDialog({
     setStyle("wordmark");
     setFeel("Minimal");
     setNotes("");
+    setSketch(null);
+    setSketchName("");
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+
         <DialogHeader>
           <DialogTitle className="text-lg">Create a Logo with AI</DialogTitle>
           <DialogDescription>
@@ -272,6 +336,54 @@ export default function LogoDesignerDialog({
               </div>
             </div>
 
+            {/* Sketch upload */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Sketch or reference <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              {sketch ? (
+                <div className="flex items-center gap-3 rounded-xl border border-border p-2">
+                  <img src={sketch} alt="Uploaded sketch" className="h-14 w-14 rounded-lg object-contain bg-secondary/40" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs truncate">{sketchName || "sketch.png"}</p>
+                    <p className="text-[11px] text-muted-foreground">Brandie will follow this closely.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSketch(null); setSketchName(""); }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground"
+                    aria-label="Remove sketch"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 h-20 rounded-xl border-2 border-dashed border-border hover:border-foreground/40 transition-colors cursor-pointer text-sm text-muted-foreground">
+                  <Upload className="h-4 w-4" />
+                  Upload a sketch of your idea
+                  <input type="file" accept="image/*" className="hidden" onChange={handleSketchSelect} />
+                </label>
+              )}
+            </div>
+
+            {/* Brand colours in play */}
+            {paletteColors.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Brand colours in play</label>
+                <div className="flex items-center gap-2">
+                  {paletteColors.map((c) => (
+                    <span
+                      key={c}
+                      className="h-7 w-7 rounded-full border border-border"
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                  <span className="text-xs text-muted-foreground">Pulled from your brand palette.</span>
+                </div>
+              </div>
+            )}
+
             {/* Notes */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Additional Notes <span className="text-muted-foreground font-normal">(optional)</span></label>
@@ -282,6 +394,7 @@ export default function LogoDesignerDialog({
                 maxLength={200}
               />
             </div>
+
 
             {logoGenUsed !== null && logoGenUsed > 0 && (
               <p className="text-xs text-muted-foreground text-center">This will use 1 credit from your balance.</p>

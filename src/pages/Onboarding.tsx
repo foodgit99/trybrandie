@@ -26,7 +26,7 @@ type BrandData = {
   accent: string;
 };
 
-const PHASE_ORDER: Phase[] = ["playbook", "boot", "essentials", "logo", "palette"];
+const PHASE_ORDER: Phase[] = ["playbook", "boot", "essentials", "palette", "logo"];
 
 const Onboarding = () => {
   const [phase, setPhase] = useState<Phase>("playbook");
@@ -138,7 +138,7 @@ const Onboarding = () => {
   };
 
   const phaseIndex = PHASE_ORDER.indexOf(phase);
-  const inputPhases: Phase[] = ["essentials", "logo", "palette"];
+  const inputPhases: Phase[] = ["essentials", "palette", "logo"];
 
   const goNext = () => {
     if (phase === "essentials" && !data.name.trim()) return;
@@ -505,6 +505,9 @@ const Onboarding = () => {
                     tagline: "",
                     description: data.description,
                     vibe: playbook.defaultVibe,
+                    primary_colors: [data.primary],
+                    secondary_colors: [data.secondary],
+                    accent_colors: [data.accent],
                   }}
                   onLogoCreated={(imageData) => {
                     update("logoPreview", imageData);
@@ -561,7 +564,7 @@ const Onboarding = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
 
-          {phase === "palette" ? (
+          {phase === "logo" ? (
             <Button onClick={handleFinish} disabled={saving} className="gap-2 h-11 px-6 rounded-xl">
               {saving ? (
                 <>
