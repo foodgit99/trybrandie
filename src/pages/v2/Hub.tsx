@@ -89,7 +89,9 @@ type Campaign = {
   post_count: number;
   priority?: number | null;
   content_category: string | null;
+  is_active?: boolean | null;
   created_at: string;
+
 };
 
 type Blueprint = {
