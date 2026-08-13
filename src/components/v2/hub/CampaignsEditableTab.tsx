@@ -401,7 +401,15 @@ function CampaignEditorDialog({
     }
     setSaving(false);
     if (error) {
-      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      const raw = String(error.message || "");
+      const belowAssigned = raw.includes("CAMPAIGN_QUOTA_BELOW_ASSIGNED");
+      toast({
+        title: belowAssigned ? "Quota is below the assigned posts" : "Couldn't save",
+        description: belowAssigned
+          ? "Unassign some posts first, or raise the quota to match what's already assigned."
+          : raw,
+        variant: "destructive",
+      });
       return;
     }
 
