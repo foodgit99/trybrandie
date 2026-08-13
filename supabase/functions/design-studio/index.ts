@@ -1708,6 +1708,8 @@ TREND RULES:
               return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
             });
             productImageUrls = sorted.flatMap((p: any) => [p.image_url, ...(p.gallery_images || [])]).filter(Boolean);
+            productLabels = sorted.map((p: any) => String(p.label || "").trim()).filter((l: string) => l.length >= 3);
+            hasPinnedProduct = !!pinnedProductId;
             const catalogueLines = sorted.map((p: any, i: number) => {
               const parts = [`${i + 1}. ${p.is_featured ? "⭐ " : ""}"${p.label || "Untitled"}"`];
               const meta = [p.product_type || "physical"];
