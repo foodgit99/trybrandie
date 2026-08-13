@@ -53,15 +53,32 @@ export async function fetchCampaignContext(
   admin: any,
   contentIdeaId?: string | null,
   explicitCampaignId?: string | null,
+  explicit?: {
+    funnel_stage?: unknown;
+    campaign_rationale?: unknown;
+    funnel_rationale?: unknown;
+    strategic_arc?: unknown;
+  } | null,
 ): Promise<CampaignContext> {
   try {
     let campaignId: string | null = explicitCampaignId || null;
-    let stage: FunnelStageId | null = null;
-    let campaignRationale: string | null = null;
-    let funnelRationale: string | null = null;
-    let strategicArc: string | null = null;
+    // Caller-supplied context wins: the planner/autopilot already knows these,
+    // so the renderer should not depend on a DB read to see them.
+    let stage: FunnelStageId | null = normaliseStage(explicit?.funnel_stage);
+    let campaignRationale: string | null =
+      typeof explicit?.campaign_rationale === "string" && explicit.campaign_rationale.trim()
+        ? explicit.campaign_rationale.trim()
+        : null;
+    let funnelRationale: string | null =
+      typeof explicit?.funnel_rationale === "string" && explicit.funnel_rationale.trim()
+        ? explicit.funnel_rationale.trim()
+        : null;
+    let strategicArc: string | null =
+      typeof explicit?.strategic_arc === "string" && explicit.strategic_arc.trim()
+        ? explicit.strategic_arc.trim()
+        : null;
 
-    if (contentIdeaId) {
+    if (contentIdeaId && (!campaignId || !stage || !campaignRationale)) {
       const { data: idea } = await admin
         .from("content_ideas")
         .select("campaign_id, campaign_rationale, funnel_stage, funnel_rationale, strategic_arc")
@@ -69,12 +86,13 @@ export async function fetchCampaignContext(
         .maybeSingle();
       if (idea) {
         campaignId = campaignId || (idea as any).campaign_id || null;
-        stage = normaliseStage((idea as any).funnel_stage);
-        campaignRationale = (idea as any).campaign_rationale || null;
-        funnelRationale = (idea as any).funnel_rationale || null;
-        strategicArc = (idea as any).strategic_arc || null;
+        stage = stage || normaliseStage((idea as any).funnel_stage);
+        campaignRationale = campaignRationale || (idea as any).campaign_rationale || null;
+        funnelRationale = funnelRationale || (idea as any).funnel_rationale || null;
+        strategicArc = strategicArc || (idea as any).strategic_arc || null;
       }
     }
+
 
     let name: string | null = null;
     let category: string | null = null;
