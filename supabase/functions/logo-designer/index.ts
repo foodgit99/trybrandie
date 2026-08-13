@@ -155,12 +155,40 @@ serve(async (req) => {
       mascot: "a mascot logo (a character or illustrated figure representing the brand)",
     };
 
+    // Parse an optional sketch (data URL or raw base64) supplied by the user.
+    let sketchBlob: Blob | null = null;
+    if (typeof sketch_image === "string" && sketch_image.length > 100) {
+      try {
+        const m = sketch_image.match(/^data:(image\/[a-zA-Z+]+);base64,(.*)$/);
+        const mime = m ? m[1] : "image/png";
+        const b64 = m ? m[2] : sketch_image;
+        const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        if (bin.byteLength > 0 && bin.byteLength < 8 * 1024 * 1024) {
+          sketchBlob = new Blob([bin], { type: mime });
+        }
+      } catch (err) {
+        console.log("logo-designer: invalid sketch payload", err instanceof Error ? err.message : err);
+      }
+    }
+
+    const sketchDirective = sketchBlob
+      ? `
+SKETCH REFERENCE (HIGHEST PRIORITY):
+The attached image is the user's own sketch of the logo they want. It is the single source of truth for the concept.
+- Reproduce the sketch's exact composition, shapes, proportions, icon idea and layout. Do NOT invent a different concept.
+- Clean it up into a crisp, professional, production-ready vector-style logo: straighten lines, balance curves, refine spacing and typography.
+- Keep every distinctive element the user drew. Do not add or remove elements.
+- Recolour it using the brand colours listed below (the sketch's own pencil/ink colours are irrelevant).
+- If the sketch contains handwritten brand text, set it in a typeface that matches the sketch's letterforms and the brand vibe.
+`
+      : "";
+
     const prompt = `Design a professional, high-quality logo on a clean white background.
 
 Logo type: ${styleMap[style] || styleMap.wordmark}
 Visual feel: ${visual_feel || "Minimal"}
 ${notes ? `Additional preferences: ${notes}` : ""}
-
+${sketchDirective}
 Brand context:
 ${brandContext}
 
@@ -168,9 +196,9 @@ Requirements:
 - Clean, scalable vector-style design
 - Professional quality suitable for business use
 - The logo should feel aligned with the brand's personality and vibe
-- Use brand colors if provided, otherwise choose colors that match the brand feel
+- Use the brand colours listed above as the logo's palette; only introduce neutrals (black, white, grey) as support
 - White or transparent background
-- Modern and memorable design`;
+- Modern and memorable design${sketchBlob ? "\n- Fidelity to the user's sketch outranks every other stylistic preference" : ""}`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -180,20 +208,36 @@ Requirements:
       });
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-image-2",
-        prompt,
-        size: "1024x1024",
-        quality: "low",
-        n: 1,
-      }),
-    });
+    let aiResponse: Response;
+    if (sketchBlob) {
+      const form = new FormData();
+      form.append("model", "openai/gpt-image-2");
+      form.append("prompt", prompt);
+      form.append("image", sketchBlob, "sketch.png");
+      form.append("size", "1024x1024");
+      form.append("quality", "low");
+      aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/images/edits", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}` },
+        body: form,
+      });
+    } else {
+      aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-image-2",
+          prompt,
+          size: "1024x1024",
+          quality: "low",
+          n: 1,
+        }),
+      });
+    }
+
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
