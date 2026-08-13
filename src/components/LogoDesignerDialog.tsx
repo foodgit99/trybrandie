@@ -229,8 +229,10 @@ export default function LogoDesignerDialog({
       }
       if (!data?.image) throw new Error("No image returned");
       setGeneratedImage(data.image);
+      setFidelity(data.fidelity ?? null);
       // Update local credit state
       setLogoGenUsed((prev) => (prev ?? 0) + 1);
+
     } catch (e: any) {
       toast({ title: "Generation failed", description: e.message || "Please try again.", variant: "destructive" });
     } finally {
