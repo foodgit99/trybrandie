@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, RotateCcw, Check, Download } from "lucide-react";
+import { Loader2, Sparkles, RotateCcw, Check, Download, Upload, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const FUN_MESSAGES = [
