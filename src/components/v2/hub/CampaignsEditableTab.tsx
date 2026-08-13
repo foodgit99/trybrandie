@@ -311,9 +311,49 @@ function CampaignEditorDialog({
       toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
       return;
     }
+
+    // Mid-cycle replan: if quota or priority changed on an existing campaign, ask the
+    // weekly planner to rebalance the remaining days of this week.
+    const quotaChanged = isEdit && editing
+      ? Math.max(1, editing.post_count || 1) !== payload.post_count
+      : false;
+    const priorityChanged = isEdit && editing
+      ? normalisePriority(editing.priority) !== priority
+      : false;
+
     toast({ title: isEdit ? "Campaign updated" : "Campaign created" });
     onSaved();
     onClose();
+
+    if (quotaChanged || priorityChanged) {
+      const reasons = [
+        quotaChanged ? `quota changed to ${payload.post_count} posts` : null,
+        priorityChanged ? `priority changed to ${priorityMeta(priority).label}` : null,
+      ].filter(Boolean).join(" and ");
+      toast({
+        title: "Replanning this week…",
+        description: `Brandie is rebalancing the remaining days (${reasons}).`,
+      });
+      try {
+        const { error: replanErr } = await supabase.functions.invoke("brand-engine", {
+          body: {
+            action: "generate_weekly_ideas",
+            brand_id: brand.id,
+            replan_from_today: true,
+            replan_reason: `Campaign "${payload.name}" ${reasons}.`,
+          },
+        });
+        if (replanErr) throw replanErr;
+        toast({ title: "Week replanned", description: "Review the updated arc in the Blueprint." });
+        onSaved();
+      } catch (e: any) {
+        toast({
+          title: "Couldn't replan the week",
+          description: e?.message || "Your campaign was saved — try replanning from the Blueprint.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   return (

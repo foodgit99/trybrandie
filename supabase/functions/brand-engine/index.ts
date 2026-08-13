@@ -125,7 +125,7 @@ serve(async (req) => {
 
     // Read body once so we can use user_id from it for service calls
     const body = await req.json().catch(() => ({}));
-    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check, user_id: bodyUserId, target_days } = body || {};
+    const { action, brand_id, pillar_ids, series_ids, week_offset, skip_credit_check, user_id: bodyUserId, target_days, replan_from_today, replan_reason } = body || {};
 
     let userId: string;
     let supabase: ReturnType<typeof createClient>;
@@ -826,6 +826,19 @@ Each campaign should target a specific content category. Vary categories across 
         return { day: d, date: date.toISOString().split("T")[0] };
       });
 
+      // Mid-cycle replan: only touch today onward so already-shipped/past days stay put.
+      const todayStr = new Date().toISOString().split("T")[0];
+      const isMidCycleReplan = !!replan_from_today && offset === 0;
+      const planDates = isMidCycleReplan
+        ? weekDates.filter((d) => d.date >= todayStr)
+        : weekDates;
+      const planDayset = new Set(planDates.map((d) => d.day));
+      const replanContext = isMidCycleReplan
+        ? `\n\nMID-CYCLE REPLAN: Only plan the REMAINING days of this week (${planDates.map((d) => d.day).join(", ")}). Generate exactly ${Math.max(1, planDates.length)} ideas — one per remaining day. Reason for replanning: ${typeof replan_reason === "string" && replan_reason.trim() ? replan_reason.trim().slice(0, 240) : "campaign quotas or priorities changed"}. Rebalance the remaining days so the updated campaign quotas and priorities are honoured.`
+        : "";
+
+
+
       // --- Holiday detection (live Firecrawl feed, brand-region aware) ---
       const brandRegion = await resolveBrandRegion(supabase, brand_id);
       const weekHolidays = await getWeekHolidaysAsync(supabase, monday, brandRegion);
@@ -911,7 +924,7 @@ Each idea MUST be assigned a funnel_stage from: ${STAGE_IDS.join(", ")}. The wee
 
 CRITICAL — CAMPAIGN QUOTAS:
 You will be given a list of active campaigns with their remaining slots. Any campaign with remaining_slots > 0 should receive at least one idea this week (up to its remaining slots — never exceed). Set campaign_id to the campaign's exact id (uuid), or null when the idea is not tied to a campaign. Include a one-line campaign_rationale when you assign a campaign_id.`,
-        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nFUNNEL STAGES (with last-28-day coverage — favour under-served):\n${funnelContext}\nUNDER-SERVED STAGES TO PRIORITISE: ${underServedStages.join(", ")}\n\nCAMPAIGNS (priority + quota tracking — spend the week's ideas on HIGH priority campaigns with open slots first, then NORMAL, then LOW):\n${campaignContext}${urgentCampaigns.length > 0 ? `\nCAMPAIGNS WITH OPEN SLOTS (must be covered this week): ${urgentCampaigns.map((c: any) => `${c.name} [${c._remaining} left, ${PRIORITY_LABEL[c._prio]}]`).join(", ")}` : ""}${highPriorityCampaigns.length > 0 ? `\nHIGH PRIORITY — FILL THESE BEFORE ANYTHING ELSE: ${highPriorityCampaigns.map((c: any) => `${c.name} [${c._remaining} left]`).join(", ")}` : ""}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
+        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nFUNNEL STAGES (with last-28-day coverage — favour under-served):\n${funnelContext}\nUNDER-SERVED STAGES TO PRIORITISE: ${underServedStages.join(", ")}\n\nCAMPAIGNS (priority + quota tracking — spend the week's ideas on HIGH priority campaigns with open slots first, then NORMAL, then LOW):\n${campaignContext}${urgentCampaigns.length > 0 ? `\nCAMPAIGNS WITH OPEN SLOTS (must be covered this week): ${urgentCampaigns.map((c: any) => `${c.name} [${c._remaining} left, ${PRIORITY_LABEL[c._prio]}]`).join(", ")}` : ""}${highPriorityCampaigns.length > 0 ? `\nHIGH PRIORITY — FILL THESE BEFORE ANYTHING ELSE: ${highPriorityCampaigns.map((c: any) => `${c.name} [${c._remaining} left]`).join(", ")}` : ""}\n\nWEEK DATES: ${planDates.map(d => `${d.day}: ${d.date}`).join(", ")}${replanContext}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
         tool: {
           name: "create_weekly_ideas",
           description: "Create post ideas for the week",
@@ -955,8 +968,8 @@ You will be given a list of active campaigns with their remaining slots. Any cam
 
       if (result.error) return errorResponse(result);
 
-      // Delete existing suggested ideas for this week
-      const weekStart = weekDates[0].date;
+      // Delete existing suggested ideas for this week (mid-cycle replan: today onward only)
+      const weekStart = planDates[0]?.date || weekDates[0].date;
       const weekEnd = weekDates[6].date;
       await serviceClient.from("content_ideas").delete()
         .eq("brand_id", brand_id)
@@ -968,7 +981,7 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       const pillarMap = new Map(pillars.map((p: any) => [p.name.toLowerCase(), p.id]));
       const seriesMap = new Map(series.map((s: any) => [s.name.toLowerCase(), s.id]));
       const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
-      const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
+      const dateMap = new Map(planDates.map((d) => [d.day, d.date]));
       const dayIndex = new Map(weekDates.map((d, i) => [d.day, i])); // monday=0..sunday=6
 
       // Auto-enrol into autopilot if brand has autopilot enabled
@@ -997,7 +1010,10 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       const campaignByIdMap = new Map(campaignsWithQuota.map((c: any) => [c.id, c]));
       let driftCount = 0;
 
-      const ideasToInsert = await Promise.all(result.data.ideas.map(async (idea: any) => {
+      const plannedIdeas = isMidCycleReplan
+        ? (result.data.ideas as any[]).filter((i: any) => planDayset.has(String(i?.day || "").toLowerCase()))
+        : (result.data.ideas as any[]);
+      const ideasToInsert = await Promise.all(plannedIdeas.map(async (idea: any) => {
         const format = forceCarouselFormat(idea.content_format, idea.content_category, idea.pillar_name);
         const slides = format === "carousel" ? clampSlideCount(idea.slide_count) : null;
         const dIdx = dayIndex.get(idea.day);
@@ -1093,6 +1109,9 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       });
 
 
+      if (ideasToInsert.length === 0) {
+        return jsonResponse({ ideas: [], replanned: isMidCycleReplan });
+      }
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
 
