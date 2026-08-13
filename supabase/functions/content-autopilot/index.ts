@@ -533,6 +533,11 @@ async function enqueueIdea(
     autopilot_notify_idea_id: idea.id,
     // Campaign layer → renderer: lets the design adapt to the campaign it belongs to.
     ...(idea.campaign_id ? { campaign_id: idea.campaign_id } : {}),
+    ...(idea.funnel_stage ? { funnel_stage: idea.funnel_stage } : {}),
+    ...(idea.campaign_rationale ? { campaign_rationale: idea.campaign_rationale } : {}),
+    ...(idea.funnel_rationale ? { funnel_rationale: idea.funnel_rationale } : {}),
+    ...(idea.strategic_arc ? { strategic_arc: idea.strategic_arc } : {}),
+
     ...(isCarousel ? { slide_count: slideCount } : { candidate_count: 2 }),
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
