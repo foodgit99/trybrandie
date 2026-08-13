@@ -572,7 +572,7 @@ function CampaignEditorDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving || !name.trim()}>
+          <Button onClick={save} disabled={saving || !validation.success}>
             {saving ? "Saving…" : isEdit ? "Save changes" : "Create campaign"}
           </Button>
         </DialogFooter>
