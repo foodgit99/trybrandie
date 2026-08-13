@@ -125,8 +125,16 @@ export default function LogoDesignerDialog({
   const [notes, setNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [fidelity, setFidelity] = useState<{
+    sketch_fidelity: number;
+    colour_fidelity: number;
+    overall: number;
+    deviations: string[];
+    verdict: "pass" | "warn" | "fail";
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [logoGenUsed, setLogoGenUsed] = useState<number | null>(null);
+
 
   const [sketch, setSketch] = useState<string | null>(null);
   const [sketchName, setSketchName] = useState<string>("");
