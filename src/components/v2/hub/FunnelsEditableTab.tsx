@@ -131,10 +131,14 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
           const pct = totals ? Math.round((bucket.length / totals) * 100) : 0;
           const Icon = s.icon;
           return (
-            <div
+            <button
               key={s.id}
+              type="button"
+              onClick={() => setFocusedStage(s.id)}
+              aria-label={`View and edit ${s.label} stage`}
               className={cn(
-                "relative overflow-hidden rounded-2xl border border-border p-4 bg-gradient-to-br",
+                "relative overflow-hidden rounded-2xl border border-border p-4 bg-gradient-to-br text-left",
+                "transition-transform hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 s.accent,
               )}
             >
@@ -147,10 +151,12 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
                 <div className="text-sm font-medium mt-0.5">{s.label}</div>
                 <div className="text-[11px] opacity-80 mt-1">{s.blurb}</div>
               </div>
-            </div>
+              <Pencil className="absolute bottom-3 right-3 h-3.5 w-3.5 opacity-50" />
+            </button>
           );
         })}
       </div>
+
 
       {/* Stage lists */}
       {stages.map((s, stageIdx) => {
