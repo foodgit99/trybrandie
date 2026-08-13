@@ -126,13 +126,21 @@ serve(async (req) => {
       ].filter(Boolean).join("\n");
     } else if (passedContext) {
       // Use passed context (e.g. during onboarding before brand is saved)
+      const ctxColors = [
+        passedContext.primary_colors?.length ? `Primary colors: ${passedContext.primary_colors.join(", ")}` : "",
+        passedContext.secondary_colors?.length ? `Secondary/surface colors: ${passedContext.secondary_colors.join(", ")}` : "",
+        passedContext.accent_colors?.length ? `Accent colors: ${passedContext.accent_colors.join(", ")}` : "",
+      ].filter(Boolean).join(". ");
+
       brandContext = [
         passedContext.name ? `Brand name: "${passedContext.name}"` : "",
         passedContext.tagline ? `Tagline: "${passedContext.tagline}"` : "",
         passedContext.description ? `Description: ${passedContext.description}` : "",
         passedContext.vibe ? `Brand vibe: ${passedContext.vibe}` : "",
+        ctxColors,
       ].filter(Boolean).join("\n");
     } else {
+
       return new Response(JSON.stringify({ error: "brand_id or brand_context required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
