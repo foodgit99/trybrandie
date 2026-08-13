@@ -3365,6 +3365,13 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+      // Campaign / funnel-stage creative context for the whole carousel.
+      const carouselCampaignContext = (await fetchCampaignContext(
+        adminClient,
+        contentIdeaId,
+        _parsedReqBody?.campaign_id ?? null,
+      )).promptText;
+
       const numSlides = Math.min(10, Math.max(2, slide_count || 5));
       // Phase 0: hard render ceiling — one render per slide plus 2 spare
       // attempts for the whole job (cover retry + one slide retry).
