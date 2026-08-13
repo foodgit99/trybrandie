@@ -5,6 +5,7 @@ import {
   ArrowRight,
   ArrowUp,
   Check,
+  ChevronDown,
   MoreVertical,
   MoveRight,
   Pencil,
@@ -73,6 +74,7 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
   const { toast } = useToast();
   const qc = useQueryClient();
   const [editStagesOpen, setEditStagesOpen] = useState(false);
+  const [openStages, setOpenStages] = useState<Record<string, boolean>>({});
 
   const stageBuckets = useMemo(() => {
     const map: Record<FunnelStageId, FunnelIdea[]> = {};
