@@ -205,6 +205,8 @@ export default function LogoDesignerDialog({
     }
     setGenerating(true);
     setGeneratedImage(null);
+    setFidelity(null);
+
     try {
       const body: Record<string, unknown> = { style, visual_feel: feel, notes };
       if (sketch) body.sketch_image = sketch;
