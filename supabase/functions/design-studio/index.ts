@@ -3029,7 +3029,8 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           hasPinnedProduct ||
           namesAProduct ||
           productKeywords.test(userPrompt) ||
-          productKeywords.test(designPrompt);
+          productKeywords.test(designPrompt)
+        );
         const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
