@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -47,6 +48,83 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import IdeaThumb from "@/components/v2/IdeaThumb";
 import { CONTENT_CATEGORIES, getCategoryMeta } from "@/lib/contentCategories";
+
+/* -------------------- Campaign form validation -------------------- */
+
+export const CAMPAIGN_QUOTA_MIN = 1;
+export const CAMPAIGN_QUOTA_MAX = 30;
+
+/**
+ * Builds a zod schema for the campaign editor. `minQuota` is the number of posts
+ * already assigned to the campaign — the quota can never drop below it, otherwise
+ * the planner would be over-committed the moment it saves.
+ */
+const campaignSchema = (minQuota: number) =>
+  z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, { message: "Give the campaign a name." })
+      .max(120, { message: "Name must be under 120 characters." }),
+    description: z
+      .string()
+      .trim()
+      .max(500, { message: "Description must be under 500 characters." }),
+    post_count: z
+      .number({ invalid_type_error: "Post quota must be a whole number." })
+      .int({ message: "Post quota must be a whole number." })
+      .min(CAMPAIGN_QUOTA_MIN, { message: `Post quota must be at least ${CAMPAIGN_QUOTA_MIN}.` })
+      .max(CAMPAIGN_QUOTA_MAX, { message: `Post quota can't exceed ${CAMPAIGN_QUOTA_MAX}.` })
+      .refine((v) => v >= minQuota, {
+        message: `You already have ${minQuota} post${minQuota === 1 ? "" : "s"} assigned — unassign posts first or keep the quota at ${minQuota} or above.`,
+      }),
+    priority: z
+      .number()
+      .int()
+      .min(1, { message: "Pick a priority level." })
+      .max(3, { message: "Pick a priority level." }),
+  });
+
+type CampaignFormValues = {
+  name: string;
+  description: string;
+  post_count: number;
+  priority: number;
+};
+
+function validateCampaignForm(
+  raw: { name: string; description: string; postCount: string; priority: number },
+  minQuota: number,
+): { success: boolean; data: CampaignFormValues; errors: Record<string, string> } {
+  const trimmed = raw.postCount.trim();
+  const parsedQuota = /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  const result = campaignSchema(minQuota).safeParse({
+    name: raw.name,
+    description: raw.description,
+    post_count: parsedQuota,
+    priority: raw.priority,
+  });
+
+  const fallback: CampaignFormValues = {
+    name: raw.name.trim(),
+    description: raw.description.trim(),
+    post_count: Number.isFinite(parsedQuota)
+      ? Math.min(CAMPAIGN_QUOTA_MAX, Math.max(minQuota, parsedQuota))
+      : Math.max(minQuota, CAMPAIGN_QUOTA_MIN),
+    priority: raw.priority,
+  };
+
+  if (result.success) {
+    return { success: true, data: result.data as CampaignFormValues, errors: {} };
+  }
+  const errors: Record<string, string> = {};
+  for (const issue of result.error.issues) {
+    const key = String(issue.path[0] ?? "form");
+    if (!errors[key]) errors[key] = issue.message;
+  }
+  if (!trimmed) errors.post_count = "Enter a post quota.";
+  return { success: false, data: fallback, errors };
+}
 
 export type CampaignIdea = {
   id: string;
@@ -202,6 +280,7 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
         onClose={() => setEditorOpen(false)}
         brand={brand}
         editing={editing}
+        assignedCount={editing ? ideas.filter((i) => i.campaign_id === editing.id).length : 0}
         onSaved={invalidate}
       />
 
@@ -256,12 +335,14 @@ function CampaignEditorDialog({
   onClose,
   brand,
   editing,
+  assignedCount = 0,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   brand: Brand;
   editing: CampaignRow | null;
+  assignedCount?: number;
   onSaved: () => void;
 }) {
   const { user } = useAuth();
@@ -283,19 +364,31 @@ function CampaignEditorDialog({
   }, [open, editing]);
 
   const isEdit = !!editing;
+  const minQuota = isEdit ? Math.max(1, assignedCount) : 1;
+
+  // Live validation of the whole form (client-side guardrails).
+  const validation = useMemo(
+    () => validateCampaignForm({ name, description, postCount, priority }, minQuota),
+    [name, description, postCount, priority, minQuota],
+  );
+  const quotaError = validation.errors.post_count;
 
   const save = async () => {
-    if (!name.trim()) {
-      toast({ title: "Name required", variant: "destructive" });
+    if (!validation.success) {
+      toast({
+        title: "Check the campaign details",
+        description: Object.values(validation.errors)[0],
+        variant: "destructive",
+      });
       return;
     }
     setSaving(true);
     const payload = {
-      name: name.trim(),
-      description: description.trim(),
+      name: validation.data.name,
+      description: validation.data.description,
       content_category: category === "none" ? null : category,
-      post_count: Math.min(30, Math.max(1, parseInt(postCount, 10) || 1)),
-      priority,
+      post_count: validation.data.post_count,
+      priority: validation.data.priority,
     };
     let error: any = null;
     if (isEdit && editing) {
@@ -308,7 +401,15 @@ function CampaignEditorDialog({
     }
     setSaving(false);
     if (error) {
-      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      const raw = String(error.message || "");
+      const belowAssigned = raw.includes("CAMPAIGN_QUOTA_BELOW_ASSIGNED");
+      toast({
+        title: belowAssigned ? "Quota is below the assigned posts" : "Couldn't save",
+        description: belowAssigned
+          ? "Unassign some posts first, or raise the quota to match what's already assigned."
+          : raw,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -375,8 +476,13 @@ function CampaignEditorDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="Summer Launch 2026"
               maxLength={120}
+              aria-invalid={!!validation.errors.name}
+              className={cn(validation.errors.name && name.length > 0 && "border-destructive")}
               autoFocus
             />
+            {validation.errors.name && name.length > 0 && (
+              <p className="text-[11px] text-destructive">{validation.errors.name}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-desc" className="text-xs">Description</Label>
@@ -395,13 +501,30 @@ function CampaignEditorDialog({
               <Input
                 id="c-quota"
                 type="number"
-                min={1}
-                max={30}
+                inputMode="numeric"
+                min={minQuota}
+                max={CAMPAIGN_QUOTA_MAX}
+                step={1}
                 value={postCount}
-                onChange={(e) => setPostCount(e.target.value)}
+                aria-invalid={!!quotaError}
+                aria-describedby="c-quota-hint"
+                className={cn(quotaError && "border-destructive focus-visible:ring-destructive")}
+                onChange={(e) => setPostCount(e.target.value.replace(/[^\d]/g, ""))}
+                onBlur={() => {
+                  const n = parseInt(postCount, 10);
+                  if (!Number.isFinite(n)) return setPostCount(String(minQuota));
+                  setPostCount(String(Math.min(CAMPAIGN_QUOTA_MAX, Math.max(minQuota, n))));
+                }}
               />
-              <p className="text-[11px] text-muted-foreground">
-                How many posts this campaign should receive in total.
+              <p
+                id="c-quota-hint"
+                className={cn("text-[11px]", quotaError ? "text-destructive" : "text-muted-foreground")}
+              >
+                {quotaError
+                  ? quotaError
+                  : isEdit && assignedCount > 0
+                    ? `${assignedCount} already assigned — quota can't go below ${minQuota} (max ${CAMPAIGN_QUOTA_MAX}).`
+                    : `How many posts this campaign should receive in total (${CAMPAIGN_QUOTA_MIN}–${CAMPAIGN_QUOTA_MAX}).`}
               </p>
             </div>
             <div className="space-y-1.5">
@@ -462,7 +585,7 @@ function CampaignEditorDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving || !name.trim()}>
+          <Button onClick={save} disabled={saving || !validation.success}>
             {saving ? "Saving…" : isEdit ? "Save changes" : "Create campaign"}
           </Button>
         </DialogFooter>
