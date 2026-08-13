@@ -731,6 +731,24 @@ async function runFullHandler(req: Request): Promise<Response> {
     const { messages } = _parsedReqBody;
     const { brand, action, canvas_size, previous_prompt, previous_image_url, user_image_url, audience_id, trend, trend_intensity, slide_count } = _parsedReqBody;
     const contentIdeaId: string | null = _parsedReqBody?.content_idea_id ?? null;
+    // "Use product images" selector (Studio / Post UI).
+    //  auto     — Brandie decides (default, legacy behaviour)
+    //  selected — only the product ids in product_ids may be referenced
+    //  off      — never attach product photos
+    const productImageMode: "auto" | "selected" | "off" =
+      _parsedReqBody?.product_image_mode === "off"
+        ? "off"
+        : _parsedReqBody?.product_image_mode === "selected"
+          ? "selected"
+          : "auto";
+    const selectedProductIds: string[] = Array.isArray(_parsedReqBody?.product_ids)
+      ? (_parsedReqBody.product_ids as unknown[]).filter((v): v is string => typeof v === "string" && v.length > 0)
+      : [];
+    const productImagesDisabled = productImageMode === "off" ||
+      (productImageMode === "selected" && selectedProductIds.length === 0);
+    const productIdFilter = productImageMode === "selected" && selectedProductIds.length > 0
+      ? new Set(selectedProductIds)
+      : null;
     // Best-of-N quality selection. Phase 0: this is now an UPPER BOUND, not a
     // fixed count — candidate B only renders if candidate A scores below the
     // quality gate. Default 1 (Studio path); Blueprint/autopilot sends 2.
