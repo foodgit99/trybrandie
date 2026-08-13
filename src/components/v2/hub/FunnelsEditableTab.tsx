@@ -254,7 +254,10 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
                 })}
               </ul>
             )}
+            </div>
+            )}
           </div>
+
         );
       })}
 
