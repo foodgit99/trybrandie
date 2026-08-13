@@ -924,7 +924,7 @@ Each idea MUST be assigned a funnel_stage from: ${STAGE_IDS.join(", ")}. The wee
 
 CRITICAL — CAMPAIGN QUOTAS:
 You will be given a list of active campaigns with their remaining slots. Any campaign with remaining_slots > 0 should receive at least one idea this week (up to its remaining slots — never exceed). Set campaign_id to the campaign's exact id (uuid), or null when the idea is not tied to a campaign. Include a one-line campaign_rationale when you assign a campaign_id.`,
-        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nFUNNEL STAGES (with last-28-day coverage — favour under-served):\n${funnelContext}\nUNDER-SERVED STAGES TO PRIORITISE: ${underServedStages.join(", ")}\n\nCAMPAIGNS (priority + quota tracking — spend the week's ideas on HIGH priority campaigns with open slots first, then NORMAL, then LOW):\n${campaignContext}${urgentCampaigns.length > 0 ? `\nCAMPAIGNS WITH OPEN SLOTS (must be covered this week): ${urgentCampaigns.map((c: any) => `${c.name} [${c._remaining} left, ${PRIORITY_LABEL[c._prio]}]`).join(", ")}` : ""}${highPriorityCampaigns.length > 0 ? `\nHIGH PRIORITY — FILL THESE BEFORE ANYTHING ELSE: ${highPriorityCampaigns.map((c: any) => `${c.name} [${c._remaining} left]`).join(", ")}` : ""}\n\nWEEK DATES: ${weekDates.map(d => `${d.day}: ${d.date}`).join(", ")}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
+        user: `Generate this week's content ideas:\n\n${fullContext}\n\nPILLARS (ordered least-recently-used first — favour those that haven't been used in a while):\n${pillarContext}\n\nSERIES:\n${seriesContext}\n\nFUNNEL STAGES (with last-28-day coverage — favour under-served):\n${funnelContext}\nUNDER-SERVED STAGES TO PRIORITISE: ${underServedStages.join(", ")}\n\nCAMPAIGNS (priority + quota tracking — spend the week's ideas on HIGH priority campaigns with open slots first, then NORMAL, then LOW):\n${campaignContext}${urgentCampaigns.length > 0 ? `\nCAMPAIGNS WITH OPEN SLOTS (must be covered this week): ${urgentCampaigns.map((c: any) => `${c.name} [${c._remaining} left, ${PRIORITY_LABEL[c._prio]}]`).join(", ")}` : ""}${highPriorityCampaigns.length > 0 ? `\nHIGH PRIORITY — FILL THESE BEFORE ANYTHING ELSE: ${highPriorityCampaigns.map((c: any) => `${c.name} [${c._remaining} left]`).join(", ")}` : ""}\n\nWEEK DATES: ${planDates.map(d => `${d.day}: ${d.date}`).join(", ")}${replanContext}${holidayContext}${trendIntelContext}${coverageContext}${recentTitlesContext}`,
         tool: {
           name: "create_weekly_ideas",
           description: "Create post ideas for the week",
@@ -968,8 +968,8 @@ You will be given a list of active campaigns with their remaining slots. Any cam
 
       if (result.error) return errorResponse(result);
 
-      // Delete existing suggested ideas for this week
-      const weekStart = weekDates[0].date;
+      // Delete existing suggested ideas for this week (mid-cycle replan: today onward only)
+      const weekStart = planDates[0]?.date || weekDates[0].date;
       const weekEnd = weekDates[6].date;
       await serviceClient.from("content_ideas").delete()
         .eq("brand_id", brand_id)
@@ -981,7 +981,7 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       const pillarMap = new Map(pillars.map((p: any) => [p.name.toLowerCase(), p.id]));
       const seriesMap = new Map(series.map((s: any) => [s.name.toLowerCase(), s.id]));
       const campaignMap = new Map(campaigns.map((c: any) => [c.name.toLowerCase(), c.id]));
-      const dateMap = new Map(weekDates.map((d) => [d.day, d.date]));
+      const dateMap = new Map(planDates.map((d) => [d.day, d.date]));
       const dayIndex = new Map(weekDates.map((d, i) => [d.day, i])); // monday=0..sunday=6
 
       // Auto-enrol into autopilot if brand has autopilot enabled
