@@ -37,7 +37,7 @@ const STEPS = [
   { key: "offer", label: "What you sell" },
 ];
 
-type ProductDraft = { label: string; description: string; price: string };
+type ProductDraft = { label: string; description: string; price: string; image_url?: string };
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -146,8 +146,39 @@ const Onboarding = () => {
 
   // step 3, Offer
   const [products, setProducts] = useState<ProductDraft[]>([
-    { label: "", description: "", price: "" },
+    { label: "", description: "", price: "", image_url: "" },
   ]);
+  const [uploadingProductIdx, setUploadingProductIdx] = useState<number | null>(null);
+
+  const handleProductImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    idx: number,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingProductIdx(idx);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("brand-products").upload(path, file);
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("brand-products").getPublicUrl(path);
+      setProducts((prev) => {
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          image_url: urlData.publicUrl,
+          label: copy[idx].label || file.name.replace(/\.[^.]+$/, ""),
+        };
+        return copy;
+      });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err?.message || "Try another image.", variant: "destructive" });
+    } finally {
+      setUploadingProductIdx(null);
+      e.target.value = "";
+    }
+  };
 
   // Auth gate
   useEffect(() => {
@@ -299,7 +330,7 @@ const Onboarding = () => {
             label: p.label.trim(),
             description: p.description.trim(),
             price: p.price.trim(),
-            image_url: "",
+            image_url: p.image_url || "",
           })) as any,
         );
       }
