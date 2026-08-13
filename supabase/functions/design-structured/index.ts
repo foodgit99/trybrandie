@@ -586,9 +586,28 @@ Design request: "${prompt}"`;
     const cd = JSON.parse(args);
 
     // ------- asset generation (art only, max 2)
-    const requests = (cd.asset_requests || []).slice(0, 2);
+    const requests: any[] = (cd.asset_requests || []).slice(0, 2);
+
+    // Richness guarantee: if the Creative Director asked for no art AND placed no
+    // real gallery/product image, brief one genome-led background asset ourselves.
+    const usesGalleryImage = (cd.elements || []).some(
+      (e: any) => e?.type === "image" && assets[e?.source],
+    );
+    if (!requests.length && !usesGalleryImage && (cd.background?.type !== "image")) {
+      requests.push({
+        key: "bg_art",
+        prompt: `Abstract, on-brand background artwork for a social graphic about: ${prompt}. ${
+          brand?.name ? `Brand: ${brand.name}.` : ""
+        } Composition leaves calm space for typography.`,
+      });
+      if (cd.background) {
+        cd.background = { ...cd.background, type: "image", source: "bg_art", overlay_color: cd.background.overlay_color || (cd.background.color || "#111111"), overlay_opacity: cd.background.overlay_opacity ?? 0.45 };
+      }
+    }
+
     for (const r of requests) {
       if (!r?.key || !r?.prompt) continue;
+      r.prompt = `${r.prompt}\n\n${artStyleSuffix(genome, brand)}`;
       const dims =
         r.orientation === "portrait"
           ? { w: 1024, h: 1536 }
