@@ -297,7 +297,7 @@ export function normaliseSchema(input: any, opts?: { width?: number; height?: nu
 
   elements.sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
 
-  return {
+  const out: DesignSchema = {
     schema_version: BDS_VERSION,
     canvas: { width, height },
     background,
@@ -306,7 +306,109 @@ export function normaliseSchema(input: any, opts?: { width?: number; height?: nu
     elements,
     ...(raw?.meta && typeof raw.meta === "object" ? { meta: raw.meta } : {}),
   };
+
+  enforceContrast(out);
+  return out;
 }
+
+// ------------------------------------------------------- contrast guard
+
+function rgbOf(hex?: string): [number, number, number] | null {
+  if (!hex || typeof hex !== "string" || !HEX.test(hex.trim())) return null;
+  let h = hex.trim().slice(1);
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (h.length === 8) h = h.slice(0, 6);
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function luminance(rgb: [number, number, number]): number {
+  const [r, g, b] = rgb.map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function ratio(a: string, b: string): number | null {
+  const ra = rgbOf(a), rb = rgbOf(b);
+  if (!ra || !rb) return null;
+  const la = luminance(ra), lb = luminance(rb);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+function mix(a: string, b: string): string {
+  const ra = rgbOf(a), rb = rgbOf(b);
+  if (!ra) return b;
+  if (!rb) return a;
+  const m = ra.map((v, i) => Math.round((v + rb[i]) / 2));
+  return `#${m.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Backdrop colour behind an element: topmost opaque shape under it, else page background. */
+function backdropFor(schema: DesignSchema, el: DesignElement): string | null {
+  const under = schema.elements
+    .filter((o) => o.id !== el.id && o.type === "shape")
+    .filter((o) => (o.z ?? 0) <= (el.z ?? 0) && (o.opacity ?? 1) >= 0.6)
+    .filter((o) => {
+      const ox = Math.min(o.x + o.w, el.x + el.w) - Math.max(o.x, el.x);
+      const oy = Math.min(o.y + o.h, el.y + el.h) - Math.max(o.y, el.y);
+      return ox > el.w * 0.5 && oy > el.h * 0.5;
+    })
+    .sort((a, b) => (b.z ?? 0) - (a.z ?? 0))[0] as ShapeElement | undefined;
+  if (under && under.fill && under.fill !== "none") return under.fill;
+
+  const bg = schema.background;
+  if (bg.type === "image") return bg.overlay ? bg.overlay.color : null;
+  if (bg.type === "gradient") return mix(bg.color || "#FFFFFF", bg.color2 || "#000000");
+  return bg.color || "#FFFFFF";
+}
+
+/**
+ * Guarantees readable copy: any text/button label that fails a 3:1 contrast
+ * ratio against what sits behind it is flipped to white or near-black. Without
+ * this, a model that omits `color` renders near-black text on a dark canvas
+ * and the design looks blank.
+ */
+export function enforceContrast(schema: DesignSchema): DesignSchema {
+  for (const el of schema.elements) {
+    if (el.type === "text") {
+      const t = el as TextElement;
+      const back = backdropFor(schema, el);
+      if (!back) continue;
+      const r = ratio(t.color, back);
+      if (r !== null && r < 3) {
+        const white = ratio("#FFFFFF", back) ?? 0;
+        const dark = ratio("#111111", back) ?? 0;
+        t.color = white >= dark ? "#FFFFFF" : "#111111";
+      }
+    } else if (el.type === "button") {
+      const b = el as ButtonElement;
+      const fill = b.fill && b.fill !== "none" ? b.fill : backdropFor(schema, el);
+      if (!fill) continue;
+      const r = ratio(b.textColor, fill);
+      if (r !== null && r < 3) {
+        const white = ratio("#FFFFFF", fill) ?? 0;
+        const dark = ratio("#111111", fill) ?? 0;
+        b.textColor = white >= dark ? "#FFFFFF" : "#111111";
+      }
+      // A button whose fill matches the canvas behind it disappears.
+      const back = backdropFor(schema, el);
+      if (back && b.fill && b.fill !== "none") {
+        const vs = ratio(b.fill, back);
+        if (vs !== null && vs < 1.25) {
+          const white = ratio("#FFFFFF", back) ?? 0;
+          b.fill = white >= (ratio("#111111", back) ?? 0) ? "#FFFFFF" : "#111111";
+          b.textColor = (ratio("#111111", b.fill) ?? 0) >= (ratio("#FFFFFF", b.fill) ?? 0)
+            ? "#111111"
+            : "#FFFFFF";
+        }
+      }
+    }
+  }
+  return schema;
+}
+
 
 /** Bounding-box overlap report between text/cta elements — layout sanity check. */
 export function overlapReport(schema: DesignSchema): string[] {
