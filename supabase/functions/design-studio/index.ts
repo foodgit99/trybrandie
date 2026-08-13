@@ -3377,7 +3377,14 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
         adminClient,
         contentIdeaId,
         _parsedReqBody?.campaign_id ?? null,
+        {
+          funnel_stage: _parsedReqBody?.funnel_stage,
+          campaign_rationale: _parsedReqBody?.campaign_rationale,
+          funnel_rationale: _parsedReqBody?.funnel_rationale,
+          strategic_arc: _parsedReqBody?.strategic_arc,
+        },
       )).promptText;
+
 
       const numSlides = Math.min(10, Math.max(2, slide_count || 5));
       // Phase 0: hard render ceiling — one render per slide plus 2 spare
