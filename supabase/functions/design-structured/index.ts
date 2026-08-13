@@ -24,6 +24,12 @@ import {
 } from "../_shared/design-schema.ts";
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { creditGate } from "../_shared/credit-gate.ts";
+import {
+  applyGenomeDecor,
+  artStyleSuffix,
+  genomeDirective,
+  resolveGenome,
+} from "../_shared/design-art-direction.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
