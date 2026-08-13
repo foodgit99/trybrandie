@@ -130,6 +130,15 @@ export default function LogoDesignerDialog({
 
   const [sketch, setSketch] = useState<string | null>(null);
   const [sketchName, setSketchName] = useState<string>("");
+  const [brandPalette, setBrandPalette] = useState<string[]>([]);
+
+  const paletteColors = brandId
+    ? brandPalette
+    : [
+        ...(brandContext?.primary_colors || []),
+        ...(brandContext?.secondary_colors || []),
+        ...(brandContext?.accent_colors || []),
+      ].filter(Boolean);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -142,6 +151,25 @@ export default function LogoDesignerDialog({
         setLogoGenUsed(data?.logo_generations_used ?? 0);
       });
   }, [open, user]);
+
+  useEffect(() => {
+    if (!open || !brandId) return;
+    supabase
+      .from("brands")
+      .select("primary_colors, secondary_colors, accent_colors")
+      .eq("id", brandId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setBrandPalette(
+          [
+            ...(data?.primary_colors || []),
+            ...(data?.secondary_colors || []),
+            ...(data?.accent_colors || []),
+          ].filter(Boolean) as string[],
+        );
+      });
+  }, [open, brandId]);
+
 
   const handleSketchSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
