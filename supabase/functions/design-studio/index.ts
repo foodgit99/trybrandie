@@ -1746,9 +1746,12 @@ TREND RULES:
               }
               return parts.join(" ");
             }).join("\n");
-            const pinnedDirective = pinnedProductLabel
-              ? `\n\nTHIS DESIGN IS ANCHORED ON "${pinnedProductLabel}" — its reference image is attached FIRST. The product MUST appear as a real, recognisable hero or supporting visual. Honour its actual colours, shape, materials and details. Do NOT invent a different product.`
+            const selectionDirective = productIdFilter
+              ? `\n\nUSER-SELECTED PRODUCTS: the user explicitly chose ${sorted.map((p: any) => `"${p.label || "Untitled"}"`).join(", ")} for this graphic. Their attached photos MUST be used verbatim as the product visual — no substitutes, no invented products, and do not feature any other product.`
               : "";
+            const pinnedDirective = (pinnedProductLabel
+              ? `\n\nTHIS DESIGN IS ANCHORED ON "${pinnedProductLabel}" — its reference image is attached FIRST. The product MUST appear as a real, recognisable hero or supporting visual. Honour its actual colours, shape, materials and details. Do NOT invent a different product.`
+              : "") + selectionDirective;
             productImageContext = `\n\nPRODUCTS & SERVICES:\n${catalogueLines}\n\nPRODUCT/SERVICE IMAGE USAGE: When the design is promoting, showcasing, or related to the brand's products/services, incorporate a product image as a SUPPORTING visual element — but do NOT make it the hero of every design. Use product images when contextually relevant (e.g., product launches, promotions, offers, showcases). For services, use the image as a portfolio/cover visual. Use specific names, prices, and features in copy when relevant. The user's attached image always takes priority over product images.${pinnedDirective}`;
           }
         } catch (e) {
