@@ -490,7 +490,7 @@ Keep the sketch's composition, proportions and every distinctive element identic
         .eq("user_id", user.id);
     }
 
-    return new Response(JSON.stringify({ image: imageUrl, was_free: isFirstFree }), {
+    return new Response(JSON.stringify({ image: imageUrl, was_free: isFirstFree, fidelity }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
