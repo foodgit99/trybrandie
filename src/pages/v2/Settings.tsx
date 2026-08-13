@@ -139,6 +139,10 @@ const SettingsV2 = () => {
   const [waDelivery, setWaDelivery] = useState(false);
   const [savingWaDelivery, setSavingWaDelivery] = useState(false);
   const [testingWa, setTestingWa] = useState(false);
+  const [waLastDelivery, setWaLastDelivery] = useState<
+    { status: string; reason: string | null; created_at: string } | null
+  >(null);
+
 
   const [autopilot, setAutopilot] = useState<AutopilotSettings | null>(null);
   const [v2Default, setV2Default] = useState<boolean>(true);
