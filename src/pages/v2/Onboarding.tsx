@@ -56,6 +56,7 @@ const Onboarding = () => {
   const [scanMsg, setScanMsg] = useState("");
   const [scanSucceeded, setScanSucceeded] = useState(false);
   const playbook = getPlaybook(playbookId || "general");
+  const detailsRef = useRef<HTMLDivElement>(null);
 
   // step 1, Look & feel
   const [logoFile, setLogoFile] = useState<File | null>(null);
