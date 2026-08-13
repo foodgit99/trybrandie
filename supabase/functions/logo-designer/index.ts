@@ -207,6 +207,15 @@ serve(async (req) => {
         brand.accent_colors?.length ? `Accent colors: ${brand.accent_colors.join(", ")}` : "",
       ].filter(Boolean).join(". ");
 
+      paletteHexes.push(
+        ...([
+          ...(brand.primary_colors || []),
+          ...(brand.secondary_colors || []),
+          ...(brand.accent_colors || []),
+        ].filter(Boolean) as string[]),
+      );
+
+
       const typographyInfo = [
         brand.typography_primary ? `Primary font: ${brand.typography_primary}` : "",
         brand.typography_display ? `Display font: ${brand.typography_display}` : "",
