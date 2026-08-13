@@ -58,6 +58,7 @@ export async function resolveAutopilotCampaign(args: ResolveArgs): Promise<Resol
       .select("id")
       .eq("id", args.aiResolvedCampaignId)
       .eq("brand_id", brandId)
+      .eq("is_active", true)
       .maybeSingle();
     if (data?.id) return { campaignId: data.id, funnelStage: stage };
   }
@@ -69,6 +70,7 @@ export async function resolveAutopilotCampaign(args: ResolveArgs): Promise<Resol
       .select("id")
       .eq("id", args.defaultCampaignId)
       .eq("brand_id", brandId)
+      .eq("is_active", true)
       .maybeSingle();
     if (data?.id) return { campaignId: data.id, funnelStage: stage };
   }
@@ -80,6 +82,7 @@ export async function resolveAutopilotCampaign(args: ResolveArgs): Promise<Resol
       .from("campaigns")
       .select("id, content_category, created_at")
       .eq("brand_id", brandId)
+      .eq("is_active", true)
       .in("content_category", stageCats)
       .order("created_at", { ascending: true })
       .limit(1);
@@ -96,6 +99,7 @@ export async function resolveAutopilotCampaign(args: ResolveArgs): Promise<Resol
     .select("id")
     .eq("brand_id", brandId)
     .eq("name", stageName)
+    .eq("is_active", true)
     .maybeSingle();
   if (existingByName?.id) {
     await healDefault(supabase, brandId, existingByName.id);
@@ -125,6 +129,7 @@ export async function resolveAutopilotCampaign(args: ResolveArgs): Promise<Resol
     .select("id")
     .eq("brand_id", brandId)
     .eq("name", "General")
+    .eq("is_active", true)
     .maybeSingle();
   if (generalExisting?.id) {
     await healDefault(supabase, brandId, generalExisting.id);
