@@ -1024,6 +1024,13 @@ When you have brand context, reference it naturally in your advice — suggest u
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+      // Campaign / funnel-stage creative context (kicked off early, awaited by the brief).
+      const campaignContextPromise = fetchCampaignContext(
+        adminClient,
+        contentIdeaId,
+        _parsedReqBody?.campaign_id ?? null,
+      );
+
       // Fetch audience intelligence for the brand
       let audienceContext = "";
       let audienceProfile: any = null;
