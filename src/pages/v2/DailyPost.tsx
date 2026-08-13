@@ -308,6 +308,12 @@ const DailyPost = () => {
       brand_id: brand.id,
       title: idea.title,
       content_idea_id: idea.id,
+      campaign_id: (idea as any).campaign_id ?? null,
+      funnel_stage: (idea as any).funnel_stage ?? null,
+      campaign_rationale: (idea as any).campaign_rationale ?? null,
+      funnel_rationale: (idea as any).funnel_rationale ?? null,
+      strategic_arc: (idea as any).strategic_arc ?? null,
+
       ...productImagePayload(productImages),
       user_email: user.email || undefined,
     });
