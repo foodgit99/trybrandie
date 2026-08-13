@@ -33,7 +33,7 @@ serve(async (req) => {
       });
     }
 
-    const { brand_id, style, visual_feel, notes, brand_context: passedContext } = await req.json();
+    const { brand_id, style, visual_feel, notes, brand_context: passedContext, sketch_image } = await req.json();
 
     // --- Credit / free generation logic ---
     const adminSupabase = createClient(
