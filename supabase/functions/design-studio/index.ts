@@ -3025,7 +3025,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
         // actual products/services, or when the idea is pinned to a product.
         const combinedBrief = `${userPrompt} ${designPrompt}`.toLowerCase();
         const namesAProduct = productLabels.some((l) => combinedBrief.includes(l.toLowerCase()));
-        const isProductRelevant =
+        const isProductRelevant = !productImagesDisabled && (
           hasPinnedProduct ||
           namesAProduct ||
           productKeywords.test(userPrompt) ||
