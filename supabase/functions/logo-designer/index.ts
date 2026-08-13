@@ -325,68 +325,114 @@ Requirements:
       });
     }
 
-    let aiResponse: Response;
-    if (sketchBlob) {
-      const form = new FormData();
-      form.append("model", "openai/gpt-image-2");
-      form.append("prompt", prompt);
-      form.append("image", sketchBlob, "sketch.png");
-      form.append("size", "1024x1024");
-      form.append("quality", "low");
-      aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/images/edits", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}` },
-        body: form,
-      });
-    } else {
-      aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-image-2",
-          prompt,
-          size: "1024x1024",
-          quality: "low",
-          n: 1,
-        }),
-      });
+    const hexLine = paletteHexes.length
+      ? `\nEXACT BRAND HEX CODES (use these verbatim, no substitutions): ${paletteHexes.join(", ")}`
+      : "";
+
+    async function renderLogo(extraDirective: string): Promise<{ image: string | null; status: number }> {
+      const fullPrompt = prompt + hexLine + extraDirective;
+      let resp: Response;
+      if (sketchBlob) {
+        const form = new FormData();
+        form.append("model", "openai/gpt-image-2");
+        form.append("prompt", fullPrompt);
+        form.append("image", sketchBlob!, "sketch.png");
+        form.append("size", "1024x1024");
+        form.append("quality", "low");
+        resp = await fetch("https://ai.gateway.lovable.dev/v1/images/edits", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}` },
+          body: form,
+        });
+      } else {
+        resp = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "openai/gpt-image-2",
+            prompt: fullPrompt,
+            size: "1024x1024",
+            quality: "low",
+            n: 1,
+          }),
+        });
+      }
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error("AI gateway error:", resp.status, errText.slice(0, 300));
+        return { image: null, status: resp.status };
+      }
+      const json = await resp.json();
+      const rb64 = json?.data?.[0]?.b64_json;
+      return { image: rb64 ? `data:image/png;base64,${rb64}` : json?.data?.[0]?.url || null, status: 200 };
     }
 
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
+    const first = await renderLogo("");
+    if (!first.image) {
+      if (first.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
+      if (first.status === 402) {
         return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errText);
       return new Response(JSON.stringify({ error: "AI generation failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiData = await aiResponse.json();
-    const b64 = aiData?.data?.[0]?.b64_json;
-    const imageUrl = b64 ? `data:image/png;base64,${b64}` : aiData?.data?.[0]?.url;
+    let imageUrl: string = first.image;
+    let fidelity: FidelityReport | null = null;
 
-    if (!imageUrl) {
-      return new Response(JSON.stringify({ error: "No image generated" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // --- Sketch-fidelity verification gate (only meaningful when a sketch exists) ---
+    if (sketchBlob) {
+      const sketchDataUrl = /^data:image\//.test(sketch_image)
+        ? sketch_image
+        : `data:image/png;base64,${sketch_image}`;
+
+      fidelity = await verifySketchFidelity(LOVABLE_API_KEY, sketchDataUrl, imageUrl, paletteHexes);
+      console.log("[logo-designer] fidelity pass 1:", JSON.stringify(fidelity));
+
+      const needsFix =
+        fidelity !== null &&
+        (fidelity.overall < 80 || fidelity.sketch_fidelity < 80 || fidelity.colour_fidelity < 80);
+
+      if (needsFix) {
+        const corrections = fidelity!.deviations.length
+          ? fidelity!.deviations.map((d) => `- ${d}`).join("\n")
+          : "- Match the sketch's shapes and proportions more literally, and recolour strictly to the brand hex codes.";
+        const retry = await renderLogo(`
+
+FIDELITY CORRECTIONS (a reviewer compared your last attempt to the sketch and found drift — fix these exactly):
+${corrections}
+Keep the sketch's composition, proportions and every distinctive element identical. Use only the exact brand hex codes above.`);
+
+        if (retry.image) {
+          const secondReport = await verifySketchFidelity(
+            LOVABLE_API_KEY,
+            sketchDataUrl,
+            retry.image,
+            paletteHexes,
+          );
+          console.log("[logo-designer] fidelity pass 2:", JSON.stringify(secondReport));
+          // Keep whichever attempt scores higher; fall back to the retry if scoring failed.
+          if (!secondReport || secondReport.overall >= fidelity!.overall) {
+            imageUrl = retry.image;
+            fidelity = secondReport ?? fidelity;
+          }
+        }
+      }
     }
+
 
     // Deduct credit and increment logo_generations_used
     if (isFirstFree) {
