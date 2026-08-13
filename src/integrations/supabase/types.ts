@@ -1693,6 +1693,44 @@ export type Database = {
           },
         ]
       }
+      design_schema_revisions: {
+        Row: {
+          created_at: string
+          design_id: string
+          id: string
+          image_url: string | null
+          label: string | null
+          schema: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          design_id: string
+          id?: string
+          image_url?: string | null
+          label?: string | null
+          schema: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          design_id?: string
+          id?: string
+          image_url?: string | null
+          label?: string | null
+          schema?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_schema_revisions_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       design_traces: {
         Row: {
           created_at: string | null
@@ -1744,6 +1782,8 @@ export type Database = {
           copy_structure: Json | null
           created_at: string
           creative_director_version: string | null
+          design_schema: Json | null
+          design_schema_version: number | null
           gallery_labels_used: string[] | null
           genome: Json | null
           id: string
@@ -1773,6 +1813,8 @@ export type Database = {
           copy_structure?: Json | null
           created_at?: string
           creative_director_version?: string | null
+          design_schema?: Json | null
+          design_schema_version?: number | null
           gallery_labels_used?: string[] | null
           genome?: Json | null
           id?: string
@@ -1802,6 +1844,8 @@ export type Database = {
           copy_structure?: Json | null
           created_at?: string
           creative_director_version?: string | null
+          design_schema?: Json | null
+          design_schema_version?: number | null
           gallery_labels_used?: string[] | null
           genome?: Json | null
           id?: string
@@ -2796,6 +2840,7 @@ export type Database = {
           priority_render_until: string | null
           referral_code: string | null
           referred_by: string | null
+          structured_design_enabled: boolean
           subscription_tier: string
           theme_preference: string
           timezone: string | null
@@ -2836,6 +2881,7 @@ export type Database = {
           priority_render_until?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          structured_design_enabled?: boolean
           subscription_tier?: string
           theme_preference?: string
           timezone?: string | null
@@ -2876,6 +2922,7 @@ export type Database = {
           priority_render_until?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          structured_design_enabled?: boolean
           subscription_tier?: string
           theme_preference?: string
           timezone?: string | null
