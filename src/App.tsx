@@ -49,6 +49,7 @@ import V2Profile from "./pages/v2/Profile";
 import V2Engine from "./pages/v2/Engine";
 import V2ContentHub from "./pages/v2/ContentHubV2";
 import V2Studio from "./pages/v2/Studio";
+import V2StudioCanvas from "./pages/v2/StudioCanvas";
 import V2History from "./pages/v2/History";
 import V2Support from "./pages/v2/Support";
 import V2Hub from "./pages/v2/Hub";
@@ -241,6 +242,7 @@ const App = () => (
 
           {/* Shared / utility surfaces (no v2 equivalent yet) */}
           <Route path="/studio" element={<ProtectedRoute><V2Studio /></ProtectedRoute>} />
+          <Route path="/studio/canvas" element={<ProtectedRoute><V2StudioCanvas /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><V2History /></ProtectedRoute>} />
           <Route path="/support" element={<ProtectedRoute><V2Support /></ProtectedRoute>} />
           <Route path="/legacy/library" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
