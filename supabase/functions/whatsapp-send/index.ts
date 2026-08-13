@@ -23,13 +23,21 @@ function json(data: unknown, status = 200) {
 }
 
 /** Normalise a saved number to E.164 (digits with a leading +). */
-function toE164(raw: string): string | null {
-  const cleaned = String(raw || "").replace(/[^\d+]/g, "");
-  if (!cleaned) return null;
-  const digits = cleaned.replace(/\D/g, "");
-  if (digits.length < 7 || digits.length > 15) return null;
+function toE164(raw: string, defaultCc = "234"): string | null {
+  const cleaned = String(raw || "").trim();
+  const hadPlus = cleaned.startsWith("+");
+  let digits = cleaned.replace(/\D/g, "");
+  if (!digits) return null;
+  if (!hadPlus) {
+    // Local formats like 08138037420 / 8138037420 → prefix the country code.
+    if (digits.startsWith("00")) digits = digits.slice(2);
+    else if (digits.startsWith("0")) digits = defaultCc + digits.slice(1);
+    else if (digits.length <= 10) digits = defaultCc + digits;
+  }
+  if (digits.length < 8 || digits.length > 15) return null;
   return `+${digits}`;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -98,41 +106,61 @@ Deno.serve(async (req) => {
       ? (linkPath.startsWith("http") ? linkPath : `${APP_BASE_URL}${linkPath}`)
       : null;
 
-    const messageBody = [title, caption, link ? `Open in Brandie: ${link}` : null]
-      .filter(Boolean)
-      .join("\n\n")
-      .slice(0, 1550);
-
-    const form = new URLSearchParams({
-      To: `whatsapp:${to}`,
-      From: `whatsapp:${toE164(from) || from}`,
-    });
-
-    // Business-initiated messages outside the 24h window need an approved
-    // template. When one is configured we send it; Twilio falls back to the
-    // free-form body inside an open conversation window.
     const templateSid = Deno.env.get("TWILIO_WHATSAPP_TEMPLATE_SID");
-    if (templateSid) {
-      form.set("ContentSid", templateSid);
-      form.set("ContentVariables", JSON.stringify({ "1": title, "2": link || APP_BASE_URL }));
-    } else {
-      form.set("Body", messageBody);
+
+    const buildForm = (withMedia: boolean) => {
+      const body = [
+        title,
+        caption,
+        !withMedia && imageUrl ? `Design: ${imageUrl}` : null,
+        link ? `Open in Brandie: ${link}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+        .slice(0, 1550);
+
+      const f = new URLSearchParams({
+        To: `whatsapp:${to}`,
+        From: `whatsapp:${toE164(from) || from}`,
+      });
+      // Business-initiated messages outside the 24h window need an approved
+      // template. When one is configured we send it; Twilio falls back to the
+      // free-form body inside an open conversation window.
+      if (templateSid) {
+        f.set("ContentSid", templateSid);
+        f.set("ContentVariables", JSON.stringify({ "1": title, "2": link || APP_BASE_URL }));
+      } else {
+        f.set("Body", body);
+      }
+      if (withMedia && imageUrl) f.set("MediaUrl", imageUrl);
+      return f;
+    };
+
+    const send = (withMedia: boolean) =>
+      fetch(`${GATEWAY_URL}/Messages.json`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "X-Connection-Api-Key": twilioKey,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: buildForm(withMedia),
+      });
+
+    let resp = await send(!!imageUrl);
+    let text = await resp.text();
+
+    // Trial Twilio accounts reject media params outright — retry text-only
+    // with the image as a link so delivery still succeeds.
+    if (!resp.ok && imageUrl && /disallowed parameters|trial account/i.test(text)) {
+      console.warn("[whatsapp-send] media rejected by provider, retrying text-only");
+      resp = await send(false);
+      text = await resp.text();
     }
-    if (imageUrl) form.set("MediaUrl", imageUrl);
 
-    const resp = await fetch(`${GATEWAY_URL}/Messages.json`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": twilioKey,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: form,
-    });
-
-    const text = await resp.text();
     let payload: any = null;
     try { payload = JSON.parse(text); } catch { /* keep raw text */ }
+
 
     if (!resp.ok) {
       console.error(`[whatsapp-send] gateway failed [${resp.status}]: ${text}`);
@@ -148,10 +176,18 @@ Deno.serve(async (req) => {
           ideaId ? { onConflict: "idea_id" } : undefined,
         );
       }
+      const code = payload?.code;
+      const hint =
+        code === 572002 || code === 63007 || code === 21211
+          ? `WhatsApp couldn't reach ${to}. On a trial WhatsApp sender the number must first opt in to the sandbox (send the join code from that phone), and it must be saved in full international format.`
+          : code === 63016
+            ? "WhatsApp needs an approved message template to start a conversation. Add a template SID to enable business-initiated messages."
+            : payload?.message || "WhatsApp delivery failed.";
       return json(
-        { error: "whatsapp_send_failed", status: resp.status, details: payload ?? text },
+        { error: "whatsapp_send_failed", status: resp.status, hint, to, details: payload ?? text },
         resp.status,
       );
+
     }
 
     const sid = payload?.sid ?? null;
