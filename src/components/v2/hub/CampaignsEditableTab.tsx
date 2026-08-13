@@ -202,6 +202,7 @@ const CampaignsEditableTab = ({ campaigns, ideas, brand, onOpenPost, invalidateK
         onClose={() => setEditorOpen(false)}
         brand={brand}
         editing={editing}
+        assignedCount={editing ? ideas.filter((i) => i.campaign_id === editing.id).length : 0}
         onSaved={invalidate}
       />
 
