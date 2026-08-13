@@ -643,7 +643,7 @@ Design request: "${prompt}"`;
           : {}),
       },
       fonts: {
-        heading: headingFontFor(cd.heading_personality || body.genome?.typography?.font_personality),
+        heading: headingFontFor(cd.heading_personality || genome.typography.font_personality),
         body: "Poppins",
       },
       assets,
@@ -652,7 +652,12 @@ Design request: "${prompt}"`;
         if (e?.type === "image" || e?.type === "logo") return !!assets[e.source];
         return true;
       }),
-      meta: { rationale: cd.rationale, model: modelUsed, generated_at: new Date().toISOString() },
+      meta: {
+        rationale: cd.rationale,
+        model: modelUsed,
+        genome,
+        generated_at: new Date().toISOString(),
+      },
     };
 
     // Background art that failed to generate degrades to a solid brand colour.
@@ -663,7 +668,33 @@ Design request: "${prompt}"`;
       } as any;
     }
 
-    const schema = normaliseSchema(schemaInput, { width: w, height: h });
+    // Generated art that the layout never referenced becomes the background so a
+    // paid-for asset is never wasted and the design keeps its imagery.
+    const orphanArt = Object.keys(assets).find(
+      (k) =>
+        !k.startsWith("gallery_") &&
+        k !== "brand_logo" &&
+        schemaInput.background.source !== k &&
+        !schemaInput.elements.some((e: any) => e?.source === k),
+    );
+    if (orphanArt && schemaInput.background.type !== "image") {
+      const base = (schemaInput.background.color as string) || (brand?.primary_colors?.[0] as string) || "#111111";
+      schemaInput.background = {
+        type: "image",
+        source: orphanArt,
+        color: base,
+        overlay: { color: base, opacity: 0.45 },
+      } as any;
+    }
+
+    // Genome-led beautification safety net: shapes, depth and gradient logic.
+    const decorated = applyGenomeDecor(schemaInput, genome, brand);
+    if (decorated.injected.length) {
+      (schemaInput.meta as any).decor_injected = decorated.injected;
+      console.log("[design-structured] decor injected:", decorated.injected.join(", "));
+    }
+
+    const schema = normaliseSchema(decorated.schema, { width: w, height: h });
     if (!schema.elements.length) return json({ error: "The design came back empty — please retry." }, 502);
 
     const png = await renderSchemaToPng(schema);
