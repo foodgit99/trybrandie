@@ -531,6 +531,8 @@ async function enqueueIdea(
     canvas_size: canvasSize,
     content_idea_id: idea.id,
     autopilot_notify_idea_id: idea.id,
+    // Campaign layer → renderer: lets the design adapt to the campaign it belongs to.
+    ...(idea.campaign_id ? { campaign_id: idea.campaign_id } : {}),
     ...(isCarousel ? { slide_count: slideCount } : { candidate_count: 2 }),
     messages: [{ role: "user", content: idea.prompt }],
     brand: {
