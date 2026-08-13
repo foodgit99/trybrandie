@@ -23,13 +23,21 @@ function json(data: unknown, status = 200) {
 }
 
 /** Normalise a saved number to E.164 (digits with a leading +). */
-function toE164(raw: string): string | null {
-  const cleaned = String(raw || "").replace(/[^\d+]/g, "");
-  if (!cleaned) return null;
-  const digits = cleaned.replace(/\D/g, "");
-  if (digits.length < 7 || digits.length > 15) return null;
+function toE164(raw: string, defaultCc = "234"): string | null {
+  const cleaned = String(raw || "").trim();
+  const hadPlus = cleaned.startsWith("+");
+  let digits = cleaned.replace(/\D/g, "");
+  if (!digits) return null;
+  if (!hadPlus) {
+    // Local formats like 08138037420 / 8138037420 → prefix the country code.
+    if (digits.startsWith("00")) digits = digits.slice(2);
+    else if (digits.startsWith("0")) digits = defaultCc + digits.slice(1);
+    else if (digits.length <= 10) digits = defaultCc + digits;
+  }
+  if (digits.length < 8 || digits.length > 15) return null;
   return `+${digits}`;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
