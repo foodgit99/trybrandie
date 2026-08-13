@@ -1109,6 +1109,9 @@ You will be given a list of active campaigns with their remaining slots. Any cam
       });
 
 
+      if (ideasToInsert.length === 0) {
+        return jsonResponse({ ideas: [], replanned: isMidCycleReplan });
+      }
       const { data: inserted, error: insertErr } = await serviceClient.from("content_ideas").insert(ideasToInsert).select();
       if (insertErr) throw new Error(`Insert ideas failed: ${insertErr.message}`);
 
