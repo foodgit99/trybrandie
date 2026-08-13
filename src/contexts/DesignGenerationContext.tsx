@@ -39,6 +39,9 @@ export interface GenerationParams {
   trend_intensity?: number;
   user_image_url?: string;
   content_idea_id?: string;
+  /** "Use product images" selector — which product photos may be referenced. */
+  product_image_mode?: "auto" | "selected" | "off";
+  product_ids?: string[];
   previous_prompt?: string;
   previous_image_url?: string;
   user_id: string;
