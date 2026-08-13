@@ -40,9 +40,18 @@ interface LogoDesignerDialogProps {
   brandId: string | null;
   brandName?: string;
   /** Pass brand context directly (for onboarding when brand doesn't exist yet) */
-  brandContext?: { name?: string; tagline?: string; description?: string; vibe?: string };
+  brandContext?: {
+    name?: string;
+    tagline?: string;
+    description?: string;
+    vibe?: string;
+    primary_colors?: string[];
+    secondary_colors?: string[];
+    accent_colors?: string[];
+  };
   onLogoCreated: (logoUrl: string) => void;
 }
+
 function GeneratingState() {
   const [msgIndex, setMsgIndex] = useState(0);
 
