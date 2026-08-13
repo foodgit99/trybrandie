@@ -7,6 +7,103 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface FidelityReport {
+  sketch_fidelity: number;
+  colour_fidelity: number;
+  overall: number;
+  deviations: string[];
+  verdict: "pass" | "warn" | "fail";
+}
+
+/**
+ * Multimodal critic: compares the rendered logo against the user's sketch and
+ * the brand palette, returning concrete deviations to correct.
+ */
+async function verifySketchFidelity(
+  apiKey: string,
+  sketchDataUrl: string,
+  resultDataUrl: string,
+  colours: string[],
+): Promise<FidelityReport | null> {
+  const tool = {
+    type: "function",
+    function: {
+      name: "report_fidelity",
+      description: "Score how faithfully the rendered logo matches the sketch and brand palette.",
+      parameters: {
+        type: "object",
+        properties: {
+          sketch_fidelity: { type: "integer", minimum: 0, maximum: 100 },
+          colour_fidelity: { type: "integer", minimum: 0, maximum: 100 },
+          overall: { type: "integer", minimum: 0, maximum: 100 },
+          deviations: { type: "array", items: { type: "string" }, minItems: 0, maxItems: 5 },
+          verdict: { type: "string", enum: ["pass", "warn", "fail"] },
+        },
+        required: ["sketch_fidelity", "colour_fidelity", "overall", "deviations", "verdict"],
+        additionalProperties: false,
+      },
+    },
+  };
+
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a logo fidelity auditor. IMAGE 1 is the user's hand sketch (the concept truth). " +
+              "IMAGE 2 is the AI-rendered logo. Judge strictly whether image 2 keeps image 1's composition, " +
+              "shapes, proportions, icon idea and layout, and whether it uses the given brand hex colours. " +
+              "Pencil/ink colour in the sketch is irrelevant. Output ONLY the tool call.",
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  `Brand colours that MUST dominate: ${colours.length ? colours.join(", ") : "(none supplied)"}\n` +
+                  "List 0-5 short imperative corrections, e.g. \"restore the leaf notch on the right stroke\", " +
+                  "\"recolour the mark to #C4993B instead of blue\". Skip vague feedback.",
+              },
+              { type: "image_url", image_url: { url: sketchDataUrl } },
+              { type: "image_url", image_url: { url: resultDataUrl } },
+            ],
+          },
+        ],
+        tools: [tool],
+        tool_choice: { type: "function", function: { name: "report_fidelity" } },
+      }),
+    });
+    if (!resp.ok) {
+      console.error("[logo-fidelity] http", resp.status, (await resp.text()).slice(0, 200));
+      return null;
+    }
+    const data = await resp.json();
+    const argsStr = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (!argsStr) return null;
+    const p = JSON.parse(argsStr);
+    const clamp = (n: any) => Math.max(0, Math.min(100, Math.round(Number(n)) || 0));
+    return {
+      sketch_fidelity: clamp(p.sketch_fidelity),
+      colour_fidelity: clamp(p.colour_fidelity),
+      overall: clamp(p.overall),
+      deviations: Array.isArray(p.deviations)
+        ? p.deviations.map((s: any) => String(s)).filter(Boolean).slice(0, 5)
+        : [],
+      verdict: p.verdict === "pass" || p.verdict === "fail" ? p.verdict : "warn",
+    };
+  } catch (e) {
+    console.error("[logo-fidelity] failed", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
