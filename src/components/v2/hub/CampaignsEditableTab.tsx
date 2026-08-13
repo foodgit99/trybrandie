@@ -468,8 +468,13 @@ function CampaignEditorDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="Summer Launch 2026"
               maxLength={120}
+              aria-invalid={!!validation.errors.name}
+              className={cn(validation.errors.name && name.length > 0 && "border-destructive")}
               autoFocus
             />
+            {validation.errors.name && name.length > 0 && (
+              <p className="text-[11px] text-destructive">{validation.errors.name}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-desc" className="text-xs">Description</Label>
