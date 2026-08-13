@@ -75,6 +75,7 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
   const qc = useQueryClient();
   const [editStagesOpen, setEditStagesOpen] = useState(false);
   const [openStages, setOpenStages] = useState<Record<string, boolean>>({});
+  const [focusedStage, setFocusedStage] = useState<string | null>(null);
 
   const stageBuckets = useMemo(() => {
     const map: Record<FunnelStageId, FunnelIdea[]> = {};
@@ -131,10 +132,14 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
           const pct = totals ? Math.round((bucket.length / totals) * 100) : 0;
           const Icon = s.icon;
           return (
-            <div
+            <button
               key={s.id}
+              type="button"
+              onClick={() => setFocusedStage(s.id)}
+              aria-label={`View and edit ${s.label} stage`}
               className={cn(
-                "relative overflow-hidden rounded-2xl border border-border p-4 bg-gradient-to-br",
+                "relative overflow-hidden rounded-2xl border border-border p-4 bg-gradient-to-br text-left",
+                "transition-transform hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 s.accent,
               )}
             >
@@ -147,10 +152,12 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
                 <div className="text-sm font-medium mt-0.5">{s.label}</div>
                 <div className="text-[11px] opacity-80 mt-1">{s.blurb}</div>
               </div>
-            </div>
+              <Pencil className="absolute bottom-3 right-3 h-3.5 w-3.5 opacity-50" />
+            </button>
           );
         })}
       </div>
+
 
       {/* Stage lists */}
       {stages.map((s, stageIdx) => {
@@ -263,6 +270,15 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
         );
       })}
 
+      <StageDetailDialog
+        stage={stages.find((s) => s.id === focusedStage) ?? null}
+        count={focusedStage ? (stageBuckets[focusedStage] ?? []).length : 0}
+        stages={stages}
+        brand={brand}
+        onClose={() => setFocusedStage(null)}
+        onSaved={invalidate}
+      />
+
       <EditStagesDialog
         open={editStagesOpen}
         onClose={() => setEditStagesOpen(false)}
@@ -276,6 +292,148 @@ const FunnelsEditableTab = ({ ideas, brand, onOpenPost, invalidateKeys = [] }: P
 
 function labelOf(stages: FunnelStageDef[], id: FunnelStageId) {
   return stages.find((s) => s.id === id)?.label ?? id;
+}
+
+
+/* -------------------- Single Stage Dialog -------------------- */
+
+function StageDetailDialog({
+  stage,
+  count,
+  stages,
+  brand,
+  onClose,
+  onSaved,
+}: {
+  stage: FunnelStageDef | null;
+  count: number;
+  stages: FunnelStageDef[];
+  brand: { id: string };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [label, setLabel] = useState("");
+  const [blurb, setBlurb] = useState("");
+  const [artDirection, setArtDirection] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!stage) return;
+    setLabel(stage.label);
+    setBlurb(stage.blurb);
+    setArtDirection(stage.art_direction ?? "");
+    setCategories([...stage.categories]);
+  }, [stage?.id]);
+
+  if (!stage) return null;
+  const Icon = stage.icon;
+
+  const toggleCategory = (catId: string) =>
+    setCategories((prev) => (prev.includes(catId) ? prev.filter((c) => c !== catId) : [...prev, catId]));
+
+  const save = async () => {
+    const trimmed = label.trim();
+    if (!trimmed) {
+      toast({ title: "Stage needs a name", variant: "destructive" });
+      return;
+    }
+    const stored = stages.map((s) => {
+      const isTarget = s.id === stage.id;
+      const cats = isTarget ? categories : s.categories.filter((c) => !categories.includes(c));
+      const art = isTarget ? artDirection.trim() : (s.art_direction ?? "").trim();
+      return {
+        id: s.id,
+        label: isTarget ? trimmed : s.label,
+        blurb: isTarget ? blurb.trim() : s.blurb,
+        categories: cats,
+        ...(art ? { art_direction: art } : {}),
+        ...(s.custom ? { custom: true } : {}),
+      };
+    });
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("brands")
+      .update({ funnel_stages: stored } as never)
+      .eq("id", brand.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Couldn't save stage", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Stage updated", description: "The planner and renderer will use it from your next generation." });
+    onSaved();
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!stage} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Icon className="h-4 w-4 text-muted-foreground" /> {stage.label}
+          </DialogTitle>
+          <DialogDescription>
+            {count} post{count === 1 ? "" : "s"} in this stage. Edit how Brandie plans and designs for it.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Stage name</Label>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">What this stage does</Label>
+            <Input value={blurb} onChange={(e) => setBlurb(e.target.value)} placeholder="Get strangers to notice you." />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Art direction (optional)</Label>
+            <Textarea
+              rows={3}
+              value={artDirection}
+              onChange={(e) => setArtDirection(e.target.value)}
+              placeholder="Bold, high-contrast hero visuals with a single short headline."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Content categories routed here</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {CONTENT_CATEGORIES.map((c) => {
+                const active = categories.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleCategory(c.id)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border text-muted-foreground hover:bg-secondary/60",
+                    )}
+                  >
+                    {c.emoji} {c.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save stage"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 /* -------------------- Edit Stages Dialog -------------------- */
