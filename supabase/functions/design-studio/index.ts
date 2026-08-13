@@ -1668,6 +1668,8 @@ TREND RULES:
       // Fetch product catalogue for contextual use
       let productImageUrls: string[] = [];
       let productImageContext = "";
+      let productLabels: string[] = [];
+      let hasPinnedProduct = false;
       if (brand?.id) {
         try {
           const { data: productData } = await adminClient
