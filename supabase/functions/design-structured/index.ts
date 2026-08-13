@@ -562,7 +562,7 @@ Design request: "${prompt}"`;
         body: JSON.stringify({
           model,
           messages: [
-            { role: "system", content: designSystemPrompt(w, h) },
+            { role: "system", content: designSystemPrompt(w, h, genomeDirective(genome, w, h)) },
             { role: "user", content: userBlock },
           ],
           tools: [SCHEMA_TOOL],
