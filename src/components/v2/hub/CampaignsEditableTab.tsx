@@ -910,7 +910,24 @@ function CampaignQuotaCard({
         />
       </div>
 
+      {/* Estimated delivery timeline */}
+      <div
+        className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2"
+        title={eta.hint}
+      >
+        <div className="min-w-0">
+          <div className="text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+            Est. delivery
+          </div>
+          <div className="text-xs font-medium truncate">{eta.label}</div>
+        </div>
+        <span className="text-[10px] text-muted-foreground shrink-0">
+          ~{cadencePerDay(campaign.priority)}/day
+        </span>
+      </div>
+
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+
         <span>{deliveredPct}% delivered</span>
         <button
           type="button"
