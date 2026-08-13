@@ -172,8 +172,17 @@ const SettingsV2 = () => {
       setPushTz(((data as any)?.posting_timezone as string) ?? "Africa/Lagos");
       setEmailReminders(((data as any)?.email_reminders_enabled as boolean) ?? true);
 
+      const { data: delivery } = await supabase
+        .from("whatsapp_deliveries")
+        .select("status, reason, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setWaLastDelivery((delivery as any) ?? null);
     })();
   }, [user]);
+
 
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [outboxFromName, setOutboxFromName] = useState("");
