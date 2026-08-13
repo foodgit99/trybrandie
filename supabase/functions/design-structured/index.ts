@@ -542,14 +542,16 @@ serve(async (req) => {
       assetLines.push(`- ${key}${g.label ? ` — ${g.label}` : ""}${g.role ? ` (${g.role})` : ""}`);
     });
 
+    // Visual Style Genome drives the design concept; the Brand Centre constrains it.
+    const genome = resolveGenome(brand, body.genome);
+
     const userBlock = `${brandBlock(brand, {
       Audience: body.audience_summary,
-      Genome: body.genome ? JSON.stringify(body.genome).slice(0, 800) : "",
       Trend: body.trend,
       Category: body.content_category,
     })}
 
-Available asset keys (prefer these over generating art):
+Available asset keys (prefer these over generating art, and place them as real image elements):
 ${assetLines.length ? assetLines.join("\n") : "- none"}
 
 Design request: "${prompt}"`;
