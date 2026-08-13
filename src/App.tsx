@@ -242,7 +242,6 @@ const App = () => (
 
           {/* Shared / utility surfaces (no v2 equivalent yet) */}
           <Route path="/studio" element={<ProtectedRoute><V2Studio /></ProtectedRoute>} />
-          <Route path="/studio/canvas" element={<ProtectedRoute><V2StudioCanvas /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><V2History /></ProtectedRoute>} />
           <Route path="/support" element={<ProtectedRoute><V2Support /></ProtectedRoute>} />
           <Route path="/legacy/library" element={<ProtectedRoute><DesignHistory /></ProtectedRoute>} />
