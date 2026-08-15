@@ -40,21 +40,37 @@ async function sendAffiliateEmail(
   type: string,
   to: string,
   data: Record<string, unknown>
-) {
-  try {
-    const url = `${supabaseUrl}/functions/v1/send-email`;
-    await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-      body: JSON.stringify({ type, to, data }),
-    });
-  } catch (err) {
-    console.error("Failed to send affiliate email:", err);
+): Promise<{ ok: boolean; error?: string }> {
+  const url = `${supabaseUrl}/functions/v1/send-email`;
+  let lastError = "unknown_error";
+  // Retry a couple of times: provider rate limits (429) and 5xx are transient
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ type, to, data }),
+      });
+      const text = await res.text();
+      if (res.ok) return { ok: true };
+      lastError = `${res.status}: ${text.slice(0, 400)}`;
+      console.error(`send-email failed (${type} -> ${to}):`, lastError);
+      // Daily quota / permanent rejections are not worth retrying
+      if (text.includes("daily_quota_exceeded") || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
+        break;
+      }
+    } catch (err) {
+      lastError = String(err);
+      console.error(`send-email threw (${type} -> ${to}):`, lastError);
+    }
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
+  return { ok: false, error: lastError };
 }
+
 
 async function resolveSegment(
   adminClient: ReturnType<typeof createClient>,
@@ -916,19 +932,66 @@ Deno.serve(async (req) => {
           const { data: authUser } = await adminClient.auth.admin.getUserById(user_id);
           notifyEmail = authUser?.user?.email || "";
         }
+        let notified = false;
+        let notifyError: string | undefined;
         if (notifyEmail) {
-          await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "partner_promoted", notifyEmail, {
+          const sent = await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "partner_promoted", notifyEmail, {
             partner_name: name,
             slug: cleanSlug,
             commission_first_pct: Number(commission_first_pct) || 0,
             commission_recurring_pct: Number(commission_recurring_pct) || 0,
           });
+          notified = sent.ok;
+          notifyError = sent.error;
+        } else {
+          notifyError = "no_email_on_file";
         }
 
-        return new Response(JSON.stringify({ partner, notified: !!notifyEmail }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ partner, notified, notify_email: notifyEmail || null, notify_error: notifyError }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
+
+      case "resend_partner_welcome": {
+        const { partner_id } = data || {};
+        if (!partner_id) {
+          return new Response(JSON.stringify({ error: "partner_id is required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: p, error: pErr } = await adminClient
+          .from("partner_profiles")
+          .select("user_id, name, slug, contact_email, commission_first_pct, commission_recurring_pct")
+          .eq("id", partner_id)
+          .single();
+        if (pErr) throw pErr;
+
+        let email = (p.contact_email as string) || "";
+        if (!email) {
+          const { data: authUser } = await adminClient.auth.admin.getUserById(p.user_id as string);
+          email = authUser?.user?.email || "";
+        }
+        if (!email) {
+          return new Response(JSON.stringify({ notified: false, notify_error: "no_email_on_file" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const sent = await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "partner_promoted", email, {
+          partner_name: p.name,
+          slug: p.slug,
+          commission_first_pct: Number(p.commission_first_pct) || 0,
+          commission_recurring_pct: Number(p.commission_recurring_pct) || 0,
+        });
+
+        return new Response(
+          JSON.stringify({ notified: sent.ok, notify_email: email, notify_error: sent.error }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
 
       case "partner_list": {
         const { data: partners, error: pErr } = await adminClient

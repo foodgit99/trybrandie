@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send } from "lucide-react";
+import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
+
 
 interface Detail {
   partner: {
@@ -89,6 +93,31 @@ export default function PartnerDetailDialog({
       (await adminActionCall({ operation: "partner_detail", data: { partner_id: partnerId } })) as Detail,
   });
 
+  const [resending, setResending] = useState(false);
+  const resendWelcome = async () => {
+    if (!partnerId) return;
+    setResending(true);
+    try {
+      const res = (await adminActionCall({
+        operation: "resend_partner_welcome",
+        data: { partner_id: partnerId },
+      })) as { notified: boolean; notify_email?: string | null; notify_error?: string };
+      if (res.notified) {
+        toast.success(`Welcome email sent to ${res.notify_email}`);
+      } else if (res.notify_error?.includes("daily_quota_exceeded")) {
+        toast.error("Email provider daily quota reached — try again after it resets.");
+      } else if (res.notify_error === "no_email_on_file") {
+        toast.error("This partner has no email address on file.");
+      } else {
+        toast.error(`Email failed: ${res.notify_error || "unknown error"}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to send email");
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <Dialog open={!!partnerId} onOpenChange={() => onClose()}>
       <DialogContent className="rounded-2xl max-w-3xl max-h-[85vh] overflow-y-auto">
@@ -106,10 +135,19 @@ export default function PartnerDetailDialog({
               </>
             )}
           </DialogTitle>
-          <DialogDescription>
-            {data ? `${data.partner.email || "No email"} · joined ${fmt(data.partner.created_at)}` : "Loading partner activity"}
+          <DialogDescription className="flex flex-wrap items-center gap-3">
+            <span>
+              {data ? `${data.partner.email || "No email"} · joined ${fmt(data.partner.created_at)}` : "Loading partner activity"}
+            </span>
+            {data && (
+              <Button size="sm" variant="outline" className="rounded-full h-7" onClick={resendWelcome} disabled={resending}>
+                {resending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Resend welcome email
+              </Button>
+            )}
           </DialogDescription>
         </DialogHeader>
+
 
         {isLoading || !data ? (
           <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
