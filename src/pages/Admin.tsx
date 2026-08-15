@@ -89,6 +89,8 @@ const TABLES = [
   { key: "designs", label: "Designs", icon: Image },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard },
   { key: "affiliates", label: "Affiliates", icon: UserCheck },
+  { key: "partners", label: "Partners", icon: UserCheck },
+
   { key: "affiliate_commissions", label: "Commissions", icon: DollarSign },
   { key: "affiliate_payouts", label: "Payouts", icon: DollarSign },
   { key: "rewards", label: "Rewards", icon: Gift },
