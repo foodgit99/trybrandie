@@ -10,6 +10,9 @@ import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import PartnerLeadsTable, { type PartnerLead } from "@/components/partner/PartnerLeadsTable";
 import LeadDetailDialog from "@/components/partner/LeadDetailDialog";
+import PartnerCampaignsPanel from "@/components/partner/PartnerCampaignsPanel";
+import PartnerAutomationsPanel from "@/components/partner/PartnerAutomationsPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { partnerReferralUrl } from "@/lib/partnerRef";
 
 interface Overview {
