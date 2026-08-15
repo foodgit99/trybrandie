@@ -221,6 +221,8 @@ const App = () => (
       <DesignGenerationProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <PartnerRefCapture />
+
         <RouteAnalytics />
         <Routes>
           {/* ============ PRIMARY (v2) experience ============ */}
