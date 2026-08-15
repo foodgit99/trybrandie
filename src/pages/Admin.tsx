@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
