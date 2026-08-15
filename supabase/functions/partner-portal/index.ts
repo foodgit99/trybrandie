@@ -220,6 +220,10 @@ Deno.serve(async (req) => {
           joined: profile.created_at,
           source: lr.source,
           attributed_at: lr.attributed_at,
+          credit_grant_id: lr.credit_grant_id || null,
+          granted_credits: lr.credits_granted || 0,
+          credited_at: lr.credited_at || null,
+
           status: computeStatus({
             plan,
             credits,
