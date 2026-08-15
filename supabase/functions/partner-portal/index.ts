@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
     // Build the partner's lead set (only whitelisted fields ever leave this function)
     const { data: leadRows } = await admin
       .from("partner_leads")
-      .select("user_id, source, attributed_at")
+      .select("user_id, source, attributed_at, credit_grant_id, credits_granted, credited_at")
       .eq("partner_id", partner.id)
       .order("attributed_at", { ascending: false });
 
