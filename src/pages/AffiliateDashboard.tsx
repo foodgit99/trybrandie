@@ -381,8 +381,9 @@ const AffiliateDashboard = () => {
   const recruitLink = `${window.location.origin}/affiliate/signup?ref=${affiliate.affiliate_code}`;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background lg:pl-20 pb-24">
       <SEO title="Affiliate Dashboard, Brandie" description="Track referrals, commissions, and milestones." path="/affiliate" noindex />
+      <NewAppHeader />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
         {/* Header & stats */}
         <AffiliateHeader
