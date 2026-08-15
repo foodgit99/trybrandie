@@ -1957,8 +1957,6 @@ function AffiliateDetailDrawer({
     }
   };
 
-  const _unusedEnabled = (
-  });
 
   const updateAffiliate = useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
