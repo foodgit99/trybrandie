@@ -991,7 +991,7 @@ Deno.serve(async (req) => {
         });
 
         return new Response(
-          JSON.stringify({ notified: sent.ok, notify_email: email, notify_error: sent.error }),
+          JSON.stringify({ notified: sent.ok, notify_email: email, notify_error: sent.error, notify_queued: !!sent.queued }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
