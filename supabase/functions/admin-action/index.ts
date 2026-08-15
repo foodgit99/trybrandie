@@ -40,9 +40,10 @@ async function sendAffiliateEmail(
   type: string,
   to: string,
   data: Record<string, unknown>
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; queued?: boolean }> {
   const url = `${supabaseUrl}/functions/v1/send-email`;
   let lastError = "unknown_error";
+  let queued = false;
   // Retry a couple of times: provider rate limits (429) and 5xx are transient
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -57,6 +58,7 @@ async function sendAffiliateEmail(
       const text = await res.text();
       if (res.ok) return { ok: true };
       lastError = `${res.status}: ${text.slice(0, 400)}`;
+      if (text.includes('"queued":true')) queued = true;
       console.error(`send-email failed (${type} -> ${to}):`, lastError);
       // Daily quota / permanent rejections are not worth retrying
       if (text.includes("daily_quota_exceeded") || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
@@ -68,7 +70,7 @@ async function sendAffiliateEmail(
     }
     await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
-  return { ok: false, error: lastError };
+  return { ok: false, error: lastError, queued };
 }
 
 
