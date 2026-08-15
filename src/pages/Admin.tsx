@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import AppHeader from "@/components/AppHeader";
+import NewAppHeader from "@/components/v2/NewAppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -3019,8 +3019,8 @@ export default function Admin() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="min-h-screen bg-background lg:pl-20 pb-24">
+      <NewAppHeader />
       <main className="container max-w-6xl mx-auto px-4 py-6">
         <h1 className="text-2xl sm:text-3xl font-bold mb-6">Admin Panel</h1>
 
