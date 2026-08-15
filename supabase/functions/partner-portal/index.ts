@@ -20,6 +20,10 @@ interface LeadRow {
   joined: string;
   source: string;
   attributed_at: string;
+  credit_grant_id?: string | null;
+  granted_credits?: number;
+  credited_at?: string | null;
+
   status: string;
 }
 
@@ -139,7 +143,7 @@ Deno.serve(async (req) => {
     // Build the partner's lead set (only whitelisted fields ever leave this function)
     const { data: leadRows } = await admin
       .from("partner_leads")
-      .select("user_id, source, attributed_at")
+      .select("user_id, source, attributed_at, credit_grant_id, credits_granted, credited_at")
       .eq("partner_id", partner.id)
       .order("attributed_at", { ascending: false });
 
@@ -220,6 +224,10 @@ Deno.serve(async (req) => {
           joined: profile.created_at,
           source: lr.source,
           attributed_at: lr.attributed_at,
+          credit_grant_id: lr.credit_grant_id || null,
+          granted_credits: lr.credits_granted || 0,
+          credited_at: lr.credited_at || null,
+
           status: computeStatus({
             plan,
             credits,

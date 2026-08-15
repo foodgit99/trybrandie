@@ -59,6 +59,15 @@ export default function LeadDetailDialog({
                 ["Credits", String(lead.credits)],
                 ["Designs created", String(lead.designs)],
                 ["Last active", lead.last_active ? new Date(lead.last_active).toLocaleDateString() : "—"],
+                [
+                  "Sponsored signup credits",
+                  lead.granted_credits
+                    ? `${lead.granted_credits} credits${
+                        lead.credited_at ? ` on ${new Date(lead.credited_at).toLocaleDateString()}` : ""
+                      }`
+                    : "None",
+                ],
+
               ].map(([k, v]) => (
                 <div key={k as string}>
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">{k}</dt>
