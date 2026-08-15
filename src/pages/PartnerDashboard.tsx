@@ -199,10 +199,14 @@ export default function PartnerDashboard() {
                   <TabsTrigger value="automations" className="rounded-lg gap-2">
                     <Workflow className="h-3.5 w-3.5" /> Automations
                   </TabsTrigger>
+                  <TabsTrigger value="credits" className="rounded-lg gap-2">
+                    <Gift className="h-3.5 w-3.5" /> Credits
+                  </TabsTrigger>
                   <TabsTrigger value="identity" className="rounded-lg gap-2">
                     <AtSign className="h-3.5 w-3.5" /> Identity
                   </TabsTrigger>
                 </TabsList>
+
 
                 <TabsContent value="leads" className="mt-5">
                   <PartnerLeadsTable leads={leads} onSelect={setSelected} />
