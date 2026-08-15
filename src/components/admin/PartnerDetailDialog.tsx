@@ -64,6 +64,8 @@ interface Detail {
   sends: { id: string; email: string; status: string; sent_at: string | null; opened_at: string | null; clicked_at: string | null; created_at: string }[];
   runs: { id: string; email: string | null; status: string; created_at: string }[];
   transactions: { id: string; amount: number; created_at: string }[];
+  affiliate_requests: AffiliateRequest[];
+
 }
 
 const NGN = (n: number) =>
