@@ -1165,7 +1165,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let { type, to, data } = await req.json();
+    let { type, to, data, no_queue } = await req.json();
 
     if (!type || !to) {
       return new Response(JSON.stringify({ error: "Missing type or to" }), {
