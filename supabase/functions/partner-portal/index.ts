@@ -282,11 +282,30 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === "alias") {
+      // Read the partner's sending identity with the service role so the panel
+      // never depends on client-side row visibility rules.
+      const { data: aliasRow } = await admin
+        .from("email_sender_aliases")
+        .select(
+          "id, handle, from_name, reply_to, status, review_note, reply_to_verified_at, created_at"
+        )
+        .eq("partner_id", partner.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return new Response(JSON.stringify({ alias: aliasRow ?? null }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "leads") {
       return new Response(JSON.stringify({ leads }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     if (action === "lead_detail") {
       const targetId = String(body?.user_id || "");
