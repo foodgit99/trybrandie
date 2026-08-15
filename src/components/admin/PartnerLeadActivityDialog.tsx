@@ -109,8 +109,11 @@ export function PartnerLeadActivityDialog({
     queryKey: ["partner-lead-activity", partnerId, userId],
     enabled: open && !!userId,
     refetchInterval: open && live ? 15000 : false,
-    queryFn: () =>
-      adminActionCall<LeadActivity>("partner_lead_activity", { partner_id: partnerId, user_id: userId }),
+    queryFn: async () =>
+      (await adminActionCall({
+        operation: "partner_lead_activity",
+        data: { partner_id: partnerId, user_id: userId },
+      })) as LeadActivity,
   });
 
   useEffect(() => {
