@@ -51,6 +51,8 @@ const NGN = (n: number) =>
 export default function AdminPartnersTab() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Record<string, string>>({});
+  const [openPartner, setOpenPartner] = useState<string | null>(null);
+
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-partners"],
