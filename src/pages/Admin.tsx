@@ -3019,8 +3019,8 @@ export default function Admin() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="min-h-screen bg-background lg:pl-20 pb-24">
+      <NewAppHeader />
       <main className="container max-w-6xl mx-auto px-4 py-6">
         <h1 className="text-2xl sm:text-3xl font-bold mb-6">Admin Panel</h1>
 
