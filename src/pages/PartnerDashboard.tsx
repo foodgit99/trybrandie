@@ -48,6 +48,8 @@ const Metric = ({ label, value }: { label: string; value: string | number }) => 
 
 export default function PartnerDashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { isAffiliate } = useAffiliateRole();
+
   const { toast } = useToast();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [leads, setLeads] = useState<PartnerLead[]>([]);
