@@ -121,7 +121,42 @@ export default function PartnerDetailDialog({
       (await adminActionCall({ operation: "partner_detail", data: { partner_id: partnerId } })) as Detail,
   });
 
+  const queryClient = useQueryClient();
+  const requests = data?.affiliate_requests || [];
+  const pendingRequests = requests.filter((r) => r.status === "pending").length;
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [deciding, setDeciding] = useState<string | null>(null);
+
+  const decide = async (r: AffiliateRequest, decision: "approved" | "rejected") => {
+    if (!partnerId) return;
+    setDeciding(r.id);
+    try {
+      const res = (await adminActionCall({
+        operation: "partner_affiliate_decision",
+        data: { partner_id: partnerId, affiliate_id: r.id, decision, note: notes[r.id] || "" },
+      })) as { notified: boolean; notify_email?: string | null; notify_error?: string };
+
+      const label = decision === "approved" ? "Approved" : "Rejected";
+      if (res.notified) {
+        toast.success(`${label} — email sent to ${res.notify_email}`);
+      } else if (res.notify_error === "no_email_on_file") {
+        toast.warning(`${label}, but no email address on file.`);
+      } else if (res.notify_error?.includes("daily_quota_exceeded")) {
+        toast.warning(`${label}, but the email provider's daily quota is reached.`);
+      } else {
+        toast.warning(`${label}, but the email failed: ${res.notify_error || "unknown error"}`);
+      }
+      setNotes((p) => ({ ...p, [r.id]: "" }));
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-detail", partnerId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setDeciding(null);
+    }
+  };
+
   const [resending, setResending] = useState(false);
+
   const resendWelcome = async () => {
     if (!partnerId) return;
     setResending(true);
