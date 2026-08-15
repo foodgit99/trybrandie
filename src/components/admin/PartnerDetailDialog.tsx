@@ -155,7 +155,38 @@ export default function PartnerDetailDialog({
     }
   };
 
+  // Sending identity (email alias) review, so admins never have to leave this dialog
+  const { data: aliasData, isLoading: aliasLoading } = useQuery({
+    queryKey: ["admin-partner-alias", partnerId],
+    enabled: !!partnerId,
+    queryFn: async () => (await adminActionCall({ operation: "alias_list" })).aliases as any[],
+  });
+  const partnerAliases = (aliasData || []).filter((a) => a.partner_id === partnerId);
+  const pendingAliases = partnerAliases.filter((a) => a.status === "pending").length;
+  const [aliasNote, setAliasNote] = useState<Record<string, string>>({});
+  const [aliasBusy, setAliasBusy] = useState<string | null>(null);
+
+  const decideAlias = async (alias: any, decision: "approved" | "rejected" | "revoked") => {
+    setAliasBusy(alias.id);
+    try {
+      const res = (await adminActionCall({
+        operation: "alias_decision",
+        data: { alias_id: alias.id, decision, note: aliasNote[alias.id] || "" },
+      })) as { notified?: boolean; notify_email?: string | null; notify_error?: string };
+      const label = decision === "approved" ? "Approved" : decision === "rejected" ? "Rejected" : "Revoked";
+      if (res.notified) toast.success(`${label} ${alias.handle}@trybrandie.com`);
+      else toast.warning(`${label}, but the email failed: ${res.notify_error || "unknown error"}`);
+      setAliasNote((p) => ({ ...p, [alias.id]: "" }));
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-alias", partnerId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setAliasBusy(null);
+    }
+  };
+
   const [resending, setResending] = useState(false);
+
 
   const resendWelcome = async () => {
     if (!partnerId) return;
