@@ -2487,23 +2487,26 @@ function DataTable({
   const [detailItem, setDetailItem] = useState<Record<string, unknown> | null>(null);
   const limit = 20;
 
+  const dbTable = tableName === "email_aliases" ? "email_sender_aliases" : tableName;
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-list", tableName, page, search],
     queryFn: () =>
       adminAction({
         operation: "list",
-        table: tableName,
+        table: dbTable,
         offset: page * limit,
         limit,
         search,
       }),
   });
 
+
   const updateMutation = useMutation({
     mutationFn: (payload: { id: string; data: Record<string, unknown> }) =>
       adminAction({
         operation: "update",
-        table: tableName,
+        table: dbTable,
         id: payload.id,
         data: payload.data,
       }),
@@ -2518,13 +2521,14 @@ function DataTable({
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      adminAction({ operation: "delete", table: tableName, id }),
+      adminAction({ operation: "delete", table: dbTable, id }),
     onSuccess: () => {
       toast.success("Record deleted");
       queryClient.invalidateQueries({ queryKey: ["admin-list", tableName] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
 
   const rows = data?.rows || [];
   const count = data?.count || 0;
