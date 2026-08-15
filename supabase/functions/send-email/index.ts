@@ -1151,6 +1151,48 @@ function partnerAffiliateRejectedHtml(name: string, partnerName: string, note: s
 
 
 
+async function queueNotificationEmail(
+  type: string,
+  to: string,
+  data: Record<string, unknown>,
+  lastError: string
+): Promise<boolean> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const client = createClient(url, key);
+    // Dedupe: one pending retry per (type, recipient) — repeated attempts must not fan out
+    const { data: existing } = await client
+      .from("notification_email_outbox")
+      .select("id")
+      .eq("email_type", type)
+      .eq("to_email", to)
+      .eq("status", "pending")
+      .limit(1);
+    if (existing && existing.length) {
+      console.log(`Already queued ${type} -> ${to}, skipping duplicate`);
+      return true;
+    }
+    const { error } = await client.from("notification_email_outbox").insert({
+      email_type: type,
+      to_email: to,
+      payload: data,
+      last_error: lastError,
+      attempts: 1,
+      next_attempt_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    });
+    if (error) {
+      console.error("queueNotificationEmail failed:", error.message);
+      return false;
+    }
+    console.log(`Queued ${type} -> ${to} for retry`);
+    return true;
+  } catch (err) {
+    console.error("queueNotificationEmail threw:", String(err));
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -1165,7 +1207,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let { type, to, data } = await req.json();
+    let { type, to, data, no_queue } = await req.json();
 
     if (!type || !to) {
       return new Response(JSON.stringify({ error: "Missing type or to" }), {
@@ -1764,7 +1806,12 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       console.error("Resend error:", result);
-      return new Response(JSON.stringify({ error: result }), {
+      // Durable fallback: queue the send so a provider quota/rate limit never loses the email
+      let queued = false;
+      if (!no_queue) {
+        queued = await queueNotificationEmail(type, to, data || {}, JSON.stringify(result).slice(0, 500));
+      }
+      return new Response(JSON.stringify({ error: result, queued }), {
         status: res.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

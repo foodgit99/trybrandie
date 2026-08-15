@@ -1353,6 +1353,10 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
       });
       if (res?.notified) {
         toast.success(`${partnerName} is now a Marketing Partner — email sent to ${res.notify_email}`);
+      } else if (res?.notify_queued) {
+        toast.warning(
+          `${partnerName} is now a Marketing Partner. The email provider is rate-limited right now, so the welcome email is queued and will send automatically.`
+        );
       } else {
         toast.warning(
           `${partnerName} is now a Marketing Partner, but the notification email failed${
@@ -1961,6 +1965,10 @@ function AffiliateDetailDrawer({
       });
       if (res?.notified) {
         toast.success(`${pName} is now a Marketing Partner — email sent to ${res.notify_email}`);
+      } else if (res?.notify_queued) {
+        toast.warning(
+          `${pName} is now a Marketing Partner. The email provider is rate-limited right now, so the welcome email is queued and will send automatically.`
+        );
       } else {
         toast.warning(
           `${pName} is now a Marketing Partner, but the notification email failed${

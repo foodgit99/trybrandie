@@ -40,9 +40,10 @@ async function sendAffiliateEmail(
   type: string,
   to: string,
   data: Record<string, unknown>
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; queued?: boolean }> {
   const url = `${supabaseUrl}/functions/v1/send-email`;
   let lastError = "unknown_error";
+  let queued = false;
   // Retry a couple of times: provider rate limits (429) and 5xx are transient
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -57,6 +58,7 @@ async function sendAffiliateEmail(
       const text = await res.text();
       if (res.ok) return { ok: true };
       lastError = `${res.status}: ${text.slice(0, 400)}`;
+      if (text.includes('"queued":true')) queued = true;
       console.error(`send-email failed (${type} -> ${to}):`, lastError);
       // Daily quota / permanent rejections are not worth retrying
       if (text.includes("daily_quota_exceeded") || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
@@ -68,7 +70,7 @@ async function sendAffiliateEmail(
     }
     await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
-  return { ok: false, error: lastError };
+  return { ok: false, error: lastError, queued };
 }
 
 
@@ -934,6 +936,7 @@ Deno.serve(async (req) => {
         }
         let notified = false;
         let notifyError: string | undefined;
+        let notifyQueued = false;
         if (notifyEmail) {
           const sent = await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "partner_promoted", notifyEmail, {
             partner_name: name,
@@ -943,12 +946,13 @@ Deno.serve(async (req) => {
           });
           notified = sent.ok;
           notifyError = sent.error;
+          notifyQueued = !!sent.queued;
         } else {
           notifyError = "no_email_on_file";
         }
 
         return new Response(
-          JSON.stringify({ partner, notified, notify_email: notifyEmail || null, notify_error: notifyError }),
+          JSON.stringify({ partner, notified, notify_email: notifyEmail || null, notify_error: notifyError, notify_queued: notifyQueued }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -987,7 +991,7 @@ Deno.serve(async (req) => {
         });
 
         return new Response(
-          JSON.stringify({ notified: sent.ok, notify_email: email, notify_error: sent.error }),
+          JSON.stringify({ notified: sent.ok, notify_email: email, notify_error: sent.error, notify_queued: !!sent.queued }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

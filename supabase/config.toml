@@ -93,3 +93,6 @@ verify_jwt = false
 
 
 
+
+[functions.notification-email-retry]
+verify_jwt = false

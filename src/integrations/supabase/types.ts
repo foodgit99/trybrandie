@@ -2759,6 +2759,45 @@ export type Database = {
           },
         ]
       }
+      notification_email_outbox: {
+        Row: {
+          attempts: number
+          created_at: string
+          email_type: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          payload: Json
+          sent_at: string | null
+          status: string
+          to_email: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          email_type: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: string
+          to_email: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          email_type?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: string
+          to_email?: string
+        }
+        Relationships: []
+      }
       partner_automation_runs: {
         Row: {
           automation_id: string
