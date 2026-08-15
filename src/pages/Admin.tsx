@@ -1910,6 +1910,54 @@ function AffiliateDetailDrawer({
     queryFn: () =>
       affiliateInsights({ operation: "detail", affiliate_id: affiliateId }),
     enabled: open,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+
+  // --- Promote affiliate to Marketing Partner ---
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [pName, setPName] = useState("");
+  const [pSlug, setPSlug] = useState("");
+  const [pOrg, setPOrg] = useState("");
+  const [pFirst, setPFirst] = useState(20);
+  const [pRecurring, setPRecurring] = useState(10);
+  const [promoting, setPromoting] = useState(false);
+  const isPartner = (data?.affiliate?.tier as string) === "marketing_partner";
+
+  useEffect(() => {
+    setPromoteOpen(false);
+    setPName(String((data?.affiliate as any)?.full_name || data?.email?.split("@")[0] || ""));
+    setPSlug(String(data?.affiliate?.affiliate_code || "").toLowerCase());
+    setPOrg("");
+  }, [affiliateId, data?.email, data?.affiliate?.affiliate_code]);
+
+  const handlePromote = async () => {
+    if (!data?.affiliate?.user_id) return;
+    setPromoting(true);
+    try {
+      await adminAction({
+        operation: "promote_to_partner",
+        data: {
+          user_id: data.affiliate.user_id,
+          name: pName.trim(),
+          slug: pSlug.trim(),
+          organization: pOrg.trim() || null,
+          contact_email: data.email,
+          commission_first_pct: pFirst,
+          commission_recurring_pct: pRecurring,
+        },
+      });
+      toast.success(`${pName} is now a Marketing Partner — notification email sent`);
+      setPromoteOpen(false);
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["admin-partners"] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to promote affiliate");
+    } finally {
+      setPromoting(false);
+    }
+  };
+
+  const _unusedEnabled = (
   });
 
   const updateAffiliate = useMutation({
