@@ -134,6 +134,14 @@ export default function PartnerDashboard() {
                   {overview.partner.commission_recurring_pct}% recurring
                 </span>
               </div>
+              {isAffiliate && (
+                <Button asChild variant="outline" className="rounded-xl gap-2">
+                  <Link to="/affiliate">
+                    Affiliate dashboard <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
+
             </header>
 
             <section className="space-y-3">
