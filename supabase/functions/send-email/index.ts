@@ -1817,6 +1817,22 @@ Deno.serve(async (req) => {
         );
         break;
       }
+      case "partner_credit_grant_approved": {
+        subject = "Your signup credits are live 🎁";
+        html = partnerCreditGrantApprovedHtml(
+          Number(data?.credits_per_signup || 0),
+          Number(data?.total_budget_credits || 0),
+          String(data?.ends_at || ""),
+          String(data?.referral_link || ""),
+          String(data?.note || ""),
+        );
+        break;
+      }
+      case "partner_credit_grant_rejected": {
+        subject = "Update on your signup credits request";
+        html = partnerCreditGrantRejectedHtml(String(data?.note || ""));
+        break;
+      }
 
 
 
