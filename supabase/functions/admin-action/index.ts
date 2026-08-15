@@ -40,21 +40,37 @@ async function sendAffiliateEmail(
   type: string,
   to: string,
   data: Record<string, unknown>
-) {
-  try {
-    const url = `${supabaseUrl}/functions/v1/send-email`;
-    await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-      body: JSON.stringify({ type, to, data }),
-    });
-  } catch (err) {
-    console.error("Failed to send affiliate email:", err);
+): Promise<{ ok: boolean; error?: string }> {
+  const url = `${supabaseUrl}/functions/v1/send-email`;
+  let lastError = "unknown_error";
+  // Retry a couple of times: provider rate limits (429) and 5xx are transient
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ type, to, data }),
+      });
+      const text = await res.text();
+      if (res.ok) return { ok: true };
+      lastError = `${res.status}: ${text.slice(0, 400)}`;
+      console.error(`send-email failed (${type} -> ${to}):`, lastError);
+      // Daily quota / permanent rejections are not worth retrying
+      if (text.includes("daily_quota_exceeded") || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
+        break;
+      }
+    } catch (err) {
+      lastError = String(err);
+      console.error(`send-email threw (${type} -> ${to}):`, lastError);
+    }
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
+  return { ok: false, error: lastError };
 }
+
 
 async function resolveSegment(
   adminClient: ReturnType<typeof createClient>,
