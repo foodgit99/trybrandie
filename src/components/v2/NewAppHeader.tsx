@@ -104,6 +104,15 @@ const NewAppHeader = () => {
               Studio (Manual)
             </DropdownMenuItem>
 
+            {isPartner && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/partner")}>
+                  <Handshake className="h-4 w-4" />
+                  Partner Dashboard
+                </DropdownMenuItem>
+              </>
+            )}
 
 
             {isAdmin && (
