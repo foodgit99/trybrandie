@@ -89,19 +89,63 @@ export default function PartnerIdentityPanel({
     }
   };
 
+  const [resending, setResending] = useState(false);
+
+  const describeSendError = (raw: string) => {
+    if (raw.includes("daily_quota_exceeded") || raw.includes("sending quota"))
+      return "Our email provider hit its daily sending limit. Try again after it resets.";
+    if (raw.includes("RESEND_API_KEY")) return "Email sending isn't configured yet.";
+    if (raw.includes("unauthorized")) return "Your session expired. Sign in again and retry.";
+    if (raw.includes("invalid_reply_to")) return "That reply-to address looks invalid.";
+    return raw || "Unknown error";
+  };
+
   const resendVerification = async () => {
     if (!alias) return;
-    await supabase.functions.invoke("email-alias-verify", {
-      body: {
-        action: "request",
-        alias_id: alias.id,
-        handle: alias.handle,
-        reply_to: alias.reply_to,
-        from_name: alias.from_name,
-      },
-    });
-    toast({ title: "Verification email resent", description: `Check ${alias.reply_to}.` });
+    if (!alias.reply_to) {
+      toast({ title: "No reply-to address on file", variant: "destructive" });
+      return;
+    }
+    setResending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("email-alias-verify", {
+        body: {
+          action: "request",
+          alias_id: alias.id,
+          handle: alias.handle,
+          reply_to: alias.reply_to,
+          from_name: alias.from_name,
+        },
+      });
+
+      if (error) {
+        let details = error.message;
+        // Read the real failure body instead of "non-2xx status code"
+        const ctx = (error as any)?.context;
+        if (ctx && typeof ctx.text === "function") {
+          try {
+            details = await ctx.text();
+          } catch {
+            /* keep original message */
+          }
+        }
+        throw new Error(details);
+      }
+      if (data?.error) throw new Error(data.details || data.error);
+
+      toast({ title: "Verification email resent", description: `Check ${alias.reply_to}.` });
+      refetch();
+    } catch (e: any) {
+      toast({
+        title: "Couldn't resend the email",
+        description: describeSendError(String(e?.message || "")),
+        variant: "destructive",
+      });
+    } finally {
+      setResending(false);
+    }
   };
+
 
   const live = alias?.status === "approved" && !!alias?.reply_to_verified_at;
 
