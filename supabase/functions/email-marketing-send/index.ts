@@ -111,13 +111,14 @@ Deno.serve(async (req) => {
     }
 
     const brandTheme: BrandTheme = {
-      name: settings?.marketing_email_from_name || brand.name,
+      name: fromName,
       primary: (brand.colors as any)?.primary || "#C4993B",
       background: (brand.colors as any)?.background || "#FAF8F5",
       text: (brand.colors as any)?.text || "#2B2D33",
       logo_url: brand.logo_url || undefined,
       font: brand.primary_font || undefined,
     };
+
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("RESEND_API_KEY missing");
