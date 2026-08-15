@@ -107,25 +107,39 @@ Deno.serve(async (req) => {
         .eq("id", alias_id);
 
       const verifyUrl = `${APP_URL}/verify-alias?token=${token}`;
-      const resp = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: `Brandie <noreply@${domain}>`,
-          to: [reply_to],
-          subject: "Confirm your Brandie reply-to address",
-          html: verifyEmailHtml(from_name || "Your brand", `${handle}@${domain}`, verifyUrl),
-        }),
+      const payload = JSON.stringify({
+        from: `Brandie <noreply@${domain}>`,
+        to: [reply_to],
+        subject: "Confirm your Brandie reply-to address",
+        html: verifyEmailHtml(from_name || "Your brand", `${handle}@${domain}`, verifyUrl),
       });
-      if (!resp.ok) {
-        const err = await resp.text();
-        return new Response(JSON.stringify({ error: "failed_to_send_verification", details: err }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+
+      let resp: Response | null = null;
+      let lastErr = "";
+      for (let attempt = 0; attempt < 3; attempt++) {
+        resp = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
+          body: payload,
         });
+        if (resp.ok) break;
+        lastErr = await resp.text();
+        console.error(`alias verification send failed [${resp.status}] attempt ${attempt + 1}: ${lastErr}`);
+        // Only transient failures are worth retrying
+        if (resp.status !== 429 && resp.status < 500) break;
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
       }
-      return new Response(JSON.stringify({ ok: true }), {
+
+      if (!resp || !resp.ok) {
+        return new Response(
+          JSON.stringify({ error: "failed_to_send_verification", details: lastErr || "no response" }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ ok: true, sent_to: reply_to }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+
     }
 
 
