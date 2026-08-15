@@ -330,6 +330,12 @@ export default function PartnerDetailDialog({
               </TabsList>
 
               <TabsContent value="identity" className="mt-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  This partner is asking to send their campaigns and automations from their own Brandie address
+                  (handle@trybrandie.com) instead of the generic partner address. Approve to make it live, reject to
+                  ask for a different handle, revoke to take a live address away.
+                </p>
+
                 {aliasLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                     <Loader2 className="h-4 w-4 animate-spin" /> Loading sending identity
