@@ -909,7 +909,22 @@ Deno.serve(async (req) => {
             .eq("id", existingLink.id);
         }
 
-        return new Response(JSON.stringify({ partner }), {
+        // Notify the new partner
+        let notifyEmail = (contact_email as string) || "";
+        if (!notifyEmail) {
+          const { data: authUser } = await adminClient.auth.admin.getUserById(user_id);
+          notifyEmail = authUser?.user?.email || "";
+        }
+        if (notifyEmail) {
+          await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "partner_promoted", notifyEmail, {
+            partner_name: name,
+            slug: cleanSlug,
+            commission_first_pct: Number(commission_first_pct) || 0,
+            commission_recurring_pct: Number(commission_recurring_pct) || 0,
+          });
+        }
+
+        return new Response(JSON.stringify({ partner, notified: !!notifyEmail }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

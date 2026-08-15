@@ -1910,7 +1910,53 @@ function AffiliateDetailDrawer({
     queryFn: () =>
       affiliateInsights({ operation: "detail", affiliate_id: affiliateId }),
     enabled: open,
-  });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+
+  // --- Promote affiliate to Marketing Partner ---
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [pName, setPName] = useState("");
+  const [pSlug, setPSlug] = useState("");
+  const [pOrg, setPOrg] = useState("");
+  const [pFirst, setPFirst] = useState(20);
+  const [pRecurring, setPRecurring] = useState(10);
+  const [promoting, setPromoting] = useState(false);
+  const isPartner = (data?.affiliate?.tier as string) === "marketing_partner";
+
+  useEffect(() => {
+    setPromoteOpen(false);
+    setPName(String((data?.affiliate as any)?.full_name || data?.email?.split("@")[0] || ""));
+    setPSlug(String(data?.affiliate?.affiliate_code || "").toLowerCase());
+    setPOrg("");
+  }, [affiliateId, data?.email, data?.affiliate?.affiliate_code]);
+
+  const handlePromote = async () => {
+    if (!data?.affiliate?.user_id) return;
+    setPromoting(true);
+    try {
+      await adminAction({
+        operation: "promote_to_partner",
+        data: {
+          user_id: data.affiliate.user_id,
+          name: pName.trim(),
+          slug: pSlug.trim(),
+          organization: pOrg.trim() || null,
+          contact_email: data.email,
+          commission_first_pct: pFirst,
+          commission_recurring_pct: pRecurring,
+        },
+      });
+      toast.success(`${pName} is now a Marketing Partner — notification email sent`);
+      setPromoteOpen(false);
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["admin-partners"] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to promote affiliate");
+    } finally {
+      setPromoting(false);
+    }
+  };
+
 
   const updateAffiliate = useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
@@ -2074,6 +2120,107 @@ function AffiliateDetailDrawer({
                 </div>
               </div>
             </div>
+
+            {/* Promote to Marketing Partner */}
+            <div className="rounded-xl border border-border p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Marketing Partner
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isPartner
+                      ? "This affiliate is already a Marketing Partner."
+                      : "Upgrade to the partner tier — unlocks the Partner CRM and sends them an email."}
+                  </p>
+                </div>
+                {!promoteOpen && (
+                  <Button
+                    size="sm"
+                    variant={isPartner ? "outline" : "default"}
+                    className="rounded-xl shrink-0"
+                    onClick={() => setPromoteOpen(true)}
+                  >
+                    {isPartner ? "Update partner" : "Promote to Partner"}
+                  </Button>
+                )}
+              </div>
+
+              {promoteOpen && (
+                <div className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">Partner name</Label>
+                      <Input
+                        className="mt-1 rounded-xl h-9"
+                        value={pName}
+                        onChange={(e) => setPName(e.target.value)}
+                        placeholder="Partner display name"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Referral slug</Label>
+                      <Input
+                        className="mt-1 rounded-xl h-9"
+                        value={pSlug}
+                        onChange={(e) => setPSlug(e.target.value)}
+                        placeholder="e.g. amina-media"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">First payment %</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="mt-1 rounded-xl h-9"
+                        value={pFirst}
+                        onChange={(e) => setPFirst(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Recurring %</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="mt-1 rounded-xl h-9"
+                        value={pRecurring}
+                        onChange={(e) => setPRecurring(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label className="text-xs">Organisation (optional)</Label>
+                      <Input
+                        className="mt-1 rounded-xl h-9"
+                        value={pOrg}
+                        onChange={(e) => setPOrg(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="rounded-xl"
+                      disabled={promoting || !pName.trim() || pSlug.trim().length < 3}
+                      onClick={handlePromote}
+                    >
+                      {promoting ? "Promoting…" : "Confirm & notify"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-xl"
+                      disabled={promoting}
+                      onClick={() => setPromoteOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
 
             {/* Bank */}
             <div className="rounded-xl border border-border p-3 text-sm space-y-1">
