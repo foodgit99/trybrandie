@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { usePartnerRole } from "@/hooks/usePartnerRole";
 import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -33,6 +34,7 @@ import {
   Map,
   Sun,
   Moon,
+  Handshake,
 } from "lucide-react";
 
 
