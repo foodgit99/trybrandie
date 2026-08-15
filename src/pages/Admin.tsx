@@ -2538,8 +2538,10 @@ function DataTable({
     if (tableName === "affiliate_commissions") return `$${row.commission_amount}`;
     if (tableName === "affiliate_payouts") return `$${row.amount}`;
     if (tableName === "user_roles") return row.role;
+    if (tableName === "email_aliases") return `${row.handle}@trybrandie.com`;
     return row.id;
   };
+
 
   const getSubtitle = (row: Record<string, unknown>) => {
     if (tableName === "profiles") return row.subscription_tier;
@@ -2548,8 +2550,10 @@ function DataTable({
     if (tableName === "affiliate_commissions") return row.status;
     if (tableName === "affiliate_payouts") return row.status;
     if (tableName === "user_roles") return row.user_id?.toString().slice(0, 8);
+    if (tableName === "email_aliases") return `${row.status} · ${row.reply_to}`;
     return new Date(row.created_at as string).toLocaleDateString();
   };
+
 
   const handleEdit = (row: Record<string, unknown>) => {
     setEditItem({ ...row });
