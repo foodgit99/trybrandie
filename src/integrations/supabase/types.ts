@@ -162,6 +162,7 @@ export type Database = {
           recruited_by: string | null
           regions: string[]
           status: string
+          tier: string
           total_earned: number
           total_paid: number
           updated_at: string
@@ -196,6 +197,7 @@ export type Database = {
           recruited_by?: string | null
           regions?: string[]
           status?: string
+          tier?: string
           total_earned?: number
           total_paid?: number
           updated_at?: string
@@ -230,6 +232,7 @@ export type Database = {
           recruited_by?: string | null
           regions?: string[]
           status?: string
+          tier?: string
           total_earned?: number
           total_paid?: number
           updated_at?: string
@@ -2746,6 +2749,159 @@ export type Database = {
           },
         ]
       }
+      partner_leads: {
+        Row: {
+          attributed_at: string
+          created_at: string
+          id: string
+          partner_id: string
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attributed_at?: string
+          created_at?: string
+          id?: string
+          partner_id: string
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attributed_at?: string
+          created_at?: string
+          id?: string
+          partner_id?: string
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_leads_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_profiles: {
+        Row: {
+          affiliate_id: string | null
+          commission_first_pct: number
+          commission_recurring_pct: number
+          contact_email: string | null
+          contact_person: string | null
+          contact_phone: string | null
+          created_at: string
+          end_date: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          notes: string | null
+          organization: string | null
+          partner_type: string
+          slug: string
+          start_date: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          affiliate_id?: string | null
+          commission_first_pct?: number
+          commission_recurring_pct?: number
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          organization?: string | null
+          partner_type?: string
+          slug: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          affiliate_id?: string | null
+          commission_first_pct?: number
+          commission_recurring_pct?: number
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          organization?: string | null
+          partner_type?: string
+          slug?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_profiles_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_referral_links: {
+        Row: {
+          active: boolean
+          click_count: number
+          code: string
+          created_at: string
+          id: string
+          label: string
+          partner_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          click_count?: number
+          code: string
+          created_at?: string
+          id?: string
+          label?: string
+          partner_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          click_count?: number
+          code?: string
+          created_at?: string
+          id?: string
+          label?: string
+          partner_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_referral_links_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_transactions: {
         Row: {
           amount: number
@@ -3722,11 +3878,13 @@ export type Database = {
         Args: { _brand_id: string; _user_id: string }
         Returns: boolean
       }
+      is_marketing_partner: { Args: { _user_id: string }; Returns: boolean }
       is_user_dormant: {
         Args: { _days?: number; _user_id: string }
         Returns: boolean
       }
       lock_autopilot_idea: { Args: { p_idea_id: string }; Returns: string }
+      partner_id_for_user: { Args: { _user_id: string }; Returns: string }
       pause_dormant_autopilot: {
         Args: { p_days?: number }
         Returns: {
