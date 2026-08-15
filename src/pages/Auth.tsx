@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import SEO from "@/components/SEO";
 import { gaEvent } from "@/lib/ga";
+import { getPartnerRef } from "@/lib/partnerRef";
+
 
 type Mode = "login" | "signup" | "forgot";
 
