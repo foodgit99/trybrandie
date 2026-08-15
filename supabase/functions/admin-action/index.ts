@@ -379,7 +379,10 @@ Deno.serve(async (req) => {
             query = query.or(`affiliate_code.ilike.${searchTerm},bank_name.ilike.${searchTerm}`);
           } else if (table === "email_campaigns") {
             query = query.or(`subject.ilike.${searchTerm},headline.ilike.${searchTerm}`);
+          } else if (table === "email_sender_aliases") {
+            query = query.or(`handle.ilike.${searchTerm},reply_to.ilike.${searchTerm},from_name.ilike.${searchTerm}`);
           }
+
         }
 
         const orderCol = table === "email_campaign_logs" ? "sent_at" : "created_at";
