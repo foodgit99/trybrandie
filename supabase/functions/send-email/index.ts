@@ -1064,6 +1064,23 @@ function teamInviteHtml(brandName: string, inviterName: string, token: string, r
 
 
 
+function partnerPromotedHtml(partnerName: string, slug: string, firstPct: number, recurringPct: number): string {
+  const link = `${APP_URL}/?ref=${encodeURIComponent(slug)}`;
+  return subEmailShell({
+    eyebrow: "Marketing Partner",
+    heading: "You're now a Brandie Marketing Partner 🤝",
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Hey ${partnerName || "there"}, your account has been upgraded to <strong>Marketing Partner</strong> — the highest tier in the Brandie partner programme.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">You now have your own Partner Dashboard with a lead CRM, email campaigns and lifecycle automations.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Your referral link: <a href="${link}" style="color:#c4a265;">${link}</a><br/>Commission: <strong>${firstPct}%</strong> first payment · <strong>${recurringPct}%</strong> recurring.</p>`,
+    ctaText: "Open Partner Dashboard",
+    ctaUrl: `${APP_URL}/partner`,
+    secondaryText: "View your referral link",
+    secondaryUrl: link,
+    footer: "You received this because a Brandie admin upgraded your account to Marketing Partner.",
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -1597,6 +1614,16 @@ Deno.serve(async (req) => {
           String(data?.inviter_name || ""),
           String(data?.token || ""),
           String(data?.role || "editor")
+        );
+        break;
+      }
+      case "partner_promoted": {
+        subject = "You're now a Brandie Marketing Partner 🤝";
+        html = partnerPromotedHtml(
+          String(data?.partner_name || ""),
+          String(data?.slug || ""),
+          Number(data?.commission_first_pct || 0),
+          Number(data?.commission_recurring_pct || 0),
         );
         break;
       }
