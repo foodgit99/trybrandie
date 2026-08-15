@@ -1146,6 +1146,32 @@ Deno.serve(async (req) => {
           statuses,
         };
 
+        // Affiliate programme requests from this partner + their attributed leads
+        const affiliateUserIds = Array.from(new Set([partner.user_id, ...leadIds].filter(Boolean)));
+        let affiliateRequests: Array<Record<string, unknown>> = [];
+        if (affiliateUserIds.length > 0) {
+          const { data: affRows } = await adminClient
+            .from("affiliates")
+            .select(
+              "id, user_id, affiliate_code, status, tier, primary_channel, channel_handle, channel_url, audience_size, niche, regions, promo_plan, why_join, whatsapp_number, location, created_at, application_submitted_at",
+            )
+            .in("user_id", affiliateUserIds)
+            .order("created_at", { ascending: false });
+
+          affiliateRequests = await Promise.all(
+            (affRows || []).map(async (row) => {
+              const { data: au } = await adminClient.auth.admin.getUserById(row.user_id as string);
+              const lead = leads.find((l) => l.user_id === row.user_id);
+              return {
+                ...row,
+                email: au?.user?.email || null,
+                full_name: lead?.full_name || au?.user?.user_metadata?.full_name || null,
+                relation: row.user_id === partner.user_id ? "partner" : "lead",
+              };
+            }),
+          );
+        }
+
         return new Response(
           JSON.stringify({
             partner: { ...partner, email: au2?.user?.email || partner.contact_email || null },
@@ -1157,10 +1183,98 @@ Deno.serve(async (req) => {
             sends: sends || [],
             runs: runs || [],
             transactions,
+            affiliate_requests: affiliateRequests,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+
+      case "partner_affiliate_decision": {
+        const { partner_id, affiliate_id, decision, note } = data || {};
+        if (!partner_id || !affiliate_id || !["approved", "rejected"].includes(decision)) {
+          return new Response(
+            JSON.stringify({ error: "partner_id, affiliate_id and decision (approved|rejected) required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        const { data: partnerRow } = await adminClient
+          .from("partner_profiles")
+          .select("id, user_id, name")
+          .eq("id", partner_id)
+          .maybeSingle();
+        if (!partnerRow) {
+          return new Response(JSON.stringify({ error: "Partner not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: affRow } = await adminClient
+          .from("affiliates")
+          .select("id, user_id, affiliate_code, status")
+          .eq("id", affiliate_id)
+          .maybeSingle();
+        if (!affRow) {
+          return new Response(JSON.stringify({ error: "Affiliate request not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Scope guard: must belong to the partner or one of their attributed leads
+        let inScope = affRow.user_id === partnerRow.user_id;
+        if (!inScope) {
+          const { data: leadRow } = await adminClient
+            .from("partner_leads")
+            .select("user_id")
+            .eq("partner_id", partner_id)
+            .eq("user_id", affRow.user_id)
+            .maybeSingle();
+          inScope = !!leadRow;
+        }
+        if (!inScope) {
+          return new Response(JSON.stringify({ error: "This request does not belong to this partner" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { error: updErr } = await adminClient
+          .from("affiliates")
+          .update({ status: decision })
+          .eq("id", affiliate_id);
+        if (updErr) throw updErr;
+
+        const { data: affUser } = await adminClient.auth.admin.getUserById(affRow.user_id as string);
+        const email = affUser?.user?.email || null;
+        let notified = false;
+        let notifyError: string | undefined;
+
+        if (email) {
+          const res = await sendAffiliateEmail(
+            supabaseUrl,
+            serviceRoleKey,
+            decision === "approved" ? "partner_affiliate_approved" : "partner_affiliate_rejected",
+            email,
+            {
+              name: affUser?.user?.user_metadata?.full_name || "",
+              affiliate_code: affRow.affiliate_code,
+              partner_name: partnerRow.name,
+              note: note || "",
+            },
+          );
+          notified = res.ok;
+          notifyError = res.error;
+        } else {
+          notifyError = "no_email_on_file";
+        }
+
+        return new Response(JSON.stringify({ success: true, notified, notify_email: email, notify_error: notifyError }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
 
       case "partner_set_slug": {
 
