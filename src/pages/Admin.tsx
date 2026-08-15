@@ -2121,6 +2121,107 @@ function AffiliateDetailDrawer({
               </div>
             </div>
 
+            {/* Promote to Marketing Partner */}
+            <div className="rounded-xl border border-border p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Marketing Partner
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isPartner
+                      ? "This affiliate is already a Marketing Partner."
+                      : "Upgrade to the partner tier — unlocks the Partner CRM and sends them an email."}
+                  </p>
+                </div>
+                {!promoteOpen && (
+                  <Button
+                    size="sm"
+                    variant={isPartner ? "outline" : "default"}
+                    className="rounded-xl shrink-0"
+                    onClick={() => setPromoteOpen(true)}
+                  >
+                    {isPartner ? "Update partner" : "Promote to Partner"}
+                  </Button>
+                )}
+              </div>
+
+              {promoteOpen && (
+                <div className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">Partner name</Label>
+                      <Input
+                        className="mt-1 rounded-xl h-9"
+                        value={pName}
+                        onChange={(e) => setPName(e.target.value)}
+                        placeholder="Partner display name"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Referral slug</Label>
+                      <Input
+                        className="mt-1 rounded-xl h-9"
+                        value={pSlug}
+                        onChange={(e) => setPSlug(e.target.value)}
+                        placeholder="e.g. amina-media"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">First payment %</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="mt-1 rounded-xl h-9"
+                        value={pFirst}
+                        onChange={(e) => setPFirst(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Recurring %</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="mt-1 rounded-xl h-9"
+                        value={pRecurring}
+                        onChange={(e) => setPRecurring(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label className="text-xs">Organisation (optional)</Label>
+                      <Input
+                        className="mt-1 rounded-xl h-9"
+                        value={pOrg}
+                        onChange={(e) => setPOrg(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="rounded-xl"
+                      disabled={promoting || !pName.trim() || pSlug.trim().length < 3}
+                      onClick={handlePromote}
+                    >
+                      {promoting ? "Promoting…" : "Confirm & notify"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-xl"
+                      disabled={promoting}
+                      onClick={() => setPromoteOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+
             {/* Bank */}
             <div className="rounded-xl border border-border p-3 text-sm space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
