@@ -223,7 +223,9 @@ const App = () => (
           {/* ============ PRIMARY (v2) experience ============ */}
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-alias" element={<AliasVerify />} />
           <Route path="/invite/:token" element={<AcceptInvite />} />
+
           <Route path="/" element={<LandingOrCockpit />} />
           <Route path="/onboarding" element={<OnboardingRoute><V2Onboarding /></OnboardingRoute>} />
           <Route path="/cockpit" element={<ProtectedRoute><V2Cockpit /></ProtectedRoute>} />
