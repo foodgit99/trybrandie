@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowRight, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -134,6 +134,12 @@ const AutopilotStatusBanner = ({ brandId, showApproveAll = false, className = ""
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {data.reason === "no_ideas" ? (
+          <Button size="sm" onClick={planWeek} disabled={planning} className="rounded-full h-9 gap-1.5">
+            {planning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Plan this week
+          </Button>
+        ) : null}
         {showApproveAll && data.reason === "no_approved" ? (
           <Button
             size="sm"
