@@ -391,236 +391,278 @@ export default function PartnerDetailDialog({
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="credits" className="mt-4 space-y-3">
+              <TabsContent value="requests" className="mt-4 space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  This partner is asking Brandie to gift free credits to every user who signs up through their
-                  referral link. You set the final terms: credits per signup, total credit budget, and the end date.
-                  Approved campaigns grant credits automatically at signup (expiring after 30 days) and stop
-                  themselves when the budget is spent or the date passes.
+                  Everything this partner has asked Brandie to approve. Two kinds of request can appear here:{" "}
+                  <strong>Sending identity</strong> (their own handle@trybrandie.com address for campaigns) and{" "}
+                  <strong>Signup credits</strong> (free credits gifted to every user who signs up through their
+                  referral link). Review the details, add an optional note, then approve or deny — the partner is
+                  emailed either way.
                 </p>
 
-                {grantsLoading ? (
+                <div className="flex flex-wrap gap-2">
+                  {(["all", "identity", "credits"] as const).map((f) => (
+                    <Button
+                      key={f}
+                      size="sm"
+                      variant={requestFilter === f ? "default" : "outline"}
+                      className="rounded-full text-xs"
+                      onClick={() => setRequestFilter(f)}
+                    >
+                      {f === "all" ? "All requests" : f === "identity" ? "Sending identity" : "Signup credits"}
+                    </Button>
+                  ))}
+                </div>
+
+                {aliasLoading || grantsLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading credits requests
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading partner requests
                   </div>
-                ) : partnerGrants.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">
-                    This partner hasn't requested signup credits yet.
-                  </p>
                 ) : (
-                  partnerGrants.map((g) => {
-                    const t = termsFor(g);
-                    const editable = g.status === "pending";
-                    return (
-                      <div key={g.id} className="rounded-xl border border-border px-3 py-3 text-sm space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium">
-                            {g.credits_per_signup} credits per signup · {g.total_budget_credits} budget
-                          </span>
-                          <Badge
-                            variant={
-                              g.status === "approved" ? "default" : g.status === "pending" ? "secondary" : "outline"
-                            }
-                            className="rounded-full capitalize text-[11px]"
-                          >
-                            {g.status}
-                          </Badge>
-                          <span className="ml-auto text-xs text-muted-foreground">{fmt(g.created_at)}</span>
-                        </div>
-
-                        <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                          <p className="break-all">
-                            Requested by: {g.requester_name || "—"} {g.requester_email ? `· ${g.requester_email}` : ""}
+                  <>
+                    {requestFilter !== "credits" && (
+                      <div className="space-y-3">
+                        {partnerAliases.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">
+                            No sending identity request from this partner yet.
                           </p>
-                          <p>Ends: {fmt(g.ends_at)}</p>
-                          <p>
-                            Given out: {g.credits_granted} / {g.total_budget_credits} credits
-                          </p>
-                          <p>Leads credited: {g.leads_credited}</p>
-                          {g.request_note && <p className="sm:col-span-2">Partner note: {g.request_note}</p>}
-                          {g.review_note && <p className="sm:col-span-2">Your note: {g.review_note}</p>}
-                        </div>
+                        ) : (
+                          partnerAliases.map((a) => (
+                            <div
+                              key={a.id}
+                              className="rounded-2xl border border-border bg-card px-4 py-4 text-sm space-y-3"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="rounded-full gap-1 text-[11px]">
+                                  <AtSign className="h-3 w-3" /> Sending identity
+                                </Badge>
+                                <Badge
+                                  variant={
+                                    a.status === "approved"
+                                      ? "default"
+                                      : a.status === "pending"
+                                        ? "secondary"
+                                        : "outline"
+                                  }
+                                  className="rounded-full capitalize text-[11px]"
+                                >
+                                  {a.status}
+                                </Badge>
+                                <span className="ml-auto text-xs text-muted-foreground">{fmt(a.created_at)}</span>
+                              </div>
 
-                        {editable && (
-                          <div className="grid sm:grid-cols-3 gap-2">
-                            <Input
-                              type="number"
-                              min={1}
-                              max={50}
-                              value={t.per}
-                              onChange={(e) =>
-                                setGrantTerms((p) => ({ ...p, [g.id]: { ...t, per: e.target.value } }))
-                              }
-                              className="rounded-xl"
-                              placeholder="Credits per signup"
-                            />
-                            <Input
-                              type="number"
-                              min={1}
-                              value={t.budget}
-                              onChange={(e) =>
-                                setGrantTerms((p) => ({ ...p, [g.id]: { ...t, budget: e.target.value } }))
-                              }
-                              className="rounded-xl"
-                              placeholder="Total budget"
-                            />
-                            <Input
-                              type="date"
-                              value={t.ends}
-                              onChange={(e) =>
-                                setGrantTerms((p) => ({ ...p, [g.id]: { ...t, ends: e.target.value } }))
-                              }
-                              className="rounded-xl"
-                            />
-                          </div>
+                              <p className="font-medium break-all">
+                                {a.from_name} &lt;{a.handle}@trybrandie.com&gt;
+                              </p>
+
+                              <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                <p className="break-all">Reply-to: {a.reply_to || "—"}</p>
+                                <p>{a.reply_to_verified_at ? "Reply-to verified" : "Reply-to unverified"}</p>
+                                <p className="break-all">Requester: {a.requester_email || "—"}</p>
+                                {a.review_note && <p className="sm:col-span-2">Your note: {a.review_note}</p>}
+                              </div>
+
+                              <Textarea
+                                rows={2}
+                                placeholder="Optional note included in the email…"
+                                value={aliasNote[a.id] || ""}
+                                onChange={(e) => setAliasNote((p) => ({ ...p, [a.id]: e.target.value }))}
+                                className="rounded-xl text-sm"
+                              />
+
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  size="sm"
+                                  className="rounded-full"
+                                  disabled={aliasBusy === a.id || a.status === "approved"}
+                                  onClick={() => decideAlias(a, "approved")}
+                                >
+                                  {aliasBusy === a.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <BadgeCheck className="h-3.5 w-3.5" />
+                                  )}
+                                  Approve address
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full"
+                                  disabled={aliasBusy === a.id || a.status === "rejected"}
+                                  onClick={() => decideAlias(a, "rejected")}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" /> Deny
+                                </Button>
+                                {a.status === "approved" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="rounded-full"
+                                    disabled={aliasBusy === a.id}
+                                    onClick={() => decideAlias(a, "revoked")}
+                                  >
+                                    Revoke
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))
                         )}
-
-                        <Textarea
-                          rows={2}
-                          placeholder="Optional note included in the email…"
-                          value={grantNote[g.id] || ""}
-                          onChange={(e) => setGrantNote((p) => ({ ...p, [g.id]: e.target.value }))}
-                          className="rounded-xl text-sm"
-                        />
-
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            className="rounded-full"
-                            disabled={grantBusy === g.id || g.status === "approved" || g.status === "rejected"}
-                            onClick={() => decideGrant(g, "approved")}
-                          >
-                            {grantBusy === g.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <BadgeCheck className="h-3.5 w-3.5" />
-                            )}
-                            Approve credits
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-full"
-                            disabled={grantBusy === g.id || g.status !== "pending"}
-                            onClick={() => decideGrant(g, "rejected")}
-                          >
-                            <XCircle className="h-3.5 w-3.5" /> Reject
-                          </Button>
-                          {g.status === "approved" && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-full"
-                                disabled={grantBusy === g.id}
-                                onClick={() => decideGrant(g, "paused")}
-                              >
-                                Pause
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="rounded-full"
-                                disabled={grantBusy === g.id}
-                                onClick={() => decideGrant(g, "stopped")}
-                              >
-                                Stop
-                              </Button>
-                            </>
-                          )}
-                        </div>
                       </div>
-                    );
-                  })
+                    )}
+
+                    {requestFilter !== "identity" && (
+                      <div className="space-y-3">
+                        {partnerGrants.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">
+                            No signup credits request from this partner yet.
+                          </p>
+                        ) : (
+                          partnerGrants.map((g) => {
+                            const t = termsFor(g);
+                            const editable = g.status === "pending";
+                            return (
+                              <div
+                                key={g.id}
+                                className="rounded-2xl border border-border bg-card px-4 py-4 text-sm space-y-3"
+                              >
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className="rounded-full gap-1 text-[11px]">
+                                    <Gift className="h-3 w-3" /> Signup credits
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      g.status === "approved"
+                                        ? "default"
+                                        : g.status === "pending"
+                                          ? "secondary"
+                                          : "outline"
+                                    }
+                                    className="rounded-full capitalize text-[11px]"
+                                  >
+                                    {g.status}
+                                  </Badge>
+                                  <span className="ml-auto text-xs text-muted-foreground">{fmt(g.created_at)}</span>
+                                </div>
+
+                                <p className="font-medium">
+                                  {g.credits_per_signup} credits per signup · {g.total_budget_credits} credit budget
+                                </p>
+
+                                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                  <p className="break-all">
+                                    Requested by: {g.requester_name || "—"}
+                                    {g.requester_email ? ` · ${g.requester_email}` : ""}
+                                  </p>
+                                  <p>Ends: {fmt(g.ends_at)}</p>
+                                  <p>
+                                    Given out: {g.credits_granted} / {g.total_budget_credits} credits
+                                  </p>
+                                  <p>Leads credited: {g.leads_credited}</p>
+                                  {g.request_note && <p className="sm:col-span-2">Partner note: {g.request_note}</p>}
+                                  {g.review_note && <p className="sm:col-span-2">Your note: {g.review_note}</p>}
+                                </div>
+
+                                {editable && (
+                                  <div className="grid sm:grid-cols-3 gap-2">
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      max={50}
+                                      value={t.per}
+                                      onChange={(e) =>
+                                        setGrantTerms((p) => ({ ...p, [g.id]: { ...t, per: e.target.value } }))
+                                      }
+                                      className="rounded-xl"
+                                      placeholder="Credits per signup"
+                                    />
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      value={t.budget}
+                                      onChange={(e) =>
+                                        setGrantTerms((p) => ({ ...p, [g.id]: { ...t, budget: e.target.value } }))
+                                      }
+                                      className="rounded-xl"
+                                      placeholder="Total budget"
+                                    />
+                                    <Input
+                                      type="date"
+                                      value={t.ends}
+                                      onChange={(e) =>
+                                        setGrantTerms((p) => ({ ...p, [g.id]: { ...t, ends: e.target.value } }))
+                                      }
+                                      className="rounded-xl"
+                                    />
+                                  </div>
+                                )}
+
+                                <Textarea
+                                  rows={2}
+                                  placeholder="Optional note included in the email…"
+                                  value={grantNote[g.id] || ""}
+                                  onChange={(e) => setGrantNote((p) => ({ ...p, [g.id]: e.target.value }))}
+                                  className="rounded-xl text-sm"
+                                />
+
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="rounded-full"
+                                    disabled={
+                                      grantBusy === g.id || g.status === "approved" || g.status === "rejected"
+                                    }
+                                    onClick={() => decideGrant(g, "approved")}
+                                  >
+                                    {grantBusy === g.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <BadgeCheck className="h-3.5 w-3.5" />
+                                    )}
+                                    Approve credits
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-full"
+                                    disabled={grantBusy === g.id || g.status !== "pending"}
+                                    onClick={() => decideGrant(g, "rejected")}
+                                  >
+                                    <XCircle className="h-3.5 w-3.5" /> Deny
+                                  </Button>
+                                  {g.status === "approved" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="rounded-full"
+                                        disabled={grantBusy === g.id}
+                                        onClick={() => decideGrant(g, "paused")}
+                                      >
+                                        Pause
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="rounded-full"
+                                        disabled={grantBusy === g.id}
+                                        onClick={() => decideGrant(g, "stopped")}
+                                      >
+                                        Stop
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </TabsContent>
 
-
-
-              <TabsContent value="identity" className="mt-4 space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  This partner is asking to send their campaigns and automations from their own Brandie address
-                  (handle@trybrandie.com) instead of the generic partner address. Approve to make it live, reject to
-                  ask for a different handle, revoke to take a live address away.
-                </p>
-
-                {aliasLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading sending identity
-                  </div>
-                ) : partnerAliases.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">
-                    This partner hasn't requested a Brandie sending address yet.
-                  </p>
-                ) : (
-                  partnerAliases.map((a) => (
-                    <div key={a.id} className="rounded-xl border border-border px-3 py-3 text-sm space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium break-all">
-                          {a.from_name} &lt;{a.handle}@trybrandie.com&gt;
-                        </span>
-                        <Badge
-                          variant={a.status === "approved" ? "default" : a.status === "pending" ? "secondary" : "outline"}
-                          className="rounded-full capitalize text-[11px]"
-                        >
-                          {a.status}
-                        </Badge>
-                        <span className="ml-auto text-xs text-muted-foreground">{fmt(a.created_at)}</span>
-                      </div>
-                      <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <p>Reply-to: {a.reply_to || "—"}</p>
-                        <p>{a.reply_to_verified_at ? "Reply-to verified" : "Reply-to unverified"}</p>
-                        <p className="break-all">Requester: {a.requester_email || "—"}</p>
-                        {a.review_note && <p>Note: {a.review_note}</p>}
-                      </div>
-
-                      <Textarea
-                        rows={2}
-                        placeholder="Optional note included in the email…"
-                        value={aliasNote[a.id] || ""}
-                        onChange={(e) => setAliasNote((p) => ({ ...p, [a.id]: e.target.value }))}
-                        className="rounded-xl text-sm"
-                      />
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          className="rounded-full"
-                          disabled={aliasBusy === a.id || a.status === "approved"}
-                          onClick={() => decideAlias(a, "approved")}
-                        >
-                          {aliasBusy === a.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <BadgeCheck className="h-3.5 w-3.5" />
-                          )}
-                          Approve address
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-full"
-                          disabled={aliasBusy === a.id || a.status === "rejected"}
-                          onClick={() => decideAlias(a, "rejected")}
-                        >
-                          <XCircle className="h-3.5 w-3.5" /> Reject
-                        </Button>
-                        {a.status === "approved" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="rounded-full"
-                            disabled={aliasBusy === a.id}
-                            onClick={() => decideAlias(a, "revoked")}
-                          >
-                            Revoke
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </TabsContent>
 
 
               <TabsContent value="affiliate" className="mt-4 space-y-3">
