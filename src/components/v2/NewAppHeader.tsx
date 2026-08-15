@@ -42,7 +42,7 @@ import {
 
 const NewAppHeader = () => {
   const { signOut } = useAuth();
-  const { isAdmin } = useAdminRole();
+  const { isAdmin, loading: adminLoading } = useAdminRole();
   const { isPartner } = usePartnerRole();
   const { isAffiliate } = useAffiliateRole();
 
