@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign } from "lucide-react";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
