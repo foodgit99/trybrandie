@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity, Send } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
+
 
 
 interface AffiliateRequest {
