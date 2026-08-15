@@ -3002,6 +3002,7 @@ function DataTable({
 }
 
 export default function Admin() {
+  const { isAdmin, loading: adminLoading } = useAdminRole();
   const [activeTab, setActiveTab] = useState("overview");
   const [affiliateDetailId, setAffiliateDetailId] = useState<string | null>(null);
 
