@@ -1151,6 +1151,36 @@ function partnerAffiliateRejectedHtml(name: string, partnerName: string, note: s
 
 
 
+async function queueNotificationEmail(
+  type: string,
+  to: string,
+  data: Record<string, unknown>,
+  lastError: string
+): Promise<boolean> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const client = createClient(url, key);
+    const { error } = await client.from("notification_email_outbox").insert({
+      email_type: type,
+      to_email: to,
+      payload: data,
+      last_error: lastError,
+      attempts: 1,
+      next_attempt_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    });
+    if (error) {
+      console.error("queueNotificationEmail failed:", error.message);
+      return false;
+    }
+    console.log(`Queued ${type} -> ${to} for retry`);
+    return true;
+  } catch (err) {
+    console.error("queueNotificationEmail threw:", String(err));
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
