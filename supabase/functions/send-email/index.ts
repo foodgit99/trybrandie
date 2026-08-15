@@ -1686,6 +1686,26 @@ Deno.serve(async (req) => {
         );
         break;
       }
+      case "alias_approved": {
+        subject = "Your Brandie sending address is live ✅";
+        html = aliasApprovedHtml(
+          String(data?.address || ""),
+          String(data?.from_name || ""),
+          String(data?.owner_type || "brand"),
+          String(data?.note || ""),
+        );
+        break;
+      }
+      case "alias_rejected": {
+        subject = "Update on your Brandie sending address request";
+        html = aliasRejectedHtml(
+          String(data?.address || ""),
+          String(data?.note || ""),
+        );
+        break;
+      }
+
+
 
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
