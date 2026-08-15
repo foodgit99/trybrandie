@@ -1337,7 +1337,7 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
     if (!detailItem?.user_id) return;
     setPromoting(true);
     try {
-      await adminAction({
+      const res = await adminAction({
         operation: "promote_to_partner",
         data: {
           user_id: detailItem.user_id,
@@ -1349,7 +1349,17 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
           commission_recurring_pct: partnerRecurringPct,
         },
       });
-      toast.success(`${partnerName} is now a Marketing Partner`);
+      if (res?.notified) {
+        toast.success(`${partnerName} is now a Marketing Partner — email sent to ${res.notify_email}`);
+      } else {
+        toast.warning(
+          `${partnerName} is now a Marketing Partner, but the notification email failed${
+            String(res?.notify_error || "").includes("daily_quota_exceeded")
+              ? " (email provider daily quota reached)"
+              : ""
+          }. Resend it from the Partners tab.`
+        );
+      }
       setPromoteOpen(false);
     } catch (e: any) {
       toast.error(e.message || "Failed to promote user");
@@ -1935,7 +1945,7 @@ function AffiliateDetailDrawer({
     if (!data?.affiliate?.user_id) return;
     setPromoting(true);
     try {
-      await adminAction({
+      const res = await adminAction({
         operation: "promote_to_partner",
         data: {
           user_id: data.affiliate.user_id,
@@ -1947,7 +1957,17 @@ function AffiliateDetailDrawer({
           commission_recurring_pct: pRecurring,
         },
       });
-      toast.success(`${pName} is now a Marketing Partner — notification email sent`);
+      if (res?.notified) {
+        toast.success(`${pName} is now a Marketing Partner — email sent to ${res.notify_email}`);
+      } else {
+        toast.warning(
+          `${pName} is now a Marketing Partner, but the notification email failed${
+            String(res?.notify_error || "").includes("daily_quota_exceeded")
+              ? " (email provider daily quota reached)"
+              : ""
+          }. Resend it from the Partners tab.`
+        );
+      }
       setPromoteOpen(false);
       refetch();
       queryClient.invalidateQueries({ queryKey: ["admin-partners"] });
