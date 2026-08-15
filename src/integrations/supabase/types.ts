@@ -2749,6 +2749,264 @@ export type Database = {
           },
         ]
       }
+      partner_automation_runs: {
+        Row: {
+          automation_id: string
+          created_at: string
+          email: string | null
+          error: string | null
+          id: string
+          lead_user_id: string
+          partner_id: string
+          status: string
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string
+          email?: string | null
+          error?: string | null
+          id?: string
+          lead_user_id: string
+          partner_id: string
+          status?: string
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string
+          email?: string | null
+          error?: string | null
+          id?: string
+          lead_user_id?: string
+          partner_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_automation_runs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "partner_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_automation_runs_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_automations: {
+        Row: {
+          active: boolean
+          body: string
+          created_at: string
+          delay_hours: number
+          id: string
+          last_run_at: string | null
+          name: string
+          partner_id: string
+          sent_count: number
+          subject: string
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          body?: string
+          created_at?: string
+          delay_hours?: number
+          id?: string
+          last_run_at?: string | null
+          name: string
+          partner_id: string
+          sent_count?: number
+          subject: string
+          trigger: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          created_at?: string
+          delay_hours?: number
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          partner_id?: string
+          sent_count?: number
+          subject?: string
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_automations_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_campaign_sends: {
+        Row: {
+          campaign_id: string
+          clicked_at: string | null
+          created_at: string
+          email: string
+          error: string | null
+          id: string
+          lead_user_id: string
+          opened_at: string | null
+          partner_id: string
+          provider_id: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          clicked_at?: string | null
+          created_at?: string
+          email: string
+          error?: string | null
+          id?: string
+          lead_user_id: string
+          opened_at?: string | null
+          partner_id: string
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          clicked_at?: string | null
+          created_at?: string
+          email?: string
+          error?: string | null
+          id?: string
+          lead_user_id?: string
+          opened_at?: string | null
+          partner_id?: string
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_campaign_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "partner_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_campaign_sends_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_campaigns: {
+        Row: {
+          audience: Json
+          body: string
+          clicked_count: number
+          created_at: string
+          delivered_count: number
+          id: string
+          name: string
+          opened_count: number
+          partner_id: string
+          preheader: string | null
+          recipients_count: number
+          scheduled_for: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          audience?: Json
+          body?: string
+          clicked_count?: number
+          created_at?: string
+          delivered_count?: number
+          id?: string
+          name: string
+          opened_count?: number
+          partner_id: string
+          preheader?: string | null
+          recipients_count?: number
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: Json
+          body?: string
+          clicked_count?: number
+          created_at?: string
+          delivered_count?: number
+          id?: string
+          name?: string
+          opened_count?: number
+          partner_id?: string
+          preheader?: string | null
+          recipients_count?: number
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_campaigns_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_email_suppression: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          partner_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          partner_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          partner_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_email_suppression_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_leads: {
         Row: {
           attributed_at: string
