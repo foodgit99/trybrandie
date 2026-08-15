@@ -237,6 +237,8 @@ const App = () => (
           <Route path="/brands" element={<ProtectedRoute><BrandsPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><V2Settings /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><V2Profile /></ProtectedRoute>} />
+          <Route path="/partner" element={<ProtectedRoute><PartnerDashboard /></ProtectedRoute>} />
+
           <Route path="/engine" element={<ProtectedRoute><V2Engine /></ProtectedRoute>} />
           <Route path="/content-hub" element={<ProtectedRoute><V2ContentHub /></ProtectedRoute>} />
           <Route path="/hub" element={<ProtectedRoute><V2Hub /></ProtectedRoute>} />
