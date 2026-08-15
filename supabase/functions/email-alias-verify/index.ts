@@ -15,7 +15,10 @@ function slug(n = 32) {
     .reduce((s, b) => s + (b % 36).toString(36), "");
 }
 
-const APP_URL = "https://trybrandie.com";
+const APP_URL = Deno.env.get("APP_URL") || "https://trybrandie.com";
+const domain = Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com";
+const resendKey = Deno.env.get("RESEND_API_KEY") || "";
+
 
 function verifyEmailHtml(brandName: string, handle: string, verifyUrl: string) {
   return `<!DOCTYPE html>
