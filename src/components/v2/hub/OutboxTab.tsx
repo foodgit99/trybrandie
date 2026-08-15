@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import {
   Mail, Users, Send, FileText, Workflow, BarChart3, Plus, Upload, Sparkles,
-  Trash2, ExternalLink, Lock,
+  Trash2, ExternalLink, Lock, AtSign,
+
 } from "lucide-react";
 
 const ALLOWED_TIERS = new Set(["starter", "creator", "agency", "pro", "growth", "scale"]);
@@ -64,12 +65,13 @@ export default function OutboxTab({ brand, userId }: { brand: { id: string; name
       </div>
 
       <Tabs defaultValue="broadcasts" className="w-full">
-        <TabsList className="w-full grid grid-cols-5 max-w-2xl">
+        <TabsList className="w-full grid grid-cols-6 max-w-3xl">
           <TabsTrigger value="broadcasts" className="gap-1.5"><Send className="h-3.5 w-3.5" />Broadcasts</TabsTrigger>
           <TabsTrigger value="contacts" className="gap-1.5"><Users className="h-3.5 w-3.5" />Contacts</TabsTrigger>
           <TabsTrigger value="forms" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Forms</TabsTrigger>
           <TabsTrigger value="journeys" className="gap-1.5"><Workflow className="h-3.5 w-3.5" />Journeys</TabsTrigger>
           <TabsTrigger value="performance" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Insights</TabsTrigger>
+          <TabsTrigger value="identity" className="gap-1.5"><AtSign className="h-3.5 w-3.5" />Identity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="broadcasts" className="mt-4">
@@ -87,7 +89,11 @@ export default function OutboxTab({ brand, userId }: { brand: { id: string; name
         <TabsContent value="performance" className="mt-4">
           <PerformancePanel brandId={brand.id} />
         </TabsContent>
+        <TabsContent value="identity" className="mt-4">
+          <IdentityPanel brandId={brand.id} userId={userId} brandName={brand.name} />
+        </TabsContent>
       </Tabs>
+
     </div>
   );
 }

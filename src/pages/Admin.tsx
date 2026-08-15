@@ -82,7 +82,9 @@ const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
   { key: "support", label: "Support", icon: LifeBuoy },
   { key: "email_crm", label: "Email CRM", icon: Mail },
+  { key: "email_aliases", label: "Email Aliases", icon: Mail },
   { key: "profiles", label: "Users", icon: Users },
+
   { key: "brands", label: "Brands", icon: Palette },
   { key: "designs", label: "Designs", icon: Image },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard },

@@ -24,7 +24,9 @@ const ALLOWED_TABLES = [
   "user_roles",
   "email_campaigns",
   "email_campaign_logs",
+  "email_sender_aliases",
   "credit_rewards",
+
 ];
 
 async function sendAffiliateEmail(
