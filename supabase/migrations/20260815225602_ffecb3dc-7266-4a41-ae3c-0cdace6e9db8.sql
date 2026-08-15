@@ -1,0 +1,1 @@
+DELETE FROM public.notification_email_outbox WHERE to_email = 'verify-test@trybrandie.com';
