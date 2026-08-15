@@ -174,30 +174,32 @@ export default function PartnerDashboard() {
               </div>
             </section>
 
-            <section className="space-y-3">
-              <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">Quick actions</h2>
-              <div className="grid sm:grid-cols-3 gap-3">
-                <Button variant="outline" className="rounded-xl justify-start gap-2 h-auto py-3" onClick={copyLink}>
-                  <Sparkles className="h-4 w-4" /> Copy referral link
-                </Button>
-                <Button variant="outline" className="rounded-xl justify-start gap-2 h-auto py-3" disabled>
-                  <Mail className="h-4 w-4" /> Send email
-                  <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">Soon</span>
-                </Button>
-                <Button variant="outline" className="rounded-xl justify-start gap-2 h-auto py-3" disabled>
-                  <Workflow className="h-4 w-4" /> Create automation
-                  <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">Soon</span>
-                </Button>
-              </div>
+            <section className="space-y-3 pb-10">
+              <Tabs defaultValue="leads">
+                <TabsList className="rounded-xl">
+                  <TabsTrigger value="leads" className="rounded-lg gap-2">
+                    <Users className="h-3.5 w-3.5" /> My leads
+                  </TabsTrigger>
+                  <TabsTrigger value="campaigns" className="rounded-lg gap-2">
+                    <Mail className="h-3.5 w-3.5" /> Campaigns
+                  </TabsTrigger>
+                  <TabsTrigger value="automations" className="rounded-lg gap-2">
+                    <Workflow className="h-3.5 w-3.5" /> Automations
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="leads" className="mt-5">
+                  <PartnerLeadsTable leads={leads} onSelect={setSelected} />
+                </TabsContent>
+                <TabsContent value="campaigns" className="mt-5">
+                  <PartnerCampaignsPanel partnerId={overview.partner.id} />
+                </TabsContent>
+                <TabsContent value="automations" className="mt-5">
+                  <PartnerAutomationsPanel partnerId={overview.partner.id} />
+                </TabsContent>
+              </Tabs>
             </section>
 
-            <section className="space-y-3 pb-10">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-xs tracking-[0.22em] uppercase text-muted-foreground">My leads</h2>
-              </div>
-              <PartnerLeadsTable leads={leads} onSelect={setSelected} />
-            </section>
           </>
         )}
       </main>
