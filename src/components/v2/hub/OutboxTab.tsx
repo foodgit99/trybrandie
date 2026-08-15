@@ -551,3 +551,115 @@ function PerformancePanel({ brandId }: { brandId: string }) {
     </div>
   );
 }
+
+/* ---------------------------- Identity ---------------------------- */
+function IdentityPanel({ brandId, userId, brandName }: { brandId: string; userId: string; brandName: string }) {
+  const [handle, setHandle] = useState("");
+  const [fromName, setFromName] = useState(brandName);
+  const [replyTo, setReplyTo] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: alias, refetch } = useQuery({
+    queryKey: ["outbox-identity", brandId],
+    queryFn: async () => {
+      const { data } = await supabase.from("email_sender_aliases").select("*").eq("brand_id", brandId).maybeSingle();
+      return data as any;
+    },
+  });
+
+  const request = async () => {
+    if (!handle || !fromName || !replyTo) {
+      toast({ title: "All fields are required", variant: "destructive" }); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo)) {
+      toast({ title: "Invalid reply-to email", variant: "destructive" }); return;
+    }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.from("email_sender_aliases").insert({
+        brand_id: brandId, user_id: userId, handle, from_name: fromName, reply_to: replyTo, status: "pending",
+      }).select("id,handle,reply_to,from_name").single();
+      if (error) throw error;
+      await supabase.functions.invoke("email-alias-verify", {
+        body: { action: "request", alias_id: data.id, handle, reply_to: replyTo, from_name: fromName },
+      });
+      toast({ title: "Alias requested", description: `Check ${replyTo} to confirm the reply-to address.` });
+      setHandle(""); setReplyTo(""); setFromName(brandName);
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Request failed", description: e.message, variant: "destructive" });
+    } finally { setSubmitting(false); }
+  };
+
+  const resendVerification = async () => {
+    if (!alias) return;
+    await supabase.functions.invoke("email-alias-verify", {
+      body: { action: "request", alias_id: alias.id, handle: alias.handle, reply_to: alias.reply_to, from_name: alias.from_name },
+    });
+    toast({ title: "Verification email resent", description: `Check ${alias.reply_to}.` });
+  };
+
+  const domain = "trybrandie.com";
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <Card className="rounded-2xl">
+        <CardHeader><CardTitle>Sending identity</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Request a branded sending address so your campaigns arrive as <code className="bg-muted px-1 py-0.5 rounded text-foreground">yourname@{domain}</code> instead of a generic sender. Replies are forwarded to your verified email.
+          </p>
+          {!alias ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Handle (the part before @)</Label>
+                <div className="flex items-center gap-2">
+                  <Input value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9.-]/g, ""))} placeholder="amina" className="rounded-xl" />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">@{domain}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">3–30 characters. Letters, numbers, dots, and hyphens only.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>From name</Label>
+                <Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder={brandName} className="rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Reply-to email</Label>
+                <Input type="email" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="you@example.com" className="rounded-xl" />
+              </div>
+              <Button onClick={request} disabled={submitting || !handle || !fromName || !replyTo} className="w-full rounded-xl">
+                <Plus className="h-4 w-4 mr-1.5" /> Request alias
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{alias.from_name} <span className="text-muted-foreground font-normal">&lt;{alias.handle}@{domain}&gt;</span></div>
+                  <div className="text-xs text-muted-foreground">Reply-to: {alias.reply_to} {alias.reply_to_verified_at ? "· verified" : "· unverified"}</div>
+                </div>
+                <Badge variant={alias.status === "approved" ? "default" : "outline"}>{alias.status}</Badge>
+              </div>
+              {alias.status === "approved" && !alias.reply_to_verified_at && (
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <span>Your reply-to address must be verified before campaigns can use this alias.</span>
+                  <Button size="sm" variant="outline" onClick={resendVerification} className="rounded-xl shrink-0">Resend email</Button>
+                </div>
+              )}
+              {alias.status === "pending" && (
+                <div className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
+                  Your alias is pending admin review. You can continue drafting campaigns; they will send from the generic address until approved.
+                </div>
+              )}
+              {alias.status === "rejected" && (
+                <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+                  Rejected{alias.review_note ? `: ${alias.review_note}` : "."}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
