@@ -61,6 +61,20 @@ Deno.serve(async (req) => {
     const action = body?.action;
 
     if (action === "request") {
+      const authHeader = req.headers.get("Authorization");
+      const accessToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (!accessToken) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: userData, error: authError } = await supabase.auth.getUser(accessToken);
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const requestingUserId = userData.user.id;
       const { alias_id, handle, reply_to, from_name } = body;
       if (!alias_id || !handle || !reply_to) {
         return new Response(JSON.stringify({ error: "alias_id, handle, and reply_to are required" }), {
@@ -70,6 +84,17 @@ Deno.serve(async (req) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reply_to)) {
         return new Response(JSON.stringify({ error: "invalid_reply_to" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Ensure the user owns the alias row before sending verification
+      const { data: aliasRow } = await supabase.from("email_sender_aliases")
+        .select("user_id, brand_id")
+        .eq("id", alias_id)
+        .single();
+      if (!aliasRow || aliasRow.user_id !== requestingUserId) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -99,6 +124,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     if (action === "verify") {
       const { token } = body;
