@@ -1764,7 +1764,12 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       console.error("Resend error:", result);
-      return new Response(JSON.stringify({ error: result }), {
+      // Durable fallback: queue the send so a provider quota/rate limit never loses the email
+      let queued = false;
+      if (!no_queue) {
+        queued = await queueNotificationEmail(type, to, data || {}, JSON.stringify(result).slice(0, 500));
+      }
+      return new Response(JSON.stringify({ error: result, queued }), {
         status: res.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
