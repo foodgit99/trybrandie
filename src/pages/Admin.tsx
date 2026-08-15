@@ -3020,6 +3020,31 @@ export default function Admin() {
     refetchInterval: 30_000,
   });
 
+
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-background lg:pl-20 pb-24">
+        <NewAppHeader />
+        <main className="container max-w-6xl mx-auto px-4 py-6">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <Skeleton className="h-64 w-full" />
+        </main>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background lg:pl-20 pb-24">
+        <NewAppHeader />
+        <main className="container max-w-2xl mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl font-bold mb-2">Access restricted</h1>
+          <p className="text-muted-foreground">You don't have permission to view the Admin Panel.</p>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background lg:pl-20 pb-24">
       <NewAppHeader />
