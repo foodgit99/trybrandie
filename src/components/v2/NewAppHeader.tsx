@@ -110,6 +110,17 @@ const NewAppHeader = () => {
               Studio (Manual)
             </DropdownMenuItem>
 
+            {isAffiliate && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/affiliate")}>
+                  <Handshake className="h-4 w-4" />
+                  Affiliate Dashboard
+                </DropdownMenuItem>
+              </>
+            )}
+
+
             {isPartner && (
               <>
                 <DropdownMenuSeparator />
