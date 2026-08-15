@@ -3024,6 +3024,71 @@ export type Database = {
           },
         ]
       }
+      partner_credit_grants: {
+        Row: {
+          created_at: string
+          credits_granted: number
+          credits_per_signup: number
+          ends_at: string
+          id: string
+          leads_credited: number
+          partner_id: string
+          request_note: string | null
+          requested_by: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          starts_at: string
+          status: string
+          total_budget_credits: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits_granted?: number
+          credits_per_signup: number
+          ends_at: string
+          id?: string
+          leads_credited?: number
+          partner_id: string
+          request_note?: string | null
+          requested_by: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          starts_at?: string
+          status?: string
+          total_budget_credits: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits_granted?: number
+          credits_per_signup?: number
+          ends_at?: string
+          id?: string
+          leads_credited?: number
+          partner_id?: string
+          request_note?: string | null
+          requested_by?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          starts_at?: string
+          status?: string
+          total_budget_credits?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_credit_grants_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_email_suppression: {
         Row: {
           created_at: string

@@ -1448,7 +1448,132 @@ Deno.serve(async (req) => {
         );
       }
 
+      case "partner_credit_grant_list": {
+        const { data: grants, error: grantErr } = await adminClient
+          .from("partner_credit_grants")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(300);
+        if (grantErr) throw grantErr;
+
+        const gPartnerIds = Array.from(new Set((grants || []).map((g) => g.partner_id)));
+        const { data: gPartners } = gPartnerIds.length
+          ? await adminClient.from("partner_profiles").select("id, name, slug").in("id", gPartnerIds)
+          : { data: [] as Array<{ id: string; name: string; slug: string }> };
+        const gPartnerMap = new Map((gPartners || []).map((p) => [p.id, p]));
+
+        const grantRows = await Promise.all(
+          (grants || []).map(async (g) => {
+            let email: string | null = null;
+            let fullName: string | null = null;
+            if (g.requested_by) {
+              const { data: au } = await adminClient.auth.admin.getUserById(g.requested_by as string);
+              email = au?.user?.email || null;
+              fullName = (au?.user?.user_metadata?.full_name as string) || null;
+            }
+            const p = gPartnerMap.get(g.partner_id as string);
+            return {
+              ...g,
+              partner_name: p?.name || null,
+              partner_slug: p?.slug || null,
+              requester_email: email,
+              requester_name: fullName,
+            };
+          }),
+        );
+
+        return new Response(JSON.stringify({ grants: grantRows }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "partner_credit_grant_decision": {
+        const { grant_id, decision, note, credits_per_signup, total_budget_credits, ends_at } = data || {};
+        const allowed = ["approved", "rejected", "paused", "stopped"];
+        if (!grant_id || !allowed.includes(decision)) {
+          return new Response(
+            JSON.stringify({ error: "grant_id and decision (approved|rejected|paused|stopped) required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        const { data: grant, error: gFindErr } = await adminClient
+          .from("partner_credit_grants")
+          .select("*")
+          .eq("id", grant_id)
+          .maybeSingle();
+        if (gFindErr) throw gFindErr;
+        if (!grant) {
+          return new Response(JSON.stringify({ error: "Grant not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const patch: Record<string, unknown> = {
+          status: decision === "stopped" ? "expired" : decision,
+          review_note: note || null,
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+        };
+        if (decision === "approved") {
+          if (credits_per_signup != null) patch.credits_per_signup = Number(credits_per_signup);
+          if (total_budget_credits != null) patch.total_budget_credits = Number(total_budget_credits);
+          if (ends_at) patch.ends_at = new Date(ends_at).toISOString();
+        }
+
+        const { error: gUpdErr } = await adminClient
+          .from("partner_credit_grants")
+          .update(patch)
+          .eq("id", grant_id);
+        if (gUpdErr) throw gUpdErr;
+
+        const { data: gPartner } = await adminClient
+          .from("partner_profiles")
+          .select("id, name, slug, contact_email, user_id")
+          .eq("id", grant.partner_id)
+          .maybeSingle();
+
+        let notified = false;
+        let notifyError: string | undefined;
+        let notifyEmail: string | null = gPartner?.contact_email || null;
+        const notifyUser = (grant.requested_by as string) || gPartner?.user_id;
+        if (notifyUser) {
+          const { data: au } = await adminClient.auth.admin.getUserById(notifyUser as string);
+          notifyEmail = au?.user?.email || notifyEmail;
+        }
+
+        if (!notifyEmail) {
+          notifyError = "no_email_on_file";
+        } else if (decision === "approved" || decision === "rejected") {
+          const appUrl = Deno.env.get("APP_URL") || "https://trybrandie.com";
+          const res = await sendAffiliateEmail(
+            supabaseUrl,
+            serviceRoleKey,
+            decision === "approved" ? "partner_credit_grant_approved" : "partner_credit_grant_rejected",
+            notifyEmail,
+            {
+              credits_per_signup: patch.credits_per_signup ?? grant.credits_per_signup,
+              total_budget_credits: patch.total_budget_credits ?? grant.total_budget_credits,
+              ends_at: new Date(
+                (patch.ends_at as string) || (grant.ends_at as string),
+              ).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+              referral_link: gPartner?.slug ? `${appUrl}/?ref=${gPartner.slug}` : "",
+              note: note || "",
+            },
+          );
+          notified = res.ok;
+          if (!res.ok) notifyError = res.error;
+        }
+
+        return new Response(
+          JSON.stringify({ ok: true, notified, notify_email: notifyEmail, notify_error: notifyError }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       default:
+
 
 
         return new Response(JSON.stringify({ error: "Invalid operation" }), {

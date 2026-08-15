@@ -300,7 +300,90 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "credit_grants") {
+      const { data: grants } = await admin
+        .from("partner_credit_grants")
+        .select("*")
+        .eq("partner_id", partner.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      return new Response(JSON.stringify({ grants: grants ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "credit_grant_request") {
+      const perSignup = Math.round(Number(body?.credits_per_signup));
+      const budget = Math.round(Number(body?.total_budget_credits));
+      const endsAt = body?.ends_at ? new Date(String(body.ends_at)) : null;
+      const noteText = String(body?.request_note || "").slice(0, 1000);
+
+      if (!Number.isFinite(perSignup) || perSignup < 1 || perSignup > 50) {
+        return new Response(JSON.stringify({ error: "credits_per_signup must be between 1 and 50" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!Number.isFinite(budget) || budget < perSignup) {
+        return new Response(JSON.stringify({ error: "total_budget_credits must be at least the credits per signup" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!endsAt || isNaN(endsAt.getTime()) || endsAt.getTime() <= Date.now()) {
+        return new Response(JSON.stringify({ error: "ends_at must be a future date" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: existing } = await admin
+        .from("partner_credit_grants")
+        .select("id, status")
+        .eq("partner_id", partner.id)
+        .in("status", ["pending", "approved"])
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return new Response(
+          JSON.stringify({
+            error:
+              existing.status === "pending"
+                ? "You already have a request waiting for review."
+                : "You already have a live credits campaign.",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const { data: created, error: insErr } = await admin
+        .from("partner_credit_grants")
+        .insert({
+          partner_id: partner.id,
+          requested_by: userId,
+          credits_per_signup: perSignup,
+          total_budget_credits: budget,
+          ends_at: endsAt.toISOString(),
+          request_note: noteText || null,
+          status: "pending",
+        })
+        .select("*")
+        .single();
+      if (insErr) {
+        return new Response(JSON.stringify({ error: insErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ grant: created }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "leads") {
+
       return new Response(JSON.stringify({ leads }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

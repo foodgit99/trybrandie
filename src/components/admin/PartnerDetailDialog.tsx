@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign, Gift } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
@@ -185,7 +186,67 @@ export default function PartnerDetailDialog({
     }
   };
 
+  // Signup credit grants review
+  const { data: grantData, isLoading: grantsLoading } = useQuery({
+    queryKey: ["admin-partner-credit-grants", partnerId],
+    enabled: !!partnerId,
+    queryFn: async () =>
+      (await adminActionCall({ operation: "partner_credit_grant_list" })).grants as any[],
+  });
+  const partnerGrants = (grantData || []).filter((g) => g.partner_id === partnerId);
+  const pendingGrants = partnerGrants.filter((g) => g.status === "pending").length;
+  const [grantNote, setGrantNote] = useState<Record<string, string>>({});
+  const [grantTerms, setGrantTerms] = useState<Record<string, { per: string; budget: string; ends: string }>>({});
+  const [grantBusy, setGrantBusy] = useState<string | null>(null);
+
+  const termsFor = (g: any) =>
+    grantTerms[g.id] || {
+      per: String(g.credits_per_signup),
+      budget: String(g.total_budget_credits),
+      ends: String(g.ends_at || "").slice(0, 10),
+    };
+
+  const decideGrant = async (g: any, decision: "approved" | "rejected" | "paused" | "stopped") => {
+    setGrantBusy(g.id);
+    try {
+      const t = termsFor(g);
+      const res = (await adminActionCall({
+        operation: "partner_credit_grant_decision",
+        data: {
+          grant_id: g.id,
+          decision,
+          note: grantNote[g.id] || "",
+          ...(decision === "approved"
+            ? {
+                credits_per_signup: Number(t.per),
+                total_budget_credits: Number(t.budget),
+                ends_at: t.ends,
+              }
+            : {}),
+        },
+      })) as { notified?: boolean; notify_error?: string };
+      const label =
+        decision === "approved"
+          ? "Approved"
+          : decision === "rejected"
+            ? "Rejected"
+            : decision === "paused"
+              ? "Paused"
+              : "Stopped";
+      if (decision === "paused" || decision === "stopped") toast.success(`${label} the credits campaign`);
+      else if (res.notified) toast.success(`${label} the credits request`);
+      else toast.warning(`${label}, but the email failed: ${res.notify_error || "unknown error"}`);
+      setGrantNote((p) => ({ ...p, [g.id]: "" }));
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-credit-grants", partnerId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setGrantBusy(null);
+    }
+  };
+
   const [resending, setResending] = useState(false);
+
 
 
   const resendWelcome = async () => {
@@ -318,6 +379,14 @@ export default function PartnerDetailDialog({
                     </span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="credits" className="rounded-lg gap-2">
+                  <Gift className="h-3.5 w-3.5" /> Credits
+                  {pendingGrants > 0 && (
+                    <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
+                      {pendingGrants}
+                    </span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="campaigns" className="rounded-lg gap-2">
                   <Mail className="h-3.5 w-3.5" /> Campaigns
                 </TabsTrigger>
@@ -328,6 +397,152 @@ export default function PartnerDetailDialog({
                   <Activity className="h-3.5 w-3.5" /> Activity
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="credits" className="mt-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  This partner is asking Brandie to gift free credits to every user who signs up through their
+                  referral link. You set the final terms: credits per signup, total credit budget, and the end date.
+                  Approved campaigns grant credits automatically at signup (expiring after 30 days) and stop
+                  themselves when the budget is spent or the date passes.
+                </p>
+
+                {grantsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading credits requests
+                  </div>
+                ) : partnerGrants.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    This partner hasn't requested signup credits yet.
+                  </p>
+                ) : (
+                  partnerGrants.map((g) => {
+                    const t = termsFor(g);
+                    const editable = g.status === "pending";
+                    return (
+                      <div key={g.id} className="rounded-xl border border-border px-3 py-3 text-sm space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">
+                            {g.credits_per_signup} credits per signup · {g.total_budget_credits} budget
+                          </span>
+                          <Badge
+                            variant={
+                              g.status === "approved" ? "default" : g.status === "pending" ? "secondary" : "outline"
+                            }
+                            className="rounded-full capitalize text-[11px]"
+                          >
+                            {g.status}
+                          </Badge>
+                          <span className="ml-auto text-xs text-muted-foreground">{fmt(g.created_at)}</span>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <p className="break-all">
+                            Requested by: {g.requester_name || "—"} {g.requester_email ? `· ${g.requester_email}` : ""}
+                          </p>
+                          <p>Ends: {fmt(g.ends_at)}</p>
+                          <p>
+                            Given out: {g.credits_granted} / {g.total_budget_credits} credits
+                          </p>
+                          <p>Leads credited: {g.leads_credited}</p>
+                          {g.request_note && <p className="sm:col-span-2">Partner note: {g.request_note}</p>}
+                          {g.review_note && <p className="sm:col-span-2">Your note: {g.review_note}</p>}
+                        </div>
+
+                        {editable && (
+                          <div className="grid sm:grid-cols-3 gap-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={50}
+                              value={t.per}
+                              onChange={(e) =>
+                                setGrantTerms((p) => ({ ...p, [g.id]: { ...t, per: e.target.value } }))
+                              }
+                              className="rounded-xl"
+                              placeholder="Credits per signup"
+                            />
+                            <Input
+                              type="number"
+                              min={1}
+                              value={t.budget}
+                              onChange={(e) =>
+                                setGrantTerms((p) => ({ ...p, [g.id]: { ...t, budget: e.target.value } }))
+                              }
+                              className="rounded-xl"
+                              placeholder="Total budget"
+                            />
+                            <Input
+                              type="date"
+                              value={t.ends}
+                              onChange={(e) =>
+                                setGrantTerms((p) => ({ ...p, [g.id]: { ...t, ends: e.target.value } }))
+                              }
+                              className="rounded-xl"
+                            />
+                          </div>
+                        )}
+
+                        <Textarea
+                          rows={2}
+                          placeholder="Optional note included in the email…"
+                          value={grantNote[g.id] || ""}
+                          onChange={(e) => setGrantNote((p) => ({ ...p, [g.id]: e.target.value }))}
+                          className="rounded-xl text-sm"
+                        />
+
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            className="rounded-full"
+                            disabled={grantBusy === g.id || g.status === "approved" || g.status === "rejected"}
+                            onClick={() => decideGrant(g, "approved")}
+                          >
+                            {grantBusy === g.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <BadgeCheck className="h-3.5 w-3.5" />
+                            )}
+                            Approve credits
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full"
+                            disabled={grantBusy === g.id || g.status !== "pending"}
+                            onClick={() => decideGrant(g, "rejected")}
+                          >
+                            <XCircle className="h-3.5 w-3.5" /> Reject
+                          </Button>
+                          {g.status === "approved" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-full"
+                                disabled={grantBusy === g.id}
+                                onClick={() => decideGrant(g, "paused")}
+                              >
+                                Pause
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="rounded-full"
+                                disabled={grantBusy === g.id}
+                                onClick={() => decideGrant(g, "stopped")}
+                              >
+                                Stop
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </TabsContent>
+
+
 
               <TabsContent value="identity" className="mt-4 space-y-3">
                 <p className="text-xs text-muted-foreground">

@@ -1110,6 +1110,47 @@ function aliasRejectedHtml(address: string, note: string): string {
   });
 }
 
+function partnerCreditGrantApprovedHtml(
+  creditsPerSignup: number,
+  budget: number,
+  endsAt: string,
+  referralLink: string,
+  note: string,
+): string {
+  return subEmailShell({
+    eyebrow: "Signup credits",
+    heading: "Your signup credits are live 🎁",
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Great news — Brandie approved your request to gift credits to everyone who signs up through your referral link.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">
+        Credits per signup: <strong>${creditsPerSignup}</strong><br/>
+        Total budget: <strong>${budget} credits</strong><br/>
+        Runs until: <strong>${endsAt}</strong>
+      </p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">New signups get the credits instantly, and they expire 30 days after signup. The campaign stops on its own when the budget is used up or the end date passes.</p>
+      ${referralLink ? `<p style="font-size:14px;color:#4b4b60;line-height:1.6;margin:0 0 14px;">Your link: <strong>${referralLink}</strong></p>` : ""}
+      ${note ? `<p style="font-size:14px;color:#4b4b60;line-height:1.6;margin:0 0 14px;padding:12px 14px;background:#faf8f5;border-radius:10px;">${note}</p>` : ""}`,
+    ctaText: "Open Partner Dashboard",
+    ctaUrl: `${APP_URL}/partner`,
+    footer: "You received this because a Brandie admin reviewed your signup credits request.",
+  });
+}
+
+function partnerCreditGrantRejectedHtml(note: string): string {
+  return subEmailShell({
+    eyebrow: "Signup credits",
+    heading: "We couldn't approve that credits request",
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Thanks for asking to gift credits to the users who sign up through your link. We were not able to approve this request.</p>
+      ${note ? `<p style="font-size:14px;color:#4b4b60;line-height:1.6;margin:0 0 14px;padding:12px 14px;background:#faf8f5;border-radius:10px;">${note}</p>` : `<p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">This usually happens when the budget or credits per signup are higher than we can fund right now.</p>`}
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">You can submit a smaller request at any time.</p>`,
+    ctaText: "Open Partner Dashboard",
+    ctaUrl: `${APP_URL}/partner`,
+    footer: "You received this because a Brandie admin reviewed your signup credits request.",
+  });
+}
+
+
 function partnerAffiliateApprovedHtml(
 
   name: string,
@@ -1774,6 +1815,22 @@ Deno.serve(async (req) => {
           String(data?.address || ""),
           String(data?.note || ""),
         );
+        break;
+      }
+      case "partner_credit_grant_approved": {
+        subject = "Your signup credits are live 🎁";
+        html = partnerCreditGrantApprovedHtml(
+          Number(data?.credits_per_signup || 0),
+          Number(data?.total_budget_credits || 0),
+          String(data?.ends_at || ""),
+          String(data?.referral_link || ""),
+          String(data?.note || ""),
+        );
+        break;
+      }
+      case "partner_credit_grant_rejected": {
+        subject = "Update on your signup credits request";
+        html = partnerCreditGrantRejectedHtml(String(data?.note || ""));
         break;
       }
 
