@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -551,9 +552,8 @@ const AffiliateSignup = () => {
                     />
                   </Field>
                   <Field label="Password" required hint="At least 6 characters.">
-                    <Input
-                      type="password"
-                      value={password}
+                    <PasswordInput
+                                            value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       minLength={6}
