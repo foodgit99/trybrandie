@@ -190,7 +190,9 @@ export default function AdminPartnersTab() {
             ))}
           </div>
         )}
+        <PartnerDetailDialog partnerId={openPartner} onClose={() => setOpenPartner(null)} />
       </CardContent>
+
     </Card>
   );
 }
