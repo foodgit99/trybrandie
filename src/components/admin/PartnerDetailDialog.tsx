@@ -142,6 +142,8 @@ export default function PartnerDetailDialog({
   const [grantNote, setGrantNote] = useState<Record<string, string>>({});
   const [grantTerms, setGrantTerms] = useState<Record<string, { per: string; budget: string; ends: string }>>({});
   const [grantBusy, setGrantBusy] = useState<string | null>(null);
+  const [activityLeadId, setActivityLeadId] = useState<string | null>(null);
+
 
   const termsFor = (g: any) =>
     grantTerms[g.id] || {
