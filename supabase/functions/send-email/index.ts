@@ -1667,6 +1667,26 @@ Deno.serve(async (req) => {
         );
         break;
       }
+      case "partner_affiliate_approved": {
+        subject = "Your Brandie affiliate request is approved 🎉";
+        html = partnerAffiliateApprovedHtml(
+          String(data?.name || ""),
+          String(data?.affiliate_code || ""),
+          String(data?.partner_name || ""),
+          String(data?.note || ""),
+        );
+        break;
+      }
+      case "partner_affiliate_rejected": {
+        subject = "Update on your Brandie affiliate request";
+        html = partnerAffiliateRejectedHtml(
+          String(data?.name || ""),
+          String(data?.partner_name || ""),
+          String(data?.note || ""),
+        );
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
           status: 400,
