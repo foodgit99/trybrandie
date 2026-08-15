@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Search } from "lucide-react";
+import { Download, Gift, Search } from "lucide-react";
 
 export interface PartnerLead {
   user_id: string;
@@ -15,6 +15,9 @@ export interface PartnerLead {
   joined: string;
   source: string;
   attributed_at: string;
+  credit_grant_id?: string | null;
+  granted_credits?: number;
+  credited_at?: string | null;
   status: string;
 }
 
@@ -83,7 +86,7 @@ export default function PartnerLeadsTable({
   }, [leads, query, status]);
 
   const exportCsv = () => {
-    const header = ["Name", "Email", "Status", "Credits", "Designs", "Plan", "Last active", "Joined", "Source"];
+    const header = ["Name", "Email", "Status", "Credits", "Designs", "Plan", "Last active", "Joined", "Source", "Free credits from campaign"];
     const rows = filtered.map((l) => [
       l.full_name || "",
       l.email || "",
@@ -94,6 +97,7 @@ export default function PartnerLeadsTable({
       l.last_active || "",
       l.joined,
       l.source,
+      l.granted_credits ? `${l.granted_credits} credits (campaign ${l.credit_grant_id?.slice(0, 8)})` : "",
     ]);
     const csv = [header, ...rows]
       .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
@@ -144,6 +148,7 @@ export default function PartnerLeadsTable({
                 <th className="text-left font-medium px-4 py-3">Lead</th>
                 <th className="text-left font-medium px-4 py-3">Status</th>
                 <th className="text-right font-medium px-4 py-3">Credits</th>
+                <th className="text-left font-medium px-4 py-3">Free credits</th>
                 <th className="text-right font-medium px-4 py-3">Designs</th>
                 <th className="text-left font-medium px-4 py-3">Plan</th>
                 <th className="text-left font-medium px-4 py-3">Last active</th>
@@ -153,7 +158,7 @@ export default function PartnerLeadsTable({
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                     No leads yet. Share your referral link to start acquiring users.
                   </td>
                 </tr>
@@ -172,6 +177,15 @@ export default function PartnerLeadsTable({
                     <LeadStatusBadge status={l.status} />
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{l.credits}</td>
+                  <td className="px-4 py-3">
+                    {l.granted_credits ? (
+                      <Badge variant="secondary" className="rounded-full border-0 text-[11px] gap-1">
+                        <Gift className="h-3 w-3" /> {l.granted_credits} sponsored
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums">{l.designs}</td>
                   <td className="px-4 py-3 capitalize">{l.plan}</td>
                   <td className="px-4 py-3">{relative(l.last_active)}</td>
