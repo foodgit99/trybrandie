@@ -68,6 +68,7 @@ interface Detail {
   }[];
   sends: { id: string; email: string; status: string; sent_at: string | null; opened_at: string | null; clicked_at: string | null; created_at: string }[];
   runs: { id: string; email: string | null; status: string; created_at: string }[];
+};
 
 const NGN = (n: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(n || 0));
