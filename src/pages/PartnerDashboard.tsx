@@ -217,7 +217,11 @@ export default function PartnerDashboard() {
                 <TabsContent value="automations" className="mt-5">
                   <PartnerAutomationsPanel partnerId={overview.partner.id} />
                 </TabsContent>
+                <TabsContent value="credits" className="mt-5">
+                  <PartnerCreditsPanel partnerId={overview.partner.id} />
+                </TabsContent>
                 <TabsContent value="identity" className="mt-5">
+
                   <PartnerIdentityPanel
                     partnerId={overview.partner.id}
                     partnerName={overview.partner.name}
