@@ -185,7 +185,67 @@ export default function PartnerDetailDialog({
     }
   };
 
+  // Signup credit grants review
+  const { data: grantData, isLoading: grantsLoading } = useQuery({
+    queryKey: ["admin-partner-credit-grants", partnerId],
+    enabled: !!partnerId,
+    queryFn: async () =>
+      (await adminActionCall({ operation: "partner_credit_grant_list" })).grants as any[],
+  });
+  const partnerGrants = (grantData || []).filter((g) => g.partner_id === partnerId);
+  const pendingGrants = partnerGrants.filter((g) => g.status === "pending").length;
+  const [grantNote, setGrantNote] = useState<Record<string, string>>({});
+  const [grantTerms, setGrantTerms] = useState<Record<string, { per: string; budget: string; ends: string }>>({});
+  const [grantBusy, setGrantBusy] = useState<string | null>(null);
+
+  const termsFor = (g: any) =>
+    grantTerms[g.id] || {
+      per: String(g.credits_per_signup),
+      budget: String(g.total_budget_credits),
+      ends: String(g.ends_at || "").slice(0, 10),
+    };
+
+  const decideGrant = async (g: any, decision: "approved" | "rejected" | "paused" | "stopped") => {
+    setGrantBusy(g.id);
+    try {
+      const t = termsFor(g);
+      const res = (await adminActionCall({
+        operation: "partner_credit_grant_decision",
+        data: {
+          grant_id: g.id,
+          decision,
+          note: grantNote[g.id] || "",
+          ...(decision === "approved"
+            ? {
+                credits_per_signup: Number(t.per),
+                total_budget_credits: Number(t.budget),
+                ends_at: t.ends,
+              }
+            : {}),
+        },
+      })) as { notified?: boolean; notify_error?: string };
+      const label =
+        decision === "approved"
+          ? "Approved"
+          : decision === "rejected"
+            ? "Rejected"
+            : decision === "paused"
+              ? "Paused"
+              : "Stopped";
+      if (decision === "paused" || decision === "stopped") toast.success(`${label} the credits campaign`);
+      else if (res.notified) toast.success(`${label} the credits request`);
+      else toast.warning(`${label}, but the email failed: ${res.notify_error || "unknown error"}`);
+      setGrantNote((p) => ({ ...p, [g.id]: "" }));
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-credit-grants", partnerId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setGrantBusy(null);
+    }
+  };
+
   const [resending, setResending] = useState(false);
+
 
 
   const resendWelcome = async () => {
