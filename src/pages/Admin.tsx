@@ -2837,7 +2837,12 @@ export default function Admin() {
             <SubscriptionsTab />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions"].includes(t.key)).map((t) => (
+          <TabsContent value="partners">
+            <AdminPartnersTab />
+          </TabsContent>
+
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners"].includes(t.key)).map((t) => (
+
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>
