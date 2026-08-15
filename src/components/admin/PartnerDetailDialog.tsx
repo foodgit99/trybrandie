@@ -228,9 +228,17 @@ export default function PartnerDetailDialog({
             )}
 
             <Tabs defaultValue="leads">
-              <TabsList className="rounded-xl">
+              <TabsList className="rounded-xl flex-wrap h-auto">
                 <TabsTrigger value="leads" className="rounded-lg gap-2">
                   <Users className="h-3.5 w-3.5" /> Leads
+                </TabsTrigger>
+                <TabsTrigger value="affiliate" className="rounded-lg gap-2">
+                  <BadgeCheck className="h-3.5 w-3.5" /> Affiliate requests
+                  {pendingRequests > 0 && (
+                    <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
+                      {pendingRequests}
+                    </span>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger value="campaigns" className="rounded-lg gap-2">
                   <Mail className="h-3.5 w-3.5" /> Campaigns
@@ -242,6 +250,98 @@ export default function PartnerDetailDialog({
                   <Activity className="h-3.5 w-3.5" /> Activity
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="affiliate" className="mt-4 space-y-3">
+                {requests.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    No affiliate requests from this partner or their leads yet.
+                  </p>
+                ) : (
+                  requests.map((r) => (
+                    <div key={r.id} className="rounded-xl border border-border px-3 py-3 text-sm space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{r.full_name || "Unnamed"}</span>
+                        <span className="text-muted-foreground break-all">{r.email || "no email"}</span>
+                        <Badge variant="outline" className="rounded-full capitalize text-[11px]">
+                          {r.relation === "partner" ? "Partner" : "Lead"}
+                        </Badge>
+                        <Badge
+                          variant={r.status === "approved" ? "default" : r.status === "pending" ? "secondary" : "outline"}
+                          className="rounded-full capitalize text-[11px]"
+                        >
+                          {r.status}
+                        </Badge>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {fmt(r.application_submitted_at || r.created_at)}
+                        </span>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <p>Code: {r.affiliate_code || "—"}</p>
+                        <p>
+                          Channel: {r.primary_channel || "—"}
+                          {r.channel_handle ? ` · ${r.channel_handle}` : ""}
+                        </p>
+                        <p>Audience: {r.audience_size || "—"}</p>
+                        <p>Niche: {r.niche || "—"}</p>
+                        <p>Location: {r.location || "—"}</p>
+                        <p>WhatsApp: {r.whatsapp_number || "—"}</p>
+                      </div>
+
+                      {(r.promo_plan || r.why_join) && (
+                        <div className="space-y-1 text-xs">
+                          {r.promo_plan && (
+                            <p>
+                              <span className="text-muted-foreground">Promo plan: </span>
+                              {r.promo_plan}
+                            </p>
+                          )}
+                          {r.why_join && (
+                            <p>
+                              <span className="text-muted-foreground">Why join: </span>
+                              {r.why_join}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <Textarea
+                        rows={2}
+                        placeholder="Optional note included in the email…"
+                        value={notes[r.id] || ""}
+                        onChange={(e) => setNotes((p) => ({ ...p, [r.id]: e.target.value }))}
+                        className="rounded-xl text-sm"
+                      />
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          className="rounded-full"
+                          disabled={deciding === r.id || r.status === "approved"}
+                          onClick={() => decide(r, "approved")}
+                        >
+                          {deciding === r.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                          )}
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={deciding === r.id || r.status === "rejected"}
+                          onClick={() => decide(r, "rejected")}
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+
 
               <TabsContent value="leads" className="mt-4 space-y-2">
                 {data.leads.length === 0 ? (
