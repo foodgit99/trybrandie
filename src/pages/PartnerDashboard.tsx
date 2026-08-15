@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAffiliateRole } from "@/hooks/useAffiliateRole";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Loader2, Mail, Users, Workflow } from "lucide-react";
+import { Copy, Loader2, Mail, Users, Workflow, ArrowUpRight } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import PartnerLeadsTable, { type PartnerLead } from "@/components/partner/PartnerLeadsTable";
@@ -14,6 +15,7 @@ import PartnerCampaignsPanel from "@/components/partner/PartnerCampaignsPanel";
 import PartnerAutomationsPanel from "@/components/partner/PartnerAutomationsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { partnerReferralUrl } from "@/lib/partnerRef";
+
 
 interface Overview {
   partner: {
