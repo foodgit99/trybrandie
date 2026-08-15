@@ -1,16 +1,42 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity, Send } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
 
 
+
+interface AffiliateRequest {
+  id: string;
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+  affiliate_code: string | null;
+  status: string;
+  tier: string | null;
+  relation: "partner" | "lead";
+  primary_channel: string | null;
+  channel_handle: string | null;
+  channel_url: string | null;
+  audience_size: string | null;
+  niche: string | null;
+  regions: string[] | null;
+  promo_plan: string | null;
+  why_join: string | null;
+  whatsapp_number: string | null;
+  location: string | null;
+  created_at: string;
+  application_submitted_at: string | null;
+}
+
 interface Detail {
+
   partner: {
     id: string;
     name: string;
@@ -64,6 +90,8 @@ interface Detail {
   sends: { id: string; email: string; status: string; sent_at: string | null; opened_at: string | null; clicked_at: string | null; created_at: string }[];
   runs: { id: string; email: string | null; status: string; created_at: string }[];
   transactions: { id: string; amount: number; created_at: string }[];
+  affiliate_requests: AffiliateRequest[];
+
 }
 
 const NGN = (n: number) =>
@@ -93,7 +121,42 @@ export default function PartnerDetailDialog({
       (await adminActionCall({ operation: "partner_detail", data: { partner_id: partnerId } })) as Detail,
   });
 
+  const queryClient = useQueryClient();
+  const requests = data?.affiliate_requests || [];
+  const pendingRequests = requests.filter((r) => r.status === "pending").length;
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [deciding, setDeciding] = useState<string | null>(null);
+
+  const decide = async (r: AffiliateRequest, decision: "approved" | "rejected") => {
+    if (!partnerId) return;
+    setDeciding(r.id);
+    try {
+      const res = (await adminActionCall({
+        operation: "partner_affiliate_decision",
+        data: { partner_id: partnerId, affiliate_id: r.id, decision, note: notes[r.id] || "" },
+      })) as { notified: boolean; notify_email?: string | null; notify_error?: string };
+
+      const label = decision === "approved" ? "Approved" : "Rejected";
+      if (res.notified) {
+        toast.success(`${label} — email sent to ${res.notify_email}`);
+      } else if (res.notify_error === "no_email_on_file") {
+        toast.warning(`${label}, but no email address on file.`);
+      } else if (res.notify_error?.includes("daily_quota_exceeded")) {
+        toast.warning(`${label}, but the email provider's daily quota is reached.`);
+      } else {
+        toast.warning(`${label}, but the email failed: ${res.notify_error || "unknown error"}`);
+      }
+      setNotes((p) => ({ ...p, [r.id]: "" }));
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-detail", partnerId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setDeciding(null);
+    }
+  };
+
   const [resending, setResending] = useState(false);
+
   const resendWelcome = async () => {
     if (!partnerId) return;
     setResending(true);
@@ -202,9 +265,17 @@ export default function PartnerDetailDialog({
             )}
 
             <Tabs defaultValue="leads">
-              <TabsList className="rounded-xl">
+              <TabsList className="rounded-xl flex-wrap h-auto">
                 <TabsTrigger value="leads" className="rounded-lg gap-2">
                   <Users className="h-3.5 w-3.5" /> Leads
+                </TabsTrigger>
+                <TabsTrigger value="affiliate" className="rounded-lg gap-2">
+                  <BadgeCheck className="h-3.5 w-3.5" /> Affiliate requests
+                  {pendingRequests > 0 && (
+                    <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
+                      {pendingRequests}
+                    </span>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger value="campaigns" className="rounded-lg gap-2">
                   <Mail className="h-3.5 w-3.5" /> Campaigns
@@ -216,6 +287,98 @@ export default function PartnerDetailDialog({
                   <Activity className="h-3.5 w-3.5" /> Activity
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="affiliate" className="mt-4 space-y-3">
+                {requests.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    No affiliate requests from this partner or their leads yet.
+                  </p>
+                ) : (
+                  requests.map((r) => (
+                    <div key={r.id} className="rounded-xl border border-border px-3 py-3 text-sm space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{r.full_name || "Unnamed"}</span>
+                        <span className="text-muted-foreground break-all">{r.email || "no email"}</span>
+                        <Badge variant="outline" className="rounded-full capitalize text-[11px]">
+                          {r.relation === "partner" ? "Partner" : "Lead"}
+                        </Badge>
+                        <Badge
+                          variant={r.status === "approved" ? "default" : r.status === "pending" ? "secondary" : "outline"}
+                          className="rounded-full capitalize text-[11px]"
+                        >
+                          {r.status}
+                        </Badge>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {fmt(r.application_submitted_at || r.created_at)}
+                        </span>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <p>Code: {r.affiliate_code || "—"}</p>
+                        <p>
+                          Channel: {r.primary_channel || "—"}
+                          {r.channel_handle ? ` · ${r.channel_handle}` : ""}
+                        </p>
+                        <p>Audience: {r.audience_size || "—"}</p>
+                        <p>Niche: {r.niche || "—"}</p>
+                        <p>Location: {r.location || "—"}</p>
+                        <p>WhatsApp: {r.whatsapp_number || "—"}</p>
+                      </div>
+
+                      {(r.promo_plan || r.why_join) && (
+                        <div className="space-y-1 text-xs">
+                          {r.promo_plan && (
+                            <p>
+                              <span className="text-muted-foreground">Promo plan: </span>
+                              {r.promo_plan}
+                            </p>
+                          )}
+                          {r.why_join && (
+                            <p>
+                              <span className="text-muted-foreground">Why join: </span>
+                              {r.why_join}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <Textarea
+                        rows={2}
+                        placeholder="Optional note included in the email…"
+                        value={notes[r.id] || ""}
+                        onChange={(e) => setNotes((p) => ({ ...p, [r.id]: e.target.value }))}
+                        className="rounded-xl text-sm"
+                      />
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          className="rounded-full"
+                          disabled={deciding === r.id || r.status === "approved"}
+                          onClick={() => decide(r, "approved")}
+                        >
+                          {deciding === r.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                          )}
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={deciding === r.id || r.status === "rejected"}
+                          onClick={() => decide(r, "rejected")}
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+
 
               <TabsContent value="leads" className="mt-4 space-y-2">
                 {data.leads.length === 0 ? (

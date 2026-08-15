@@ -1081,6 +1081,46 @@ function partnerPromotedHtml(partnerName: string, slug: string, firstPct: number
   });
 }
 
+function partnerAffiliateApprovedHtml(
+  name: string,
+  affiliateCode: string,
+  partnerName: string,
+  note: string,
+): string {
+  const link = `${APP_URL}/?ref=${encodeURIComponent(affiliateCode || "")}`;
+  return subEmailShell({
+    eyebrow: "Affiliate programme",
+    heading: "Your affiliate request is approved 🎉",
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Hey ${name || "there"}, good news — your request to join the Brandie affiliate programme${partnerName ? ` through <strong>${partnerName}</strong>` : ""} has been approved.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Your affiliate code: <strong>${affiliateCode || "—"}</strong><br/>Your link: <a href="${link}" style="color:#c4a265;">${link}</a></p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Share it anywhere you talk to business owners — you earn commission on every payment your referrals make.</p>
+      ${note ? `<p style="font-size:14px;color:#4b4b60;line-height:1.6;margin:0 0 14px;padding:12px 14px;background:#faf8f5;border-radius:10px;">${note}</p>` : ""}`,
+    ctaText: "Open Affiliate Dashboard",
+    ctaUrl: `${APP_URL}/affiliate`,
+    secondaryText: "Copy your referral link",
+    secondaryUrl: link,
+    footer: "You received this because a Brandie admin reviewed your affiliate request.",
+  });
+}
+
+function partnerAffiliateRejectedHtml(name: string, partnerName: string, note: string): string {
+  return subEmailShell({
+    eyebrow: "Affiliate programme",
+    heading: "Update on your affiliate request",
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Hey ${name || "there"}, thanks for your interest in the Brandie affiliate programme${partnerName ? ` through ${partnerName}` : ""}.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">After review, we're not able to approve your request at this time. This isn't final — build a little more traction with your audience and you're welcome to apply again.</p>
+      ${note ? `<p style="font-size:14px;color:#4b4b60;line-height:1.6;margin:0 0 14px;padding:12px 14px;background:#faf8f5;border-radius:10px;">${note}</p>` : ""}
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">In the meantime, you keep full access to Brandie for your own brand.</p>`,
+    ctaText: "Open Brandie",
+    ctaUrl: `${APP_URL}/cockpit`,
+    footer: "You received this because a Brandie admin reviewed your affiliate request.",
+  });
+}
+
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -1627,6 +1667,26 @@ Deno.serve(async (req) => {
         );
         break;
       }
+      case "partner_affiliate_approved": {
+        subject = "Your Brandie affiliate request is approved 🎉";
+        html = partnerAffiliateApprovedHtml(
+          String(data?.name || ""),
+          String(data?.affiliate_code || ""),
+          String(data?.partner_name || ""),
+          String(data?.note || ""),
+        );
+        break;
+      }
+      case "partner_affiliate_rejected": {
+        subject = "Update on your Brandie affiliate request";
+        html = partnerAffiliateRejectedHtml(
+          String(data?.name || ""),
+          String(data?.partner_name || ""),
+          String(data?.note || ""),
+        );
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
           status: 400,
