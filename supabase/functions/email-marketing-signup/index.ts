@@ -84,19 +84,31 @@ Deno.serve(async (req) => {
     if (doubleOptIn && optInToken) {
       const resendKey = Deno.env.get("RESEND_API_KEY");
       const { data: brand } = await supabase.from("brands").select("name").eq("id", form.brand_id).single();
+      const { data: alias } = await supabase.from("email_sender_aliases")
+        .select("handle,from_name,reply_to,reply_to_verified_at,status")
+        .eq("brand_id", form.brand_id)
+        .eq("status", "approved")
+        .maybeSingle();
+      const domain = Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com";
+      const aliasReady = alias && alias.reply_to_verified_at;
+      const fromName = aliasReady ? alias.from_name : brand?.name;
+      const fromEmail = aliasReady ? `${alias.handle}@${domain}` : `news@${domain}`;
+      const replyTo = aliasReady ? alias.reply_to : undefined;
       const confirmUrl = `${req.headers.get("origin") || ""}/subscribe/confirm?t=${optInToken}`;
       if (resendKey && brand) {
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: `${brand.name} <news@${Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com"}>`,
+            from: `${fromName} <${fromEmail}>`,
             to: [cleanEmail],
             subject: `Confirm your subscription to ${brand.name}`,
             html: `<p>Thanks for signing up. Please confirm your subscription:</p><p><a href="${confirmUrl}">Confirm subscription</a></p>`,
+            reply_to: replyTo,
           }),
         }).catch(() => {});
       }
+
     }
 
     return new Response(JSON.stringify({ ok: true, status, message: form.success_message }), {
