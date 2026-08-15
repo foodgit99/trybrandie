@@ -164,9 +164,11 @@ export default function PartnerDetailDialog({
       const res = (await adminActionCall({
         operation: "resend_partner_welcome",
         data: { partner_id: partnerId },
-      })) as { notified: boolean; notify_email?: string | null; notify_error?: string };
+      })) as { notified: boolean; notify_email?: string | null; notify_error?: string; notify_queued?: boolean };
       if (res.notified) {
         toast.success(`Welcome email sent to ${res.notify_email}`);
+      } else if (res.notify_queued) {
+        toast.warning("Provider is rate-limited — the welcome email is queued and will send automatically.");
       } else if (res.notify_error?.includes("daily_quota_exceeded")) {
         toast.error("Email provider daily quota reached — try again after it resets.");
       } else if (res.notify_error === "no_email_on_file") {
