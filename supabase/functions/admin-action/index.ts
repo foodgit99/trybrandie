@@ -26,8 +26,12 @@ const ALLOWED_TABLES = [
   "email_campaign_logs",
   "email_sender_aliases",
   "credit_rewards",
+  "partner_profiles",
+  "partner_referral_links",
+  "partner_leads",
 
 ];
+
 
 async function sendAffiliateEmail(
   supabaseUrl: string,
