@@ -950,7 +950,7 @@ Deno.serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ partner, notified, notify_email: notifyEmail || null, notify_error: notifyError }),
+          JSON.stringify({ partner, notified, notify_email: notifyEmail || null, notify_error: notifyError, notify_queued: notifyQueued }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
