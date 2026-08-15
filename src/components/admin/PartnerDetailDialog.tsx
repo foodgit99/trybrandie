@@ -245,7 +245,9 @@ export default function PartnerDetailDialog({
     }
   };
 
+  const [requestFilter, setRequestFilter] = useState<"all" | "identity" | "credits">("all");
   const [resending, setResending] = useState(false);
+
 
 
 
