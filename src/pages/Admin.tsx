@@ -1435,6 +1435,86 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
               Grant Reward Credits
             </Button>
 
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full rounded-xl gap-2"
+              onClick={() => setPromoteOpen((v) => !v)}
+            >
+              <UserCheck className="h-4 w-4" />
+              Promote to Partner
+            </Button>
+
+            {promoteOpen && (
+              <div className="space-y-3 p-3 rounded-xl border bg-muted/30">
+                <div>
+                  <Label className="text-xs">Partner name</Label>
+                  <Input
+                    placeholder="e.g. Auxano"
+                    value={partnerName}
+                    onChange={(e) => setPartnerName(e.target.value)}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Referral slug</Label>
+                  <Input
+                    placeholder="auxano"
+                    value={partnerSlug}
+                    onChange={(e) => setPartnerSlug(e.target.value)}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">First payment %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={partnerFirstPct}
+                      onChange={(e) => setPartnerFirstPct(Number(e.target.value))}
+                      className="rounded-lg mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Recurring %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={partnerRecurringPct}
+                      onChange={(e) => setPartnerRecurringPct(Number(e.target.value))}
+                      className="rounded-lg mt-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Organization</Label>
+                  <Input
+                    value={partnerOrg}
+                    onChange={(e) => setPartnerOrg(e.target.value)}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 rounded-lg"
+                    disabled={promoting || !partnerName.trim() || partnerSlug.trim().length < 3}
+                    onClick={handlePromote}
+                  >
+                    {promoting ? "Promoting..." : "Create partner"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => setPromoteOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+
+
             {grantOpen && (
               <div className="space-y-3 p-3 rounded-xl border bg-muted/30">
                 <div>
