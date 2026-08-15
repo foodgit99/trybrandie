@@ -1317,6 +1317,47 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
   const [grantExpiry, setGrantExpiry] = useState(30);
   const [granting, setGranting] = useState(false);
 
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [partnerName, setPartnerName] = useState("");
+  const [partnerSlug, setPartnerSlug] = useState("");
+  const [partnerOrg, setPartnerOrg] = useState("");
+  const [partnerFirstPct, setPartnerFirstPct] = useState(0);
+  const [partnerRecurringPct, setPartnerRecurringPct] = useState(0);
+  const [promoting, setPromoting] = useState(false);
+
+  useEffect(() => {
+    setPartnerName((detailItem?.full_name as string) || "");
+    setPartnerSlug("");
+    setPartnerOrg("");
+    setPromoteOpen(false);
+  }, [detailItem?.id]);
+
+  const handlePromote = async () => {
+    if (!detailItem?.user_id) return;
+    setPromoting(true);
+    try {
+      await adminAction({
+        operation: "promote_to_partner",
+        data: {
+          user_id: detailItem.user_id,
+          name: partnerName.trim(),
+          slug: partnerSlug.trim(),
+          organization: partnerOrg.trim() || null,
+          contact_email: email,
+          commission_first_pct: partnerFirstPct,
+          commission_recurring_pct: partnerRecurringPct,
+        },
+      });
+      toast.success(`${partnerName} is now a Marketing Partner`);
+      setPromoteOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to promote user");
+    } finally {
+      setPromoting(false);
+    }
+  };
+
+
   const currentTier = (detailItem?.subscription_tier as string) || "free";
   const [tier, setTier] = useState<string>(currentTier);
   const [savingTier, setSavingTier] = useState(false);
