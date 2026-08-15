@@ -110,6 +110,10 @@ Deno.serve(async (req) => {
       );
     }
 
+    const fromName = aliasReady ? alias.from_name : (settings?.marketing_email_from_name || brand.name);
+    const fromEmail = aliasReady ? `${alias.handle}@${domain}` : `news@${domain}`;
+    const replyTo = aliasReady ? alias.reply_to : (settings?.marketing_email_reply_to || undefined);
+
     const brandTheme: BrandTheme = {
       name: fromName,
       primary: (brand.colors as any)?.primary || "#C4993B",
@@ -119,13 +123,9 @@ Deno.serve(async (req) => {
       font: brand.primary_font || undefined,
     };
 
-
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("RESEND_API_KEY missing");
 
-    const fromName = aliasReady ? alias.from_name : (settings?.marketing_email_from_name || brand.name);
-    const fromEmail = aliasReady ? `${alias.handle}@${domain}` : `news@${domain}`;
-    const replyTo = aliasReady ? alias.reply_to : (settings?.marketing_email_reply_to || undefined);
 
 
     let sentCount = 0;
