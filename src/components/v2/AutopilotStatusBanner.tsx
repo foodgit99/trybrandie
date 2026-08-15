@@ -34,10 +34,31 @@ const AutopilotStatusBanner = ({ brandId, showApproveAll = false, className = ""
   const { toast } = useToast();
   const qc = useQueryClient();
   const [approving, setApproving] = useState(false);
+  const [planning, setPlanning] = useState(false);
 
   if (isLoading || !data || !data.paused || data.mode === "manual") return null;
 
   const isBlueprintPage = typeof window !== "undefined" && window.location.pathname.startsWith("/blueprint");
+
+  const planWeek = async () => {
+    if (!brandId) return;
+    setPlanning(true);
+    toast({ title: "Brandie is planning your week…", description: "Drafting the arc — approve it when you're happy." });
+    const { error } = await supabase.functions.invoke("brand-engine", {
+      body: { action: "generate_weekly_ideas", brand_id: brandId },
+    });
+    setPlanning(false);
+    if (error) {
+      toast({ title: "Couldn't plan the week", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Week drafted", description: "Review the arc and approve to start Autopilot." });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["autopilot-status", brandId] }),
+      qc.invalidateQueries({ queryKey: ["blueprint-ideas"] }),
+      qc.invalidateQueries({ queryKey: ["cockpit-ideas"] }),
+    ]);
+  };
 
   const approveAll = async () => {
     if (!brandId) return;
