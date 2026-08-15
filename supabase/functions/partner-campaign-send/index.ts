@@ -5,6 +5,7 @@ import { buildPartnerLeads, type PartnerLeadRow } from "../_shared/partner-leads
 import {
   applyMergeTokens,
   renderPartnerEmail,
+  resolvePartnerAlias,
   sendPartnerEmail,
   unsubscribeUrl,
 } from "../_shared/partner-email.ts";
@@ -119,6 +120,8 @@ Deno.serve(async (req) => {
         .eq("id", campaignId);
     }
 
+    const alias = await resolvePartnerAlias(admin, partner.id);
+
     let delivered = 0;
     for (const lead of recipients) {
       const subject = applyMergeTokens(campaign.subject, lead, partner);
@@ -130,7 +133,7 @@ Deno.serve(async (req) => {
         unsubscribeUrl: unsubscribeUrl(partner.id, lead.email!),
       });
 
-      const res = await sendPartnerEmail({ partner, to: lead.email!, subject, html });
+      const res = await sendPartnerEmail({ partner, to: lead.email!, subject, html, alias });
       if (res.ok) delivered++;
 
       if (!testRecipient) {
