@@ -3160,9 +3160,14 @@ export default function Admin() {
             <AdminPartnersTab />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners"].includes(t.key)).map((t) => (
+          <TabsContent value="email_aliases">
+            <AdminEmailAliasesTab />
+          </TabsContent>
+
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases"].includes(t.key)).map((t) => (
 
             <TabsContent key={t.key} value={t.key}>
+
               <Card className="rounded-2xl">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
