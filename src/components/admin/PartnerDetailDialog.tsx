@@ -330,6 +330,12 @@ export default function PartnerDetailDialog({
               </TabsList>
 
               <TabsContent value="identity" className="mt-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  This partner is asking to send their campaigns and automations from their own Brandie address
+                  (handle@trybrandie.com) instead of the generic partner address. Approve to make it live, reject to
+                  ask for a different handle, revoke to take a live address away.
+                </p>
+
                 {aliasLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                     <Loader2 className="h-4 w-4 animate-spin" /> Loading sending identity
@@ -410,6 +416,11 @@ export default function PartnerDetailDialog({
 
 
               <TabsContent value="affiliate" className="mt-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Requests to join the Brandie affiliate programme, from this partner and from the users they
+                  referred. Approving gives the person a referral code and lets them earn commission on paid
+                  signups; rejecting closes the request. Either way, they get an email with your note.
+                </p>
                 {requests.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">
                     No affiliate requests from this partner or their leads yet.
@@ -417,6 +428,12 @@ export default function PartnerDetailDialog({
                 ) : (
                   requests.map((r) => (
                     <div key={r.id} className="rounded-xl border border-border px-3 py-3 text-sm space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        {r.relation === "partner" ? "This partner" : "A user this partner referred"} is asking to
+                        become a Brandie affiliate
+                        {r.primary_channel ? `, promoting on ${r.primary_channel}` : ""}.
+                      </p>
+
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{r.full_name || "Unnamed"}</span>
                         <span className="text-muted-foreground break-all">{r.email || "no email"}</span>
