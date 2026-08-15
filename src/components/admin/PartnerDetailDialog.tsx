@@ -371,22 +371,15 @@ export default function PartnerDetailDialog({
                     </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="identity" className="rounded-lg gap-2">
-                  <AtSign className="h-3.5 w-3.5" /> Identity
-                  {pendingAliases > 0 && (
+                <TabsTrigger value="requests" className="rounded-lg gap-2">
+                  <AtSign className="h-3.5 w-3.5" /> Partner requests
+                  {pendingAliases + pendingGrants > 0 && (
                     <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
-                      {pendingAliases}
+                      {pendingAliases + pendingGrants}
                     </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="credits" className="rounded-lg gap-2">
-                  <Gift className="h-3.5 w-3.5" /> Credits
-                  {pendingGrants > 0 && (
-                    <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
-                      {pendingGrants}
-                    </span>
-                  )}
-                </TabsTrigger>
+
                 <TabsTrigger value="campaigns" className="rounded-lg gap-2">
                   <Mail className="h-3.5 w-3.5" /> Campaigns
                 </TabsTrigger>
