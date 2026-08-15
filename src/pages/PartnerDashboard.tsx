@@ -131,10 +131,6 @@ export default function PartnerDashboard() {
                 <Badge variant="secondary" className="rounded-full border-0">
                   {overview.partner.status === "active" ? "Active" : overview.partner.status}
                 </Badge>
-                <span className="text-xs text-muted-foreground">
-                  Commission {overview.partner.commission_first_pct}% first ·{" "}
-                  {overview.partner.commission_recurring_pct}% recurring
-                </span>
               </div>
               {isAffiliate && (
                 <Button asChild variant="outline" className="rounded-xl gap-2">
