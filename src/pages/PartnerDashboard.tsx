@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Loader2, Mail, Sparkles, Users, Workflow } from "lucide-react";
+import { Copy, Loader2, Mail, Users, Workflow } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import PartnerLeadsTable, { type PartnerLead } from "@/components/partner/PartnerLeadsTable";
