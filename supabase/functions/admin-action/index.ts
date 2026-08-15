@@ -936,6 +936,7 @@ Deno.serve(async (req) => {
         }
         let notified = false;
         let notifyError: string | undefined;
+        let notifyQueued = false;
         if (notifyEmail) {
           const sent = await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "partner_promoted", notifyEmail, {
             partner_name: name,
@@ -945,6 +946,7 @@ Deno.serve(async (req) => {
           });
           notified = sent.ok;
           notifyError = sent.error;
+          notifyQueued = !!sent.queued;
         } else {
           notifyError = "no_email_on_file";
         }
