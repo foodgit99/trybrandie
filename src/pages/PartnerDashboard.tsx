@@ -14,6 +14,7 @@ import LeadDetailDialog from "@/components/partner/LeadDetailDialog";
 import PartnerCampaignsPanel from "@/components/partner/PartnerCampaignsPanel";
 import PartnerAutomationsPanel from "@/components/partner/PartnerAutomationsPanel";
 import PartnerIdentityPanel from "@/components/partner/PartnerIdentityPanel";
+import PartnerCreditsPanel from "@/components/partner/PartnerCreditsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { partnerReferralUrl } from "@/lib/partnerRef";
 
