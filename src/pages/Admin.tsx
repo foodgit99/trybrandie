@@ -77,6 +77,8 @@ import AdminTracesTab from "@/components/admin/AdminTracesTab";
 import RewardsTab from "@/components/admin/RewardsTab";
 import SubscriptionsTab from "@/components/admin/SubscriptionsTab";
 import SupportTab from "@/components/admin/SupportTab";
+import AdminPartnersTab from "@/components/admin/AdminPartnersTab";
+
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
