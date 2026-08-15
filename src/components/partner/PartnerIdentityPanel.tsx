@@ -240,9 +240,17 @@ export default function PartnerIdentityPanel({
                 <span className="text-muted-foreground">
                   Confirm your reply-to address to finish setting up this sender.
                 </span>
-                <Button size="sm" variant="outline" onClick={resendVerification} className="rounded-xl shrink-0">
-                  Resend email
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={resendVerification}
+                  disabled={resending}
+                  className="rounded-xl shrink-0"
+                >
+                  {resending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {resending ? "Sending…" : "Resend email"}
                 </Button>
+
               </div>
             )}
 
