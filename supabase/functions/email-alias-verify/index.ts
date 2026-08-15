@@ -15,7 +15,10 @@ function slug(n = 32) {
     .reduce((s, b) => s + (b % 36).toString(36), "");
 }
 
-const APP_URL = "https://trybrandie.com";
+const APP_URL = Deno.env.get("APP_URL") || "https://trybrandie.com";
+const domain = Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com";
+const resendKey = Deno.env.get("RESEND_API_KEY") || "";
+
 
 function verifyEmailHtml(brandName: string, handle: string, verifyUrl: string) {
   return `<!DOCTYPE html>
@@ -61,6 +64,20 @@ Deno.serve(async (req) => {
     const action = body?.action;
 
     if (action === "request") {
+      const authHeader = req.headers.get("Authorization");
+      const accessToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (!accessToken) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: userData, error: authError } = await supabase.auth.getUser(accessToken);
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const requestingUserId = userData.user.id;
       const { alias_id, handle, reply_to, from_name } = body;
       if (!alias_id || !handle || !reply_to) {
         return new Response(JSON.stringify({ error: "alias_id, handle, and reply_to are required" }), {
@@ -73,12 +90,23 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Ensure the user owns the alias row before sending verification
+      const { data: aliasRow } = await supabase.from("email_sender_aliases")
+        .select("user_id, brand_id")
+        .eq("id", alias_id)
+        .single();
+      if (!aliasRow || aliasRow.user_id !== requestingUserId) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const token = slug(32);
       await supabase.from("email_sender_aliases")
         .update({ reply_to_token: token, reply_to_verified_at: null, updated_at: new Date().toISOString() })
         .eq("id", alias_id);
 
-      const verifyUrl = `${APP_URL}/auth/alias-verify?token=${token}`;
+      const verifyUrl = `${APP_URL}/verify-alias?token=${token}`;
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
@@ -99,6 +127,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     if (action === "verify") {
       const { token } = body;

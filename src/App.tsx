@@ -56,7 +56,9 @@ import V2Hub from "./pages/v2/Hub";
 import V2Pricing from "./pages/v2/Pricing";
 import BrandsPage from "./pages/Brands";
 import AcceptInvite from "./pages/AcceptInvite";
+import AliasVerify from "./pages/AliasVerify";
 import AgentCockpit from "./pages/agent/AgentCockpit";
+
 import AgentSettings from "./pages/agent/AgentSettings";
 
 const queryClient = new QueryClient();
@@ -221,7 +223,9 @@ const App = () => (
           {/* ============ PRIMARY (v2) experience ============ */}
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-alias" element={<AliasVerify />} />
           <Route path="/invite/:token" element={<AcceptInvite />} />
+
           <Route path="/" element={<LandingOrCockpit />} />
           <Route path="/onboarding" element={<OnboardingRoute><V2Onboarding /></OnboardingRoute>} />
           <Route path="/cockpit" element={<ProtectedRoute><V2Cockpit /></ProtectedRoute>} />
