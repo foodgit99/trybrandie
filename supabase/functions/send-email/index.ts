@@ -1161,6 +1161,18 @@ async function queueNotificationEmail(
     const url = Deno.env.get("SUPABASE_URL")!;
     const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const client = createClient(url, key);
+    // Dedupe: one pending retry per (type, recipient) — repeated attempts must not fan out
+    const { data: existing } = await client
+      .from("notification_email_outbox")
+      .select("id")
+      .eq("email_type", type)
+      .eq("to_email", to)
+      .eq("status", "pending")
+      .limit(1);
+    if (existing && existing.length) {
+      console.log(`Already queued ${type} -> ${to}, skipping duplicate`);
+      return true;
+    }
     const { error } = await client.from("notification_email_outbox").insert({
       email_type: type,
       to_email: to,
