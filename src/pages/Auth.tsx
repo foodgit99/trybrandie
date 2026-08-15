@@ -73,6 +73,8 @@ const Auth = () => {
           whatsapp_number: whatsappNumber || undefined,
           ...(referralCode && { referred_by: referralCode }),
           ...(affiliateCode && { affiliate_code: affiliateCode }),
+          ...(getPartnerRef() && { partner_slug: getPartnerRef() }),
+
         },
         emailRedirectTo: window.location.origin,
       },
