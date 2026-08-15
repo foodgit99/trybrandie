@@ -2487,17 +2487,20 @@ function DataTable({
   const [detailItem, setDetailItem] = useState<Record<string, unknown> | null>(null);
   const limit = 20;
 
+  const dbTable = tableName === "email_aliases" ? "email_sender_aliases" : tableName;
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-list", tableName, page, search],
     queryFn: () =>
       adminAction({
         operation: "list",
-        table: tableName,
+        table: dbTable,
         offset: page * limit,
         limit,
         search,
       }),
   });
+
 
   const updateMutation = useMutation({
     mutationFn: (payload: { id: string; data: Record<string, unknown> }) =>
