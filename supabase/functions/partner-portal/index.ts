@@ -20,6 +20,10 @@ interface LeadRow {
   joined: string;
   source: string;
   attributed_at: string;
+  credit_grant_id?: string | null;
+  granted_credits?: number;
+  credited_at?: string | null;
+
   status: string;
 }
 
