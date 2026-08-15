@@ -18,14 +18,23 @@ Deno.serve(async (req) => {
   let requeued = 0;
   let dropped = 0;
 
+  let force = false;
   try {
-    const { data: rows, error } = await client
+    const body = await req.json();
+    force = !!body?.force;
+  } catch (_e) {
+    // no body
+  }
+
+  try {
+    let query = client
       .from("notification_email_outbox")
       .select("*")
       .eq("status", "pending")
-      .lte("next_attempt_at", new Date().toISOString())
       .order("created_at", { ascending: true })
       .limit(20);
+    if (!force) query = query.lte("next_attempt_at", new Date().toISOString());
+    const { data: rows, error } = await query;
     if (error) throw error;
 
     for (const row of rows || []) {
