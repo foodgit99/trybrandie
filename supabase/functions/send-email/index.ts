@@ -1081,7 +1081,37 @@ function partnerPromotedHtml(partnerName: string, slug: string, firstPct: number
   });
 }
 
+function aliasApprovedHtml(address: string, fromName: string, ownerType: string, note: string): string {
+  return subEmailShell({
+    eyebrow: "Sending identity",
+    heading: "Your sending address is live ✅",
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Good news — your Brandie sending address has been approved.</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Address: <strong>${address}</strong>${fromName ? `<br/>From name: <strong>${fromName}</strong>` : ""}</p>
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Every ${ownerType === "partner" ? "partner campaign and automation" : "campaign"} you send from now on will come from this address, so your audience sees your name in the inbox.</p>
+      ${note ? `<p style="font-size:14px;color:#4b4b60;line-height:1.6;margin:0 0 14px;padding:12px 14px;background:#faf8f5;border-radius:10px;">${note}</p>` : ""}`,
+    ctaText: ownerType === "partner" ? "Open Partner Dashboard" : "Open Brandie",
+    ctaUrl: ownerType === "partner" ? `${APP_URL}/partner` : `${APP_URL}/hub`,
+    footer: "You received this because a Brandie admin reviewed your sending address request.",
+  });
+}
+
+function aliasRejectedHtml(address: string, note: string): string {
+  return subEmailShell({
+    eyebrow: "Sending identity",
+    heading: "We couldn't approve that address",
+    body: `
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">Thanks for requesting <strong>${address}</strong> as a Brandie sending address. We were not able to approve it this time.</p>
+      ${note ? `<p style="font-size:14px;color:#4b4b60;line-height:1.6;margin:0 0 14px;padding:12px 14px;background:#faf8f5;border-radius:10px;">${note}</p>` : `<p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">This usually happens when the handle is reserved, too close to an existing sender, or the reply-to address is unverified.</p>`}
+      <p style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0 0 14px;">You are welcome to request a different handle at any time.</p>`,
+    ctaText: "Request another handle",
+    ctaUrl: `${APP_URL}/profile`,
+    footer: "You received this because a Brandie admin reviewed your sending address request.",
+  });
+}
+
 function partnerAffiliateApprovedHtml(
+
   name: string,
   affiliateCode: string,
   partnerName: string,
