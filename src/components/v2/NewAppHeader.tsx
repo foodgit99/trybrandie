@@ -132,7 +132,7 @@ const NewAppHeader = () => {
             )}
 
 
-            {isAdmin && (
+            {isAdmin && !adminLoading && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/admin")}>
