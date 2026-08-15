@@ -2188,6 +2188,65 @@ export type Database = {
           },
         ]
       }
+      email_sender_aliases: {
+        Row: {
+          brand_id: string
+          created_at: string
+          from_name: string
+          handle: string
+          id: string
+          reply_to: string | null
+          reply_to_token: string | null
+          reply_to_verified_at: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          from_name: string
+          handle: string
+          id?: string
+          reply_to?: string | null
+          reply_to_token?: string | null
+          reply_to_verified_at?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          from_name?: string
+          handle?: string
+          id?: string
+          reply_to?: string | null
+          reply_to_token?: string | null
+          reply_to_verified_at?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sender_aliases_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_sends: {
         Row: {
           bounced_at: string | null

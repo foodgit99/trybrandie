@@ -49,6 +49,16 @@ Deno.serve(async (req) => {
       .select("marketing_email_from_name,marketing_email_reply_to,marketing_email_physical_address")
       .eq("brand_id", broadcast.brand_id).maybeSingle();
 
+    // Resolve approved alias for this brand
+    const { data: alias } = await supabase.from("email_sender_aliases")
+      .select("handle,from_name,reply_to,reply_to_verified_at,status")
+      .eq("brand_id", broadcast.brand_id)
+      .eq("status", "approved")
+      .maybeSingle();
+    const aliasReady = alias && alias.reply_to_verified_at;
+    const domain = Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com";
+
+
     // Resolve recipients
     let recipients: { id: string; email: string; name: string | null }[] = [];
     if (test_recipient) {
@@ -100,8 +110,12 @@ Deno.serve(async (req) => {
       );
     }
 
+    const fromName = aliasReady ? alias.from_name : (settings?.marketing_email_from_name || brand.name);
+    const fromEmail = aliasReady ? `${alias.handle}@${domain}` : `news@${domain}`;
+    const replyTo = aliasReady ? alias.reply_to : (settings?.marketing_email_reply_to || undefined);
+
     const brandTheme: BrandTheme = {
-      name: settings?.marketing_email_from_name || brand.name,
+      name: fromName,
       primary: (brand.colors as any)?.primary || "#C4993B",
       background: (brand.colors as any)?.background || "#FAF8F5",
       text: (brand.colors as any)?.text || "#2B2D33",
@@ -112,9 +126,7 @@ Deno.serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("RESEND_API_KEY missing");
 
-    const fromName = settings?.marketing_email_from_name || brand.name;
-    const fromEmail = `news@${Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com"}`;
-    const replyTo = settings?.marketing_email_reply_to || undefined;
+
 
     let sentCount = 0;
     let failedCount = 0;
