@@ -86,6 +86,10 @@ verify_jwt = false
 [functions.email-marketing-verify-domain]
 verify_jwt = false
 
+[functions.email-alias-verify]
+verify_jwt = false
+
+
 
 
 
