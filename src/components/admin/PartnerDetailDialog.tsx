@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign } from "lucide-react";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
@@ -155,7 +155,38 @@ export default function PartnerDetailDialog({
     }
   };
 
+  // Sending identity (email alias) review, so admins never have to leave this dialog
+  const { data: aliasData, isLoading: aliasLoading } = useQuery({
+    queryKey: ["admin-partner-alias", partnerId],
+    enabled: !!partnerId,
+    queryFn: async () => (await adminActionCall({ operation: "alias_list" })).aliases as any[],
+  });
+  const partnerAliases = (aliasData || []).filter((a) => a.partner_id === partnerId);
+  const pendingAliases = partnerAliases.filter((a) => a.status === "pending").length;
+  const [aliasNote, setAliasNote] = useState<Record<string, string>>({});
+  const [aliasBusy, setAliasBusy] = useState<string | null>(null);
+
+  const decideAlias = async (alias: any, decision: "approved" | "rejected" | "revoked") => {
+    setAliasBusy(alias.id);
+    try {
+      const res = (await adminActionCall({
+        operation: "alias_decision",
+        data: { alias_id: alias.id, decision, note: aliasNote[alias.id] || "" },
+      })) as { notified?: boolean; notify_email?: string | null; notify_error?: string };
+      const label = decision === "approved" ? "Approved" : decision === "rejected" ? "Rejected" : "Revoked";
+      if (res.notified) toast.success(`${label} ${alias.handle}@trybrandie.com`);
+      else toast.warning(`${label}, but the email failed: ${res.notify_error || "unknown error"}`);
+      setAliasNote((p) => ({ ...p, [alias.id]: "" }));
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-alias", partnerId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setAliasBusy(null);
+    }
+  };
+
   const [resending, setResending] = useState(false);
+
 
   const resendWelcome = async () => {
     if (!partnerId) return;
@@ -279,6 +310,14 @@ export default function PartnerDetailDialog({
                     </span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="identity" className="rounded-lg gap-2">
+                  <AtSign className="h-3.5 w-3.5" /> Identity
+                  {pendingAliases > 0 && (
+                    <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
+                      {pendingAliases}
+                    </span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="campaigns" className="rounded-lg gap-2">
                   <Mail className="h-3.5 w-3.5" /> Campaigns
                 </TabsTrigger>
@@ -289,6 +328,86 @@ export default function PartnerDetailDialog({
                   <Activity className="h-3.5 w-3.5" /> Activity
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="identity" className="mt-4 space-y-3">
+                {aliasLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading sending identity
+                  </div>
+                ) : partnerAliases.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    This partner hasn't requested a Brandie sending address yet.
+                  </p>
+                ) : (
+                  partnerAliases.map((a) => (
+                    <div key={a.id} className="rounded-xl border border-border px-3 py-3 text-sm space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium break-all">
+                          {a.from_name} &lt;{a.handle}@trybrandie.com&gt;
+                        </span>
+                        <Badge
+                          variant={a.status === "approved" ? "default" : a.status === "pending" ? "secondary" : "outline"}
+                          className="rounded-full capitalize text-[11px]"
+                        >
+                          {a.status}
+                        </Badge>
+                        <span className="ml-auto text-xs text-muted-foreground">{fmt(a.created_at)}</span>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <p>Reply-to: {a.reply_to || "—"}</p>
+                        <p>{a.reply_to_verified_at ? "Reply-to verified" : "Reply-to unverified"}</p>
+                        <p className="break-all">Requester: {a.requester_email || "—"}</p>
+                        {a.review_note && <p>Note: {a.review_note}</p>}
+                      </div>
+
+                      <Textarea
+                        rows={2}
+                        placeholder="Optional note included in the email…"
+                        value={aliasNote[a.id] || ""}
+                        onChange={(e) => setAliasNote((p) => ({ ...p, [a.id]: e.target.value }))}
+                        className="rounded-xl text-sm"
+                      />
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          className="rounded-full"
+                          disabled={aliasBusy === a.id || a.status === "approved"}
+                          onClick={() => decideAlias(a, "approved")}
+                        >
+                          {aliasBusy === a.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                          )}
+                          Approve address
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={aliasBusy === a.id || a.status === "rejected"}
+                          onClick={() => decideAlias(a, "rejected")}
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Reject
+                        </Button>
+                        {a.status === "approved" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-full"
+                            disabled={aliasBusy === a.id}
+                            onClick={() => decideAlias(a, "revoked")}
+                          >
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+
 
               <TabsContent value="affiliate" className="mt-4 space-y-3">
                 {requests.length === 0 ? (

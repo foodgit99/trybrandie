@@ -29,16 +29,16 @@ export default function PartnerIdentityPanel({
   const { data: alias, isLoading, refetch } = useQuery({
     queryKey: ["partner-alias", partnerId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("email_sender_aliases")
-        .select("*")
-        .eq("partner_id", partnerId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data as any;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("partner-portal", {
+        body: { action: "alias" },
+        headers: { Authorization: `Bearer ${sessionData?.session?.access_token}` },
+      });
+      if (error) throw error;
+      return ((data as any)?.alias ?? null) as any;
     },
   });
+
 
   const request = async () => {
     if (!handle || !fromName || !replyTo) {
