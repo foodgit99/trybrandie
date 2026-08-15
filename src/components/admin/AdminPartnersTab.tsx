@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Handshake, Copy, Loader2 } from "lucide-react";
+import PartnerDetailDialog from "./PartnerDetailDialog";
+
 
 export async function adminActionCall(payload: Record<string, unknown>) {
   const { data: sessionData } = await supabase.auth.getSession();
@@ -49,6 +51,8 @@ const NGN = (n: number) =>
 export default function AdminPartnersTab() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Record<string, string>>({});
+  const [openPartner, setOpenPartner] = useState<string | null>(null);
+
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-partners"],
@@ -104,34 +108,42 @@ export default function AdminPartnersTab() {
           <div className="space-y-4">
             {data.map((p) => (
               <div key={p.id} className="rounded-2xl border p-4 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium">{p.name}</p>
-                  <Badge variant="secondary" className="rounded-full border-0 capitalize">
-                    {p.partner_type.replace(/_/g, " ")}
-                  </Badge>
-                  <Badge
-                    variant={p.status === "active" ? "default" : "outline"}
-                    className="rounded-full capitalize"
-                  >
-                    {p.status}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground break-all">{p.email}</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpenPartner(p.id)}
+                  className="w-full text-left space-y-3 rounded-xl transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-1 -m-1"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{p.name}</p>
+                    <Badge variant="secondary" className="rounded-full border-0 capitalize">
+                      {p.partner_type.replace(/_/g, " ")}
+                    </Badge>
+                    <Badge
+                      variant={p.status === "active" ? "default" : "outline"}
+                      className="rounded-full capitalize"
+                    >
+                      {p.status}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground break-all">{p.email}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">View details</span>
+                  </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
-                  {[
-                    ["Clicks", p.clicks],
-                    ["Leads", p.leads],
-                    ["Paid", p.paid],
-                    ["Revenue", NGN(p.revenue)],
-                    ["Commission", `${p.commission_first_pct}% / ${p.commission_recurring_pct}%`],
-                  ].map(([k, v]) => (
-                    <div key={k as string}>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{k}</p>
-                      <p className="mt-0.5 tabular-nums">{v}</p>
-                    </div>
-                  ))}
-                </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
+                    {[
+                      ["Clicks", p.clicks],
+                      ["Leads", p.leads],
+                      ["Paid", p.paid],
+                      ["Revenue", NGN(p.revenue)],
+                      ["Commission", `${p.commission_first_pct}% / ${p.commission_recurring_pct}%`],
+                    ].map(([k, v]) => (
+                      <div key={k as string}>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{k}</p>
+                        <p className="mt-0.5 tabular-nums">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </button>
+
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
                   <div className="flex-1">
@@ -178,7 +190,9 @@ export default function AdminPartnersTab() {
             ))}
           </div>
         )}
+        <PartnerDetailDialog partnerId={openPartner} onClose={() => setOpenPartner(null)} />
       </CardContent>
+
     </Card>
   );
 }

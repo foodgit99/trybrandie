@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildPartnerLeads } from "../_shared/partner-leads.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -987,7 +988,119 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "partner_detail": {
+        const { partner_id } = data || {};
+        if (!partner_id) {
+          return new Response(JSON.stringify({ error: "partner_id required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: partner, error: detErr } = await adminClient
+          .from("partner_profiles")
+          .select("*")
+          .eq("id", partner_id)
+          .maybeSingle();
+        if (detErr) throw detErr;
+        if (!partner) {
+          return new Response(JSON.stringify({ error: "Partner not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const [
+          leads,
+          { data: links },
+          { data: campaigns },
+          { data: automations },
+          { data: sends },
+          { data: runs },
+          { data: au2 },
+        ] = await Promise.all([
+          buildPartnerLeads(adminClient, partner_id),
+          adminClient
+            .from("partner_referral_links")
+            .select("code, label, active, click_count, created_at")
+            .eq("partner_id", partner_id),
+          adminClient
+            .from("partner_campaigns")
+            .select(
+              "id, name, subject, status, recipients_count, delivered_count, opened_count, clicked_count, scheduled_for, sent_at, created_at",
+            )
+            .eq("partner_id", partner_id)
+            .order("created_at", { ascending: false })
+            .limit(25),
+          adminClient
+            .from("partner_automations")
+            .select("id, name, subject, trigger, active, delay_hours, sent_count, last_run_at, created_at")
+            .eq("partner_id", partner_id)
+            .order("created_at", { ascending: false }),
+          adminClient
+            .from("partner_campaign_sends")
+            .select("id, email, status, sent_at, opened_at, clicked_at, created_at")
+            .eq("partner_id", partner_id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          adminClient
+            .from("partner_automation_runs")
+            .select("id, email, status, created_at, automation_id")
+            .eq("partner_id", partner_id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          adminClient.auth.admin.getUserById(partner.user_id),
+        ]);
+
+        const leadIds = leads.map((l) => l.user_id);
+        let revenue = 0;
+        let transactions: Array<Record<string, unknown>> = [];
+        if (leadIds.length > 0) {
+          const { data: txs } = await adminClient
+            .from("payment_transactions")
+            .select("id, amount, status, created_at, user_id")
+            .in("user_id", leadIds)
+            .eq("status", "success")
+            .order("created_at", { ascending: false })
+            .limit(20);
+          transactions = txs || [];
+          revenue = (txs || []).reduce((s, t) => s + Number(t.amount || 0), 0);
+        }
+
+        const statuses: Record<string, number> = {};
+        for (const l of leads) statuses[l.status] = (statuses[l.status] || 0) + 1;
+
+        const weekAgo = Date.now() - 7 * 86400000;
+        const metrics = {
+          leads: leads.length,
+          activated: leads.filter((l) => l.first_design_at).length,
+          paying: leads.filter((l) => l.ever_paid || (l.plan && l.plan !== "free")).length,
+          revenue,
+          clicks: (links || []).reduce((s, l) => s + Number(l.click_count || 0), 0),
+          emails_sent: (campaigns || []).reduce((s, c) => s + Number(c.delivered_count || 0), 0) +
+            (automations || []).reduce((s, a) => s + Number(a.sent_count || 0), 0),
+          new_leads_week: leads.filter((l) => new Date(l.attributed_at).getTime() > weekAgo).length,
+          statuses,
+        };
+
+        return new Response(
+          JSON.stringify({
+            partner: { ...partner, email: au2?.user?.email || partner.contact_email || null },
+            links: links || [],
+            metrics,
+            leads,
+            campaigns: campaigns || [],
+            automations: automations || [],
+            sends: sends || [],
+            runs: runs || [],
+            transactions,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       case "partner_set_slug": {
+
         const { partner_id, slug: newSlug, active } = data || {};
         if (!partner_id) {
           return new Response(JSON.stringify({ error: "partner_id required" }), {
