@@ -79,6 +79,8 @@ import RewardsTab from "@/components/admin/RewardsTab";
 import SubscriptionsTab from "@/components/admin/SubscriptionsTab";
 import SupportTab from "@/components/admin/SupportTab";
 import AdminPartnersTab from "@/components/admin/AdminPartnersTab";
+import AdminEmailAliasesTab from "@/components/admin/AdminEmailAliasesTab";
+
 
 
 const TABLES = [
