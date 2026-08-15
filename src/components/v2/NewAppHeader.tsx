@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { usePartnerRole } from "@/hooks/usePartnerRole";
+import { useAffiliateRole } from "@/hooks/useAffiliateRole";
 import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -43,6 +44,7 @@ const NewAppHeader = () => {
   const { signOut } = useAuth();
   const { isAdmin } = useAdminRole();
   const { isPartner } = usePartnerRole();
+  const { isAffiliate } = useAffiliateRole();
 
   const navigate = useNavigate();
   const { activeBrandId } = useBrand();
@@ -107,6 +109,17 @@ const NewAppHeader = () => {
               <Wand2 className="h-4 w-4" />
               Studio (Manual)
             </DropdownMenuItem>
+
+            {isAffiliate && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/affiliate")}>
+                  <Handshake className="h-4 w-4" />
+                  Affiliate Dashboard
+                </DropdownMenuItem>
+              </>
+            )}
+
 
             {isPartner && (
               <>
