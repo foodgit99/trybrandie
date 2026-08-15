@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
+import { PartnerLeadActivityDialog } from "./PartnerLeadActivityDialog";
 
 
 
@@ -142,6 +143,8 @@ export default function PartnerDetailDialog({
   const [grantNote, setGrantNote] = useState<Record<string, string>>({});
   const [grantTerms, setGrantTerms] = useState<Record<string, { per: string; budget: string; ends: string }>>({});
   const [grantBusy, setGrantBusy] = useState<string | null>(null);
+  const [activityLeadId, setActivityLeadId] = useState<string | null>(null);
+
 
   const termsFor = (g: any) =>
     grantTerms[g.id] || {
@@ -609,19 +612,26 @@ export default function PartnerDetailDialog({
                 {data.leads.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">No leads attributed yet.</p>
                 ) : (
-                  data.leads.map((l) => (
-                    <div
-                      key={l.user_id}
-                      className="rounded-xl border border-border px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
-                    >
-                      <span className="font-medium">{l.full_name || "Unnamed"}</span>
-                      <span className="text-muted-foreground break-all">{l.email}</span>
-                      <LeadStatusBadge status={l.status} />
-                      <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                        {l.designs} designs · {l.credits} credits · joined {fmt(l.joined)}
-                      </span>
-                    </div>
-                  ))
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Tap a lead to watch their live activity — generations, planned content, jobs and billing.
+                    </p>
+                    {data.leads.map((l) => (
+                      <button
+                        key={l.user_id}
+                        type="button"
+                        onClick={() => setActivityLeadId(l.user_id)}
+                        className="w-full text-left rounded-xl border border-border px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm hover:bg-muted/60 transition-colors"
+                      >
+                        <span className="font-medium">{l.full_name || "Unnamed"}</span>
+                        <span className="text-muted-foreground break-all">{l.email}</span>
+                        <LeadStatusBadge status={l.status} />
+                        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                          {l.designs} designs · {l.credits} credits · joined {fmt(l.joined)}
+                        </span>
+                      </button>
+                    ))}
+                  </>
                 )}
               </TabsContent>
 
@@ -726,6 +736,12 @@ export default function PartnerDetailDialog({
           </div>
         )}
       </DialogContent>
+      <PartnerLeadActivityDialog
+        partnerId={partnerId}
+        userId={activityLeadId}
+        open={!!activityLeadId}
+        onOpenChange={(v) => !v && setActivityLeadId(null)}
+      />
     </Dialog>
   );
 }
