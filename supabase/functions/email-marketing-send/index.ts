@@ -49,6 +49,16 @@ Deno.serve(async (req) => {
       .select("marketing_email_from_name,marketing_email_reply_to,marketing_email_physical_address")
       .eq("brand_id", broadcast.brand_id).maybeSingle();
 
+    // Resolve approved alias for this brand
+    const { data: alias } = await supabase.from("email_sender_aliases")
+      .select("handle,from_name,reply_to,reply_to_verified_at,status")
+      .eq("brand_id", broadcast.brand_id)
+      .eq("status", "approved")
+      .maybeSingle();
+    const aliasReady = alias && alias.reply_to_verified_at;
+    const domain = Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com";
+
+
     // Resolve recipients
     let recipients: { id: string; email: string; name: string | null }[] = [];
     if (test_recipient) {
