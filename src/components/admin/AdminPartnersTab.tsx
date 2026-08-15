@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Handshake, Copy, Loader2 } from "lucide-react";
+import PartnerDetailDialog from "./PartnerDetailDialog";
+
 
 export async function adminActionCall(payload: Record<string, unknown>) {
   const { data: sessionData } = await supabase.auth.getSession();
