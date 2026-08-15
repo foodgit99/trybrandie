@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Camera, Download, Loader2, Lock, LogOut, ShieldAlert, Trash2 } from "lucide-react";
@@ -496,20 +497,18 @@ const ProfilePage = () => {
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="pw_next">New password</Label>
-              <Input
+              <PasswordInput
                 id="pw_next"
-                type="password"
-                value={pwNext}
+                                value={pwNext}
                 onChange={(e) => setPwNext(e.target.value)}
                 autoComplete="new-password"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pw_confirm">Confirm</Label>
-              <Input
+              <PasswordInput
                 id="pw_confirm"
-                type="password"
-                value={pwConfirm}
+                                value={pwConfirm}
                 onChange={(e) => setPwConfirm(e.target.value)}
                 autoComplete="new-password"
               />
