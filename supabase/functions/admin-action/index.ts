@@ -1193,6 +1193,131 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Live activity feed for one of a partner's attributed leads
+      case "partner_lead_activity": {
+        const { partner_id, user_id } = data || {};
+        if (!partner_id || !user_id) {
+          return new Response(JSON.stringify({ error: "partner_id and user_id required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: leadRow } = await adminClient
+          .from("partner_leads")
+          .select("user_id, source, attributed_at, credits_granted, credited_at")
+          .eq("partner_id", partner_id)
+          .eq("user_id", user_id)
+          .maybeSingle();
+        if (!leadRow) {
+          return new Response(JSON.stringify({ error: "This lead does not belong to this partner" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const [
+          { data: profile },
+          { data: brandRows },
+          { data: designRows },
+          { data: ideaRows },
+          { data: jobRows },
+          { data: payRows },
+          { data: rewardRows },
+          { data: leadUser },
+        ] = await Promise.all([
+          adminClient
+            .from("profiles")
+            .select(
+              "full_name, subscription_tier, generations_count, generations_reset_at, bonus_credits, paid_credits, created_at",
+            )
+            .eq("user_id", user_id)
+            .maybeSingle(),
+          adminClient
+            .from("brands")
+            .select("id, name, onboarding_complete, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", { ascending: true }),
+          adminClient
+            .from("designs")
+            .select(
+              "id, title, image_url, canvas_size, content_category, carousel_id, slide_index, quality_score, brand_id, created_at",
+            )
+            .eq("user_id", user_id)
+            .order("created_at", { ascending: false })
+            .limit(30),
+          adminClient
+            .from("content_ideas")
+            .select("id, title, status, autopilot, autopilot_status, scheduled_for, content_format, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          adminClient
+            .from("design_jobs")
+            .select("id, kind, status, stage, progress, error, created_at, finished_at")
+            .eq("user_id", user_id)
+            .order("created_at", { ascending: false })
+            .limit(15),
+          adminClient
+            .from("payment_transactions")
+            .select("id, amount, status, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", { ascending: false })
+            .limit(15),
+          adminClient
+            .from("credit_rewards")
+            .select("id, amount, remaining, reason, expires_at, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", { ascending: false })
+            .limit(15),
+          adminClient.auth.admin.getUserById(user_id as string),
+        ]);
+
+        const designs = designRows || [];
+        const now = Date.now();
+        const since = (days: number) => designs.filter((d) => now - new Date(d.created_at).getTime() < days * 86400000).length;
+
+        return new Response(
+          JSON.stringify({
+            lead: {
+              user_id,
+              full_name: profile?.full_name || leadUser?.user?.user_metadata?.full_name || null,
+              email: leadUser?.user?.email || null,
+              plan: profile?.subscription_tier || "free",
+              joined: profile?.created_at || leadUser?.user?.created_at || null,
+              last_sign_in_at: leadUser?.user?.last_sign_in_at || null,
+              source: leadRow.source,
+              attributed_at: leadRow.attributed_at,
+              credits_granted: leadRow.credits_granted || 0,
+              credited_at: leadRow.credited_at || null,
+              bonus_credits: Number(profile?.bonus_credits || 0),
+              paid_credits: Number(profile?.paid_credits || 0),
+              generations_count: Number(profile?.generations_count || 0),
+              generations_reset_at: profile?.generations_reset_at || null,
+            },
+            counts: {
+              designs_total: designs.length,
+              designs_24h: since(1),
+              designs_7d: since(7),
+              brands: (brandRows || []).length,
+              ideas: (ideaRows || []).length,
+              revenue: (payRows || [])
+                .filter((p) => p.status === "success")
+                .reduce((s, p) => s + Number(p.amount || 0), 0),
+            },
+            brands: brandRows || [],
+            designs,
+            ideas: ideaRows || [],
+            jobs: jobRows || [],
+            payments: payRows || [],
+            rewards: rewardRows || [],
+            fetched_at: new Date().toISOString(),
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+
       case "partner_affiliate_decision": {
         const { partner_id, affiliate_id, decision, note } = data || {};
         if (!partner_id || !affiliate_id || !["approved", "rejected"].includes(decision)) {
