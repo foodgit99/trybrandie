@@ -916,7 +916,7 @@ Deno.serve(async (req) => {
           notifyEmail = authUser?.user?.email || "";
         }
         if (notifyEmail) {
-          await sendAffiliateEmail(supabaseUrl, supabaseServiceKey, "partner_promoted", notifyEmail, {
+          await sendAffiliateEmail(supabaseUrl, serviceRoleKey, "partner_promoted", notifyEmail, {
             partner_name: name,
             slug: cleanSlug,
             commission_first_pct: Number(commission_first_pct) || 0,
