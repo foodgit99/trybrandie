@@ -1326,7 +1326,126 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "alias_list": {
+        const { data: aliases, error: aliasErr } = await adminClient
+          .from("email_sender_aliases")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (aliasErr) throw aliasErr;
+
+        const brandIds = Array.from(new Set((aliases || []).map((a) => a.brand_id).filter(Boolean)));
+        const partnerIds = Array.from(new Set((aliases || []).map((a) => a.partner_id).filter(Boolean)));
+
+        const [{ data: brandRows }, { data: partnerRows }] = await Promise.all([
+          brandIds.length
+            ? adminClient.from("brands").select("id, name").in("id", brandIds)
+            : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+          partnerIds.length
+            ? adminClient.from("partner_profiles").select("id, name, slug").in("id", partnerIds)
+            : Promise.resolve({ data: [] as Array<{ id: string; name: string; slug: string }> }),
+        ]);
+
+        const brandMap = new Map((brandRows || []).map((b) => [b.id, b.name]));
+        const partnerMap = new Map((partnerRows || []).map((p) => [p.id, p]));
+
+        const enriched = await Promise.all(
+          (aliases || []).map(async (a) => {
+            let email: string | null = null;
+            let fullName: string | null = null;
+            if (a.user_id) {
+              const { data: au } = await adminClient.auth.admin.getUserById(a.user_id as string);
+              email = au?.user?.email || null;
+              fullName = (au?.user?.user_metadata?.full_name as string) || null;
+            }
+            const partner = a.partner_id ? partnerMap.get(a.partner_id as string) : null;
+            return {
+              ...a,
+              owner_type: a.partner_id ? "partner" : "brand",
+              owner_name: partner ? partner.name : brandMap.get(a.brand_id as string) || null,
+              partner_slug: partner?.slug || null,
+              requester_email: email,
+              requester_name: fullName,
+            };
+          }),
+        );
+
+        return new Response(JSON.stringify({ aliases: enriched }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "alias_decision": {
+        const { alias_id, decision, note } = data || {};
+        if (!alias_id || !["approved", "rejected", "revoked"].includes(decision)) {
+          return new Response(
+            JSON.stringify({ error: "alias_id and decision (approved|rejected|revoked) required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        const { data: alias, error: findErr } = await adminClient
+          .from("email_sender_aliases")
+          .select("*")
+          .eq("id", alias_id)
+          .maybeSingle();
+        if (findErr) throw findErr;
+        if (!alias) {
+          return new Response(JSON.stringify({ error: "Alias not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { error: aliasUpdErr } = await adminClient
+          .from("email_sender_aliases")
+          .update({
+            status: decision,
+            review_note: note || null,
+            reviewed_by: userId,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("id", alias_id);
+        if (aliasUpdErr) throw aliasUpdErr;
+
+        // Notify the requester
+        let notified = false;
+        let notifyError: string | undefined;
+        let notifyEmail: string | null = alias.reply_to || null;
+        if (alias.user_id) {
+          const { data: au } = await adminClient.auth.admin.getUserById(alias.user_id as string);
+          notifyEmail = au?.user?.email || notifyEmail;
+        }
+
+        if (!notifyEmail) {
+          notifyError = "no_email_on_file";
+        } else if (decision === "approved" || decision === "rejected") {
+          const domain = Deno.env.get("MARKETING_EMAIL_DOMAIN") || "trybrandie.com";
+          const res = await sendAffiliateEmail(
+            supabaseUrl,
+            serviceRoleKey,
+            decision === "approved" ? "alias_approved" : "alias_rejected",
+            notifyEmail,
+            {
+              handle: alias.handle,
+              address: `${alias.handle}@${domain}`,
+              from_name: alias.from_name,
+              owner_type: alias.partner_id ? "partner" : "brand",
+              note: note || "",
+            },
+          );
+          notified = res.ok;
+          if (!res.ok) notifyError = res.error;
+        }
+
+        return new Response(
+          JSON.stringify({ ok: true, notified, notify_email: notifyEmail, notify_error: notifyError }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       default:
+
 
         return new Response(JSON.stringify({ error: "Invalid operation" }), {
           status: 400,
