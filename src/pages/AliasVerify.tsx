@@ -51,7 +51,7 @@ export default function AliasVerify() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-      <SEO title="Verify email alias" description="Confirm your Brandie sending alias." noindex />
+      <SEO title="Verify email alias" description="Confirm your Brandie sending alias." path="/verify-alias" noindex />
       <div className="max-w-md w-full text-center">
         <img src={brandieLogo} alt="Brandie" className="h-16 w-16 mx-auto mb-6" />
         <h1 className="text-3xl font-bold tracking-tight mb-2">Verify reply-to address</h1>
