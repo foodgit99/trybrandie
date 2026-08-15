@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
+import { PartnerLeadActivityDialog } from "./PartnerLeadActivityDialog";
 
 
 
@@ -735,6 +736,12 @@ export default function PartnerDetailDialog({
           </div>
         )}
       </DialogContent>
+      <PartnerLeadActivityDialog
+        partnerId={partnerId}
+        userId={activityLeadId}
+        open={!!activityLeadId}
+        onOpenChange={(v) => !v && setActivityLeadId(null)}
+      />
     </Dialog>
   );
 }
