@@ -42,7 +42,7 @@ import {
 
 const NewAppHeader = () => {
   const { signOut } = useAuth();
-  const { isAdmin } = useAdminRole();
+  const { isAdmin, loading: adminLoading } = useAdminRole();
   const { isPartner } = usePartnerRole();
   const { isAffiliate } = useAffiliateRole();
 
@@ -132,7 +132,7 @@ const NewAppHeader = () => {
             )}
 
 
-            {isAdmin && (
+            {isAdmin && !adminLoading && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/admin")}>

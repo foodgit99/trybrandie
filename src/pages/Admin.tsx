@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -3002,6 +3003,7 @@ function DataTable({
 }
 
 export default function Admin() {
+  const { isAdmin, loading: adminLoading } = useAdminRole();
   const [activeTab, setActiveTab] = useState("overview");
   const [affiliateDetailId, setAffiliateDetailId] = useState<string | null>(null);
 
@@ -3017,6 +3019,31 @@ export default function Admin() {
     },
     refetchInterval: 30_000,
   });
+
+
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-background lg:pl-20 pb-24">
+        <NewAppHeader />
+        <main className="container max-w-6xl mx-auto px-4 py-6">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <Skeleton className="h-64 w-full" />
+        </main>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background lg:pl-20 pb-24">
+        <NewAppHeader />
+        <main className="container max-w-2xl mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl font-bold mb-2">Access restricted</h1>
+          <p className="text-muted-foreground">You don't have permission to view the Admin Panel.</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background lg:pl-20 pb-24">
