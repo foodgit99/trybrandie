@@ -44,6 +44,7 @@ const NewAppHeader = () => {
   const { signOut } = useAuth();
   const { isAdmin } = useAdminRole();
   const { isPartner } = usePartnerRole();
+  const { isAffiliate } = useAffiliateRole();
 
   const navigate = useNavigate();
   const { activeBrandId } = useBrand();
