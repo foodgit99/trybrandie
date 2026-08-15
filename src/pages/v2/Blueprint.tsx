@@ -629,7 +629,7 @@ const Blueprint = () => {
             {grouped.map(({ name, idx, date, ideas: dayIdeas }) => {
               const isToday = idx === todayIdx;
               return (
-                <li key={name} className="grid grid-cols-[40px_1fr] gap-4">
+                <li key={name} className="grid grid-cols-[40px_1fr] gap-4 last:mb-32">
                   <div className="relative">
                     <div
                       className={`h-10 w-10 rounded-full border-2 grid place-items-center text-[10px] font-medium ${
