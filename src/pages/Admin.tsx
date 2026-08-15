@@ -2827,7 +2827,9 @@ function DataTable({
     if (tableName === "affiliate_commissions") return row.status;
     if (tableName === "affiliate_payouts") return row.status;
     if (tableName === "user_roles") return row.user_id?.toString().slice(0, 8);
-    if (tableName === "email_aliases") return `${row.status} · ${row.reply_to}`;
+    if (tableName === "email_aliases")
+      return `${row.partner_id ? "partner" : "brand"} · ${row.status} · ${row.reply_to}`;
+
     return new Date(row.created_at as string).toLocaleDateString();
   };
 

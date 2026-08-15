@@ -77,9 +77,35 @@ ${args.preheader ? `<div style="display:none;max-height:0;overflow:hidden">${esc
 </body></html>`;
 }
 
-export function partnerFrom(partner: PartnerLike): string {
-  const name = partner.name.replace(/[<>"]/g, "").trim() || "Brandie Partner";
-  return `${name} <partners@${DOMAIN}>`;
+export interface PartnerAlias {
+  handle: string;
+  from_name: string | null;
+  reply_to: string | null;
+}
+
+/**
+ * Returns the partner's approved + reply-to-verified sending alias, when they have one.
+ * Falls back to null so callers keep using the generic partners@ address.
+ */
+export async function resolvePartnerAlias(
+  admin: { from: (t: string) => any },
+  partnerId: string,
+): Promise<PartnerAlias | null> {
+  const { data } = await admin
+    .from("email_sender_aliases")
+    .select("handle, from_name, reply_to, reply_to_verified_at, status")
+    .eq("partner_id", partnerId)
+    .eq("status", "approved")
+    .maybeSingle();
+  if (!data || !data.reply_to_verified_at || !data.handle) return null;
+  return { handle: data.handle, from_name: data.from_name, reply_to: data.reply_to };
+}
+
+export function partnerFrom(partner: PartnerLike, alias?: PartnerAlias | null): string {
+  const clean = (v: string) => v.replace(/[<>"]/g, "").trim();
+  const name = clean(alias?.from_name || partner.name || "") || "Brandie Partner";
+  const local = alias?.handle ? alias.handle : "partners";
+  return `${name} <${local}@${DOMAIN}>`;
 }
 
 export function unsubscribeUrl(partnerId: string, email: string): string {
@@ -98,6 +124,7 @@ export async function sendPartnerEmail(args: {
   to: string;
   subject: string;
   html: string;
+  alias?: PartnerAlias | null;
 }): Promise<SendResult> {
   const key = Deno.env.get("RESEND_API_KEY");
   if (!key) return { ok: false, error: "missing_resend_key" };
@@ -107,11 +134,13 @@ export async function sendPartnerEmail(args: {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: partnerFrom(args.partner),
+        from: partnerFrom(args.partner, args.alias),
         to: [args.to],
         subject: args.subject,
         html: args.html,
-        ...(args.partner.contact_email ? { reply_to: args.partner.contact_email } : {}),
+        ...((args.alias?.reply_to || args.partner.contact_email)
+          ? { reply_to: args.alias?.reply_to || args.partner.contact_email }
+          : {}),
       }),
     });
     const json = await res.json().catch(() => ({}));

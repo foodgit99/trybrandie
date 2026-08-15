@@ -2193,11 +2193,12 @@ export type Database = {
       }
       email_sender_aliases: {
         Row: {
-          brand_id: string
+          brand_id: string | null
           created_at: string
           from_name: string
           handle: string
           id: string
+          partner_id: string | null
           reply_to: string | null
           reply_to_token: string | null
           reply_to_verified_at: string | null
@@ -2209,11 +2210,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          brand_id: string
+          brand_id?: string | null
           created_at?: string
           from_name: string
           handle: string
           id?: string
+          partner_id?: string | null
           reply_to?: string | null
           reply_to_token?: string | null
           reply_to_verified_at?: string | null
@@ -2225,11 +2227,12 @@ export type Database = {
           user_id: string
         }
         Update: {
-          brand_id?: string
+          brand_id?: string | null
           created_at?: string
           from_name?: string
           handle?: string
           id?: string
+          partner_id?: string | null
           reply_to?: string | null
           reply_to_token?: string | null
           reply_to_verified_at?: string | null
@@ -2246,6 +2249,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sender_aliases_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
             referencedColumns: ["id"]
           },
         ]

@@ -4,6 +4,7 @@ import { buildPartnerLeads, type PartnerLeadRow } from "../_shared/partner-leads
 import {
   applyMergeTokens,
   renderPartnerEmail,
+  resolvePartnerAlias,
   sendPartnerEmail,
   unsubscribeUrl,
 } from "../_shared/partner-email.ts";
@@ -91,6 +92,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!partner || partner.status !== "active") continue;
 
+      const alias = await resolvePartnerAlias(admin, partnerId);
       const leads = await buildPartnerLeads(admin, partnerId);
       const { data: suppressed } = await admin
         .from("partner_email_suppression")
@@ -119,7 +121,7 @@ Deno.serve(async (req) => {
             body: applyMergeTokens(rule.body, lead, partner),
             unsubscribeUrl: unsubscribeUrl(partner.id, lead.email),
           });
-          const res = await sendPartnerEmail({ partner, to: lead.email, subject, html });
+          const res = await sendPartnerEmail({ partner, to: lead.email, subject, html, alias });
 
           await admin.from("partner_automation_runs").insert({
             automation_id: rule.id,

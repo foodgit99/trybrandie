@@ -6,13 +6,14 @@ import { useAffiliateRole } from "@/hooks/useAffiliateRole";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Loader2, Mail, Users, Workflow, ArrowUpRight } from "lucide-react";
+import { AtSign, Copy, Loader2, Mail, Users, Workflow, ArrowUpRight } from "lucide-react";
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import PartnerLeadsTable, { type PartnerLead } from "@/components/partner/PartnerLeadsTable";
 import LeadDetailDialog from "@/components/partner/LeadDetailDialog";
 import PartnerCampaignsPanel from "@/components/partner/PartnerCampaignsPanel";
 import PartnerAutomationsPanel from "@/components/partner/PartnerAutomationsPanel";
+import PartnerIdentityPanel from "@/components/partner/PartnerIdentityPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { partnerReferralUrl } from "@/lib/partnerRef";
 
@@ -198,6 +199,9 @@ export default function PartnerDashboard() {
                   <TabsTrigger value="automations" className="rounded-lg gap-2">
                     <Workflow className="h-3.5 w-3.5" /> Automations
                   </TabsTrigger>
+                  <TabsTrigger value="identity" className="rounded-lg gap-2">
+                    <AtSign className="h-3.5 w-3.5" /> Identity
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="leads" className="mt-5">
@@ -208,6 +212,13 @@ export default function PartnerDashboard() {
                 </TabsContent>
                 <TabsContent value="automations" className="mt-5">
                   <PartnerAutomationsPanel partnerId={overview.partner.id} />
+                </TabsContent>
+                <TabsContent value="identity" className="mt-5">
+                  <PartnerIdentityPanel
+                    partnerId={overview.partner.id}
+                    partnerName={overview.partner.name}
+                    userId={user.id}
+                  />
                 </TabsContent>
               </Tabs>
             </section>
