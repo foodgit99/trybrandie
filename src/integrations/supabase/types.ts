@@ -3125,8 +3125,12 @@ export type Database = {
         Row: {
           attributed_at: string
           created_at: string
+          credit_grant_id: string | null
+          credited_at: string | null
+          credits_granted: number
           id: string
           partner_id: string
+          referral_code: string | null
           source: string
           updated_at: string
           user_id: string
@@ -3134,8 +3138,12 @@ export type Database = {
         Insert: {
           attributed_at?: string
           created_at?: string
+          credit_grant_id?: string | null
+          credited_at?: string | null
+          credits_granted?: number
           id?: string
           partner_id: string
+          referral_code?: string | null
           source?: string
           updated_at?: string
           user_id: string
@@ -3143,13 +3151,24 @@ export type Database = {
         Update: {
           attributed_at?: string
           created_at?: string
+          credit_grant_id?: string | null
+          credited_at?: string | null
+          credits_granted?: number
           id?: string
           partner_id?: string
+          referral_code?: string | null
           source?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "partner_leads_credit_grant_id_fkey"
+            columns: ["credit_grant_id"]
+            isOneToOne: false
+            referencedRelation: "partner_credit_grants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "partner_leads_partner_id_fkey"
             columns: ["partner_id"]
