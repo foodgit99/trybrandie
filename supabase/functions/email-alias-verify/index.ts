@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         .update({ reply_to_token: token, reply_to_verified_at: null, updated_at: new Date().toISOString() })
         .eq("id", alias_id);
 
-      const verifyUrl = `${APP_URL}/auth/alias-verify?token=${token}`;
+      const verifyUrl = `${APP_URL}/verify-alias?token=${token}`;
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
