@@ -42,6 +42,8 @@ import {
 const NewAppHeader = () => {
   const { signOut } = useAuth();
   const { isAdmin } = useAdminRole();
+  const { isPartner } = usePartnerRole();
+
   const navigate = useNavigate();
   const { activeBrandId } = useBrand();
   const { resolvedTheme, setTheme } = useTheme();
