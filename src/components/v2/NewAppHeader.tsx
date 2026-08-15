@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { usePartnerRole } from "@/hooks/usePartnerRole";
 import brandieLogo from "@/assets/brandie-logo.png";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -33,6 +34,7 @@ import {
   Map,
   Sun,
   Moon,
+  Handshake,
 } from "lucide-react";
 
 
@@ -40,6 +42,8 @@ import {
 const NewAppHeader = () => {
   const { signOut } = useAuth();
   const { isAdmin } = useAdminRole();
+  const { isPartner } = usePartnerRole();
+
   const navigate = useNavigate();
   const { activeBrandId } = useBrand();
   const { resolvedTheme, setTheme } = useTheme();
@@ -104,6 +108,15 @@ const NewAppHeader = () => {
               Studio (Manual)
             </DropdownMenuItem>
 
+            {isPartner && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/partner")}>
+                  <Handshake className="h-4 w-4" />
+                  Partner Dashboard
+                </DropdownMenuItem>
+              </>
+            )}
 
 
             {isAdmin && (

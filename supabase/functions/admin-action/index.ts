@@ -26,8 +26,12 @@ const ALLOWED_TABLES = [
   "email_campaign_logs",
   "email_sender_aliases",
   "credit_rewards",
+  "partner_profiles",
+  "partner_referral_links",
+  "partner_leads",
 
 ];
+
 
 async function sendAffiliateEmail(
   supabaseUrl: string,
@@ -794,7 +798,231 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ---------- Partner module ----------
+      case "promote_to_partner": {
+        const {
+          user_id,
+          name,
+          partner_type = "marketing_partner",
+          slug,
+          contact_person,
+          contact_email,
+          contact_phone,
+          organization,
+          commission_first_pct = 0,
+          commission_recurring_pct = 0,
+          status = "active",
+          start_date,
+          end_date,
+          notes,
+        } = data || {};
+
+        if (!user_id || !name || !slug) {
+          return new Response(JSON.stringify({ error: "user_id, name and slug are required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const cleanSlug = String(slug).toLowerCase().trim().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+        if (cleanSlug.length < 3) {
+          return new Response(JSON.stringify({ error: "slug must be at least 3 characters" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Upgrade or create the affiliate record so the tier stays a single source of truth
+        const { data: existingAff } = await adminClient
+          .from("affiliates")
+          .select("id")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        let affiliateId = existingAff?.id as string | undefined;
+        if (affiliateId) {
+          await adminClient
+            .from("affiliates")
+            .update({ tier: "marketing_partner", status: "approved" })
+            .eq("id", affiliateId);
+        } else {
+          const { data: newAff, error: affErr } = await adminClient
+            .from("affiliates")
+            .insert({
+              user_id,
+              tier: "marketing_partner",
+              status: "approved",
+              affiliate_code: cleanSlug,
+              agreed_terms: true,
+              agreed_disclosure: true,
+            })
+            .select("id")
+            .single();
+          if (affErr) throw affErr;
+          affiliateId = newAff.id;
+        }
+
+        const { data: partner, error: partnerErr } = await adminClient
+          .from("partner_profiles")
+          .upsert(
+            {
+              user_id,
+              affiliate_id: affiliateId,
+              name,
+              partner_type,
+              slug: cleanSlug,
+              contact_person: contact_person || null,
+              contact_email: contact_email || null,
+              contact_phone: contact_phone || null,
+              organization: organization || null,
+              commission_first_pct: Number(commission_first_pct) || 0,
+              commission_recurring_pct: Number(commission_recurring_pct) || 0,
+              status,
+              ...(start_date ? { start_date } : {}),
+              end_date: end_date || null,
+              notes: notes || null,
+            },
+            { onConflict: "user_id" }
+          )
+          .select("*")
+          .single();
+        if (partnerErr) throw partnerErr;
+
+        // Ensure a primary referral link exists
+        const { data: existingLink } = await adminClient
+          .from("partner_referral_links")
+          .select("id, code")
+          .eq("partner_id", partner.id)
+          .eq("label", "Primary")
+          .maybeSingle();
+
+        if (!existingLink) {
+          await adminClient.from("partner_referral_links").insert({
+            partner_id: partner.id,
+            code: cleanSlug,
+            label: "Primary",
+          });
+        } else if (existingLink.code !== cleanSlug) {
+          await adminClient
+            .from("partner_referral_links")
+            .update({ code: cleanSlug })
+            .eq("id", existingLink.id);
+        }
+
+        return new Response(JSON.stringify({ partner }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "partner_list": {
+        const { data: partners, error: pErr } = await adminClient
+          .from("partner_profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (pErr) throw pErr;
+
+        const enriched: Array<Record<string, unknown>> = [];
+        for (const p of partners || []) {
+          const { data: leads } = await adminClient
+            .from("partner_leads")
+            .select("user_id")
+            .eq("partner_id", p.id);
+          const leadIds = (leads || []).map((l) => l.user_id);
+
+          let paid = 0;
+          let revenue = 0;
+          if (leadIds.length > 0) {
+            const { data: profs } = await adminClient
+              .from("profiles")
+              .select("user_id, subscription_tier")
+              .in("user_id", leadIds);
+            paid = (profs || []).filter((pr) => pr.subscription_tier && pr.subscription_tier !== "free").length;
+
+            const { data: txs } = await adminClient
+              .from("payment_transactions")
+              .select("amount, status, user_id")
+              .in("user_id", leadIds)
+              .eq("status", "success");
+            revenue = (txs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+          }
+
+          const { data: link } = await adminClient
+            .from("partner_referral_links")
+            .select("code, click_count, active")
+            .eq("partner_id", p.id)
+            .eq("label", "Primary")
+            .maybeSingle();
+
+          const { data: au } = await adminClient.auth.admin.getUserById(p.user_id);
+
+          enriched.push({
+            ...p,
+            email: au?.user?.email || p.contact_email || null,
+            leads: leadIds.length,
+            paid,
+            revenue,
+            link_code: link?.code || p.slug,
+            link_active: link?.active ?? true,
+            clicks: link?.click_count ?? 0,
+          });
+        }
+
+        return new Response(JSON.stringify({ partners: enriched }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "partner_set_slug": {
+        const { partner_id, slug: newSlug, active } = data || {};
+        if (!partner_id) {
+          return new Response(JSON.stringify({ error: "partner_id required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (newSlug) {
+          const clean = String(newSlug).toLowerCase().trim().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+          await adminClient.from("partner_profiles").update({ slug: clean }).eq("id", partner_id);
+          await adminClient
+            .from("partner_referral_links")
+            .update({ code: clean })
+            .eq("partner_id", partner_id)
+            .eq("label", "Primary");
+        }
+        if (typeof active === "boolean") {
+          await adminClient
+            .from("partner_referral_links")
+            .update({ active })
+            .eq("partner_id", partner_id)
+            .eq("label", "Primary");
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "partner_attribute_user": {
+        const { partner_id, user_id: leadUserId } = data || {};
+        if (!partner_id || !leadUserId) {
+          return new Response(JSON.stringify({ error: "partner_id and user_id required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { error: attErr } = await adminClient
+          .from("partner_leads")
+          .upsert(
+            { partner_id, user_id: leadUserId, source: "manual" },
+            { onConflict: "user_id" }
+          );
+        if (attErr) throw attErr;
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       default:
+
         return new Response(JSON.stringify({ error: "Invalid operation" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

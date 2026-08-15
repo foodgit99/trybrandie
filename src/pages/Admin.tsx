@@ -77,6 +77,8 @@ import AdminTracesTab from "@/components/admin/AdminTracesTab";
 import RewardsTab from "@/components/admin/RewardsTab";
 import SubscriptionsTab from "@/components/admin/SubscriptionsTab";
 import SupportTab from "@/components/admin/SupportTab";
+import AdminPartnersTab from "@/components/admin/AdminPartnersTab";
+
 
 const TABLES = [
   { key: "overview", label: "Overview", icon: BarChart3 },
@@ -89,6 +91,8 @@ const TABLES = [
   { key: "designs", label: "Designs", icon: Image },
   { key: "subscriptions", label: "Subscriptions", icon: CreditCard },
   { key: "affiliates", label: "Affiliates", icon: UserCheck },
+  { key: "partners", label: "Partners", icon: UserCheck },
+
   { key: "affiliate_commissions", label: "Commissions", icon: DollarSign },
   { key: "affiliate_payouts", label: "Payouts", icon: DollarSign },
   { key: "rewards", label: "Rewards", icon: Gift },
@@ -1313,6 +1317,47 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
   const [grantExpiry, setGrantExpiry] = useState(30);
   const [granting, setGranting] = useState(false);
 
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [partnerName, setPartnerName] = useState("");
+  const [partnerSlug, setPartnerSlug] = useState("");
+  const [partnerOrg, setPartnerOrg] = useState("");
+  const [partnerFirstPct, setPartnerFirstPct] = useState(0);
+  const [partnerRecurringPct, setPartnerRecurringPct] = useState(0);
+  const [promoting, setPromoting] = useState(false);
+
+  useEffect(() => {
+    setPartnerName((detailItem?.full_name as string) || "");
+    setPartnerSlug("");
+    setPartnerOrg("");
+    setPromoteOpen(false);
+  }, [detailItem?.id]);
+
+  const handlePromote = async () => {
+    if (!detailItem?.user_id) return;
+    setPromoting(true);
+    try {
+      await adminAction({
+        operation: "promote_to_partner",
+        data: {
+          user_id: detailItem.user_id,
+          name: partnerName.trim(),
+          slug: partnerSlug.trim(),
+          organization: partnerOrg.trim() || null,
+          contact_email: email,
+          commission_first_pct: partnerFirstPct,
+          commission_recurring_pct: partnerRecurringPct,
+        },
+      });
+      toast.success(`${partnerName} is now a Marketing Partner`);
+      setPromoteOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to promote user");
+    } finally {
+      setPromoting(false);
+    }
+  };
+
+
   const currentTier = (detailItem?.subscription_tier as string) || "free";
   const [tier, setTier] = useState<string>(currentTier);
   const [savingTier, setSavingTier] = useState(false);
@@ -1430,6 +1475,86 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
               <Gift className="h-4 w-4" />
               Grant Reward Credits
             </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full rounded-xl gap-2"
+              onClick={() => setPromoteOpen((v) => !v)}
+            >
+              <UserCheck className="h-4 w-4" />
+              Promote to Partner
+            </Button>
+
+            {promoteOpen && (
+              <div className="space-y-3 p-3 rounded-xl border bg-muted/30">
+                <div>
+                  <Label className="text-xs">Partner name</Label>
+                  <Input
+                    placeholder="e.g. Auxano"
+                    value={partnerName}
+                    onChange={(e) => setPartnerName(e.target.value)}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Referral slug</Label>
+                  <Input
+                    placeholder="auxano"
+                    value={partnerSlug}
+                    onChange={(e) => setPartnerSlug(e.target.value)}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">First payment %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={partnerFirstPct}
+                      onChange={(e) => setPartnerFirstPct(Number(e.target.value))}
+                      className="rounded-lg mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Recurring %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={partnerRecurringPct}
+                      onChange={(e) => setPartnerRecurringPct(Number(e.target.value))}
+                      className="rounded-lg mt-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Organization</Label>
+                  <Input
+                    value={partnerOrg}
+                    onChange={(e) => setPartnerOrg(e.target.value)}
+                    className="rounded-lg mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 rounded-lg"
+                    disabled={promoting || !partnerName.trim() || partnerSlug.trim().length < 3}
+                    onClick={handlePromote}
+                  >
+                    {promoting ? "Promoting..." : "Create partner"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => setPromoteOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+
 
             {grantOpen && (
               <div className="space-y-3 p-3 rounded-xl border bg-muted/30">
@@ -2833,7 +2958,12 @@ export default function Admin() {
             <SubscriptionsTab />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions"].includes(t.key)).map((t) => (
+          <TabsContent value="partners">
+            <AdminPartnersTab />
+          </TabsContent>
+
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners"].includes(t.key)).map((t) => (
+
             <TabsContent key={t.key} value={t.key}>
               <Card className="rounded-2xl">
                 <CardHeader>

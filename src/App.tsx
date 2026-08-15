@@ -46,6 +46,9 @@ import V2Report from "./pages/v2/Report";
 import V2BrandCentre from "./pages/v2/BrandCentre";
 import V2Settings from "./pages/v2/Settings";
 import V2Profile from "./pages/v2/Profile";
+import PartnerDashboard from "./pages/PartnerDashboard";
+import PartnerRefCapture from "@/components/PartnerRefCapture";
+
 import V2Engine from "./pages/v2/Engine";
 import V2ContentHub from "./pages/v2/ContentHubV2";
 import V2Studio from "./pages/v2/Studio";
@@ -218,6 +221,8 @@ const App = () => (
       <DesignGenerationProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <PartnerRefCapture />
+
         <RouteAnalytics />
         <Routes>
           {/* ============ PRIMARY (v2) experience ============ */}
@@ -237,6 +242,8 @@ const App = () => (
           <Route path="/brands" element={<ProtectedRoute><BrandsPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><V2Settings /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><V2Profile /></ProtectedRoute>} />
+          <Route path="/partner" element={<ProtectedRoute><PartnerDashboard /></ProtectedRoute>} />
+
           <Route path="/engine" element={<ProtectedRoute><V2Engine /></ProtectedRoute>} />
           <Route path="/content-hub" element={<ProtectedRoute><V2ContentHub /></ProtectedRoute>} />
           <Route path="/hub" element={<ProtectedRoute><V2Hub /></ProtectedRoute>} />
