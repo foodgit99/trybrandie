@@ -13,28 +13,6 @@ import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/p
 
 
 
-interface AffiliateRequest {
-  id: string;
-  user_id: string;
-  email: string | null;
-  full_name: string | null;
-  affiliate_code: string | null;
-  status: string;
-  tier: string | null;
-  relation: "partner" | "lead";
-  primary_channel: string | null;
-  channel_handle: string | null;
-  channel_url: string | null;
-  audience_size: string | null;
-  niche: string | null;
-  regions: string[] | null;
-  promo_plan: string | null;
-  why_join: string | null;
-  whatsapp_number: string | null;
-  location: string | null;
-  created_at: string;
-  application_submitted_at: string | null;
-}
 
 interface Detail {
 
