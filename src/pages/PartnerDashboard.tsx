@@ -186,20 +186,20 @@ export default function PartnerDashboard() {
 
             <section className="space-y-3 pb-10">
               <Tabs defaultValue="leads">
-                <TabsList className="rounded-xl">
-                  <TabsTrigger value="leads" className="rounded-lg gap-2">
+                <TabsList className="rounded-xl w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  <TabsTrigger value="leads" className="rounded-lg gap-2 shrink-0">
                     <Users className="h-3.5 w-3.5" /> My leads
                   </TabsTrigger>
-                  <TabsTrigger value="campaigns" className="rounded-lg gap-2">
+                  <TabsTrigger value="campaigns" className="rounded-lg gap-2 shrink-0">
                     <Mail className="h-3.5 w-3.5" /> Campaigns
                   </TabsTrigger>
-                  <TabsTrigger value="automations" className="rounded-lg gap-2">
+                  <TabsTrigger value="automations" className="rounded-lg gap-2 shrink-0">
                     <Workflow className="h-3.5 w-3.5" /> Automations
                   </TabsTrigger>
-                  <TabsTrigger value="credits" className="rounded-lg gap-2">
+                  <TabsTrigger value="credits" className="rounded-lg gap-2 shrink-0">
                     <Gift className="h-3.5 w-3.5" /> Credits
                   </TabsTrigger>
-                  <TabsTrigger value="identity" className="rounded-lg gap-2">
+                  <TabsTrigger value="identity" className="rounded-lg gap-2 shrink-0">
                     <AtSign className="h-3.5 w-3.5" /> Identity
                   </TabsTrigger>
                 </TabsList>
