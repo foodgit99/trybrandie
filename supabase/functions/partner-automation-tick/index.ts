@@ -114,14 +114,25 @@ Deno.serve(async (req) => {
           if (!isDue(rule.trigger, lead, Number(rule.delay_hours || 0))) continue;
 
           const subject = applyMergeTokens(rule.subject, lead, partner);
+          const body = applyMergeTokens(rule.body, lead, partner);
+          const unsub = unsubscribeUrl(partner.id, lead.email);
           const html = renderPartnerEmail({
             partner,
             subject,
             preheader: null,
-            body: applyMergeTokens(rule.body, lead, partner),
-            unsubscribeUrl: unsubscribeUrl(partner.id, lead.email),
+            body,
+            unsubscribeUrl: unsub,
           });
-          const res = await sendPartnerEmail({ partner, to: lead.email, subject, html, alias });
+          const text = renderPartnerText({ partner, body, unsubscribeUrl: unsub });
+          const res = await sendPartnerEmail({
+            partner,
+            to: lead.email,
+            subject,
+            html,
+            text,
+            unsubscribeUrl: unsub,
+            alias,
+          });
 
           await admin.from("partner_automation_runs").insert({
             automation_id: rule.id,
