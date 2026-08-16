@@ -139,6 +139,10 @@ export async function sendPartnerEmail(args: {
   to: string;
   subject: string;
   html: string;
+  /** Plain-text alternative. Always pass this — text/html multipart improves inbox placement. */
+  text?: string;
+  /** Used for the RFC 8058 one-click unsubscribe headers. */
+  unsubscribeUrl?: string;
   alias?: PartnerAlias | null;
 }): Promise<SendResult> {
   const key = Deno.env.get("RESEND_API_KEY");
@@ -153,8 +157,19 @@ export async function sendPartnerEmail(args: {
         to: [args.to],
         subject: args.subject,
         html: args.html,
+        ...(args.text ? { text: args.text } : {}),
         ...((args.alias?.reply_to || args.partner.contact_email)
           ? { reply_to: args.alias?.reply_to || args.partner.contact_email }
+          : {}),
+        // RFC 8058: lets Gmail/Yahoo show a native unsubscribe control, which
+        // keeps complaints out of the spam button and protects sender reputation.
+        ...(args.unsubscribeUrl
+          ? {
+              headers: {
+                "List-Unsubscribe": `<${args.unsubscribeUrl}>`,
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              },
+            }
           : {}),
       }),
     });
