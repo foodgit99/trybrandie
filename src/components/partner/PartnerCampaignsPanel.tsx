@@ -313,6 +313,12 @@ export default function PartnerCampaignsPanel({ partnerId }: { partnerId: string
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PartnerCampaignSendsDialog
+        campaignId={recipientsFor?.id ?? null}
+        campaignName={recipientsFor?.name}
+        onClose={() => setRecipientsFor(null)}
+      />
     </div>
   );
 }
