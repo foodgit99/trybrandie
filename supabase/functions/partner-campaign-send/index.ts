@@ -126,15 +126,26 @@ Deno.serve(async (req) => {
     let delivered = 0;
     for (const lead of recipients) {
       const subject = applyMergeTokens(campaign.subject, lead, partner);
+      const body = applyMergeTokens(campaign.body, lead, partner);
+      const unsub = unsubscribeUrl(partner.id, lead.email!);
       const html = renderPartnerEmail({
         partner,
         subject,
         preheader: campaign.preheader,
-        body: applyMergeTokens(campaign.body, lead, partner),
-        unsubscribeUrl: unsubscribeUrl(partner.id, lead.email!),
+        body,
+        unsubscribeUrl: unsub,
       });
+      const text = renderPartnerText({ partner, body, unsubscribeUrl: unsub });
 
-      const res = await sendPartnerEmail({ partner, to: lead.email!, subject, html, alias });
+      const res = await sendPartnerEmail({
+        partner,
+        to: lead.email!,
+        subject,
+        html,
+        text,
+        unsubscribeUrl: unsub,
+        alias,
+      });
       if (res.ok) delivered++;
 
       if (!testRecipient) {
