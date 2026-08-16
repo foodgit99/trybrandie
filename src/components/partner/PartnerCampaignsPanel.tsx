@@ -14,9 +14,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Mail, Plus, Send, Trash2, Users } from "lucide-react";
+import { Loader2, Mail, Plus, Send, Trash2, Users, Inbox, AlertTriangle } from "lucide-react";
 import { LEAD_STATUS_OPTIONS } from "@/lib/partnerLeadStatus";
 import PartnerCampaignSendsDialog from "./PartnerCampaignSendsDialog";
+import { checkInboxPlacement } from "@/lib/inboxPlacement";
 
 interface Campaign {
   id: string;
@@ -293,6 +294,7 @@ export default function PartnerCampaignsPanel({ partnerId }: { partnerId: string
                 ))}
               </div>
             </div>
+            <InboxPlacementHints subject={form.subject} body={form.body} />
             <div className="space-y-1.5">
               <Label>Schedule (optional)</Label>
               <Input
