@@ -56,6 +56,7 @@ const Landing = () => (
       <LandingAffiliate />
     </main>
     <LandingFooter />
+    <TawkToWidget />
   </div>
 );
 
