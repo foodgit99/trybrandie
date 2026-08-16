@@ -337,6 +337,7 @@ const Landing = () => (
         </div>
       </div>
     </footer>
+    <TawkToWidget />
   </div>
 );
 
