@@ -14,9 +14,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Mail, Plus, Send, Trash2, Users } from "lucide-react";
+import { Loader2, Mail, Plus, Send, Trash2, Users, Inbox, AlertTriangle } from "lucide-react";
 import { LEAD_STATUS_OPTIONS } from "@/lib/partnerLeadStatus";
 import PartnerCampaignSendsDialog from "./PartnerCampaignSendsDialog";
+import { checkInboxPlacement } from "@/lib/inboxPlacement";
 
 interface Campaign {
   id: string;
@@ -40,6 +41,44 @@ const blank = {
   statuses: [] as string[],
   scheduled_for: "",
 };
+
+/** Advisory panel: flags copy that mailbox providers classify as promotional. */
+function InboxPlacementHints({ subject, body }: { subject: string; body: string }) {
+  const issues = checkInboxPlacement(subject, body);
+
+  if (!subject.trim() && !body.trim()) return null;
+
+  if (issues.length === 0) {
+    return (
+      <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3">
+        <Inbox className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <p className="text-xs text-muted-foreground">
+          This reads like a personal message — the best chance at the primary inbox. Placement is
+          still decided by each recipient's mail provider.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" />
+        <p className="text-xs font-medium">
+          {issues.length} {issues.length === 1 ? "signal" : "signals"} that route mail to the
+          Promotions tab
+        </p>
+      </div>
+      <ul className="space-y-1 pl-6">
+        {issues.map((i, idx) => (
+          <li key={idx} className="list-disc text-xs text-muted-foreground">
+            <span className="capitalize">{i.field}</span>: {i.message}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export default function PartnerCampaignsPanel({ partnerId }: { partnerId: string }) {
   const { toast } = useToast();
@@ -293,6 +332,7 @@ export default function PartnerCampaignsPanel({ partnerId }: { partnerId: string
                 ))}
               </div>
             </div>
+            <InboxPlacementHints subject={form.subject} body={form.body} />
             <div className="space-y-1.5">
               <Label>Schedule (optional)</Label>
               <Input

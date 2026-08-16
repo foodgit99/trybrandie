@@ -37,6 +37,11 @@ export function applyMergeTokens(text: string, lead: PartnerLeadRow, partner: Pa
     .replace(/\{\{\s*app_url\s*\}\}/gi, APP_URL);
 }
 
+/**
+ * Plain, letter-like HTML. Deliberately avoids the signals mailbox providers use to
+ * classify mail as promotional: no coloured page background, no rounded "card" shell,
+ * no hero logo, no buttons, minimal table nesting, and a text-only footer.
+ */
 export function renderPartnerEmail(args: {
   partner: PartnerLike;
   subject: string;
@@ -46,35 +51,45 @@ export function renderPartnerEmail(args: {
 }): string {
   const paragraphs = args.body
     .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 16px;font-size:16px;line-height:1.65;color:#2B2D33">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
+    .map(
+      (p) =>
+        `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#222222">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`,
+    )
     .join("");
 
   return `<!doctype html>
 <html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${escapeHtml(args.subject)}</title></head>
-<body style="margin:0;padding:0;background:#FAF8F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
+<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
 ${args.preheader ? `<div style="display:none;max-height:0;overflow:hidden">${escapeHtml(args.preheader)}</div>` : ""}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAF8F5;padding:32px 16px">
-  <tr><td align="center">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;padding:36px">
-      <tr><td>
-        ${
-          args.partner.logo_url
-            ? `<img src="${args.partner.logo_url}" alt="${escapeHtml(args.partner.name)}" width="120" style="max-width:120px;height:auto;margin-bottom:24px"/>`
-            : `<p style="margin:0 0 24px;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#C4993B">${escapeHtml(args.partner.name)}</p>`
-        }
-        ${paragraphs}
-      </td></tr>
-      <tr><td style="padding-top:24px;border-top:1px solid #EFEAE3">
-        <p style="margin:0;font-size:12px;line-height:1.6;color:#8A8781">
-          Sent by ${escapeHtml(args.partner.name)}, a Brandie Marketing Partner.<br/>
-          <a href="${args.unsubscribeUrl}" style="color:#8A8781">Unsubscribe from these emails</a>
-        </p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
+<div style="max-width:600px;margin:0 auto;padding:24px 20px">
+  ${paragraphs}
+  <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#666666">
+    ${escapeHtml(args.partner.name)}<br/>
+    Brandie Marketing Partner
+  </p>
+  <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#888888">
+    You are receiving this because you signed up through ${escapeHtml(args.partner.name)}.
+    <a href="${args.unsubscribeUrl}" style="color:#888888">Unsubscribe</a>.
+  </p>
+</div>
 </body></html>`;
+}
+
+/** Plain-text alternative. A text part is one of the strongest non-promotional signals. */
+export function renderPartnerText(args: {
+  partner: PartnerLike;
+  body: string;
+  unsubscribeUrl: string;
+}): string {
+  return `${args.body.trim()}
+
+--
+${args.partner.name}
+Brandie Marketing Partner
+
+You are receiving this because you signed up through ${args.partner.name}.
+Unsubscribe: ${args.unsubscribeUrl}`;
 }
 
 export interface PartnerAlias {
@@ -124,6 +139,10 @@ export async function sendPartnerEmail(args: {
   to: string;
   subject: string;
   html: string;
+  /** Plain-text alternative. Always pass this — text/html multipart improves inbox placement. */
+  text?: string;
+  /** Used for the RFC 8058 one-click unsubscribe headers. */
+  unsubscribeUrl?: string;
   alias?: PartnerAlias | null;
 }): Promise<SendResult> {
   const key = Deno.env.get("RESEND_API_KEY");
@@ -138,8 +157,19 @@ export async function sendPartnerEmail(args: {
         to: [args.to],
         subject: args.subject,
         html: args.html,
+        ...(args.text ? { text: args.text } : {}),
         ...((args.alias?.reply_to || args.partner.contact_email)
           ? { reply_to: args.alias?.reply_to || args.partner.contact_email }
+          : {}),
+        // RFC 8058: lets Gmail/Yahoo show a native unsubscribe control, which
+        // keeps complaints out of the spam button and protects sender reputation.
+        ...(args.unsubscribeUrl
+          ? {
+              headers: {
+                "List-Unsubscribe": `<${args.unsubscribeUrl}>`,
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              },
+            }
           : {}),
       }),
     });
