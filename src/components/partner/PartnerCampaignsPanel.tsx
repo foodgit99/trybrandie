@@ -201,6 +201,16 @@ export default function PartnerCampaignsPanel({ partnerId }: { partnerId: string
                 <Button size="sm" variant="outline" className="rounded-xl" onClick={() => startEdit(c)}>
                   Edit
                 </Button>
+                {["sent", "sending", "failed"].includes(c.status) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl gap-2"
+                    onClick={() => setRecipientsFor(c)}
+                  >
+                    <Users className="h-3.5 w-3.5" /> View recipients
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
