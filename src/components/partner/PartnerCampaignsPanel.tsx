@@ -14,8 +14,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Mail, Plus, Send, Trash2 } from "lucide-react";
+import { Loader2, Mail, Plus, Send, Trash2, Users } from "lucide-react";
 import { LEAD_STATUS_OPTIONS } from "@/lib/partnerLeadStatus";
+import PartnerCampaignSendsDialog from "./PartnerCampaignSendsDialog";
 
 interface Campaign {
   id: string;
@@ -49,6 +50,7 @@ export default function PartnerCampaignsPanel({ partnerId }: { partnerId: string
   const [form, setForm] = useState({ ...blank });
   const [saving, setSaving] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [recipientsFor, setRecipientsFor] = useState<Campaign | null>(null);
 
   const load = async () => {
     const { data } = await supabase
