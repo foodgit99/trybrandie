@@ -63,6 +63,20 @@ export default function PartnerDashboard() {
     if (!user) return;
     (async () => {
       setLoading(true);
+
+      // Check partner membership first so non-partners never trigger a 403 from the portal.
+      const { data: profile } = await supabase
+        .from("partner_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile) {
+        setDenied(true);
+        setLoading(false);
+        return;
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       const auth = { Authorization: `Bearer ${sessionData?.session?.access_token}` };
 
@@ -81,6 +95,7 @@ export default function PartnerDashboard() {
       setLoading(false);
     })();
   }, [user?.id]);
+
 
   if (authLoading) {
     return (
