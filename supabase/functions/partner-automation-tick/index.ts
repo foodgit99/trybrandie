@@ -4,6 +4,7 @@ import { buildPartnerLeads, type PartnerLeadRow } from "../_shared/partner-leads
 import {
   applyMergeTokens,
   renderPartnerEmail,
+  renderPartnerText,
   resolvePartnerAlias,
   sendPartnerEmail,
   unsubscribeUrl,
