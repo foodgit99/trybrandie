@@ -10,6 +10,7 @@ import LandingAffiliate from "@/components/landing/LandingAffiliate";
 import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 import SEO from "@/components/SEO";
+import TawkToWidget from "@/components/TawkToWidget";
 
 const faqs = [
   { q: "What exactly is Brandie?", a: "Brandie is an autonomous content system for small businesses. You pick a playbook for your industry, hit start, and Brandie generates a full week of on-brand social posts for you, every week, on its own." },
@@ -55,6 +56,7 @@ const Landing = () => (
       <LandingAffiliate />
     </main>
     <LandingFooter />
+    <TawkToWidget />
   </div>
 );
 
