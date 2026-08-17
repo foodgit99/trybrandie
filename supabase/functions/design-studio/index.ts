@@ -3066,11 +3066,18 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           console.log(`[render] skipped ${skippedRefs.length} ref(s):`, skippedRefs.map((s) => s.role).join(","));
         }
         const refLegend = buildRefLegend(collectedRefs);
+        const hasProductRef = collectedRefs.some((r) => r.role === "product");
+        const productHeroHint = hasProductRef
+          ? (isProductRelevant
+            ? " PRODUCT FOCUS: the attached real product photo(s) are the hero of this design — feature them prominently with their actual shape, colours and materials."
+            : " PRODUCT SUPPORT: this brief is not a product pitch, so the attached real product photo(s) should be adapted into the scene as supporting visuals (in-context placement, mockup, framed panel) rather than a hard sell — but they must still be the real pixels, never a generated stand-in.")
+          : "";
         const editHint = action === "edit" && previous_image_url
           ? " EDIT MODE: Preserve the overall layout of the previous-design reference; apply only the user's requested change."
           : "";
 
-        const finalPrompt = imagePromptText + editHint + (refLegend ? `\n\n${refLegend}` : "");
+        const finalPrompt = imagePromptText + editHint + productHeroHint + (refLegend ? `\n\n${refLegend}` : "");
+
 
         // P2.#15: telemetry — capture prompt length, refs, tier, stability, score.
         tracer.setMetric("prompt_length_chars", finalPrompt.length);
