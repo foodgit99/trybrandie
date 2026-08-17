@@ -103,7 +103,7 @@ export interface CollectRefsInput {
   userImageUrl?: string | null;
   productImageUrls?: string[];
   previousImageUrl?: string | null;
-  /** Max total refs to attach (gpt-image-2 quality degrades past ~5). */
+  /** Max total refs to attach. */
   maxRefs?: number;
 
 }
@@ -117,14 +117,15 @@ export interface CollectRefsInput {
  *  1. Brand logo  (pixel-exact, must always come first when present)
  *  2. Previous render (for edits — preserves layout)
  *  3. User-uploaded image (hero subject)
- *  4. Gallery photo #1, #2 (real brand assets to feature literally)
- *  5. Product image #1, #2 (only when no user image)
+ *  4. Gallery photos #1-#3 (real brand assets to feature literally)
+ *  5. Product photos #1, #2 (attached even alongside a user image, as
+ *     supporting references — real product pixels always beat invented ones)
  */
 export async function collectRenderRefs(input: CollectRefsInput): Promise<{
   refs: CollectedRef[];
   skipped: { role: RefRole; url: string }[];
 }> {
-  const maxRefs = input.maxRefs ?? 5;
+  const maxRefs = input.maxRefs ?? 7;
   const candidates: { url: string; role: RefRole; label: string }[] = [];
 
   if (input.logoUrl) {
@@ -136,13 +137,11 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
   if (input.userImageUrl) {
     candidates.push({ url: input.userImageUrl, role: "user", label: "user-provided image (use as the primary subject of the design)" });
   }
-  for (const insp of (input.inspirationUrls || []).slice(0, 2)) {
-    candidates.push({ url: insp, role: "inspiration", label: "brand gallery photo (REAL brand asset — feature these exact pixels in the composition when relevant; do NOT replace with a generated stand-in, do NOT redraw)" });
+  for (const insp of (input.inspirationUrls || []).slice(0, 3)) {
+    candidates.push({ url: insp, role: "inspiration", label: "brand gallery photo (REAL brand asset — MUST appear in the composition, either with its pixels unchanged or adapted into the scene; never replaced by a generated look-alike, never redrawn or restyled)" });
   }
-  if (!input.userImageUrl) {
-    for (const prod of (input.productImageUrls || []).slice(0, 2)) {
-      candidates.push({ url: prod, role: "product", label: "product photo (feature this product prominently)" });
-    }
+  for (const prod of (input.productImageUrls || []).slice(0, 2)) {
+    candidates.push({ url: prod, role: "product", label: "real product/service photo (MUST appear in the composition — as the hero when the brief allows, otherwise integrated into the scene; keep its actual shape, colours and materials, never substitute a generated product)" });
   }
 
   // Fetch all in parallel.
@@ -154,7 +153,10 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
 
   const refs: CollectedRef[] = [];
   const skipped: { role: RefRole; url: string }[] = [];
+  const seen = new Set<string>();
   for (const r of results) {
+    if (seen.has(r.url)) continue;
+    seen.add(r.url);
     if (r.result && refs.length < maxRefs) {
       refs.push(r.result);
     } else if (!r.result) {
@@ -164,6 +166,7 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
 
   return { refs, skipped };
 }
+
 
 /**
  * Build a prompt legend that tells the model what each numbered reference is.
