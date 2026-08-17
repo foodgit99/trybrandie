@@ -103,7 +103,7 @@ export interface CollectRefsInput {
   userImageUrl?: string | null;
   productImageUrls?: string[];
   previousImageUrl?: string | null;
-  /** Max total refs to attach (gpt-image-2 quality degrades past ~5). */
+  /** Max total refs to attach. */
   maxRefs?: number;
 
 }
@@ -117,14 +117,15 @@ export interface CollectRefsInput {
  *  1. Brand logo  (pixel-exact, must always come first when present)
  *  2. Previous render (for edits — preserves layout)
  *  3. User-uploaded image (hero subject)
- *  4. Gallery photo #1, #2 (real brand assets to feature literally)
- *  5. Product image #1, #2 (only when no user image)
+ *  4. Gallery photos #1-#3 (real brand assets to feature literally)
+ *  5. Product photos #1, #2 (attached even alongside a user image, as
+ *     supporting references — real product pixels always beat invented ones)
  */
 export async function collectRenderRefs(input: CollectRefsInput): Promise<{
   refs: CollectedRef[];
   skipped: { role: RefRole; url: string }[];
 }> {
-  const maxRefs = input.maxRefs ?? 5;
+  const maxRefs = input.maxRefs ?? 7;
   const candidates: { url: string; role: RefRole; label: string }[] = [];
 
   if (input.logoUrl) {
@@ -136,13 +137,11 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
   if (input.userImageUrl) {
     candidates.push({ url: input.userImageUrl, role: "user", label: "user-provided image (use as the primary subject of the design)" });
   }
-  for (const insp of (input.inspirationUrls || []).slice(0, 2)) {
-    candidates.push({ url: insp, role: "inspiration", label: "brand gallery photo (REAL brand asset — feature these exact pixels in the composition when relevant; do NOT replace with a generated stand-in, do NOT redraw)" });
+  for (const insp of (input.inspirationUrls || []).slice(0, 3)) {
+    candidates.push({ url: insp, role: "inspiration", label: "brand gallery photo (REAL brand asset — MUST appear in the composition, either with its pixels unchanged or adapted into the scene; never replaced by a generated look-alike, never redrawn or restyled)" });
   }
-  if (!input.userImageUrl) {
-    for (const prod of (input.productImageUrls || []).slice(0, 2)) {
-      candidates.push({ url: prod, role: "product", label: "product photo (feature this product prominently)" });
-    }
+  for (const prod of (input.productImageUrls || []).slice(0, 2)) {
+    candidates.push({ url: prod, role: "product", label: "real product/service photo (MUST appear in the composition — as the hero when the brief allows, otherwise integrated into the scene; keep its actual shape, colours and materials, never substitute a generated product)" });
   }
 
   // Fetch all in parallel.
@@ -154,7 +153,10 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
 
   const refs: CollectedRef[] = [];
   const skipped: { role: RefRole; url: string }[] = [];
+  const seen = new Set<string>();
   for (const r of results) {
+    if (seen.has(r.url)) continue;
+    seen.add(r.url);
     if (r.result && refs.length < maxRefs) {
       refs.push(r.result);
     } else if (!r.result) {
@@ -164,6 +166,7 @@ export async function collectRenderRefs(input: CollectRefsInput): Promise<{
 
   return { refs, skipped };
 }
+
 
 /**
  * Build a prompt legend that tells the model what each numbered reference is.
@@ -175,6 +178,12 @@ export function buildRefLegend(refs: CollectedRef[]): string {
   return [
     "ATTACHED REFERENCE IMAGES (the actual pixel data is provided to you — use them, do not describe them):",
     ...lines,
-    "Reference attachment rules: the LOGO reference must appear in the final design EXACTLY as supplied (no redraw, no recolor, no restyle). GALLERY references are real brand assets — feature these exact pixels in the composition whenever relevant instead of generating a substitute; do not redraw or restyle them. The user/product reference is the hero subject.",
+    "REFERENCE USE RULES (mandatory):",
+    "1. The LOGO reference must appear in the final design EXACTLY as supplied — no redraw, recolor or restyle.",
+    "2. Every GALLERY and PRODUCT reference supplied is a real brand asset and MUST be used in the design in one of exactly two ways: (A) AS-IS — placed in the composition with its pixels unchanged, crop and scale only; or (B) ADAPTED IN — when the post's content does not allow it as a standalone hero, integrated into the scene (in-context placement, mockup, framed panel, collage tile, held/worn in situ) while the actual subject stays recognisably the same pixels.",
+    "3. NEVER generate a look-alike replacement for a supplied gallery or product photo, and never redraw, restyle, recolor or illustrate it.",
+    "4. Generate original imagery ONLY for elements no supplied reference covers (backgrounds, textures, abstract shapes, typography).",
+    "5. The user/product reference is the hero subject whenever the brief allows one.",
   ].join("\n");
+
 }

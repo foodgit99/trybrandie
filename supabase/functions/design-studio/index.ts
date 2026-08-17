@@ -1792,8 +1792,9 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Primary font: ${brand.typography_primary || "Clean sans-serif"}
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? (brand?.prefer_gallery_first !== false
-  ? `- Brand Gallery (PREFER GALLERY FIRST — mandatory): The brand has ${inspirationUrls.length} real gallery photo(s). You MUST feature these EXACT images in the composition as the primary visuals. Do NOT generate replacement product/team/premises imagery when a gallery photo can serve the same purpose. Only fabricate new imagery for elements the gallery does not cover. Never redraw, restyle, or heavily crop the gallery images — treat their pixels as literal brand assets.`
-  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Feature these EXACT images in the composition whenever relevant instead of generating substitutes. Do not redraw or restyle them — they are the brand's real assets.`) : ""}${galleryLabelBrief}
+  ? `- Brand Gallery (PREFER GALLERY FIRST — mandatory): The brand has ${inspirationUrls.length} real gallery photo(s). You MUST feature these EXACT images as the primary visuals — either as-is (crop/scale only) or adapted into the scene when the content does not allow a standalone hero. Do NOT generate replacement product/team/premises imagery when a gallery photo can serve the same purpose. Only fabricate new imagery for elements the gallery does not cover. Never redraw, restyle or recolour the gallery images — treat their pixels as literal brand assets.`
+  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Every supplied gallery photo MUST appear in the design — as-is (crop/scale only), or adapted into the composition (in-context placement, mockup, framed panel, collage tile) when the content does not allow it as a standalone hero. Never generate a look-alike substitute, and never redraw or restyle them — they are the brand's real assets.`) : ""}${galleryLabelBrief}
+
 ${brand.special_instructions ? `- Special instructions: ${brand.special_instructions}` : ""}
 ${audienceContext}${trendContext}${productImageContext}${preferenceContext}${chatHistoryContext}
 
@@ -3050,22 +3051,34 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           productKeywords.test(userPrompt) ||
           productKeywords.test(designPrompt)
         );
+        // Real product photos are attached on EVERY render (unless the brand
+        // disabled product imagery). Relevance only decides hero treatment —
+        // a real product photo always beats an invented one, even on a
+        // brand-awareness or educational post.
         const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
           userImageUrl: user_image_url,
-          productImageUrls: isProductRelevant ? productImageUrls : [],
+          productImageUrls: productImagesDisabled ? [] : productImageUrls,
           previousImageUrl: action === "edit" ? previous_image_url : null,
         });
+
         if (skippedRefs.length > 0) {
           console.log(`[render] skipped ${skippedRefs.length} ref(s):`, skippedRefs.map((s) => s.role).join(","));
         }
         const refLegend = buildRefLegend(collectedRefs);
+        const hasProductRef = collectedRefs.some((r) => r.role === "product");
+        const productHeroHint = hasProductRef
+          ? (isProductRelevant
+            ? " PRODUCT FOCUS: the attached real product photo(s) are the hero of this design — feature them prominently with their actual shape, colours and materials."
+            : " PRODUCT SUPPORT: this brief is not a product pitch, so the attached real product photo(s) should be adapted into the scene as supporting visuals (in-context placement, mockup, framed panel) rather than a hard sell — but they must still be the real pixels, never a generated stand-in.")
+          : "";
         const editHint = action === "edit" && previous_image_url
           ? " EDIT MODE: Preserve the overall layout of the previous-design reference; apply only the user's requested change."
           : "";
 
-        const finalPrompt = imagePromptText + editHint + (refLegend ? `\n\n${refLegend}` : "");
+        const finalPrompt = imagePromptText + editHint + productHeroHint + (refLegend ? `\n\n${refLegend}` : "");
+
 
         // P2.#15: telemetry — capture prompt length, refs, tier, stability, score.
         tracer.setMetric("prompt_length_chars", finalPrompt.length);
