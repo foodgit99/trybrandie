@@ -178,6 +178,12 @@ export function buildRefLegend(refs: CollectedRef[]): string {
   return [
     "ATTACHED REFERENCE IMAGES (the actual pixel data is provided to you — use them, do not describe them):",
     ...lines,
-    "Reference attachment rules: the LOGO reference must appear in the final design EXACTLY as supplied (no redraw, no recolor, no restyle). GALLERY references are real brand assets — feature these exact pixels in the composition whenever relevant instead of generating a substitute; do not redraw or restyle them. The user/product reference is the hero subject.",
+    "REFERENCE USE RULES (mandatory):",
+    "1. The LOGO reference must appear in the final design EXACTLY as supplied — no redraw, recolor or restyle.",
+    "2. Every GALLERY and PRODUCT reference supplied is a real brand asset and MUST be used in the design in one of exactly two ways: (A) AS-IS — placed in the composition with its pixels unchanged, crop and scale only; or (B) ADAPTED IN — when the post's content does not allow it as a standalone hero, integrated into the scene (in-context placement, mockup, framed panel, collage tile, held/worn in situ) while the actual subject stays recognisably the same pixels.",
+    "3. NEVER generate a look-alike replacement for a supplied gallery or product photo, and never redraw, restyle, recolor or illustrate it.",
+    "4. Generate original imagery ONLY for elements no supplied reference covers (backgrounds, textures, abstract shapes, typography).",
+    "5. The user/product reference is the hero subject whenever the brief allows one.",
   ].join("\n");
+
 }
