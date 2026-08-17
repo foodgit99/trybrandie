@@ -3050,13 +3050,18 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           productKeywords.test(userPrompt) ||
           productKeywords.test(designPrompt)
         );
+        // Real product photos are attached on EVERY render (unless the brand
+        // disabled product imagery). Relevance only decides hero treatment —
+        // a real product photo always beats an invented one, even on a
+        // brand-awareness or educational post.
         const { refs: collectedRefs, skipped: skippedRefs } = await collectRenderRefs({
           logoUrl: brand?.logo_url,
           inspirationUrls: inspirationUrls,
           userImageUrl: user_image_url,
-          productImageUrls: isProductRelevant ? productImageUrls : [],
+          productImageUrls: productImagesDisabled ? [] : productImageUrls,
           previousImageUrl: action === "edit" ? previous_image_url : null,
         });
+
         if (skippedRefs.length > 0) {
           console.log(`[render] skipped ${skippedRefs.length} ref(s):`, skippedRefs.map((s) => s.role).join(","));
         }
