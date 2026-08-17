@@ -1792,8 +1792,9 @@ BRAND SYSTEM (YOU MUST USE THESE EXACT VALUES):
 - Primary font: ${brand.typography_primary || "Clean sans-serif"}
 - Secondary font: ${brand.typography_secondary || "Serif"}
 ${inspirationUrls.length > 0 ? (brand?.prefer_gallery_first !== false
-  ? `- Brand Gallery (PREFER GALLERY FIRST — mandatory): The brand has ${inspirationUrls.length} real gallery photo(s). You MUST feature these EXACT images in the composition as the primary visuals. Do NOT generate replacement product/team/premises imagery when a gallery photo can serve the same purpose. Only fabricate new imagery for elements the gallery does not cover. Never redraw, restyle, or heavily crop the gallery images — treat their pixels as literal brand assets.`
-  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Feature these EXACT images in the composition whenever relevant instead of generating substitutes. Do not redraw or restyle them — they are the brand's real assets.`) : ""}${galleryLabelBrief}
+  ? `- Brand Gallery (PREFER GALLERY FIRST — mandatory): The brand has ${inspirationUrls.length} real gallery photo(s). You MUST feature these EXACT images as the primary visuals — either as-is (crop/scale only) or adapted into the scene when the content does not allow a standalone hero. Do NOT generate replacement product/team/premises imagery when a gallery photo can serve the same purpose. Only fabricate new imagery for elements the gallery does not cover. Never redraw, restyle or recolour the gallery images — treat their pixels as literal brand assets.`
+  : `- Brand Gallery: The brand has ${inspirationUrls.length} real gallery photo(s) (products, storefront, team, packaging, screenshots, etc.). Every supplied gallery photo MUST appear in the design — as-is (crop/scale only), or adapted into the composition (in-context placement, mockup, framed panel, collage tile) when the content does not allow it as a standalone hero. Never generate a look-alike substitute, and never redraw or restyle them — they are the brand's real assets.`) : ""}${galleryLabelBrief}
+
 ${brand.special_instructions ? `- Special instructions: ${brand.special_instructions}` : ""}
 ${audienceContext}${trendContext}${productImageContext}${preferenceContext}${chatHistoryContext}
 
