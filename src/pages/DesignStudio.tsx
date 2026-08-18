@@ -19,6 +19,7 @@ import SEO from "@/components/SEO";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import ProductImagePicker, { defaultProductImageSelection, productImagePayload, type ProductImageSelection } from "@/components/design/ProductImagePicker";
 import { useBrand } from "@/hooks/useBrand";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -1058,8 +1059,7 @@ const DesignStudio = () => {
 
     try {
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/brand-strategist`;
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      const accessToken = currentSession?.access_token;
+      const accessToken = await getAccessToken();
       if (!accessToken) {
         toast({ title: "Please sign in to use the strategist", variant: "destructive" });
         setPlanLoading(false);

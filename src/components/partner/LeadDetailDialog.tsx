@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { Loader2 } from "lucide-react";
 import { LeadStatusBadge, type PartnerLead } from "./PartnerLeadsTable";
 
@@ -26,10 +27,10 @@ export default function LeadDetailDialog({
     }
     setLoading(true);
     (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = await getAccessToken();
       const { data } = await supabase.functions.invoke("partner-portal", {
         body: { action: "lead_detail", user_id: lead.user_id },
-        headers: { Authorization: `Bearer ${sessionData?.session?.access_token}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       setTimeline((data?.timeline as TimelineEvent[]) || []);
       setLoading(false);

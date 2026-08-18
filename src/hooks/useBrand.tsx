@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isLockTimeoutError } from "@/lib/authStore";
 import { useAuth } from "./useAuth";
+
 
 const ACTIVE_BRAND_KEY = "brandie.activeBrandId";
 
@@ -132,8 +134,14 @@ export function useBrand(externalUser?: { id: string } | null) {
       return [...ownedTagged, ...memberTagged];
     },
     enabled: !!user,
-    retry: false,
+    // A transient auth-token lock timeout must not surface as
+    // "Couldn't load your brand" — retry it once after a short delay.
+    retry: (failureCount, error) => failureCount < 1 && isLockTimeoutError(error),
+    retryDelay: 800,
   });
+
+
+
 
   const activeBrand = (() => {
     if (!brands || brands.length === 0) return null;

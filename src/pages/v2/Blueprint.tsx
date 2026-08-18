@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { useToast } from "@/hooks/use-toast";
@@ -240,9 +241,7 @@ const Blueprint = () => {
   // ── Strategist Agent chat ───────────────────────────────────────────────
   const [tokenReady, setTokenReady] = useState<string | null>(null);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setTokenReady(session?.access_token ?? null);
-    });
+    getAccessToken().then((t) => setTokenReady(t));
     const sub = supabase.auth.onAuthStateChange((_e, s) =>
       setTokenReady(s?.access_token ?? null),
     );

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, Send, X, Sparkles, Loader2, Wand2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -106,8 +107,7 @@ export default function AgentChatDock({
 
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/brand-strategist`;
-      const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
+      const accessToken = await getAccessToken();
       if (!accessToken) {
         toast({ title: "Please sign in", variant: "destructive" });
         setLoading(false);
