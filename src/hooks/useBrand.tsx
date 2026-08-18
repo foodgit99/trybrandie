@@ -138,6 +138,9 @@ export function useBrand(externalUser?: { id: string } | null) {
     // "Couldn't load your brand" — retry it once after a short delay.
     retry: (failureCount, error) => failureCount < 1 && isLockTimeoutError(error),
     retryDelay: 800,
+  });
+
+
 
 
   const activeBrand = (() => {
