@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { Button } from "@/components/ui/button";
@@ -94,13 +95,13 @@ export default function AgentSettings() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user, brand?.id]);
 
   const authFetch = async (url: string, init: RequestInit = {}) => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = await getAccessToken();
     return fetch(url, {
       ...init,
       headers: {
         ...(init.headers ?? {}),
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
       },
     });

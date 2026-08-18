@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,10 @@ import { Progress } from "@/components/ui/progress";
 import { Gift, Loader2, Send } from "lucide-react";
 
 const callPortal = async (body: Record<string, unknown>) => {
-  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = await getAccessToken();
   const { data, error } = await supabase.functions.invoke("partner-portal", {
     body,
-    headers: { Authorization: `Bearer ${sessionData?.session?.access_token}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (error) {
     let details = error.message;

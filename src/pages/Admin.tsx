@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import { Button } from "@/components/ui/button";
@@ -104,8 +105,7 @@ const TABLES = [
 ];
 
 async function adminAction(payload: Record<string, unknown>) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData?.session?.access_token;
+  const token = await getAccessToken();
 
   const res = await fetch(
     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-action`,
@@ -1299,10 +1299,10 @@ function UserDetailDialog({ detailItem, onClose }: { detailItem: Record<string, 
     setEmailLoading(true);
     const fetchEmail = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = await getAccessToken();
         const res = await supabase.functions.invoke("admin-action", {
           body: { operation: "get_user_email", data: { user_id: detailItem.user_id } },
-          headers: { Authorization: `Bearer ${session?.access_token}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
         setEmail(res.data?.email || null);
       } catch {
@@ -1634,8 +1634,7 @@ const NGN = (n: number) =>
   }).format(Number(n || 0));
 
 async function affiliateInsights(payload: Record<string, unknown>) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData?.session?.access_token;
+  const token = await getAccessToken();
   const res = await fetch(
     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-insights`,
     {

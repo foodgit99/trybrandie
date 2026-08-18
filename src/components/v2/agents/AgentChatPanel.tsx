@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { Loader2, Plus, Send, MessageSquare, ExternalLink, Check, Download, Copy, FileText, FileJson, Files, Users, Columns2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,7 +74,7 @@ export default function AgentChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setToken(data.session?.access_token ?? null));
+    getAccessToken().then((t) => setToken(t));
   }, []);
 
   // Load thread list for this agent + brand.
@@ -241,14 +242,14 @@ export default function AgentChatPanel({
           parts: [{ type: "text", text }],
         });
       }
-      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = await getAccessToken();
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-roundtable`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${sess.session?.access_token}`,
+            Authorization: `Bearer ${sess.accessToken}`,
             apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
           },
           body: JSON.stringify({
@@ -432,12 +433,12 @@ export default function AgentChatPanel({
   const approveAction = async (actionId: string, retryText: string) => {
     setApproving(actionId);
     try {
-      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = await getAccessToken();
       const res = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${sess.session?.access_token}`,
+          Authorization: `Bearer ${sess.accessToken}`,
           apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
         },
         body: JSON.stringify({

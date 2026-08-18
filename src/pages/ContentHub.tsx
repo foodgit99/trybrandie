@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -535,8 +536,7 @@ const ContentHub = () => {
   });
 
   const callTrendScout = async (body: Record<string, any>) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
+    const token = await getAccessToken();
     if (!token) throw new Error("Not authenticated");
 
     const res = await fetch(
@@ -624,8 +624,7 @@ const ContentHub = () => {
 
   // --- Engine Actions ---
   const callEngine = async (action: string, extra: Record<string, any> = {}) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
+    const token = await getAccessToken();
     if (!token) throw new Error("Not authenticated");
 
     const res = await fetch(

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,12 +13,12 @@ import PartnerDetailDialog from "./PartnerDetailDialog";
 
 
 export async function adminActionCall(payload: Record<string, unknown>) {
-  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = await getAccessToken();
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-action`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${sessionData?.session?.access_token}`,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(payload),
   });

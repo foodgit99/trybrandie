@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useAffiliateRole } from "@/hooks/useAffiliateRole";
 import { useToast } from "@/hooks/use-toast";
@@ -77,8 +78,7 @@ export default function PartnerDashboard() {
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const auth = { Authorization: `Bearer ${sessionData?.session?.access_token}` };
+      const auth = { Authorization: `Bearer ${await getAccessToken()}` };
 
       const [ov, ld] = await Promise.all([
         supabase.functions.invoke("partner-portal", { body: { action: "overview" }, headers: auth }),

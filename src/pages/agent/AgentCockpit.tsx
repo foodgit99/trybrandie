@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useChat } from "@ai-sdk/react";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/hooks/useBrand";
 import { Button } from "@/components/ui/button";
@@ -35,9 +36,7 @@ export default function AgentCockpit() {
   const [tokenReady, setTokenReady] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setTokenReady(session?.access_token ?? null);
-    });
+    getAccessToken().then((t) => setTokenReady(t));
     const sub = supabase.auth.onAuthStateChange((_e, s) => setTokenReady(s?.access_token ?? null));
     return () => { sub.data.subscription.unsubscribe(); };
   }, []);
@@ -150,12 +149,12 @@ export default function AgentCockpit() {
   }, []);
 
   const undoAction = useCallback(async (actionId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = await getAccessToken();
     const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-undo`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
       },
       body: JSON.stringify({ action_id: actionId }),

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/authStore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,10 +30,10 @@ export default function PartnerIdentityPanel({
   const { data: alias, isLoading, refetch } = useQuery({
     queryKey: ["partner-alias", partnerId],
     queryFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = await getAccessToken();
       const { data, error } = await supabase.functions.invoke("partner-portal", {
         body: { action: "alias" },
-        headers: { Authorization: `Bearer ${sessionData?.session?.access_token}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (error) throw error;
       return ((data as any)?.alias ?? null) as any;
