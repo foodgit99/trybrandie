@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isLockTimeoutError } from "@/lib/authStore";
 import { useAuth } from "./useAuth";
+
 
 const ACTIVE_BRAND_KEY = "brandie.activeBrandId";
 
