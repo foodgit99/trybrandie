@@ -249,7 +249,7 @@ export default function AgentChatPanel({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${sess.accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
             apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
           },
           body: JSON.stringify({
@@ -438,7 +438,7 @@ export default function AgentChatPanel({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${sess.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
         },
         body: JSON.stringify({
