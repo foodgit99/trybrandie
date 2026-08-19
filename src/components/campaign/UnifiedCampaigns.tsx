@@ -383,12 +383,17 @@ const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
                           variant="ghost"
                           className="rounded-lg gap-1.5"
                           onClick={() => {
-                            navigator.clipboard.writeText(campaignPageUrl(c.slug));
-                            toast({ title: "Link copied" });
+                            if (isAdmin || !referralLink) {
+                              navigator.clipboard.writeText(campaignPageUrl(c.slug));
+                              toast({ title: "Link copied" });
+                              return;
+                            }
+                            copyReferralLink();
                           }}
                         >
-                          <Copy className="h-3.5 w-3.5" /> Link
+                          <Copy className="h-3.5 w-3.5" /> {isAdmin || !referralLink ? "Link" : "Your link"}
                         </Button>
+
                       </>
                     ) : (
                       <Button
