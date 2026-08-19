@@ -642,6 +642,108 @@ export default function PartnerDetailDialog({
                         )}
                       </div>
                     )}
+
+                    {(requestFilter === "all" || requestFilter === "pages") && (
+                      <div className="space-y-3">
+                        {partnerPages.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">
+                            No campaign page request from this partner yet.
+                          </p>
+                        ) : (
+                          partnerPages.map((c) => (
+                            <div
+                              key={c.id}
+                              className="rounded-2xl border border-border bg-card px-4 py-4 text-sm space-y-3"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="rounded-full gap-1 text-[11px]">
+                                  <LayoutTemplate className="h-3 w-3" /> Campaign page
+                                </Badge>
+                                <Badge
+                                  variant={
+                                    c.status === "active"
+                                      ? "default"
+                                      : c.status === "pending_review" || c.status === "approved"
+                                        ? "secondary"
+                                        : "outline"
+                                  }
+                                  className="rounded-full capitalize text-[11px]"
+                                >
+                                  {String(c.status).replace(/_/g, " ")}
+                                </Badge>
+                                <span className="ml-auto text-xs text-muted-foreground">{fmt(c.created_at)}</span>
+                              </div>
+
+                              <p className="font-medium break-all">{c.name}</p>
+
+                              <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                <p className="break-all">Link: /c/{c.slug}</p>
+                                <p>
+                                  Runs: {fmt(c.starts_at)} → {c.ends_at ? fmt(c.ends_at) : "no end date"}
+                                </p>
+                                {c.goal && <p className="sm:col-span-2">Goal: {c.goal}</p>}
+                                {c.offer_text && <p className="sm:col-span-2">Offer: {c.offer_text}</p>}
+                                <p>
+                                  {c.view_count || 0} views · {c.signup_count || 0} signups
+                                </p>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  size="sm"
+                                  className="rounded-full"
+                                  disabled={pageBusy === c.id || c.status !== "pending_review"}
+                                  onClick={() => decidePage(c, "approve")}
+                                >
+                                  {pageBusy === c.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <BadgeCheck className="h-3.5 w-3.5" />
+                                  )}
+                                  Approve page
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full"
+                                  disabled={pageBusy === c.id || c.status !== "pending_review"}
+                                  onClick={() => decidePage(c, "reject")}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" /> Deny
+                                </Button>
+                                {(c.status === "approved" || c.status === "paused") && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-full"
+                                    disabled={pageBusy === c.id}
+                                    onClick={() => decidePage(c, "activate")}
+                                  >
+                                    Put live
+                                  </Button>
+                                )}
+                                {c.status === "active" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="rounded-full"
+                                    disabled={pageBusy === c.id}
+                                    onClick={() => decidePage(c, "pause")}
+                                  >
+                                    Pause
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="rounded-full" asChild>
+                                  <a href={`/c/${c.slug}?preview=1`} target="_blank" rel="noreferrer">
+                                    <ExternalLink className="h-3.5 w-3.5" /> Preview
+                                  </a>
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </TabsContent>
