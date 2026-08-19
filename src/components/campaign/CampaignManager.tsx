@@ -544,8 +544,11 @@ export const EditCampaignDialog = ({
     onError: (e: Error) => toast({ title: "Couldn't save", description: e.message, variant: "destructive" }),
   });
 
-  const setHero = (field: string, value: string) =>
+  const setHero = (field: string, value: string | boolean) =>
     setCopy((prev) => ({ ...prev, hero: { ...(prev.hero || {}), [field]: value } }));
+
+  const showHeroImage = copy.hero?.show_image !== false;
+  const isDarkPage = copy.hero?.theme === "dark";
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
