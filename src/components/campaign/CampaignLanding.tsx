@@ -110,6 +110,9 @@ const Section = ({
 
 const CampaignLanding = ({ copy, sections, onSectionView, onCtaClick, signupHref, preview }: Props) => {
   const navigate = useNavigate();
+  const showHeroImage = copy.hero?.show_image !== false;
+  const themeClass = copy.hero?.theme === "dark" ? "theme-dark dark" : "theme-light";
+
 
   const go = (key: CampaignSectionKey) => {
     onCtaClick?.(key);
