@@ -574,6 +574,30 @@ export const EditCampaignDialog = ({
         <div className="space-y-5">
           <SectionPicker sections={sections} onChange={setSections} />
 
+          <div className="space-y-3 rounded-xl border border-border p-4">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Hero appearance</p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="h-image" className="flex items-center gap-1.5">
+                  <ImageIcon className="h-3.5 w-3.5" /> Hero image
+                </Label>
+                <p className="text-xs text-muted-foreground">Show the product visual under the hero copy.</p>
+              </div>
+              <Switch id="h-image" checked={showHeroImage} onCheckedChange={(v) => setHero("show_image", v)} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="h-theme" className="flex items-center gap-1.5">
+                  {isDarkPage ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                  {isDarkPage ? "Dark mode" : "Light mode"}
+                </Label>
+                <p className="text-xs text-muted-foreground">Sets the appearance of the whole campaign page.</p>
+              </div>
+              <Switch id="h-theme" checked={isDarkPage} onCheckedChange={(v) => setHero("theme", v ? "dark" : "light")} />
+            </div>
+          </div>
+
+
           <Button
             variant="outline"
             className="w-full rounded-xl gap-2"
