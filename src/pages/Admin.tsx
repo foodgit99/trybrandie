@@ -3176,7 +3176,12 @@ export default function Admin() {
             <AdminEmailAliasesTab />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases"].includes(t.key)).map((t) => (
+          <TabsContent value="campaign_pages">
+            <CampaignManager />
+          </TabsContent>
+
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases","campaign_pages"].includes(t.key)).map((t) => (
+
 
             <TabsContent key={t.key} value={t.key}>
 
