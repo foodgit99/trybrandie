@@ -87,6 +87,7 @@ const Auth = () => {
           ...(referralCode && { referred_by: referralCode }),
           ...(affiliateCode && { affiliate_code: affiliateCode }),
           ...(getPartnerRef() && { partner_slug: getPartnerRef() }),
+          ...(getCampaignRef() && { campaign_slug: getCampaignRef() }),
 
         },
         emailRedirectTo: window.location.origin,
@@ -97,8 +98,10 @@ const Auth = () => {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
     } else {
       gaEvent("sign_up", { method: "email" });
+      trackCampaignSignup();
       toast({ title: "Check your email", description: "We sent you a confirmation link." });
     }
+
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
