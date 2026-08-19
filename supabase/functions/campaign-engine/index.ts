@@ -185,6 +185,7 @@ Deno.serve(async (req) => {
         const payload = {
           user_id: user.id,
           partner_id: isPartner ? partner!.id : null,
+          partner_campaign_id: await resolveEmailCampaignLink(body?.partner_campaign_id),
           name,
           slug,
           goal: scrub(body?.goal, 400) || null,
@@ -195,6 +196,7 @@ Deno.serve(async (req) => {
           ends_at: body?.ends_at ? new Date(body.ends_at).toISOString() : null,
           status: "draft",
         };
+
         const { data, error } = await admin.from("campaigns_public").insert(payload).select().single();
         if (error) return json({ error: error.message }, 400);
         return json({ campaign: data });
