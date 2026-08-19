@@ -82,7 +82,8 @@
     --shadow-raised: 0 10px 30px -18px hsl(220 20% 10% / 0.28);
   }
 
-  .dark {
+  .dark,
+  .theme-dark {
     /* Calm, slightly warm-neutral dark: same hierarchy as light,
        surfaces step up in lightness as they come forward. */
     --background: 222 18% 7%;
