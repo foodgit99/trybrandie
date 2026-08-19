@@ -153,9 +153,10 @@ export default function PartnerCreditsPanel({ partnerId }: { partnerId: string }
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Ask Brandie to gift free credits to everyone who signs up through your referral link. Once approved,
-            new signups get the credits instantly (they expire 30 days after signup) and the campaign stops on its
-            own when the budget runs out or the end date passes.
+            new signups get the credits instantly (they expire 30 days after signup) and the campaign keeps running
+            until the budget is used up.
           </p>
+
 
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
