@@ -198,6 +198,10 @@ Deno.serve(async (req) => {
         if (body?.copy !== undefined && body.copy && typeof body.copy === "object") patch.copy = body.copy;
         if (body?.starts_at !== undefined) patch.starts_at = new Date(body.starts_at).toISOString();
         if (body?.ends_at !== undefined) patch.ends_at = body.ends_at ? new Date(body.ends_at).toISOString() : null;
+        if (body?.partner_campaign_id !== undefined) {
+          patch.partner_campaign_id = await resolveEmailCampaignLink(body.partner_campaign_id);
+        }
+
 
         // Editing a live or reviewed campaign is allowed, but any content change
         // on a partner campaign under review sends it back to the queue.
