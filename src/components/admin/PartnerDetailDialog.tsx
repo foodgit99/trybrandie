@@ -494,7 +494,7 @@ export default function PartnerDetailDialog({
                       </div>
                     )}
 
-                    {requestFilter !== "identity" && (
+                    {(requestFilter === "all" || requestFilter === "credits") && (
                       <div className="space-y-3">
                         {partnerGrants.length === 0 ? (
                           <p className="text-sm text-muted-foreground py-2">
