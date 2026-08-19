@@ -186,7 +186,12 @@ function LandingOrCockpit() {
       </div>
     );
   }
-  if (!user) return <V2Landing />;
+  if (!user)
+    return (
+      <CampaignRefRedirect>
+        <V2Landing />
+      </CampaignRefRedirect>
+    );
   if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
   return <Navigate to="/cockpit" replace />;
 }
