@@ -110,6 +110,9 @@ const Section = ({
 
 const CampaignLanding = ({ copy, sections, onSectionView, onCtaClick, signupHref, preview }: Props) => {
   const navigate = useNavigate();
+  const showHeroImage = copy.hero?.show_image !== false;
+  const themeClass = copy.hero?.theme === "dark" ? "theme-dark dark" : "theme-light";
+
 
   const go = (key: CampaignSectionKey) => {
     onCtaClick?.(key);
@@ -167,35 +170,37 @@ const CampaignLanding = ({ copy, sections, onSectionView, onCtaClick, signupHref
             {c.footnote && <p className="text-xs text-muted-foreground">{c.footnote}</p>}
           </div>
 
-          <div className="relative max-w-5xl mx-auto px-4 sm:px-8 pb-16">
-            <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-b from-primary/15 via-primary/5 to-transparent blur-2xl pointer-events-none" />
-            <div className="relative rounded-2xl border border-border bg-card/95 shadow-2xl overflow-hidden">
-              <div className="flex items-center justify-between gap-3 px-5 sm:px-7 py-4 border-b border-border bg-card">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Power className="h-4 w-4 text-primary" />
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card animate-pulse" />
+          {showHeroImage && (
+            <div className="relative max-w-5xl mx-auto px-4 sm:px-8 pb-16">
+              <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-b from-primary/15 via-primary/5 to-transparent blur-2xl pointer-events-none" />
+              <div className="relative rounded-2xl border border-border bg-card/95 shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-5 sm:px-7 py-4 border-b border-border bg-card">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Power className="h-4 w-4 text-primary" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card animate-pulse" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">Your engine is running.</p>
+                      <p className="text-[11px] text-muted-foreground">7 posts queued · next post Tuesday 9:00 am</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">Your engine is running.</p>
-                    <p className="text-[11px] text-muted-foreground">7 posts queued · next post Tuesday 9:00 am</p>
-                  </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> Live
+                  </span>
                 </div>
-                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> Live
-                </span>
-              </div>
-              <div className="relative aspect-[16/9] sm:aspect-[2/1] overflow-hidden">
-                <img
-                  src={heroPremium}
-                  alt="A founder reviewing a Brandie post on her phone in a sunlit boutique"
-                  className="w-full h-full object-cover"
-                  fetchPriority="high"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-card/40 via-transparent to-transparent" />
+                <div className="relative aspect-[16/9] sm:aspect-[2/1] overflow-hidden">
+                  <img
+                    src={heroPremium}
+                    alt="A founder reviewing a Brandie post on her phone in a sunlit boutique"
+                    className="w-full h-full object-cover"
+                    fetchPriority="high"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card/40 via-transparent to-transparent" />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </Section>
       );
     },
@@ -421,7 +426,7 @@ const CampaignLanding = ({ copy, sections, onSectionView, onCtaClick, signupHref
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background text-foreground ${themeClass}`}>
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">

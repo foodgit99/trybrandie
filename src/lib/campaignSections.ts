@@ -41,6 +41,10 @@ export type CampaignCopy = {
     cta_label?: string;
     secondary_label?: string;
     footnote?: string;
+    /** Show the hero product image block. Defaults to true. */
+    show_image?: boolean;
+    /** Force the page appearance. Defaults to "light". */
+    theme?: "light" | "dark";
   };
   features?: { heading?: string; subheading?: string; items?: { title?: string; description?: string }[] };
   showcase?: { heading?: string; body?: string; tags?: string[] };
