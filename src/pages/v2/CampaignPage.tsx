@@ -71,7 +71,11 @@ const CampaignPage = () => {
     );
   }
 
-  const signupHref = `/auth?mode=signup&campaign=${encodeURIComponent(data.slug)}`;
+  // Keep the partner referral on the signup link: one link, attribution intact.
+  const partnerRef = getPartnerRef();
+  const signupHref = `/auth?mode=signup&campaign=${encodeURIComponent(data.slug)}${
+    partnerRef ? `&ref=${encodeURIComponent(partnerRef)}` : ""
+  }`;
 
   return (
     <>
