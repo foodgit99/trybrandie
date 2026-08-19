@@ -47,21 +47,21 @@ import {
 } from "@/lib/campaignSections";
 import CampaignLanding from "@/components/campaign/CampaignLanding";
 
-const STATUS_TONE: Record<string, string> = {
+export const STATUS_TONE: Record<string, string> = {
   active: "bg-primary/15 text-primary border-primary/30",
   approved: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
   pending_review: "bg-amber-500/10 text-amber-600 border-amber-500/30",
   rejected: "bg-destructive/10 text-destructive border-destructive/30",
 };
 
-type ListResponse = {
+export type ListResponse = {
   campaigns: CampaignPage[];
   live: { id: string; name: string; slug: string } | null;
   is_admin: boolean;
   partner: { id: string; name: string } | null;
 };
 
-async function callEngine<T = any>(body: Record<string, unknown>): Promise<T> {
+export async function callEngine<T = any>(body: Record<string, unknown>): Promise<T> {
   const token = await getAccessToken();
   const { data, error } = await supabase.functions.invoke("campaign-engine", {
     body,
@@ -75,7 +75,7 @@ async function callEngine<T = any>(body: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
-const DEFAULT_SECTIONS: CampaignSectionKey[] = ["hero", "features", "how_it_works", "testimonials", "pricing", "cta"];
+export const DEFAULT_SECTIONS: CampaignSectionKey[] = ["hero", "features", "how_it_works", "testimonials", "pricing", "cta"];
 
 /** Campaign module for partners (create + submit) and admins (approve + activate). */
 const CampaignManager = () => {
@@ -341,7 +341,7 @@ const CampaignManager = () => {
 
 /* ---------------------------------- create --------------------------------- */
 
-const CreateCampaignDialog = ({
+export const CreateCampaignDialog = ({
   open,
   onOpenChange,
   onCreated,
@@ -486,7 +486,7 @@ const SectionPicker = ({
 
 /* ----------------------------------- edit ---------------------------------- */
 
-const EditCampaignDialog = ({
+export const EditCampaignDialog = ({
   campaign,
   onOpenChange,
   onSaved,
@@ -622,7 +622,7 @@ type StatsResponse = {
   campaign?: CampaignPage;
 };
 
-const StatsDialog = ({
+export const StatsDialog = ({
   campaign,
   onOpenChange,
 }: {
