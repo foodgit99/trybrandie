@@ -64,6 +64,9 @@ export type CampaignPage = {
   id: string;
   user_id: string;
   partner_id: string | null;
+  /** Optional link to the partner email campaign this page belongs to. */
+  partner_campaign_id?: string | null;
+
   name: string;
   slug: string;
   goal: string | null;

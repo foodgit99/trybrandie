@@ -74,7 +74,7 @@ import {
   LifeBuoy,
   Megaphone,
 } from "lucide-react";
-import CampaignManager from "@/components/campaign/CampaignManager";
+import UnifiedCampaigns from "@/components/campaign/UnifiedCampaigns";
 
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
@@ -92,7 +92,7 @@ const TABLES = [
   { key: "support", label: "Support", icon: LifeBuoy },
   { key: "email_crm", label: "Email CRM", icon: Mail },
   { key: "email_aliases", label: "Email Aliases", icon: Mail },
-  { key: "campaign_pages", label: "Campaign Pages", icon: Megaphone },
+  { key: "campaign_pages", label: "Campaigns", icon: Megaphone },
 
   { key: "profiles", label: "Users", icon: Users },
 
@@ -3177,7 +3177,7 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="campaign_pages">
-            <CampaignManager />
+            <UnifiedCampaigns />
           </TabsContent>
 
           {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases","campaign_pages"].includes(t.key)).map((t) => (

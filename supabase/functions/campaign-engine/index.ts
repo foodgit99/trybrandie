@@ -139,6 +139,22 @@ Deno.serve(async (req) => {
     };
     const canEdit = (c: any) => isAdmin || c?.user_id === user.id;
 
+    // A landing page can be tied to one partner email campaign so both live as a
+    // single campaign in the UI. Only the owning partner (or an admin) may link.
+    const resolveEmailCampaignLink = async (raw: unknown): Promise<string | null> => {
+      if (!raw) return null;
+      const id = String(raw);
+      const { data: ec } = await admin
+        .from("partner_campaigns")
+        .select("id, partner_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (!ec) return null;
+      if (!isAdmin && ec.partner_id !== partner?.id) return null;
+      return ec.id;
+    };
+
+
     switch (action) {
       case "list": {
         let q = admin.from("campaigns_public").select("*").order("created_at", { ascending: false });
@@ -169,6 +185,7 @@ Deno.serve(async (req) => {
         const payload = {
           user_id: user.id,
           partner_id: isPartner ? partner!.id : null,
+          partner_campaign_id: await resolveEmailCampaignLink(body?.partner_campaign_id),
           name,
           slug,
           goal: scrub(body?.goal, 400) || null,
@@ -179,6 +196,7 @@ Deno.serve(async (req) => {
           ends_at: body?.ends_at ? new Date(body.ends_at).toISOString() : null,
           status: "draft",
         };
+
         const { data, error } = await admin.from("campaigns_public").insert(payload).select().single();
         if (error) return json({ error: error.message }, 400);
         return json({ campaign: data });
@@ -198,6 +216,10 @@ Deno.serve(async (req) => {
         if (body?.copy !== undefined && body.copy && typeof body.copy === "object") patch.copy = body.copy;
         if (body?.starts_at !== undefined) patch.starts_at = new Date(body.starts_at).toISOString();
         if (body?.ends_at !== undefined) patch.ends_at = body.ends_at ? new Date(body.ends_at).toISOString() : null;
+        if (body?.partner_campaign_id !== undefined) {
+          patch.partner_campaign_id = await resolveEmailCampaignLink(body.partner_campaign_id);
+        }
+
 
         // Editing a live or reviewed campaign is allowed, but any content change
         // on a partner campaign under review sends it back to the queue.

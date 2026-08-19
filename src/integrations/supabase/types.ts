@@ -1183,6 +1183,7 @@ export type Database = {
           id: string
           name: string
           offer_text: string | null
+          partner_campaign_id: string | null
           partner_id: string | null
           review_note: string | null
           sections: Json
@@ -1208,6 +1209,7 @@ export type Database = {
           id?: string
           name: string
           offer_text?: string | null
+          partner_campaign_id?: string | null
           partner_id?: string | null
           review_note?: string | null
           sections?: Json
@@ -1233,6 +1235,7 @@ export type Database = {
           id?: string
           name?: string
           offer_text?: string | null
+          partner_campaign_id?: string | null
           partner_id?: string | null
           review_note?: string | null
           sections?: Json
@@ -1246,6 +1249,13 @@ export type Database = {
           views_count?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "campaigns_public_partner_campaign_id_fkey"
+            columns: ["partner_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "partner_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campaigns_public_partner_id_fkey"
             columns: ["partner_id"]

@@ -7,14 +7,13 @@ import { useAffiliateRole } from "@/hooks/useAffiliateRole";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AtSign, Copy, Gift, Loader2, Mail, Megaphone, Users, Workflow, ArrowUpRight } from "lucide-react";
-import CampaignManager from "@/components/campaign/CampaignManager";
+import { AtSign, Copy, Gift, Loader2, Megaphone, Users, Workflow, ArrowUpRight } from "lucide-react";
+import UnifiedCampaigns from "@/components/campaign/UnifiedCampaigns";
 
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import PartnerLeadsTable, { type PartnerLead } from "@/components/partner/PartnerLeadsTable";
 import LeadDetailDialog from "@/components/partner/LeadDetailDialog";
-import PartnerCampaignsPanel from "@/components/partner/PartnerCampaignsPanel";
 import PartnerAutomationsPanel from "@/components/partner/PartnerAutomationsPanel";
 import PartnerIdentityPanel from "@/components/partner/PartnerIdentityPanel";
 import PartnerCreditsPanel from "@/components/partner/PartnerCreditsPanel";
@@ -207,17 +206,14 @@ export default function PartnerDashboard() {
                   <TabsTrigger value="leads" className="rounded-lg gap-2 shrink-0">
                     <Users className="h-3.5 w-3.5" /> My leads
                   </TabsTrigger>
-                  <TabsTrigger value="campaigns" className="rounded-lg gap-2 shrink-0">
-                    <Mail className="h-3.5 w-3.5" /> Campaigns
-                  </TabsTrigger>
                   <TabsTrigger value="automations" className="rounded-lg gap-2 shrink-0">
                     <Workflow className="h-3.5 w-3.5" /> Automations
                   </TabsTrigger>
                   <TabsTrigger value="credits" className="rounded-lg gap-2 shrink-0">
                     <Gift className="h-3.5 w-3.5" /> Credits
                   </TabsTrigger>
-                  <TabsTrigger value="pages" className="rounded-lg gap-2 shrink-0">
-                    <Megaphone className="h-3.5 w-3.5" /> Campaign pages
+                  <TabsTrigger value="campaigns" className="rounded-lg gap-2 shrink-0">
+                    <Megaphone className="h-3.5 w-3.5" /> Campaigns
                   </TabsTrigger>
                   <TabsTrigger value="identity" className="rounded-lg gap-2 shrink-0">
                     <AtSign className="h-3.5 w-3.5" /> Identity
@@ -229,17 +225,14 @@ export default function PartnerDashboard() {
                 <TabsContent value="leads" className="mt-5">
                   <PartnerLeadsTable leads={leads} onSelect={setSelected} />
                 </TabsContent>
-                <TabsContent value="campaigns" className="mt-5">
-                  <PartnerCampaignsPanel partnerId={overview.partner.id} />
-                </TabsContent>
                 <TabsContent value="automations" className="mt-5">
                   <PartnerAutomationsPanel partnerId={overview.partner.id} />
                 </TabsContent>
                 <TabsContent value="credits" className="mt-5">
                   <PartnerCreditsPanel partnerId={overview.partner.id} />
                 </TabsContent>
-                <TabsContent value="pages" className="mt-5">
-                  <CampaignManager />
+                <TabsContent value="campaigns" className="mt-5">
+                  <UnifiedCampaigns partnerId={overview.partner.id} />
                 </TabsContent>
                 <TabsContent value="identity" className="mt-5">
 

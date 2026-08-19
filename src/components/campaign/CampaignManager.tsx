@@ -47,21 +47,21 @@ import {
 } from "@/lib/campaignSections";
 import CampaignLanding from "@/components/campaign/CampaignLanding";
 
-const STATUS_TONE: Record<string, string> = {
+export const STATUS_TONE: Record<string, string> = {
   active: "bg-primary/15 text-primary border-primary/30",
   approved: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
   pending_review: "bg-amber-500/10 text-amber-600 border-amber-500/30",
   rejected: "bg-destructive/10 text-destructive border-destructive/30",
 };
 
-type ListResponse = {
+export type ListResponse = {
   campaigns: CampaignPage[];
   live: { id: string; name: string; slug: string } | null;
   is_admin: boolean;
   partner: { id: string; name: string } | null;
 };
 
-async function callEngine<T = any>(body: Record<string, unknown>): Promise<T> {
+export async function callEngine<T = any>(body: Record<string, unknown>): Promise<T> {
   const token = await getAccessToken();
   const { data, error } = await supabase.functions.invoke("campaign-engine", {
     body,
@@ -75,7 +75,7 @@ async function callEngine<T = any>(body: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
-const DEFAULT_SECTIONS: CampaignSectionKey[] = ["hero", "features", "how_it_works", "testimonials", "pricing", "cta"];
+export const DEFAULT_SECTIONS: CampaignSectionKey[] = ["hero", "features", "how_it_works", "testimonials", "pricing", "cta"];
 
 /** Campaign module for partners (create + submit) and admins (approve + activate). */
 const CampaignManager = () => {
@@ -341,19 +341,25 @@ const CampaignManager = () => {
 
 /* ---------------------------------- create --------------------------------- */
 
-const CreateCampaignDialog = ({
+export const CreateCampaignDialog = ({
   open,
   onOpenChange,
   onCreated,
+  prefill,
+  partnerCampaignId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCreated: (c: CampaignPage) => void;
+  /** Seed values, used when a landing page is added to an existing email campaign. */
+  prefill?: { name?: string; goal?: string; offer_text?: string };
+  /** Links the new page to an existing partner email campaign. */
+  partnerCampaignId?: string | null;
 }) => {
-  const [name, setName] = useState("");
-  const [goal, setGoal] = useState("");
+  const [name, setName] = useState(prefill?.name || "");
+  const [goal, setGoal] = useState(prefill?.goal || "");
   const [audience, setAudience] = useState("");
-  const [offer, setOffer] = useState("");
+  const [offer, setOffer] = useState(prefill?.offer_text || "");
   const [endsAt, setEndsAt] = useState("");
   const [sections, setSections] = useState<CampaignSectionKey[]>(DEFAULT_SECTIONS);
 
@@ -367,9 +373,11 @@ const CreateCampaignDialog = ({
         offer_text: offer,
         sections,
         ends_at: endsAt || null,
+        ...(partnerCampaignId ? { partner_campaign_id: partnerCampaignId } : {}),
       });
       return res.campaign;
     },
+
     onSuccess: (c) => {
       toast({ title: "Campaign created", description: "Now generate the page copy." });
       setName("");
@@ -486,7 +494,7 @@ const SectionPicker = ({
 
 /* ----------------------------------- edit ---------------------------------- */
 
-const EditCampaignDialog = ({
+export const EditCampaignDialog = ({
   campaign,
   onOpenChange,
   onSaved,
@@ -622,7 +630,7 @@ type StatsResponse = {
   campaign?: CampaignPage;
 };
 
-const StatsDialog = ({
+export const StatsDialog = ({
   campaign,
   onOpenChange,
 }: {
