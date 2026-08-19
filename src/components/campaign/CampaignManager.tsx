@@ -345,15 +345,21 @@ export const CreateCampaignDialog = ({
   open,
   onOpenChange,
   onCreated,
+  prefill,
+  partnerCampaignId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCreated: (c: CampaignPage) => void;
+  /** Seed values, used when a landing page is added to an existing email campaign. */
+  prefill?: { name?: string; goal?: string; offer_text?: string };
+  /** Links the new page to an existing partner email campaign. */
+  partnerCampaignId?: string | null;
 }) => {
-  const [name, setName] = useState("");
-  const [goal, setGoal] = useState("");
+  const [name, setName] = useState(prefill?.name || "");
+  const [goal, setGoal] = useState(prefill?.goal || "");
   const [audience, setAudience] = useState("");
-  const [offer, setOffer] = useState("");
+  const [offer, setOffer] = useState(prefill?.offer_text || "");
   const [endsAt, setEndsAt] = useState("");
   const [sections, setSections] = useState<CampaignSectionKey[]>(DEFAULT_SECTIONS);
 
@@ -367,9 +373,11 @@ export const CreateCampaignDialog = ({
         offer_text: offer,
         sections,
         ends_at: endsAt || null,
+        ...(partnerCampaignId ? { partner_campaign_id: partnerCampaignId } : {}),
       });
       return res.campaign;
     },
+
     onSuccess: (c) => {
       toast({ title: "Campaign created", description: "Now generate the page copy." });
       setName("");
