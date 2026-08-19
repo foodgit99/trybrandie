@@ -214,9 +214,13 @@ export default function PartnerDashboard() {
                   <TabsTrigger value="credits" className="rounded-lg gap-2 shrink-0">
                     <Gift className="h-3.5 w-3.5" /> Credits
                   </TabsTrigger>
+                  <TabsTrigger value="pages" className="rounded-lg gap-2 shrink-0">
+                    <Megaphone className="h-3.5 w-3.5" /> Campaign pages
+                  </TabsTrigger>
                   <TabsTrigger value="identity" className="rounded-lg gap-2 shrink-0">
                     <AtSign className="h-3.5 w-3.5" /> Identity
                   </TabsTrigger>
+
                 </TabsList>
 
 
