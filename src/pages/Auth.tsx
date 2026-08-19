@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import SEO from "@/components/SEO";
 import { gaEvent } from "@/lib/ga";
 import { getPartnerRef } from "@/lib/partnerRef";
+import { captureCampaignRef, getCampaignRef, trackCampaignSignup } from "@/lib/campaignTrack";
+
 
 
 type Mode = "login" | "signup" | "forgot";
