@@ -39,6 +39,8 @@ import {
   type CampaignPage,
 } from "@/lib/campaignSections";
 import CampaignLanding from "@/components/campaign/CampaignLanding";
+import { usePartnerRole } from "@/hooks/usePartnerRole";
+import { partnerReferralUrl } from "@/lib/partnerRef";
 import {
   CreateCampaignDialog,
   EditCampaignDialog,
