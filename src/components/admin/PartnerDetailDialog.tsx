@@ -204,6 +204,8 @@ export default function PartnerDetailDialog({
   const partnerPages = (pageData || []).filter((c) => c.partner_id === partnerId);
   const pendingPages = partnerPages.filter((c) => c.status === "pending_review").length;
   const [pageBusy, setPageBusy] = useState<string | null>(null);
+  // Admins preview pages in place, because the public /c/:slug route only serves live campaigns
+  const [previewPage, setPreviewPage] = useState<any | null>(null);
 
   const decidePage = async (c: any, action: "approve" | "reject" | "activate" | "pause") => {
     setPageBusy(c.id);
