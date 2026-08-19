@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign, Gift } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign, Gift, LayoutTemplate, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
+import { callEngine } from "@/components/campaign/CampaignManager";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
 import { PartnerLeadActivityDialog } from "./PartnerLeadActivityDialog";
 
@@ -192,8 +193,41 @@ export default function PartnerDetailDialog({
     }
   };
 
-  const [requestFilter, setRequestFilter] = useState<"all" | "identity" | "credits">("all");
+  // Campaign page (landing page) review, so admins can approve and put a page live here
+  const { data: pageData, isLoading: pagesLoading } = useQuery({
+    queryKey: ["admin-partner-campaign-pages"],
+    enabled: !!partnerId,
+    queryFn: async () => (await callEngine<{ campaigns: any[] }>({ action: "list" })).campaigns,
+  });
+  const partnerPages = (pageData || []).filter((c) => c.partner_id === partnerId);
+  const pendingPages = partnerPages.filter((c) => c.status === "pending_review").length;
+  const [pageBusy, setPageBusy] = useState<string | null>(null);
+
+  const decidePage = async (c: any, action: "approve" | "reject" | "activate" | "pause") => {
+    setPageBusy(c.id);
+    try {
+      await callEngine({ action, campaign_id: c.id });
+      toast.success(
+        action === "approve"
+          ? `Approved “${c.name}”`
+          : action === "reject"
+            ? `Denied “${c.name}”`
+            : action === "activate"
+              ? `“${c.name}” is now the live campaign page`
+              : `Paused “${c.name}”`,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-campaign-pages"] });
+      await queryClient.invalidateQueries({ queryKey: ["campaign-pages"] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setPageBusy(null);
+    }
+  };
+
+  const [requestFilter, setRequestFilter] = useState<"all" | "identity" | "credits" | "pages">("all");
   const [resending, setResending] = useState(false);
+
 
 
 
