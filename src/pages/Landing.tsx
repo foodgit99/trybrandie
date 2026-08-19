@@ -43,7 +43,9 @@ const Landing = () => (
       path="/"
       jsonLd={faqJsonLd}
     />
+    <CampaignBanner />
     <LandingNav />
+
     <main>
       <LandingHero />
       <LandingFeatures />
