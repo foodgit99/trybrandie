@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign, Gift } from "lucide-react";
+import { Loader2, Mail, Users, Workflow, Activity, Send, BadgeCheck, XCircle, AtSign, Gift, LayoutTemplate, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { adminActionCall } from "./AdminPartnersTab";
+import { callEngine } from "@/components/campaign/CampaignManager";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
 import { PartnerLeadActivityDialog } from "./PartnerLeadActivityDialog";
 
@@ -192,8 +193,41 @@ export default function PartnerDetailDialog({
     }
   };
 
-  const [requestFilter, setRequestFilter] = useState<"all" | "identity" | "credits">("all");
+  // Campaign page (landing page) review, so admins can approve and put a page live here
+  const { data: pageData, isLoading: pagesLoading } = useQuery({
+    queryKey: ["admin-partner-campaign-pages"],
+    enabled: !!partnerId,
+    queryFn: async () => (await callEngine<{ campaigns: any[] }>({ action: "list" })).campaigns,
+  });
+  const partnerPages = (pageData || []).filter((c) => c.partner_id === partnerId);
+  const pendingPages = partnerPages.filter((c) => c.status === "pending_review").length;
+  const [pageBusy, setPageBusy] = useState<string | null>(null);
+
+  const decidePage = async (c: any, action: "approve" | "reject" | "activate" | "pause") => {
+    setPageBusy(c.id);
+    try {
+      await callEngine({ action, campaign_id: c.id });
+      toast.success(
+        action === "approve"
+          ? `Approved “${c.name}”`
+          : action === "reject"
+            ? `Denied “${c.name}”`
+            : action === "activate"
+              ? `“${c.name}” is now the live campaign page`
+              : `Paused “${c.name}”`,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["admin-partner-campaign-pages"] });
+      await queryClient.invalidateQueries({ queryKey: ["campaign-pages"] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save decision");
+    } finally {
+      setPageBusy(null);
+    }
+  };
+
+  const [requestFilter, setRequestFilter] = useState<"all" | "identity" | "credits" | "pages">("all");
   const [resending, setResending] = useState(false);
+
 
 
 
@@ -314,9 +348,9 @@ export default function PartnerDetailDialog({
                 </TabsTrigger>
                 <TabsTrigger value="requests" className="rounded-lg gap-2">
                   <AtSign className="h-3.5 w-3.5" /> Partner requests
-                  {pendingAliases + pendingGrants > 0 && (
+                  {pendingAliases + pendingGrants + pendingPages > 0 && (
                     <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
-                      {pendingAliases + pendingGrants}
+                      {pendingAliases + pendingGrants + pendingPages}
                     </span>
                   )}
                 </TabsTrigger>
@@ -334,15 +368,16 @@ export default function PartnerDetailDialog({
 
               <TabsContent value="requests" className="mt-4 space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  Everything this partner has asked Brandie to approve. Two kinds of request can appear here:{" "}
-                  <strong>Sending identity</strong> (their own handle@trybrandie.com address for campaigns) and{" "}
+                  Everything this partner has asked Brandie to approve. Three kinds of request can appear here:{" "}
+                  <strong>Sending identity</strong> (their own handle@trybrandie.com address for campaigns),{" "}
                   <strong>Signup credits</strong> (free credits gifted to every user who signs up through their
-                  referral link). Review the details, add an optional note, then approve or deny — the partner is
-                  emailed either way.
+                  referral link) and <strong>Campaign page</strong> (a public landing page at /c/their-slug — only one
+                  page can be live across Brandie at a time). Review the details, add an optional note, then approve or
+                  deny.
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  {(["all", "identity", "credits"] as const).map((f) => (
+                  {(["all", "identity", "credits", "pages"] as const).map((f) => (
                     <Button
                       key={f}
                       size="sm"
@@ -350,18 +385,25 @@ export default function PartnerDetailDialog({
                       className="rounded-full text-xs"
                       onClick={() => setRequestFilter(f)}
                     >
-                      {f === "all" ? "All requests" : f === "identity" ? "Sending identity" : "Signup credits"}
+                      {f === "all"
+                        ? "All requests"
+                        : f === "identity"
+                          ? "Sending identity"
+                          : f === "credits"
+                            ? "Signup credits"
+                            : "Campaign pages"}
                     </Button>
                   ))}
                 </div>
 
-                {aliasLoading || grantsLoading ? (
+
+                {aliasLoading || grantsLoading || pagesLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                     <Loader2 className="h-4 w-4 animate-spin" /> Loading partner requests
                   </div>
                 ) : (
                   <>
-                    {requestFilter !== "credits" && (
+                    {(requestFilter === "all" || requestFilter === "identity") && (
                       <div className="space-y-3">
                         {partnerAliases.length === 0 ? (
                           <p className="text-sm text-muted-foreground py-2">
@@ -452,7 +494,7 @@ export default function PartnerDetailDialog({
                       </div>
                     )}
 
-                    {requestFilter !== "identity" && (
+                    {(requestFilter === "all" || requestFilter === "credits") && (
                       <div className="space-y-3">
                         {partnerGrants.length === 0 ? (
                           <p className="text-sm text-muted-foreground py-2">
@@ -597,6 +639,108 @@ export default function PartnerDetailDialog({
                               </div>
                             );
                           })
+                        )}
+                      </div>
+                    )}
+
+                    {(requestFilter === "all" || requestFilter === "pages") && (
+                      <div className="space-y-3">
+                        {partnerPages.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">
+                            No campaign page request from this partner yet.
+                          </p>
+                        ) : (
+                          partnerPages.map((c) => (
+                            <div
+                              key={c.id}
+                              className="rounded-2xl border border-border bg-card px-4 py-4 text-sm space-y-3"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="rounded-full gap-1 text-[11px]">
+                                  <LayoutTemplate className="h-3 w-3" /> Campaign page
+                                </Badge>
+                                <Badge
+                                  variant={
+                                    c.status === "active"
+                                      ? "default"
+                                      : c.status === "pending_review" || c.status === "approved"
+                                        ? "secondary"
+                                        : "outline"
+                                  }
+                                  className="rounded-full capitalize text-[11px]"
+                                >
+                                  {String(c.status).replace(/_/g, " ")}
+                                </Badge>
+                                <span className="ml-auto text-xs text-muted-foreground">{fmt(c.created_at)}</span>
+                              </div>
+
+                              <p className="font-medium break-all">{c.name}</p>
+
+                              <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                <p className="break-all">Link: /c/{c.slug}</p>
+                                <p>
+                                  Runs: {fmt(c.starts_at)} → {c.ends_at ? fmt(c.ends_at) : "no end date"}
+                                </p>
+                                {c.goal && <p className="sm:col-span-2">Goal: {c.goal}</p>}
+                                {c.offer_text && <p className="sm:col-span-2">Offer: {c.offer_text}</p>}
+                                <p>
+                                  {c.view_count || 0} views · {c.signup_count || 0} signups
+                                </p>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  size="sm"
+                                  className="rounded-full"
+                                  disabled={pageBusy === c.id || c.status !== "pending_review"}
+                                  onClick={() => decidePage(c, "approve")}
+                                >
+                                  {pageBusy === c.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <BadgeCheck className="h-3.5 w-3.5" />
+                                  )}
+                                  Approve page
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full"
+                                  disabled={pageBusy === c.id || c.status !== "pending_review"}
+                                  onClick={() => decidePage(c, "reject")}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" /> Deny
+                                </Button>
+                                {(c.status === "approved" || c.status === "paused") && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-full"
+                                    disabled={pageBusy === c.id}
+                                    onClick={() => decidePage(c, "activate")}
+                                  >
+                                    Put live
+                                  </Button>
+                                )}
+                                {c.status === "active" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="rounded-full"
+                                    disabled={pageBusy === c.id}
+                                    onClick={() => decidePage(c, "pause")}
+                                  >
+                                    Pause
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="rounded-full" asChild>
+                                  <a href={`/c/${c.slug}?preview=1`} target="_blank" rel="noreferrer">
+                                    <ExternalLink className="h-3.5 w-3.5" /> Preview
+                                  </a>
+                                </Button>
+                              </div>
+                            </div>
+                          ))
                         )}
                       </div>
                     )}
