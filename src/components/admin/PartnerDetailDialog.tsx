@@ -397,13 +397,13 @@ export default function PartnerDetailDialog({
                 </div>
 
 
-                {aliasLoading || grantsLoading ? (
+                {aliasLoading || grantsLoading || pagesLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                     <Loader2 className="h-4 w-4 animate-spin" /> Loading partner requests
                   </div>
                 ) : (
                   <>
-                    {requestFilter !== "credits" && (
+                    {(requestFilter === "all" || requestFilter === "identity") && (
                       <div className="space-y-3">
                         {partnerAliases.length === 0 ? (
                           <p className="text-sm text-muted-foreground py-2">
