@@ -33,7 +33,11 @@ import {
   Send,
   Check,
   X,
+  Image as ImageIcon,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   CAMPAIGN_SECTION_HINTS,
   CAMPAIGN_SECTION_KEYS,
