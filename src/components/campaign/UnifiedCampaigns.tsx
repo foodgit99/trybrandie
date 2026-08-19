@@ -129,6 +129,16 @@ const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
   const pages = pagesQuery.data?.campaigns ?? [];
   const emails = emailsQuery.data ?? [];
 
+  // One partner, one link: the referral link is the only thing partners share.
+  const referralLink = partner?.slug ? partnerReferralUrl(partner.slug) : "";
+  const copyReferralLink = async () => {
+    if (!referralLink) return;
+    await navigator.clipboard.writeText(referralLink);
+    toast({ title: "Referral link copied", description: "It leads to your live campaign page automatically." });
+  };
+
+
+
   const rows = useMemo<Row[]>(() => {
     const linked = new Set<string>();
     const out: Row[] = [];
