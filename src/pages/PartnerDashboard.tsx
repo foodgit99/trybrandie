@@ -7,7 +7,9 @@ import { useAffiliateRole } from "@/hooks/useAffiliateRole";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AtSign, Copy, Gift, Loader2, Mail, Users, Workflow, ArrowUpRight } from "lucide-react";
+import { AtSign, Copy, Gift, Loader2, Mail, Megaphone, Users, Workflow, ArrowUpRight } from "lucide-react";
+import CampaignManager from "@/components/campaign/CampaignManager";
+
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import PartnerLeadsTable, { type PartnerLead } from "@/components/partner/PartnerLeadsTable";
@@ -214,9 +216,13 @@ export default function PartnerDashboard() {
                   <TabsTrigger value="credits" className="rounded-lg gap-2 shrink-0">
                     <Gift className="h-3.5 w-3.5" /> Credits
                   </TabsTrigger>
+                  <TabsTrigger value="pages" className="rounded-lg gap-2 shrink-0">
+                    <Megaphone className="h-3.5 w-3.5" /> Campaign pages
+                  </TabsTrigger>
                   <TabsTrigger value="identity" className="rounded-lg gap-2 shrink-0">
                     <AtSign className="h-3.5 w-3.5" /> Identity
                   </TabsTrigger>
+
                 </TabsList>
 
 
@@ -232,7 +238,11 @@ export default function PartnerDashboard() {
                 <TabsContent value="credits" className="mt-5">
                   <PartnerCreditsPanel partnerId={overview.partner.id} />
                 </TabsContent>
+                <TabsContent value="pages" className="mt-5">
+                  <CampaignManager />
+                </TabsContent>
                 <TabsContent value="identity" className="mt-5">
+
 
                   <PartnerIdentityPanel
                     partnerId={overview.partner.id}

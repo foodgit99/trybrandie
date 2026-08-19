@@ -11,6 +11,8 @@ import LandingCTA from "@/components/landing/LandingCTA";
 import LandingFooter from "@/components/landing/LandingFooter";
 import SEO from "@/components/SEO";
 import TawkToWidget from "@/components/TawkToWidget";
+import CampaignBanner from "@/components/campaign/CampaignBanner";
+
 
 const faqs = [
   { q: "What exactly is Brandie?", a: "Brandie is an autonomous content system for small businesses. You pick a playbook for your industry, hit start, and Brandie generates a full week of on-brand social posts for you, every week, on its own." },
@@ -43,7 +45,9 @@ const Landing = () => (
       path="/"
       jsonLd={faqJsonLd}
     />
+    <CampaignBanner />
     <LandingNav />
+
     <main>
       <LandingHero />
       <LandingFeatures />

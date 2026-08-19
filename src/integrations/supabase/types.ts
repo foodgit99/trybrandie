@@ -1084,6 +1084,44 @@ export type Database = {
           },
         ]
       }
+      campaign_page_events: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          event_name: string
+          id: string
+          referral_slug: string | null
+          section_key: string | null
+          user_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          event_name: string
+          id?: string
+          referral_slug?: string | null
+          section_key?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          event_name?: string
+          id?: string
+          referral_slug?: string | null
+          section_key?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_page_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           brand_id: string
@@ -1127,6 +1165,92 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns_public: {
+        Row: {
+          activated_at: string | null
+          approved_at: string | null
+          audience: string | null
+          clicks_count: number
+          copy: Json
+          created_at: string
+          deactivated_at: string | null
+          ends_at: string | null
+          goal: string | null
+          id: string
+          name: string
+          offer_text: string | null
+          partner_id: string | null
+          review_note: string | null
+          sections: Json
+          signups_count: number
+          slug: string
+          starts_at: string
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+          views_count: number
+        }
+        Insert: {
+          activated_at?: string | null
+          approved_at?: string | null
+          audience?: string | null
+          clicks_count?: number
+          copy?: Json
+          created_at?: string
+          deactivated_at?: string | null
+          ends_at?: string | null
+          goal?: string | null
+          id?: string
+          name: string
+          offer_text?: string | null
+          partner_id?: string | null
+          review_note?: string | null
+          sections?: Json
+          signups_count?: number
+          slug: string
+          starts_at?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+          views_count?: number
+        }
+        Update: {
+          activated_at?: string | null
+          approved_at?: string | null
+          audience?: string | null
+          clicks_count?: number
+          copy?: Json
+          created_at?: string
+          deactivated_at?: string | null
+          ends_at?: string | null
+          goal?: string | null
+          id?: string
+          name?: string
+          offer_text?: string | null
+          partner_id?: string | null
+          review_note?: string | null
+          sections?: Json
+          signups_count?: number
+          slug?: string
+          starts_at?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+          views_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_public_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -4245,7 +4369,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_campaign_page: {
+        Args: { _campaign_id: string }
+        Returns: undefined
+      }
+      expire_campaign_pages: { Args: never; Returns: number }
       finalize_stalled_design_jobs: { Args: never; Returns: number }
+      get_active_campaign_page: {
+        Args: never
+        Returns: {
+          ends_at: string
+          id: string
+          name: string
+          offer_text: string
+          partner_slug: string
+          slug: string
+        }[]
+      }
+      get_campaign_page: {
+        Args: { _slug: string }
+        Returns: {
+          copy: Json
+          ends_at: string
+          goal: string
+          id: string
+          name: string
+          offer_text: string
+          sections: Json
+          slug: string
+          status: string
+        }[]
+      }
       has_brand_access: {
         Args: { _brand_id: string; _user_id: string }
         Returns: boolean

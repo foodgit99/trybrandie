@@ -60,6 +60,8 @@ import V2Pricing from "./pages/v2/Pricing";
 import BrandsPage from "./pages/Brands";
 import AcceptInvite from "./pages/AcceptInvite";
 import AliasVerify from "./pages/AliasVerify";
+import CampaignPage from "./pages/v2/CampaignPage";
+
 import AgentCockpit from "./pages/agent/AgentCockpit";
 
 import AgentSettings from "./pages/agent/AgentSettings";
@@ -229,6 +231,8 @@ const App = () => (
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-alias" element={<AliasVerify />} />
+          <Route path="/c/:slug" element={<CampaignPage />} />
+
           <Route path="/invite/:token" element={<AcceptInvite />} />
 
           <Route path="/" element={<LandingOrCockpit />} />

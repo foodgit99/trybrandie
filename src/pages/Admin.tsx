@@ -72,7 +72,10 @@ import {
   Users2,
   CreditCard,
   LifeBuoy,
+  Megaphone,
 } from "lucide-react";
+import CampaignManager from "@/components/campaign/CampaignManager";
+
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
 import AdminTracesTab from "@/components/admin/AdminTracesTab";
@@ -89,6 +92,8 @@ const TABLES = [
   { key: "support", label: "Support", icon: LifeBuoy },
   { key: "email_crm", label: "Email CRM", icon: Mail },
   { key: "email_aliases", label: "Email Aliases", icon: Mail },
+  { key: "campaign_pages", label: "Campaign Pages", icon: Megaphone },
+
   { key: "profiles", label: "Users", icon: Users },
 
   { key: "brands", label: "Brands", icon: Palette },
@@ -3171,7 +3176,12 @@ export default function Admin() {
             <AdminEmailAliasesTab />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases"].includes(t.key)).map((t) => (
+          <TabsContent value="campaign_pages">
+            <CampaignManager />
+          </TabsContent>
+
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases","campaign_pages"].includes(t.key)).map((t) => (
+
 
             <TabsContent key={t.key} value={t.key}>
 

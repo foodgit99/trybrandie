@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import SEO from "@/components/SEO";
 import { gaEvent } from "@/lib/ga";
 import { getPartnerRef } from "@/lib/partnerRef";
+import { captureCampaignRef, getCampaignRef, trackCampaignSignup } from "@/lib/campaignTrack";
+
 
 
 type Mode = "login" | "signup" | "forgot";
@@ -43,6 +45,14 @@ const Auth = () => {
       setAffiliateCode(aff);
       setMode("signup");
     }
+
+    // A visitor arriving from a campaign landing page keeps that attribution.
+    const campaign = searchParams.get("campaign");
+    if (campaign) {
+      captureCampaignRef(campaign);
+      setMode("signup");
+    }
+
 
     // Persist hero prompt for carry-through to studio
     const prompt = searchParams.get("prompt");
@@ -77,6 +87,7 @@ const Auth = () => {
           ...(referralCode && { referred_by: referralCode }),
           ...(affiliateCode && { affiliate_code: affiliateCode }),
           ...(getPartnerRef() && { partner_slug: getPartnerRef() }),
+          ...(getCampaignRef() && { campaign_slug: getCampaignRef() }),
 
         },
         emailRedirectTo: window.location.origin,
@@ -87,8 +98,10 @@ const Auth = () => {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
     } else {
       gaEvent("sign_up", { method: "email" });
+      trackCampaignSignup();
       toast({ title: "Check your email", description: "We sent you a confirmation link." });
     }
+
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {

@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Calendar, Wand2, MessageSquare, BarChart3, Star } from "lucide-react";
 import SEO from "@/components/SEO";
 import TawkToWidget from "@/components/TawkToWidget";
+import CampaignBanner from "@/components/campaign/CampaignBanner";
+
 import brandieLogo from "@/assets/brandie-logo.png";
 import heroAsset from "@/assets/landing-hero-ng.jpg.asset.json";
 import atelierAsset from "@/assets/landing-atelier-ng.jpg.asset.json";
@@ -52,8 +54,11 @@ const Landing = () => (
       path="/v2"
     />
 
+    <CampaignBanner />
+
     {/* NAV */}
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
+
       <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
         <Link to="/v2" className="flex items-center gap-2">
           <img src={brandieLogo} alt="Brandie" className="h-7 w-7" />
