@@ -229,6 +229,8 @@ const App = () => (
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-alias" element={<AliasVerify />} />
+          <Route path="/c/:slug" element={<CampaignPage />} />
+
           <Route path="/invite/:token" element={<AcceptInvite />} />
 
           <Route path="/" element={<LandingOrCockpit />} />
