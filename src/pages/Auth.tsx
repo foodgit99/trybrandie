@@ -44,6 +44,14 @@ const Auth = () => {
       setMode("signup");
     }
 
+    // A visitor arriving from a campaign landing page keeps that attribution.
+    const campaign = searchParams.get("campaign");
+    if (campaign) {
+      captureCampaignRef(campaign);
+      setMode("signup");
+    }
+
+
     // Persist hero prompt for carry-through to studio
     const prompt = searchParams.get("prompt");
     if (prompt) {
