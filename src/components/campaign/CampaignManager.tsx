@@ -519,7 +519,18 @@ export const EditCampaignDialog = ({
       return res.campaign;
     },
     onSuccess: (c) => {
-      setCopy((c.copy || {}) as CampaignCopy);
+      // Keep the appearance choices: the writer only returns section copy.
+      setCopy((prev) => {
+        const next = (c.copy || {}) as CampaignCopy;
+        return {
+          ...next,
+          hero: {
+            ...(next.hero || {}),
+            show_image: prev.hero?.show_image,
+            theme: prev.hero?.theme,
+          },
+        };
+      });
       setSections(normaliseSections(c.sections));
       toast({ title: "Page written", description: "Review the copy, then preview it." });
       onSaved(c);
