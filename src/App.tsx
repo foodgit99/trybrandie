@@ -38,6 +38,7 @@ import NotFound from "./pages/NotFound";
 
 // v2 (now primary) experience
 import V2Landing from "./pages/v2/Landing";
+import CampaignRefRedirect from "./components/campaign/CampaignRefRedirect";
 import V2Onboarding from "./pages/v2/Onboarding";
 import V2Cockpit from "./pages/v2/Cockpit";
 import V2Blueprint from "./pages/v2/Blueprint";
@@ -186,7 +187,12 @@ function LandingOrCockpit() {
       </div>
     );
   }
-  if (!user) return <V2Landing />;
+  if (!user)
+    return (
+      <CampaignRefRedirect>
+        <V2Landing />
+      </CampaignRefRedirect>
+    );
   if (!brand || !brand.onboarding_complete) return <Navigate to="/onboarding" replace />;
   return <Navigate to="/cockpit" replace />;
 }

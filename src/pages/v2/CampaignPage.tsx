@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 import CampaignLanding from "@/components/campaign/CampaignLanding";
 import { captureCampaignRef, trackCampaignEvent } from "@/lib/campaignTrack";
+import { getPartnerRef } from "@/lib/partnerRef";
 import { normaliseSections, type CampaignCopy, type CampaignSectionKey } from "@/lib/campaignSections";
 
 type PublicCampaign = {
@@ -71,7 +72,11 @@ const CampaignPage = () => {
     );
   }
 
-  const signupHref = `/auth?mode=signup&campaign=${encodeURIComponent(data.slug)}`;
+  // Keep the partner referral on the signup link: one link, attribution intact.
+  const partnerRef = getPartnerRef();
+  const signupHref = `/auth?mode=signup&campaign=${encodeURIComponent(data.slug)}${
+    partnerRef ? `&ref=${encodeURIComponent(partnerRef)}` : ""
+  }`;
 
   return (
     <>

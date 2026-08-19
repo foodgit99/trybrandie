@@ -39,6 +39,8 @@ import {
   type CampaignPage,
 } from "@/lib/campaignSections";
 import CampaignLanding from "@/components/campaign/CampaignLanding";
+import { usePartnerRole } from "@/hooks/usePartnerRole";
+import { partnerReferralUrl } from "@/lib/partnerRef";
 import {
   CreateCampaignDialog,
   EditCampaignDialog,
@@ -78,6 +80,7 @@ const EMAIL_TONE: Record<string, string> = {
  */
 const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
   const qc = useQueryClient();
+  const { partner } = usePartnerRole();
   const [filter, setFilter] = useState<Filter>("all");
 
   const [createPageFor, setCreatePageFor] = useState<EmailCampaign | null>(null);
@@ -128,6 +131,16 @@ const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
   const isAdmin = !!pagesQuery.data?.is_admin;
   const pages = pagesQuery.data?.campaigns ?? [];
   const emails = emailsQuery.data ?? [];
+
+  // One partner, one link: the referral link is the only thing partners share.
+  const referralLink = partner?.slug ? partnerReferralUrl(partner.slug) : "";
+  const copyReferralLink = async () => {
+    if (!referralLink) return;
+    await navigator.clipboard.writeText(referralLink);
+    toast({ title: "Referral link copied", description: "It leads to your live campaign page automatically." });
+  };
+
+
 
   const rows = useMemo<Row[]>(() => {
     const linked = new Set<string>();
@@ -237,16 +250,27 @@ const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
               <p className="text-sm font-medium flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> Live now: {live.name}
               </p>
-              <p className="text-xs text-muted-foreground">/c/{live.slug}</p>
+              <p className="text-xs text-muted-foreground">
+                {isAdmin || !referralLink
+                  ? `/c/${live.slug}`
+                  : "Your referral link now lands visitors on this page."}
+              </p>
             </div>
-            <Button variant="outline" size="sm" className="rounded-lg gap-1.5" asChild>
-              <a href={campaignPageUrl(live.slug)} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-3.5 w-3.5" /> Open
-              </a>
-            </Button>
+            {isAdmin || !referralLink ? (
+              <Button variant="outline" size="sm" className="rounded-lg gap-1.5" asChild>
+                <a href={campaignPageUrl(live.slug)} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5" /> Open
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="rounded-lg gap-1.5" onClick={copyReferralLink}>
+                <Copy className="h-3.5 w-3.5" /> Copy your link
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
+
 
       {partnerId && (
         <div className="flex flex-wrap gap-2">
@@ -359,12 +383,17 @@ const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
                           variant="ghost"
                           className="rounded-lg gap-1.5"
                           onClick={() => {
-                            navigator.clipboard.writeText(campaignPageUrl(c.slug));
-                            toast({ title: "Link copied" });
+                            if (isAdmin || !referralLink) {
+                              navigator.clipboard.writeText(campaignPageUrl(c.slug));
+                              toast({ title: "Link copied" });
+                              return;
+                            }
+                            copyReferralLink();
                           }}
                         >
-                          <Copy className="h-3.5 w-3.5" /> Link
+                          <Copy className="h-3.5 w-3.5" /> {isAdmin || !referralLink ? "Link" : "Your link"}
                         </Button>
+
                       </>
                     ) : (
                       <Button
