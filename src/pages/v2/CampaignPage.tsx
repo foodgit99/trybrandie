@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 import CampaignLanding from "@/components/campaign/CampaignLanding";
 import { captureCampaignRef, trackCampaignEvent } from "@/lib/campaignTrack";
+import { getPartnerRef } from "@/lib/partnerRef";
 import { normaliseSections, type CampaignCopy, type CampaignSectionKey } from "@/lib/campaignSections";
 
 type PublicCampaign = {
