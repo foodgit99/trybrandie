@@ -12,6 +12,8 @@ import { adminActionCall } from "./AdminPartnersTab";
 import { callEngine } from "@/components/campaign/CampaignManager";
 import { LeadStatusBadge, STATUS_LABELS, type PartnerLead } from "@/components/partner/PartnerLeadsTable";
 import { PartnerLeadActivityDialog } from "./PartnerLeadActivityDialog";
+import CampaignLanding from "@/components/campaign/CampaignLanding";
+import { normaliseSections, type CampaignCopy } from "@/lib/campaignSections";
 
 
 
@@ -202,6 +204,8 @@ export default function PartnerDetailDialog({
   const partnerPages = (pageData || []).filter((c) => c.partner_id === partnerId);
   const pendingPages = partnerPages.filter((c) => c.status === "pending_review").length;
   const [pageBusy, setPageBusy] = useState<string | null>(null);
+  // Admins preview pages in place, because the public /c/:slug route only serves live campaigns
+  const [previewPage, setPreviewPage] = useState<any | null>(null);
 
   const decidePage = async (c: any, action: "approve" | "reject" | "activate" | "pause") => {
     setPageBusy(c.id);
@@ -733,10 +737,13 @@ export default function PartnerDetailDialog({
                                     Pause
                                   </Button>
                                 )}
-                                <Button size="sm" variant="ghost" className="rounded-full" asChild>
-                                  <a href={`/c/${c.slug}?preview=1`} target="_blank" rel="noreferrer">
-                                    <ExternalLink className="h-3.5 w-3.5" /> Preview
-                                  </a>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="rounded-full"
+                                  onClick={() => setPreviewPage(c)}
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" /> Preview
                                 </Button>
                               </div>
                             </div>
@@ -886,6 +893,24 @@ export default function PartnerDetailDialog({
         open={!!activityLeadId}
         onOpenChange={(v) => !v && setActivityLeadId(null)}
       />
+      {previewPage && (
+        <Dialog open onOpenChange={(v) => !v && setPreviewPage(null)}>
+          <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto p-0">
+            <DialogHeader className="px-6 pt-6">
+              <DialogTitle>Preview: {previewPage.name}</DialogTitle>
+              <DialogDescription>Exactly what a visitor sees at /c/{previewPage.slug}.</DialogDescription>
+            </DialogHeader>
+            <div className="border-t border-border">
+              <CampaignLanding
+                copy={(previewPage.copy || {}) as CampaignCopy}
+                sections={normaliseSections(previewPage.sections)}
+                signupHref="#"
+                preview
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
