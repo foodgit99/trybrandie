@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Calendar, Wand2, MessageSquare, BarChart3, Star } from "lucide-react";
 import SEO from "@/components/SEO";
 import TawkToWidget from "@/components/TawkToWidget";
+import CampaignBanner from "@/components/campaign/CampaignBanner";
+
 import brandieLogo from "@/assets/brandie-logo.png";
 import heroAsset from "@/assets/landing-hero-ng.jpg.asset.json";
 import atelierAsset from "@/assets/landing-atelier-ng.jpg.asset.json";
