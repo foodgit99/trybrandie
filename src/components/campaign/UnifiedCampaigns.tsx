@@ -78,6 +78,7 @@ const EMAIL_TONE: Record<string, string> = {
  */
 const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
   const qc = useQueryClient();
+  const { partner } = usePartnerRole();
   const [filter, setFilter] = useState<Filter>("all");
 
   const [createPageFor, setCreatePageFor] = useState<EmailCampaign | null>(null);
