@@ -893,6 +893,24 @@ export default function PartnerDetailDialog({
         open={!!activityLeadId}
         onOpenChange={(v) => !v && setActivityLeadId(null)}
       />
+      {previewPage && (
+        <Dialog open onOpenChange={(v) => !v && setPreviewPage(null)}>
+          <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto p-0">
+            <DialogHeader className="px-6 pt-6">
+              <DialogTitle>Preview: {previewPage.name}</DialogTitle>
+              <DialogDescription>Exactly what a visitor sees at /c/{previewPage.slug}.</DialogDescription>
+            </DialogHeader>
+            <div className="border-t border-border">
+              <CampaignLanding
+                copy={(previewPage.copy || {}) as CampaignCopy}
+                sections={normaliseSections(previewPage.sections)}
+                signupHref="#"
+                preview
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
