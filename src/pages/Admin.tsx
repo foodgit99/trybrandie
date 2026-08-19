@@ -72,7 +72,10 @@ import {
   Users2,
   CreditCard,
   LifeBuoy,
+  Megaphone,
 } from "lucide-react";
+import CampaignManager from "@/components/campaign/CampaignManager";
+
 import { format } from "date-fns";
 import DesignViewer from "@/components/DesignViewer";
 import AdminTracesTab from "@/components/admin/AdminTracesTab";
