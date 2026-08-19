@@ -7,7 +7,9 @@ import { useAffiliateRole } from "@/hooks/useAffiliateRole";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AtSign, Copy, Gift, Loader2, Mail, Users, Workflow, ArrowUpRight } from "lucide-react";
+import { AtSign, Copy, Gift, Loader2, Mail, Megaphone, Users, Workflow, ArrowUpRight } from "lucide-react";
+import CampaignManager from "@/components/campaign/CampaignManager";
+
 import SEO from "@/components/SEO";
 import NewAppHeader from "@/components/v2/NewAppHeader";
 import PartnerLeadsTable, { type PartnerLead } from "@/components/partner/PartnerLeadsTable";
