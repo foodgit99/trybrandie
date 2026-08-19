@@ -348,9 +348,9 @@ export default function PartnerDetailDialog({
                 </TabsTrigger>
                 <TabsTrigger value="requests" className="rounded-lg gap-2">
                   <AtSign className="h-3.5 w-3.5" /> Partner requests
-                  {pendingAliases + pendingGrants > 0 && (
+                  {pendingAliases + pendingGrants + pendingPages > 0 && (
                     <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground tabular-nums">
-                      {pendingAliases + pendingGrants}
+                      {pendingAliases + pendingGrants + pendingPages}
                     </span>
                   )}
                 </TabsTrigger>
@@ -368,15 +368,16 @@ export default function PartnerDetailDialog({
 
               <TabsContent value="requests" className="mt-4 space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  Everything this partner has asked Brandie to approve. Two kinds of request can appear here:{" "}
-                  <strong>Sending identity</strong> (their own handle@trybrandie.com address for campaigns) and{" "}
+                  Everything this partner has asked Brandie to approve. Three kinds of request can appear here:{" "}
+                  <strong>Sending identity</strong> (their own handle@trybrandie.com address for campaigns),{" "}
                   <strong>Signup credits</strong> (free credits gifted to every user who signs up through their
-                  referral link). Review the details, add an optional note, then approve or deny — the partner is
-                  emailed either way.
+                  referral link) and <strong>Campaign page</strong> (a public landing page at /c/their-slug — only one
+                  page can be live across Brandie at a time). Review the details, add an optional note, then approve or
+                  deny.
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  {(["all", "identity", "credits"] as const).map((f) => (
+                  {(["all", "identity", "credits", "pages"] as const).map((f) => (
                     <Button
                       key={f}
                       size="sm"
@@ -384,10 +385,17 @@ export default function PartnerDetailDialog({
                       className="rounded-full text-xs"
                       onClick={() => setRequestFilter(f)}
                     >
-                      {f === "all" ? "All requests" : f === "identity" ? "Sending identity" : "Signup credits"}
+                      {f === "all"
+                        ? "All requests"
+                        : f === "identity"
+                          ? "Sending identity"
+                          : f === "credits"
+                            ? "Signup credits"
+                            : "Campaign pages"}
                     </Button>
                   ))}
                 </div>
+
 
                 {aliasLoading || grantsLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
