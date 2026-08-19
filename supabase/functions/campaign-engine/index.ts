@@ -139,6 +139,22 @@ Deno.serve(async (req) => {
     };
     const canEdit = (c: any) => isAdmin || c?.user_id === user.id;
 
+    // A landing page can be tied to one partner email campaign so both live as a
+    // single campaign in the UI. Only the owning partner (or an admin) may link.
+    const resolveEmailCampaignLink = async (raw: unknown): Promise<string | null> => {
+      if (!raw) return null;
+      const id = String(raw);
+      const { data: ec } = await admin
+        .from("partner_campaigns")
+        .select("id, partner_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (!ec) return null;
+      if (!isAdmin && ec.partner_id !== partner?.id) return null;
+      return ec.id;
+    };
+
+
     switch (action) {
       case "list": {
         let q = admin.from("campaigns_public").select("*").order("created_at", { ascending: false });
