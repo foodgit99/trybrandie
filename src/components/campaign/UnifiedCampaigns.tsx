@@ -237,16 +237,27 @@ const UnifiedCampaigns = ({ partnerId }: { partnerId?: string }) => {
               <p className="text-sm font-medium flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> Live now: {live.name}
               </p>
-              <p className="text-xs text-muted-foreground">/c/{live.slug}</p>
+              <p className="text-xs text-muted-foreground">
+                {isAdmin || !referralLink
+                  ? `/c/${live.slug}`
+                  : "Your referral link now lands visitors on this page."}
+              </p>
             </div>
-            <Button variant="outline" size="sm" className="rounded-lg gap-1.5" asChild>
-              <a href={campaignPageUrl(live.slug)} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-3.5 w-3.5" /> Open
-              </a>
-            </Button>
+            {isAdmin || !referralLink ? (
+              <Button variant="outline" size="sm" className="rounded-lg gap-1.5" asChild>
+                <a href={campaignPageUrl(live.slug)} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5" /> Open
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="rounded-lg gap-1.5" onClick={copyReferralLink}>
+                <Copy className="h-3.5 w-3.5" /> Copy your link
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
+
 
       {partnerId && (
         <div className="flex flex-wrap gap-2">
