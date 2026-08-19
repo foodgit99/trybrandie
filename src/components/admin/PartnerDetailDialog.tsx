@@ -737,10 +737,13 @@ export default function PartnerDetailDialog({
                                     Pause
                                   </Button>
                                 )}
-                                <Button size="sm" variant="ghost" className="rounded-full" asChild>
-                                  <a href={`/c/${c.slug}?preview=1`} target="_blank" rel="noreferrer">
-                                    <ExternalLink className="h-3.5 w-3.5" /> Preview
-                                  </a>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="rounded-full"
+                                  onClick={() => setPreviewPage(c)}
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" /> Preview
                                 </Button>
                               </div>
                             </div>
