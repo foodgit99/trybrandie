@@ -426,7 +426,7 @@ const CampaignLanding = ({ copy, sections, onSectionView, onCtaClick, signupHref
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background text-foreground ${themeClass}`}>
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
