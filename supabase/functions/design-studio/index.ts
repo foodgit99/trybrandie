@@ -8,6 +8,7 @@ import { withTimeout, TIMEOUTS, TimeoutError } from "../_shared/timeout.ts";
 import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-breaker.ts";
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
+import { NIGERIAN_CASTING_DOCTRINE, NIGERIAN_CASTING_LINE } from "../_shared/locale-doctrine.ts";
 import { fetchRecentUpdates, formatUpdatesForPrompt, summariseForClient, markUpdatesUsed } from "../_shared/brand-updates.ts";
 import {
   CATEGORY_RECIPES,
@@ -1806,6 +1807,9 @@ DESIGN PHILOSOPHY (ALWAYS APPLY):
 5. ALL text/copy on the design MUST align with the brand's value proposition and speak directly to the brand's target customer. Every word must serve a purpose — no filler text, no placeholder copy, no lorem ipsum, no decorative text that doesn't belong. Only include text that a real customer would expect to see on a professional marketing graphic for this brand.
 6. Do NOT add unnecessary text elements. If the design only needs a headline, do not add a subheadline or CTA just to fill space. Let the design breathe. Only include text elements that are relevant to the user's request and the brand's messaging.
 7. COLOUR CONTRAST IS CRITICAL: Always ensure text is highly legible against the background. If the background is dark, use light/white text. If the background is light, use dark text. When placing text over images, ALWAYS add a semi-transparent overlay, gradient scrim, or solid colour block behind the text to guarantee readability. Never place light text on light backgrounds or dark text on dark backgrounds. Contrast and legibility are non-negotiable.
+8. ${NIGERIAN_CASTING_DOCTRINE}
+
+
 
 ${brand.special_instructions ? `SPECIAL INSTRUCTIONS (HIGHEST PRIORITY — ALWAYS OBEY THESE DIRECTIVES):
 ${brand.special_instructions}
@@ -1972,7 +1976,7 @@ ${brand.special_instructions}
         const briefSpanInner = tracer.startSpan("brief-agent");
         try {
           const campaignCtx = (await campaignContextPromise).promptText;
-          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + campaignCtx + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).${copyPreferenceContext || ""}${editBiasContext || ""}`;
+          const briefSystemContent = brandContext + editContext + userImageContext + canvasFormatBrief + categoryContext + campaignCtx + researchCtx + `\n\nYou are Brandie's Strategic Creative Director. Your job is to define the creative strategy for a design — NOT to write the image prompt. Output a structured creative direction that will guide downstream agents (copywriter, renderer).\n\n${NIGERIAN_CASTING_LINE}${copyPreferenceContext || ""}${editBiasContext || ""}`;
           const briefMessages = [
             { role: "system", content: briefSystemContent },
             ...compressedMessages.slice(0, -1),
@@ -3006,7 +3010,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
           : "";
 
         // P1.#1: PRIMARY CREATIVE INTENT — lead with the verbatim user prompt.
-        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}${audienceBlock}${blueprintBlock}${varGenomeContext}${varCopyInjection}${priorGalleryReuseBrief}`;
+        const intentHeader = `PRIMARY CREATIVE INTENT: The design must be about "${userPrompt}".${specialInstructionsBlock}\n\n${NIGERIAN_CASTING_DOCTRINE}${audienceBlock}${blueprintBlock}${varGenomeContext}${varCopyInjection}${priorGalleryReuseBrief}`;
 
         // P1.#1: condensed polish block (~3 sentences, was ~2KB of boilerplate).
         const polishBlock = `Create a PHOTOREALISTIC, modern, studio-grade social graphic (${sizeLabel}, ${w}x${h}px). Use real photography, natural textures, balanced composition, generous breathing room, refined glassy finish, crisp edges, and tasteful glassmorphism on overlay panels — no muddy gradients or low-res artefacts. CRITICAL TEXT CONTRAST: every word must sit on a high-contrast background (use scrims/overlays when over photography); readability is non-negotiable.${copyStructure ? "" : " Only include text that directly serves the user's request — no filler text or random quotes."}`;
@@ -3133,7 +3137,7 @@ CRITICAL: Render ONLY the text listed above. Do NOT invent, add, or modify any t
       const CD_VERSION = "cd-v1-gemini-2.5-pro";
       try {
         const cdSpan = tracer.startSpan("creative_director");
-        const cdSystem = `You are Brandie's Creative Director. Emit a concrete spatial layout schema (JSON) for a ${w}x${h}px social graphic. Honour brand identity, genome styling, audience psychology, and category conventions. Be specific about regions, type sizes, focal hierarchy. Do NOT write copy — copy is fixed.`;
+        const cdSystem = `You are Brandie's Creative Director. Emit a concrete spatial layout schema (JSON) for a ${w}x${h}px social graphic. Honour brand identity, genome styling, audience psychology, and category conventions. Be specific about regions, type sizes, focal hierarchy. Do NOT write copy — copy is fixed.\n\n${NIGERIAN_CASTING_LINE}`;
         const cdUser = `User intent: "${userPrompt}"
 Category: ${resolvedCategory}
 Brand: ${brand?.name || "?"} — vibe ${brand?.vibe || "?"}, tone ${brand?.tone_of_voice || "?"}, primary ${(brand?.primary_colors || []).slice(0,2).join("/")}
@@ -3994,7 +3998,7 @@ Render ONLY the text listed above. Every word on the graphic must match exactly.
 
         const slidePrompt = `${dimensionEnforcement}
 
-PRIMARY CREATIVE INTENT: Slide ${i + 1} of ${numSlides} in a single carousel — "${slide.slide_label}" (arc_role: ${slide.arc_role}). Through-line: "${carouselPlan.narrative_thread}".${brand?.special_instructions ? `\n\nSPECIAL BRAND INSTRUCTIONS (ALWAYS OBEY):\n${brand.special_instructions}` : ""}
+PRIMARY CREATIVE INTENT: Slide ${i + 1} of ${numSlides} in a single carousel — "${slide.slide_label}" (arc_role: ${slide.arc_role}). Through-line: "${carouselPlan.narrative_thread}".${brand?.special_instructions ? `\n\nSPECIAL BRAND INSTRUCTIONS (ALWAYS OBEY):\n${brand.special_instructions}` : ""}\n\n${NIGERIAN_CASTING_DOCTRINE}
 ${roleSpecificBlock}
 ${continuityBlock}
 
