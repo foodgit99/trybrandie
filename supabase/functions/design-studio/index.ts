@@ -9,6 +9,7 @@ import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
 import { NIGERIAN_CASTING_DOCTRINE, NIGERIAN_CASTING_LINE } from "../_shared/locale-doctrine.ts";
+import { claimCreditNotice } from "../_shared/credit-notice.ts";
 import { fetchRecentUpdates, formatUpdatesForPrompt, summariseForClient, markUpdatesUsed } from "../_shared/brand-updates.ts";
 import {
   CATEGORY_RECIPES,
