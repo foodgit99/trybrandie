@@ -6,6 +6,7 @@
 // "your post is ready" email + push, so delivery no longer depends on the
 // autopilot edge isolate staying alive for 60-90s per idea.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { claimCreditNotice } from "../_shared/credit-notice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
