@@ -9,6 +9,7 @@ import { isCircuitOpen, recordSuccess, recordFailure } from "../_shared/circuit-
 import { callWithFallback, MODEL_CHAINS } from "../_shared/model-fallback.ts";
 import { validateCopyStructure, validateGenome } from "../_shared/validate-output.ts";
 import { NIGERIAN_CASTING_DOCTRINE, NIGERIAN_CASTING_LINE } from "../_shared/locale-doctrine.ts";
+import { claimCreditNotice } from "../_shared/credit-notice.ts";
 import { fetchRecentUpdates, formatUpdatesForPrompt, summariseForClient, markUpdatesUsed } from "../_shared/brand-updates.ts";
 import {
   CATEGORY_RECIPES,
@@ -1626,14 +1627,14 @@ TREND RULES:
             const newBonus = updates.bonus_credits ?? bonusCredits;
             const newPaid = updates.paid_credits ?? paidCredits;
 
-            // Check if credits are running low (< 5 remaining) and send warning email
+            // Credits running low (< 5 remaining): warn ONCE per top-up cycle.
             const remainingCredits = Math.max(0, FREE_MONTHLY - newCount) + newBonus + newPaid;
             if (remainingCredits > 0 && remainingCredits < 5) {
               try {
                 const { data: userData } = await adminClient.auth.admin.getUserById(user.id);
                 const userEmail = userData?.user?.email;
 
-                if (userEmail && profile.referral_code) {
+                if (userEmail && profile.referral_code && (await claimCreditNotice(adminClient, user.id))) {
                   console.log(`Sending low credits warning to ${userEmail}, remaining: ${remainingCredits}`);
 
                   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

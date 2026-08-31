@@ -3566,6 +3566,7 @@ export type Database = {
           content_hub_gen_count: number
           content_hub_gen_reset_at: string
           created_at: string
+          credits_topped_up_at: string | null
           daily_push_hour: number
           email_reminders_enabled: boolean
           full_name: string | null
@@ -3580,6 +3581,7 @@ export type Database = {
           last_weekly_recap_at: string | null
           locale: string | null
           logo_generations_used: number
+          low_credits_notified_at: string | null
           monday_briefing_hour: number
           paid_credits: number
           posting_timezone: string
@@ -3607,6 +3609,7 @@ export type Database = {
           content_hub_gen_count?: number
           content_hub_gen_reset_at?: string
           created_at?: string
+          credits_topped_up_at?: string | null
           daily_push_hour?: number
           email_reminders_enabled?: boolean
           full_name?: string | null
@@ -3621,6 +3624,7 @@ export type Database = {
           last_weekly_recap_at?: string | null
           locale?: string | null
           logo_generations_used?: number
+          low_credits_notified_at?: string | null
           monday_briefing_hour?: number
           paid_credits?: number
           posting_timezone?: string
@@ -3648,6 +3652,7 @@ export type Database = {
           content_hub_gen_count?: number
           content_hub_gen_reset_at?: string
           created_at?: string
+          credits_topped_up_at?: string | null
           daily_push_hour?: number
           email_reminders_enabled?: boolean
           full_name?: string | null
@@ -3662,6 +3667,7 @@ export type Database = {
           last_weekly_recap_at?: string | null
           locale?: string | null
           logo_generations_used?: number
+          low_credits_notified_at?: string | null
           monday_briefing_hour?: number
           paid_credits?: number
           posting_timezone?: string
