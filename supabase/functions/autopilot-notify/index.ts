@@ -51,7 +51,9 @@ Deno.serve(async (req) => {
         .update({ autopilot_status: noCredits ? "failed_no_credits" : "failed_error" } as any)
         .eq("id", ideaId);
 
-      if (noCredits) {
+      // Out-of-credits notice goes out ONCE per top-up cycle, not on every
+      // failed post — the daily email is the design delivery only.
+      if (noCredits && (await claimCreditNotice(supabase, idea.user_id))) {
         const { data: authUser } = await supabase.auth.admin.getUserById(idea.user_id);
         const email = authUser?.user?.email;
         if (email) {
