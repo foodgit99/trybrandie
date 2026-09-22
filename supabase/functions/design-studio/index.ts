@@ -756,90 +756,63 @@ async function runFullHandler(req: Request): Promise<Response> {
       }
     }
 
-    // === CONTEXT COMPRESSION ===
-    // When conversation exceeds 15 messages, summarise older messages
-    // to reduce token usage while preserving context
+    // === CONTEXT COMPRESSION (deterministic) ===
+    // When the conversation exceeds 15 messages we keep the original brief (the
+    // first user message) plus the last 6 turns verbatim, and replace the middle
+    // with a factual digest (message count + any colours/fonts/sizes mentioned).
+    // No model call — same token budget, zero latency, fully reproducible.
     const COMPRESSION_THRESHOLD = 15;
-    const RECENT_MESSAGES_TO_KEEP = 6; // Keep the last 6 messages verbatim
+    const RECENT_MESSAGES_TO_KEEP = 6;
 
-    async function compressMessages(
+    function digestOlderMessages(olderMessages: Array<{ role: string; content: string }>): string {
+      const blob = olderMessages.map((m) => String(m.content ?? "")).join("\n");
+      const hexes = Array.from(new Set(blob.match(/#[0-9a-fA-F]{3,8}\b/g) || [])).slice(0, 8);
+      const sizes = Array.from(new Set((blob.match(/\b(1080x1080|1080x1350|1080x1920|square|portrait|story)\b/gi) || []).map((s) => s.toLowerCase()))).slice(0, 4);
+      const keywords = Array.from(new Set(
+        (blob.match(/\b(minimal|bold|luxurious|editorial|playful|dark|light|gradient|serif|sans[- ]serif|font|logo|product photo|gallery|carousel|headline|caption|cta)\b/gi) || [])
+          .map((s) => s.toLowerCase()),
+      )).slice(0, 12);
+      const firstUser = olderMessages.find((m) => m.role === "user")?.content ?? "";
+
+      const lines: string[] = [];
+      lines.push(`Original brief: ${String(firstUser).slice(0, 400)}`);
+      if (hexes.length) lines.push(`Colours mentioned: ${hexes.join(", ")}`);
+      if (sizes.length) lines.push(`Sizes/formats mentioned: ${sizes.join(", ")}`);
+      if (keywords.length) lines.push(`Recurring style terms: ${keywords.join(", ")}`);
+      lines.push(`(${olderMessages.length} earlier messages condensed; the most recent ${RECENT_MESSAGES_TO_KEEP} turns follow verbatim.)`);
+      return lines.join("\n");
+    }
+
+    function compressMessages(
       msgs: Array<{ role: string; content: string }>,
-      apiKey: string
-    ): Promise<Array<{ role: string; content: string }>> {
+    ): Array<{ role: string; content: string }> {
       if (!msgs || msgs.length <= COMPRESSION_THRESHOLD) return msgs;
 
       const olderMessages = msgs.slice(0, msgs.length - RECENT_MESSAGES_TO_KEEP);
       const recentMessages = msgs.slice(msgs.length - RECENT_MESSAGES_TO_KEEP);
+      const digest = digestOlderMessages(olderMessages);
 
-      // Build a transcript of older messages for summarisation
-      const transcript = olderMessages
-        .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-        .join("\n\n");
+      console.log(
+        `Context compression (deterministic): ${olderMessages.length} older messages → digest (${digest.length} chars). Keeping ${recentMessages.length} recent.`,
+      );
 
-      try {
-        const summaryResponse = await fetch(
-          "https://ai.gateway.lovable.dev/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash-lite",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are a conversation summariser. Produce a concise summary of the conversation below, preserving: 1) key design decisions (colours, layout, style choices), 2) user preferences and feedback, 3) brand/audience context mentioned, 4) the most recent design state. Be factual and brief — max 200 words. Output only the summary, no preamble.",
-                },
-                {
-                  role: "user",
-                  content: `Summarise this design conversation:\n\n${transcript}`,
-                },
-              ],
-            }),
-          }
-        );
-
-        if (!summaryResponse.ok) {
-          console.warn("Context compression failed, using uncompressed messages");
-          return msgs;
-        }
-
-        const summaryData = await summaryResponse.json();
-        const summary =
-          summaryData.choices?.[0]?.message?.content || "";
-
-        if (!summary) return msgs;
-
-        console.log(
-          `Context compression: ${olderMessages.length} older messages → summary (${summary.length} chars). Keeping ${recentMessages.length} recent.`
-        );
-
-        // Return a synthetic "system" message with the summary + recent messages
-        return [
-          {
-            role: "user",
-            content: `[Conversation context — summarised from ${olderMessages.length} earlier messages]\n${summary}`,
-          },
-          {
-            role: "assistant",
-            content:
-              "Understood, I have the context from our earlier conversation. Let's continue.",
-          },
-          ...recentMessages,
-        ];
-      } catch (e) {
-        console.warn("Context compression error, falling back to full messages:", e);
-        return msgs;
-      }
+      return [
+        {
+          role: "user",
+          content: `[Conversation context — condensed from ${olderMessages.length} earlier messages]\n${digest}`,
+        },
+        {
+          role: "assistant",
+          content: "Understood, I have the context from our earlier conversation. Let's continue.",
+        },
+        ...recentMessages,
+      ];
     }
 
     // Apply compression if needed
     let compressedMessages = messages;
     if (messages && Array.isArray(messages) && messages.length > COMPRESSION_THRESHOLD) {
-      compressedMessages = await compressMessages(messages, LOVABLE_API_KEY);
+      compressedMessages = compressMessages(messages);
       console.log(`Messages compressed: ${messages.length} → ${compressedMessages.length}`);
     }
 
