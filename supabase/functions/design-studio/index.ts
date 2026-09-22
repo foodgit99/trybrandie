@@ -30,6 +30,11 @@ import {
 import { scoreDesignImage, weightedOverall, type QualityResult } from "../_shared/design-scorer.ts";
 import { OGILVY_COPY_DOCTRINE } from "../_shared/ogilvy-copy-doctrine.ts";
 import { fetchCampaignContext } from "../_shared/campaign-context.ts";
+import {
+  classifyCategoryByRules,
+  normaliseCategory,
+  DEFAULT_CATEGORY,
+} from "../_shared/category-rules.ts";
 
 
 
