@@ -4,56 +4,14 @@
 // cascade. Avoids regenerating the full design when a partial edit suffices.
 // PRD §7 "Edit Decision Tree".
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { classifyEditIntent, type EditKind } from "../_shared/edit-intent.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type Kind = "text" | "visual" | "strategy";
-
-async function classify(instruction: string): Promise<{ kind: Kind; rewritten_prompt: string; rewritten_title: string }> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
-    return { kind: "text", rewritten_prompt: instruction, rewritten_title: instruction.slice(0, 60) };
-  }
-  const sys = `You route content edits. Classify the user's instruction:
-- "text"     : caption / wording / hook change only
-- "visual"   : color, layout, font, image style change only
-- "strategy" : changes the post idea, format, audience, or category
-Return STRICT JSON: { "kind": "text"|"visual"|"strategy", "rewritten_title": string (<=60 chars), "rewritten_prompt": string (1-2 sentences, image-generation-ready) }.`;
-
-  try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: instruction },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!r.ok) throw new Error(`gateway ${r.status}`);
-    const j = await r.json();
-    const raw = j?.choices?.[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw);
-    const kind: Kind = ["text", "visual", "strategy"].includes(parsed.kind) ? parsed.kind : "text";
-    return {
-      kind,
-      rewritten_title: String(parsed.rewritten_title ?? "").slice(0, 60) || instruction.slice(0, 60),
-      rewritten_prompt: String(parsed.rewritten_prompt ?? instruction).slice(0, 1000),
-    };
-  } catch (e) {
-    console.error("[v2-edit-router] classify failed:", (e as Error).message);
-    return { kind: "text", rewritten_prompt: instruction, rewritten_title: instruction.slice(0, 60) };
-  }
-}
+type Kind = EditKind;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -89,7 +47,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { kind, rewritten_title, rewritten_prompt } = await classify(instruction);
+    const { kind, rewritten_title, rewritten_prompt } = classifyEditIntent(instruction);
 
     // Dispatch — common rule: never wipe a design unless the kind demands a regen.
     const patch: Record<string, unknown> = {

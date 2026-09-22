@@ -152,10 +152,18 @@ async function parseHolidaysWithAI(markdown: string, region: string, today: stri
   return events as ParsedItem[];
 }
 
+function regionMatches(holidayRegion: string, requested: string): boolean {
+  const h = holidayRegion.toLowerCase().trim();
+  const r = requested.toLowerCase().trim();
+  if (h === "global" || r === "global" || !r) return true;
+  // "Lagos, Nigeria" should match a holiday tagged "nigeria" and vice versa.
+  return h === r || r.includes(h) || h.includes(r);
+}
+
 function fallbackFeed(days: number, region: string): FeedHoliday[] {
   const now = Date.now();
   return fallbackUpcoming(days)
-    .filter((h) => h.region === "global" || region === "Global" || h.region.toLowerCase() === region.toLowerCase())
+    .filter((h) => regionMatches(h.region, region))
     .map((h) => ({
       name: h.name,
       date: h.date,
@@ -174,6 +182,11 @@ export async function fetchHolidayFeed(
   const days = Math.max(1, Math.min(90, opts.days ?? 21));
   const region = normaliseRegion(opts.region);
   const hash = `${region.toLowerCase()}:${isoWeekKey()}:${days}`;
+
+  // 0. Deterministic calendar is the default source. The live web+AI path is
+  //    opt-in via HOLIDAY_FEED_LIVE=true (kept for future re-enablement).
+  const liveEnabled = (Deno.env.get("HOLIDAY_FEED_LIVE") || "").toLowerCase() === "true";
+  if (!liveEnabled) return fallbackFeed(days, region);
 
   // 1. Cache
   const cached = await readCache(supabase, hash);

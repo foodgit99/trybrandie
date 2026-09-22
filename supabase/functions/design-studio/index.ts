@@ -30,6 +30,11 @@ import {
 import { scoreDesignImage, weightedOverall, type QualityResult } from "../_shared/design-scorer.ts";
 import { OGILVY_COPY_DOCTRINE } from "../_shared/ogilvy-copy-doctrine.ts";
 import { fetchCampaignContext } from "../_shared/campaign-context.ts";
+import {
+  classifyCategoryByRules,
+  normaliseCategory,
+  DEFAULT_CATEGORY,
+} from "../_shared/category-rules.ts";
 
 
 
@@ -475,59 +480,9 @@ const CONTENT_CATEGORIES: Record<string, {
   ]),
 );
 
-// --- CONTENT CATEGORY CLASSIFIER (deterministic-first, LLM fallback) ---
-function classifyCategoryByRules(prompt: string): string | null {
-  const lower = prompt.toLowerCase();
-  // Announcement
-  if (/\b(launch|launching|introducing|announce|announcing|new feature|just dropped|now available|coming soon|grand opening|unveil|reveal)\b/i.test(lower)) return "announcement";
-  // Educational
-  if (/\b(tips?|how to|guide|learn|tutorial|steps?|hack|lesson|explained|101|did you know|myth|fact)\b/i.test(lower)) return "educational";
-  // Informational
-  if (/\b(hours|schedule|address|location|policy|faq|contact|directions|pricing list|menu|opening times|return policy|delivery)\b/i.test(lower)) return "informational";
-  // Entertainment
-  if (/\b(meme|funny|relatable|humor|humour|joke|lol|😂|mood|vibe check|sarcas)/i.test(lower)) return "entertainment";
-  // Promotional
-  if (/\b(sale|discount|offer|promo|deal|buy|shop|order|% off|\bfree\b|limited time|flash sale|coupon|code|checkout|price drop|clearance)\b/i.test(lower)) return "promotional";
-  // Trending
-  if (/\b(trending|viral|trend|challenge|bandwagon|cultural moment)\b/i.test(lower)) return "trending";
-  // Holidays & Greetings
-  if (/\b(happy|merry|eid|christmas|easter|diwali|new year|valentine|mother'?s day|father'?s day|independence|thanksgiving|ramadan|birthday|anniversary|celebration|festive|holiday|season'?s greetings|workers day|labour day|democracy day|women'?s day)\b/i.test(lower)) return "holidays";
-  // Social Proof / UGC
-  if (/\b(testimonial|review|customer said|feedback|case study|success story|user generated|ugc|social proof|rating|star|recommend)\b/i.test(lower)) return "social_proof";
-  // Behind-the-Scenes
-  if (/\b(behind the scenes|bts|meet the team|day in the life|process|making of|workspace|office tour|our story)\b/i.test(lower)) return "behind_the_scenes";
-  // Interactive / Engagement
-  if (/\b(poll|vote|quiz|this or that|which do you|question|q&a|ask us|tell us|would you rather|choose|pick one|comment below|tag someone)\b/i.test(lower)) return "interactive";
-  return null;
-}
-
-async function classifyCategoryWithLLM(prompt: string, apiKey: string): Promise<string> {
-  try {
-    const categoryIds = Object.keys(CONTENT_CATEGORIES);
-    const { response } = await callWithFallback(
-      MODEL_CHAINS.fast,
-      (model) => ({
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: "You classify social media content prompts into categories. Return ONLY the category ID." },
-            { role: "user", content: `Classify this social media design request into exactly ONE of these categories: ${categoryIds.join(", ")}.\n\nPrompt: "${prompt}"\n\nReturn ONLY the category ID (e.g. "promotional"), nothing else.` },
-          ],
-        }),
-      }),
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      apiKey,
-    );
-    if (response.ok) {
-      const data = await response.json();
-      const raw = (data.choices?.[0]?.message?.content || "").trim().toLowerCase().replace(/[^a-z_]/g, "");
-      if (CONTENT_CATEGORIES[raw]) return raw;
-    }
-  } catch (e) {
-    console.log("Category LLM classification failed, defaulting:", e);
-  }
-  return "promotional"; // safe default
-}
+// --- CONTENT CATEGORY CLASSIFIER ---
+// Fully deterministic: shared keyword rules in _shared/category-rules.ts.
+// No LLM call — an unmatched prompt uses DEFAULT_CATEGORY.
 
 // --- GENOME SCORING FUNCTION (extracted for reuse) ---
 function computeGenomeScores(
@@ -801,90 +756,63 @@ async function runFullHandler(req: Request): Promise<Response> {
       }
     }
 
-    // === CONTEXT COMPRESSION ===
-    // When conversation exceeds 15 messages, summarise older messages
-    // to reduce token usage while preserving context
+    // === CONTEXT COMPRESSION (deterministic) ===
+    // When the conversation exceeds 15 messages we keep the original brief (the
+    // first user message) plus the last 6 turns verbatim, and replace the middle
+    // with a factual digest (message count + any colours/fonts/sizes mentioned).
+    // No model call — same token budget, zero latency, fully reproducible.
     const COMPRESSION_THRESHOLD = 15;
-    const RECENT_MESSAGES_TO_KEEP = 6; // Keep the last 6 messages verbatim
+    const RECENT_MESSAGES_TO_KEEP = 6;
 
-    async function compressMessages(
+    function digestOlderMessages(olderMessages: Array<{ role: string; content: string }>): string {
+      const blob = olderMessages.map((m) => String(m.content ?? "")).join("\n");
+      const hexes = Array.from(new Set(blob.match(/#[0-9a-fA-F]{3,8}\b/g) || [])).slice(0, 8);
+      const sizes = Array.from(new Set((blob.match(/\b(1080x1080|1080x1350|1080x1920|square|portrait|story)\b/gi) || []).map((s) => s.toLowerCase()))).slice(0, 4);
+      const keywords = Array.from(new Set(
+        (blob.match(/\b(minimal|bold|luxurious|editorial|playful|dark|light|gradient|serif|sans[- ]serif|font|logo|product photo|gallery|carousel|headline|caption|cta)\b/gi) || [])
+          .map((s) => s.toLowerCase()),
+      )).slice(0, 12);
+      const firstUser = olderMessages.find((m) => m.role === "user")?.content ?? "";
+
+      const lines: string[] = [];
+      lines.push(`Original brief: ${String(firstUser).slice(0, 400)}`);
+      if (hexes.length) lines.push(`Colours mentioned: ${hexes.join(", ")}`);
+      if (sizes.length) lines.push(`Sizes/formats mentioned: ${sizes.join(", ")}`);
+      if (keywords.length) lines.push(`Recurring style terms: ${keywords.join(", ")}`);
+      lines.push(`(${olderMessages.length} earlier messages condensed; the most recent ${RECENT_MESSAGES_TO_KEEP} turns follow verbatim.)`);
+      return lines.join("\n");
+    }
+
+    function compressMessages(
       msgs: Array<{ role: string; content: string }>,
-      apiKey: string
-    ): Promise<Array<{ role: string; content: string }>> {
+    ): Array<{ role: string; content: string }> {
       if (!msgs || msgs.length <= COMPRESSION_THRESHOLD) return msgs;
 
       const olderMessages = msgs.slice(0, msgs.length - RECENT_MESSAGES_TO_KEEP);
       const recentMessages = msgs.slice(msgs.length - RECENT_MESSAGES_TO_KEEP);
+      const digest = digestOlderMessages(olderMessages);
 
-      // Build a transcript of older messages for summarisation
-      const transcript = olderMessages
-        .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-        .join("\n\n");
+      console.log(
+        `Context compression (deterministic): ${olderMessages.length} older messages → digest (${digest.length} chars). Keeping ${recentMessages.length} recent.`,
+      );
 
-      try {
-        const summaryResponse = await fetch(
-          "https://ai.gateway.lovable.dev/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash-lite",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are a conversation summariser. Produce a concise summary of the conversation below, preserving: 1) key design decisions (colours, layout, style choices), 2) user preferences and feedback, 3) brand/audience context mentioned, 4) the most recent design state. Be factual and brief — max 200 words. Output only the summary, no preamble.",
-                },
-                {
-                  role: "user",
-                  content: `Summarise this design conversation:\n\n${transcript}`,
-                },
-              ],
-            }),
-          }
-        );
-
-        if (!summaryResponse.ok) {
-          console.warn("Context compression failed, using uncompressed messages");
-          return msgs;
-        }
-
-        const summaryData = await summaryResponse.json();
-        const summary =
-          summaryData.choices?.[0]?.message?.content || "";
-
-        if (!summary) return msgs;
-
-        console.log(
-          `Context compression: ${olderMessages.length} older messages → summary (${summary.length} chars). Keeping ${recentMessages.length} recent.`
-        );
-
-        // Return a synthetic "system" message with the summary + recent messages
-        return [
-          {
-            role: "user",
-            content: `[Conversation context — summarised from ${olderMessages.length} earlier messages]\n${summary}`,
-          },
-          {
-            role: "assistant",
-            content:
-              "Understood, I have the context from our earlier conversation. Let's continue.",
-          },
-          ...recentMessages,
-        ];
-      } catch (e) {
-        console.warn("Context compression error, falling back to full messages:", e);
-        return msgs;
-      }
+      return [
+        {
+          role: "user",
+          content: `[Conversation context — condensed from ${olderMessages.length} earlier messages]\n${digest}`,
+        },
+        {
+          role: "assistant",
+          content: "Understood, I have the context from our earlier conversation. Let's continue.",
+        },
+        ...recentMessages,
+      ];
     }
 
     // Apply compression if needed
     let compressedMessages = messages;
     if (messages && Array.isArray(messages) && messages.length > COMPRESSION_THRESHOLD) {
-      compressedMessages = await compressMessages(messages, LOVABLE_API_KEY);
+      compressedMessages = compressMessages(messages);
       console.log(`Messages compressed: ${messages.length} → ${compressedMessages.length}`);
     }
 
@@ -1849,58 +1777,74 @@ ${brand.special_instructions}
           ]
         : userPrompt;
 
-      // --- PARALLEL: Brief Agent + Inspiration Style Analysis ---
-      // Launch inspiration analysis in parallel with brief if inspiration images exist
-      let inspirationStyleTagsPromise: Promise<string[]> | null = null;
-      if (inspirationUrls.length > 0) {
-        inspirationStyleTagsPromise = (async () => {
-          try {
-            const inspContent: any[] = [
-              { type: "text", text: "Analyze these brand inspiration images and extract 3-5 visual style tags that describe the aesthetic. Return ONLY a JSON array of strings, e.g. [\"luxurious\", \"minimal\", \"editorial\", \"warm tones\", \"high contrast\"]. Tags should be from this vocabulary when possible: luxurious, minimal, editorial, warm, cool, bold, playful, corporate, futuristic, organic, rebellious, calm, energetic, streetwear, retro, natural, dramatic, clean." },
-            ];
-            for (const url of inspirationUrls.slice(0, 2)) {
-              inspContent.push({ type: "image_url", image_url: { url } });
-            }
-            const inspResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash-lite",
-                messages: [{ role: "user", content: inspContent }],
-              }),
-            });
-            if (inspResponse.ok) {
-              const inspData = await inspResponse.json();
-              const rawContent = inspData.choices?.[0]?.message?.content || "";
-              const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
-              if (jsonMatch) {
-                const tags = JSON.parse(jsonMatch[0]);
-                console.log("Inspiration style tags:", tags);
-                return tags as string[];
-              }
-            }
-          } catch (e) {
-            console.log("Inspiration analysis failed, proceeding without:", e);
-          }
-          return [];
-        })();
-      }
+      // --- Gallery style tags (deterministic) ---
+      // Previously a per-render vision call on the gallery images. The same tags
+      // are derivable from the brand's own settings + gallery labels, so no
+      // model call happens here any more.
+      const galleryStyleTags: string[] = (() => {
+        if (inspirationUrls.length === 0) return [];
+        const VOCAB = [
+          "luxurious", "minimal", "editorial", "warm", "cool", "bold", "playful",
+          "corporate", "futuristic", "organic", "rebellious", "calm", "energetic",
+          "streetwear", "retro", "natural", "dramatic", "clean",
+        ];
+        const VIBE_TAGS: Record<string, string[]> = {
+          cinematic: ["dramatic", "editorial"],
+          minimal: ["minimal", "clean"],
+          bold: ["bold", "energetic"],
+          playful: ["playful", "warm"],
+          luxury: ["luxurious", "editorial"],
+          corporate: ["corporate", "clean"],
+          street: ["streetwear", "rebellious"],
+          natural: ["natural", "organic"],
+        };
+        const TONE_TAGS: Record<string, string[]> = {
+          professional: ["corporate", "clean"],
+          formal: ["corporate", "editorial"],
+          casual: ["warm", "playful"],
+          humourous: ["playful", "energetic"],
+          humorous: ["playful", "energetic"],
+          inspirational: ["editorial", "warm"],
+        };
+        const tags = new Set<string>();
+        const vibe = String((brand as any)?.vibe || "").toLowerCase();
+        for (const [key, vals] of Object.entries(VIBE_TAGS)) {
+          if (vibe.includes(key)) vals.forEach((v) => tags.add(v));
+        }
+        const tone = String((brand as any)?.tone_of_voice || "").toLowerCase();
+        for (const [key, vals] of Object.entries(TONE_TAGS)) {
+          if (tone.includes(key)) vals.forEach((v) => tags.add(v));
+        }
+        const traitBlob = [
+          ...((brand as any)?.personality_traits || []),
+          ...(galleryItems || []).map((g: any) => g?.label || ""),
+        ].join(" ").toLowerCase();
+        for (const word of VOCAB) {
+          if (traitBlob.includes(word)) tags.add(word);
+        }
+        if (tags.size === 0) tags.add("clean");
+        const result = Array.from(tags).slice(0, 5);
+        console.log("Gallery style tags (deterministic):", result);
+        return result;
+      })();
+      const inspirationStyleTagsPromise: Promise<string[]> | null =
+        inspirationUrls.length > 0 ? Promise.resolve(galleryStyleTags) : null;
 
-      // --- PARALLEL: Content Category Classification ---
-      // Run in parallel with inspiration analysis — zero added latency
+      // --- Content Category (deterministic) ---
+      // Precedence: explicit category on the request → keyword rules → default.
       const contentCategoryPromise = (async (): Promise<string> => {
+        const requested = normaliseCategory(_parsedReqBody?.content_category);
+        if (requested) {
+          console.log(`Content category (from request): ${requested}`);
+          return requested;
+        }
         const ruleResult = classifyCategoryByRules(userPrompt);
         if (ruleResult) {
           console.log(`Content category (rule-based): ${ruleResult}`);
           return ruleResult;
         }
-        console.log("Content category: no rule match, falling back to LLM");
-        const llmResult = await classifyCategoryWithLLM(userPrompt, LOVABLE_API_KEY);
-        console.log(`Content category (LLM): ${llmResult}`);
-        return llmResult;
+        console.log(`Content category: no rule match, using default "${DEFAULT_CATEGORY}"`);
+        return DEFAULT_CATEGORY;
       })();
 
       // --- PARALLEL: Research Enrichment (only for categories that need fresh info) ---
