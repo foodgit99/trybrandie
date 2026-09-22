@@ -3,6 +3,7 @@
 // Idempotent: skips domains already tracked. Respects tier caps via the insert trigger.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { compactJson, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

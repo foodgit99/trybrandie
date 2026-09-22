@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { compactJson, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -291,7 +292,7 @@ async function evaluateScript(script: any, intent: any): Promise<{ pass: boolean
 4. Length (close to ${intent.length}s target?)
 5. Brand alignment
 
-Script: ${JSON.stringify(script)}
+Script: ${compactJson(script, 6000)}
 
 Reply with ONLY a JSON object: {"pass": true/false, "score": number, "feedback": "..."}
 If score >= 7, pass = true.`;

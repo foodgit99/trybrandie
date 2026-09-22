@@ -3,6 +3,7 @@
 // inserts approved ideas into content_ideas for autopilot to schedule.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { compactJson, clampText, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

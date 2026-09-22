@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sanitiseScrapedContent, sanitiseUrl } from "../_shared/sanitise.ts";
 import { withTimeout, TIMEOUTS } from "../_shared/timeout.ts";
+import { compactJson, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
