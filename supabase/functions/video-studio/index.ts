@@ -24,7 +24,7 @@ async function callAI(
   tools?: any[],
   toolChoice?: any
 ): Promise<any> {
-  const body: any = { model, messages, temperature: 0.7 };
+  const body: any = { model, messages, temperature: 0.7, max_tokens: MAX_TOKENS.planner };
   if (tools) body.tools = tools;
   if (toolChoice) body.tool_choice = toolChoice;
 

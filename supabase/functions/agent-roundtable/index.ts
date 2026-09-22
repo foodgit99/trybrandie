@@ -151,6 +151,7 @@ Do not create, schedule or change anything in this mode; you may read data only.
                 prompt,
                 tools: readTools as any,
                 maxSteps: 6,
+                maxTokens: MAX_TOKENS.chat,
               });
               text = (res.text ?? "").trim();
             } catch (e: any) {
