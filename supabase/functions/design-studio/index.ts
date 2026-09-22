@@ -475,59 +475,9 @@ const CONTENT_CATEGORIES: Record<string, {
   ]),
 );
 
-// --- CONTENT CATEGORY CLASSIFIER (deterministic-first, LLM fallback) ---
-function classifyCategoryByRules(prompt: string): string | null {
-  const lower = prompt.toLowerCase();
-  // Announcement
-  if (/\b(launch|launching|introducing|announce|announcing|new feature|just dropped|now available|coming soon|grand opening|unveil|reveal)\b/i.test(lower)) return "announcement";
-  // Educational
-  if (/\b(tips?|how to|guide|learn|tutorial|steps?|hack|lesson|explained|101|did you know|myth|fact)\b/i.test(lower)) return "educational";
-  // Informational
-  if (/\b(hours|schedule|address|location|policy|faq|contact|directions|pricing list|menu|opening times|return policy|delivery)\b/i.test(lower)) return "informational";
-  // Entertainment
-  if (/\b(meme|funny|relatable|humor|humour|joke|lol|😂|mood|vibe check|sarcas)/i.test(lower)) return "entertainment";
-  // Promotional
-  if (/\b(sale|discount|offer|promo|deal|buy|shop|order|% off|\bfree\b|limited time|flash sale|coupon|code|checkout|price drop|clearance)\b/i.test(lower)) return "promotional";
-  // Trending
-  if (/\b(trending|viral|trend|challenge|bandwagon|cultural moment)\b/i.test(lower)) return "trending";
-  // Holidays & Greetings
-  if (/\b(happy|merry|eid|christmas|easter|diwali|new year|valentine|mother'?s day|father'?s day|independence|thanksgiving|ramadan|birthday|anniversary|celebration|festive|holiday|season'?s greetings|workers day|labour day|democracy day|women'?s day)\b/i.test(lower)) return "holidays";
-  // Social Proof / UGC
-  if (/\b(testimonial|review|customer said|feedback|case study|success story|user generated|ugc|social proof|rating|star|recommend)\b/i.test(lower)) return "social_proof";
-  // Behind-the-Scenes
-  if (/\b(behind the scenes|bts|meet the team|day in the life|process|making of|workspace|office tour|our story)\b/i.test(lower)) return "behind_the_scenes";
-  // Interactive / Engagement
-  if (/\b(poll|vote|quiz|this or that|which do you|question|q&a|ask us|tell us|would you rather|choose|pick one|comment below|tag someone)\b/i.test(lower)) return "interactive";
-  return null;
-}
-
-async function classifyCategoryWithLLM(prompt: string, apiKey: string): Promise<string> {
-  try {
-    const categoryIds = Object.keys(CONTENT_CATEGORIES);
-    const { response } = await callWithFallback(
-      MODEL_CHAINS.fast,
-      (model) => ({
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: "You classify social media content prompts into categories. Return ONLY the category ID." },
-            { role: "user", content: `Classify this social media design request into exactly ONE of these categories: ${categoryIds.join(", ")}.\n\nPrompt: "${prompt}"\n\nReturn ONLY the category ID (e.g. "promotional"), nothing else.` },
-          ],
-        }),
-      }),
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      apiKey,
-    );
-    if (response.ok) {
-      const data = await response.json();
-      const raw = (data.choices?.[0]?.message?.content || "").trim().toLowerCase().replace(/[^a-z_]/g, "");
-      if (CONTENT_CATEGORIES[raw]) return raw;
-    }
-  } catch (e) {
-    console.log("Category LLM classification failed, defaulting:", e);
-  }
-  return "promotional"; // safe default
-}
+// --- CONTENT CATEGORY CLASSIFIER ---
+// Fully deterministic: shared keyword rules in _shared/category-rules.ts.
+// No LLM call — an unmatched prompt uses DEFAULT_CATEGORY.
 
 // --- GENOME SCORING FUNCTION (extracted for reuse) ---
 function computeGenomeScores(
