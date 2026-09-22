@@ -5,6 +5,7 @@ import { fetchRecentUpdates, fetchAllUpdatesForPlanning, formatUpdatesForPrompt,
 import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.ts";
 import { resolveBrandStages, normaliseStageId, fetchBrandStages, type FunnelStageId } from "../_shared/funnel-stages.ts";
 import { OGILVY_COPY_DOCTRINE, OGILVY_PILLAR_GUIDE } from "../_shared/ogilvy-copy-doctrine.ts";
+import { classifyItems } from "../_shared/category-rules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1396,44 +1397,12 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
         return jsonResponse({ updated: 0, processed: 0, remaining_in_batch: 0, more_available: false, message: "Nothing to categorize." });
       }
 
-      const result = await callAI(lovableKey, {
-        system: `You are a content classifier. For each item, assign exactly ONE content_category from the enum.
+      // Deterministic classification — shared keyword rules, no model call.
+      const classifications = classifyItems(
+        items.map((it) => ({ text: it.text, isHoliday: /\[holiday\]/i.test(it.text) })),
+        { dialect: "engine" },
+      );
 
-${CONTENT_CATEGORIES_REF}
-
-Rules:
-- The category id MUST be one of: ${CONTENT_CATEGORY_ENUM.join(", ")}.
-- For pillars, pick the dominant category if it spans several.
-- Items tagged [holiday] should be categorized as "holidays".
-- Match the item's intent, not just keywords.
-- Return one classification per input item, preserving order.`,
-        user: `Classify each item below and return its content_category.\n\nBrand: ${brand.name}\n\nITEMS:\n${items.map((it, i) => `${i + 1}. [${it.kind}] ${it.text}`).join("\n")}`,
-        tool: {
-          name: "classify_items",
-          description: "Assign a content_category to each item",
-          parameters: {
-            type: "object",
-            properties: {
-              classifications: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    index: { type: "number", description: "1-based index of the item" },
-                    content_category: { type: "string", enum: CONTENT_CATEGORY_ENUM },
-                  },
-                  required: ["index", "content_category"],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ["classifications"],
-            additionalProperties: false,
-          },
-        },
-      });
-
-      if (result.error) return errorResponse(result);
 
       const tableMap: Record<string, string> = {
         pillar: "content_pillars",
