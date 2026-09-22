@@ -135,9 +135,10 @@ Deno.serve(async (req) => {
           responseBody: typeof error?.responseBody === "string" ? error.responseBody.slice(0, 800) : undefined,
         });
       },
-      messages: convertToCoreMessages(messages as any),
+      messages: convertToCoreMessages(trimHistory(messages as any) as any),
       tools: tools as any,
       maxSteps: 50,
+      maxTokens: MAX_TOKENS.chat,
     });
 
     return result.toDataStreamResponse({
