@@ -175,6 +175,11 @@ export async function fetchHolidayFeed(
   const region = normaliseRegion(opts.region);
   const hash = `${region.toLowerCase()}:${isoWeekKey()}:${days}`;
 
+  // 0. Deterministic calendar is the default source. The live web+AI path is
+  //    opt-in via HOLIDAY_FEED_LIVE=true (kept for future re-enablement).
+  const liveEnabled = (Deno.env.get("HOLIDAY_FEED_LIVE") || "").toLowerCase() === "true";
+  if (!liveEnabled) return fallbackFeed(days, region);
+
   // 1. Cache
   const cached = await readCache(supabase, hash);
   if (cached && cached.length > 0) return cached;

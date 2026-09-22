@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { kind, rewritten_title, rewritten_prompt } = await classify(instruction);
+    const { kind, rewritten_title, rewritten_prompt } = classifyEditIntent(instruction);
 
     // Dispatch — common rule: never wipe a design unless the kind demands a regen.
     const patch: Record<string, unknown> = {
