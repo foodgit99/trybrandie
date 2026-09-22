@@ -31,11 +31,11 @@ import { scoreDesignImage, weightedOverall, type QualityResult } from "../_share
 import { OGILVY_COPY_DOCTRINE, OGILVY_COPY_DOCTRINE_SHORT } from "../_shared/ogilvy-copy-doctrine.ts";
 import { fetchCampaignContext } from "../_shared/campaign-context.ts";
 import {
-import { MAX_TOKENS } from "../_shared/token-budget.ts";
   classifyCategoryByRules,
   normaliseCategory,
   DEFAULT_CATEGORY,
 } from "../_shared/category-rules.ts";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 
 
