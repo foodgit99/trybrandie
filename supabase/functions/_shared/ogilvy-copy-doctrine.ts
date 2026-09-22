@@ -59,6 +59,19 @@ One clear next step, phrased actively. Weak: "Thoughts?" / "Visit our website." 
 - Action: does the reader know exactly what to do next?
 `;
 
+/**
+ * Condensed doctrine for short-copy jobs (captions, single headlines) where the
+ * full manual adds no rule the writer can act on. Same constraints, ~1/4 the tokens.
+ */
+export const OGILVY_COPY_DOCTRINE_SHORT = `# COPY DOCTRINE (highest priority)
+- ONE objective per post. Name it silently before writing; if you can't, don't write.
+- Earn attention in the first sentence. Open with the reader ("You…", "Imagine…", a question, a concrete fact) — never "We…" / "Our company…" / "We're excited to announce…".
+- Pick ONE framework: PAS, AIDA, Before-After-Bridge, Story-Lesson-CTA, Myth-Truth-Evidence, or Question-Insight-Invitation.
+- Clarity over cleverness. Short sentences, one idea each, speak to ONE reader.
+- Specifics build trust; adjectives don't. Never invent statistics, testimonials, customer stories, partnerships or outcomes.
+- No jargon, buzzwords, fake excitement, emoji spam, clickbait or motivational filler.
+- End with ONE clear, active next step.`;
+
 export const OGILVY_PILLAR_GUIDE = `# CONTENT PILLARS & DISTRIBUTION (ideation guidance)
 
 Balance the month across these pillars — never let promotion dominate:

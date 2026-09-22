@@ -10,6 +10,8 @@ import { buildBrandContext } from "../_shared/brand-context.ts";
 import { getSeasonalContextStringAsync, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { sanitise } from "../_shared/sanitise.ts";
 import { PERSONAS, buildSystemPrompt, type AgentId } from "../_shared/stage-personas.ts";
+import { trimHistory } from "../_shared/chat-history.ts";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
