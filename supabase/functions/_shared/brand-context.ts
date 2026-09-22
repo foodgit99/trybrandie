@@ -2,6 +2,7 @@
 // Returns a markdown block describing the brand, audience, strategy and recent output.
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { clampText } from "./token-budget.ts";
 
 export async function buildBrandContext(
   sb: SupabaseClient,
@@ -64,21 +65,21 @@ export async function buildBrandContext(
 ## Brand Profile
 - Name: ${brand.name}
 - Tagline: ${brand.tagline || "Not set"}
-- Description: ${brand.description || "Not set"}
+- Description: ${clampText(brand.description, 500) || "Not set"}
 - Vibe: ${brand.vibe || "Not set"}
 - Tone of voice: ${brand.tone_of_voice || "Not set"}
 - Personality: ${(brand.personality_traits || []).join(", ") || "Not set"}
 - Colours: primary ${(brand.primary_colors || []).join(", ") || "-"} | secondary ${(brand.secondary_colors || []).join(", ") || "-"} | accent ${(brand.accent_colors || []).join(", ") || "-"}
 - Typography: ${brand.typography_primary || "-"} / ${brand.typography_secondary || "-"} / ${brand.typography_display || "-"}
 - Logo: ${brand.logo_url ? "uploaded" : "missing"}
-- Special instructions: ${brand.special_instructions || "None"}
+- Special instructions: ${clampText(brand.special_instructions, 800) || "None"}
 
 ## Products & Services
 ${products.length ? products
   .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
   .map((p: any, i: number) => {
     let line = `${i + 1}. ${p.is_featured ? "⭐ " : ""}**${p.label || "Untitled"}** (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${p.duration ? `, ${p.duration}` : ""})`;
-    if (p.description) line += ` — ${p.description}`;
+    if (p.description) line += ` — ${clampText(p.description, 240)}`;
     if (p.features?.length) line += `\n   Includes: ${p.features.join(", ")}`;
     const shots = [p.image_url, ...((p.gallery_images as string[]) || [])].filter(Boolean).length;
     line += `\n   Real photos on file: ${shots > 0 ? `${shots} (use these exact images when referencing this ${p.product_type === "service" ? "service" : "product"} — never invent a substitute)` : "none yet (advise the user to upload one in Brand Centre)"}`;
