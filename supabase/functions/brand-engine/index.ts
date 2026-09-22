@@ -1412,7 +1412,7 @@ Use content_format "carousel" only for educational/how-to/listicle/step-by-step 
       };
 
       let updated = 0;
-      for (const cls of result.data.classifications || []) {
+      for (const cls of classifications) {
         const item = items[cls.index - 1];
         if (!item) continue;
         if (!CONTENT_CATEGORY_ENUM.includes(cls.content_category)) continue;
