@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { MAX_TOKENS } from "../_shared/token-budget.ts";
+import { readAiCache, writeAiCache } from "../_shared/ai-cache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,6 +81,14 @@ ${brand.personality_traits?.length ? `Personality: ${brand.personality_traits.jo
 ${brand.website_url ? `Website: ${brand.website_url}` : ""}
 ${productsBlock ? `Products/Services:\n${productsBlock}` : "Products/Services: (none provided yet)"}`;
 
+    // Same brand inputs → same suggestion. Skip the model call entirely on a hit.
+    const cached = await readAiCache<any>(supabase, "audience_suggest", userContent);
+    if (cached) {
+      return new Response(JSON.stringify(cached), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -155,18 +164,20 @@ ${productsBlock ? `Products/Services:\n${productsBlock}` : "Products/Services: (
       ? JSON.parse(toolCall.function.arguments)
       : toolCall.function.arguments;
 
-    return new Response(
-      JSON.stringify({
-        suggestion: {
-          who: String(parsed.who ?? "").trim(),
-          struggle: String(parsed.struggle ?? "").trim(),
-          outcome: String(parsed.outcome ?? "").trim(),
-          trigger: String(parsed.trigger ?? "").trim(),
-        },
-        confidence: parsed.confidence ?? {},
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const payload = {
+      suggestion: {
+        who: String(parsed.who ?? "").trim(),
+        struggle: String(parsed.struggle ?? "").trim(),
+        outcome: String(parsed.outcome ?? "").trim(),
+        trigger: String(parsed.trigger ?? "").trim(),
+      },
+      confidence: parsed.confidence ?? {},
+    };
+    await writeAiCache(supabase, "audience_suggest", userContent, payload);
+
+    return new Response(JSON.stringify(payload), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("audience-suggest error:", e);
     return new Response(
