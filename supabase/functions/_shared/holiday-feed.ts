@@ -3,6 +3,7 @@
 // Falls back to the hardcoded holiday-calendar.ts on any failure.
 
 import {
+import { MAX_TOKENS } from "./token-budget.ts";
   getUpcomingHolidays as fallbackUpcoming,
   getWeekHolidays as fallbackWeek,
   getCurrentSeason,

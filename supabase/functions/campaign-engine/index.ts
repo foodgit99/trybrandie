@@ -7,6 +7,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { OGILVY_COPY_DOCTRINE } from "../_shared/ogilvy-copy-doctrine.ts";
 import {
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
   CAMPAIGN_COPY_SCHEMA,
   CAMPAIGN_SECTION_LABELS,
   normaliseSections,
