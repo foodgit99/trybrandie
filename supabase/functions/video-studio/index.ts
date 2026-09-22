@@ -268,7 +268,7 @@ Rules:
   const userPrompt = `${context}
 
 STRATEGY:
-${JSON.stringify(strategy, null, 2)}
+${compactJson(strategy, 5000)}
 
 TARGET: ${intent.length} seconds, ${intent.energy} energy, ${intent.platform}
 MESSAGE: ${intent.script_input}

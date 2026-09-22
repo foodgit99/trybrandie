@@ -123,7 +123,7 @@ IMPORTANT RULES:
     const userPrompt = `Analyze this website and extract brand identity:
 
 BRANDING DATA:
-${JSON.stringify(branding, null, 2)}
+${compactJson(branding, 4000)}
 
 PAGE METADATA:
 Title: ${metadata.title || ""}

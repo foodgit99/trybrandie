@@ -90,10 +90,10 @@ Deno.serve(async (req) => {
     const prompt = `You are the competitive-intelligence analyst for the brand "${brand.name}".
 
 BRAND CONTEXT:
-${JSON.stringify({ name: brand.name, description: brand.description, vibe: brand.vibe, tone: brand.tone_of_voice }, null, 2)}
+${compactJson({ name: brand.name, description: clampText(brand.description, 400), vibe: brand.vibe, tone: clampText(brand.tone_of_voice, 240) })}
 
 WEEKLY COMPETITOR SNAPSHOTS (${Object.keys(byCompetitor).length} rivals):
-${JSON.stringify(byCompetitor, null, 2)}
+${compactJson(byCompetitor, 24000)}
 
 TASK — produce a strict JSON object with:
 {

@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     const prompt = `You are a market research analyst. Given this brand, propose 5 realistic, currently-operating COMPETITORS — brands that sell to the same audience with a similar core offer.
 
 BRAND:
-${JSON.stringify(brandContext, null, 2)}
+${compactJson(brandContext, 4000)}
 
 Rules:
 - Only real companies you're confident exist. If you can't name 5, return fewer.
