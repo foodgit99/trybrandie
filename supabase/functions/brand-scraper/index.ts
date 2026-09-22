@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sanitiseScrapedContent, sanitiseUrl } from "../_shared/sanitise.ts";
 import { withTimeout, TIMEOUTS } from "../_shared/timeout.ts";
+import { compactJson, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,7 +124,7 @@ IMPORTANT RULES:
     const userPrompt = `Analyze this website and extract brand identity:
 
 BRANDING DATA:
-${JSON.stringify(branding, null, 2)}
+${compactJson(branding, 4000)}
 
 PAGE METADATA:
 Title: ${metadata.title || ""}
@@ -189,6 +190,7 @@ Return a JSON object with this exact schema:
         },
         body: JSON.stringify({
           model: "google/gemini-3.1-pro-preview",
+          max_tokens: MAX_TOKENS.brief,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },

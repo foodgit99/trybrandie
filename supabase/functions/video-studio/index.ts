@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { compactJson, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +24,7 @@ async function callAI(
   tools?: any[],
   toolChoice?: any
 ): Promise<any> {
-  const body: any = { model, messages, temperature: 0.7 };
+  const body: any = { model, messages, temperature: 0.7, max_tokens: MAX_TOKENS.planner };
   if (tools) body.tools = tools;
   if (toolChoice) body.tool_choice = toolChoice;
 
@@ -268,7 +269,7 @@ Rules:
   const userPrompt = `${context}
 
 STRATEGY:
-${JSON.stringify(strategy, null, 2)}
+${compactJson(strategy, 5000)}
 
 TARGET: ${intent.length} seconds, ${intent.energy} energy, ${intent.platform}
 MESSAGE: ${intent.script_input}
@@ -291,7 +292,7 @@ async function evaluateScript(script: any, intent: any): Promise<{ pass: boolean
 4. Length (close to ${intent.length}s target?)
 5. Brand alignment
 
-Script: ${JSON.stringify(script)}
+Script: ${compactJson(script, 6000)}
 
 Reply with ONLY a JSON object: {"pass": true/false, "score": number, "feedback": "..."}
 If score >= 7, pass = true.`;

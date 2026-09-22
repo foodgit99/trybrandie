@@ -10,6 +10,8 @@ import { buildBrandContext } from "../_shared/brand-context.ts";
 import { getSeasonalContextStringAsync, resolveBrandRegion } from "../_shared/holiday-feed.ts";
 import { sanitise } from "../_shared/sanitise.ts";
 import { PERSONAS, buildSystemPrompt, type AgentId } from "../_shared/stage-personas.ts";
+import { trimHistory } from "../_shared/chat-history.ts";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -133,9 +135,10 @@ Deno.serve(async (req) => {
           responseBody: typeof error?.responseBody === "string" ? error.responseBody.slice(0, 800) : undefined,
         });
       },
-      messages: convertToCoreMessages(messages as any),
+      messages: convertToCoreMessages(trimHistory(messages as any) as any),
       tools: tools as any,
       maxSteps: 50,
+      maxTokens: MAX_TOKENS.chat,
     });
 
     return result.toDataStreamResponse({

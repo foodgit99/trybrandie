@@ -2,6 +2,7 @@
 // Returns a markdown block describing the brand, audience, strategy and recent output.
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { clampText } from "./token-budget.ts";
 
 export async function buildBrandContext(
   sb: SupabaseClient,
@@ -20,15 +21,17 @@ export async function buildBrandContext(
     trendIntelRes,
     competitorsRes,
   ] = await Promise.all([
-    sb.from("brands").select("*").eq("id", brandId).maybeSingle(),
+    sb.from("brands").select(
+      "id, user_id, name, tagline, description, vibe, tone_of_voice, personality_traits, primary_colors, secondary_colors, accent_colors, typography_primary, typography_secondary, typography_display, logo_url, special_instructions, website_url, playbook_id, country, city",
+    ).eq("id", brandId).maybeSingle(),
     sb.from("target_audiences").select("label, jtbd_profile").eq("brand_id", brandId),
     sb.from("content_pillars").select("name, description").eq("brand_id", brandId).order("sort_order"),
     sb.from("post_series").select("name, description, recurrence, preferred_day").eq("brand_id", brandId),
     sb.from("campaigns").select("name, description, post_count").eq("brand_id", brandId),
     sb.from("brand_products").select("label, description, product_type, price, features, duration, pricing_model, is_featured, image_url, gallery_images").eq("brand_id", brandId),
     sb.from("brand_inspiration").select("label").eq("brand_id", brandId),
-    sb.from("designs").select("title, prompt, trend_used, vote, content_category, created_at").eq("brand_id", brandId).order("created_at", { ascending: false }).limit(12),
-    sb.from("content_ideas").select("title, scheduled_for, status, content_category, funnel_stage").eq("brand_id", brandId).order("scheduled_for", { ascending: true }).limit(15),
+    sb.from("designs").select("title, prompt, trend_used, vote, content_category, created_at").eq("brand_id", brandId).order("created_at", { ascending: false }).limit(6),
+    sb.from("content_ideas").select("title, scheduled_for, status, content_category, funnel_stage").eq("brand_id", brandId).order("scheduled_for", { ascending: true }).limit(10),
     sb.from("brand_trend_intel").select("trends_data, generated_at").eq("brand_id", brandId).maybeSingle(),
     sb.from("brand_competitors").select("name, website, is_active").eq("brand_id", brandId).limit(10),
   ]);
@@ -62,21 +65,21 @@ export async function buildBrandContext(
 ## Brand Profile
 - Name: ${brand.name}
 - Tagline: ${brand.tagline || "Not set"}
-- Description: ${brand.description || "Not set"}
+- Description: ${clampText(brand.description, 500) || "Not set"}
 - Vibe: ${brand.vibe || "Not set"}
 - Tone of voice: ${brand.tone_of_voice || "Not set"}
 - Personality: ${(brand.personality_traits || []).join(", ") || "Not set"}
 - Colours: primary ${(brand.primary_colors || []).join(", ") || "-"} | secondary ${(brand.secondary_colors || []).join(", ") || "-"} | accent ${(brand.accent_colors || []).join(", ") || "-"}
 - Typography: ${brand.typography_primary || "-"} / ${brand.typography_secondary || "-"} / ${brand.typography_display || "-"}
 - Logo: ${brand.logo_url ? "uploaded" : "missing"}
-- Special instructions: ${brand.special_instructions || "None"}
+- Special instructions: ${clampText(brand.special_instructions, 800) || "None"}
 
 ## Products & Services
 ${products.length ? products
   .sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0))
   .map((p: any, i: number) => {
     let line = `${i + 1}. ${p.is_featured ? "⭐ " : ""}**${p.label || "Untitled"}** (${p.product_type}${p.price ? `, ${p.pricing_model ? p.pricing_model + " " : ""}${p.price}` : ""}${p.duration ? `, ${p.duration}` : ""})`;
-    if (p.description) line += ` — ${p.description}`;
+    if (p.description) line += ` — ${clampText(p.description, 240)}`;
     if (p.features?.length) line += `\n   Includes: ${p.features.join(", ")}`;
     const shots = [p.image_url, ...((p.gallery_images as string[]) || [])].filter(Boolean).length;
     line += `\n   Real photos on file: ${shots > 0 ? `${shots} (use these exact images when referencing this ${p.product_type === "service" ? "service" : "product"} — never invent a substitute)` : "none yet (advise the user to upload one in Brand Centre)"}`;

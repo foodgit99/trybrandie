@@ -8,6 +8,7 @@ import {
   getCurrentSeason,
   type Holiday,
 } from "./holiday-calendar.ts";
+import { MAX_TOKENS } from "./token-budget.ts";
 
 export interface FeedHoliday {
   name: string;
@@ -130,6 +131,7 @@ async function parseHolidaysWithAI(markdown: string, region: string, today: stri
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: "google/gemini-2.5-flash-lite",
+      max_tokens: MAX_TOKENS.shortJson,
       messages: [
         {
           role: "system",

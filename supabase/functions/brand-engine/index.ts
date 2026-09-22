@@ -6,6 +6,7 @@ import { resolveAutopilotCampaign } from "../_shared/resolve-autopilot-campaign.
 import { resolveBrandStages, normaliseStageId, fetchBrandStages, type FunnelStageId } from "../_shared/funnel-stages.ts";
 import { OGILVY_COPY_DOCTRINE, OGILVY_PILLAR_GUIDE } from "../_shared/ogilvy-copy-doctrine.ts";
 import { classifyItems } from "../_shared/category-rules.ts";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1723,6 +1724,7 @@ async function callAI(apiKey: string, opts: { system: string; user: string; tool
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
+      max_tokens: MAX_TOKENS.planner,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.user },

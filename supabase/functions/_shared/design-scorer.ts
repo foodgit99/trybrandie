@@ -4,6 +4,8 @@
 // Used by design-studio to pick the best of N Blueprint candidates and to
 // surface "what to fix" hints back to the user.
 
+import { MAX_TOKENS } from "./token-budget.ts";
+
 export interface QualityScore {
   brand_fidelity: number;   // 0-100 — correct logo/colour/typography presence and scale
   hierarchy: number;        // 0-100 — clear focal order, headline → CTA flow
@@ -111,6 +113,7 @@ export async function scoreDesignImage(opts: ScoreOpts): Promise<QualityResult |
       headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
+        max_tokens: MAX_TOKENS.shortJson,
         messages: [
           { role: "system", content: sys },
           {

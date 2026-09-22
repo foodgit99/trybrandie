@@ -3,6 +3,7 @@
 // inserts approved ideas into content_ideas for autopilot to schedule.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { compactJson, clampText, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,10 +91,10 @@ Deno.serve(async (req) => {
     const prompt = `You are the competitive-intelligence analyst for the brand "${brand.name}".
 
 BRAND CONTEXT:
-${JSON.stringify({ name: brand.name, description: brand.description, vibe: brand.vibe, tone: brand.tone_of_voice }, null, 2)}
+${compactJson({ name: brand.name, description: clampText(brand.description, 400), vibe: brand.vibe, tone: clampText(brand.tone_of_voice, 240) })}
 
 WEEKLY COMPETITOR SNAPSHOTS (${Object.keys(byCompetitor).length} rivals):
-${JSON.stringify(byCompetitor, null, 2)}
+${compactJson(byCompetitor, 24000)}
 
 TASK — produce a strict JSON object with:
 {
@@ -136,6 +137,7 @@ Rules:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.research,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "Return strict JSON only." },

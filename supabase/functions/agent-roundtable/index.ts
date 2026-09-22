@@ -8,6 +8,7 @@ import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@0.2.14";
 import { buildTools, AgentSession, ToolMode } from "../_shared/agent-tools.ts";
 import { buildBrandContext } from "../_shared/brand-context.ts";
 import { getSeasonalContextStringAsync, resolveBrandRegion } from "../_shared/holiday-feed.ts";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 import { PERSONAS, READ_TOOLS, buildSystemPrompt, type AgentId } from "../_shared/stage-personas.ts";
 import { sanitise } from "../_shared/sanitise.ts";
 
@@ -151,6 +152,7 @@ Do not create, schedule or change anything in this mode; you may read data only.
                 prompt,
                 tools: readTools as any,
                 maxSteps: 6,
+                maxTokens: MAX_TOKENS.chat,
               });
               text = (res.text ?? "").trim();
             } catch (e: any) {
@@ -178,6 +180,7 @@ Format exactly:
 **The call** — 2-4 numbered, concrete next actions, each owned by one of the specialists by role name.
 Be decisive. No hedging, no new ideas the panel didn't raise. Under 180 words.`,
               prompt: `Founder's question: ${question}\n\nPanel:\n\n${panelText}`,
+              maxTokens: MAX_TOKENS.chat,
             });
             synthesis = (res.text ?? "").trim();
           } catch (e: any) {

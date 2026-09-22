@@ -28,13 +28,14 @@ import {
   type CollectedRef,
 } from "../_shared/render-refs.ts";
 import { scoreDesignImage, weightedOverall, type QualityResult } from "../_shared/design-scorer.ts";
-import { OGILVY_COPY_DOCTRINE } from "../_shared/ogilvy-copy-doctrine.ts";
+import { OGILVY_COPY_DOCTRINE, OGILVY_COPY_DOCTRINE_SHORT } from "../_shared/ogilvy-copy-doctrine.ts";
 import { fetchCampaignContext } from "../_shared/campaign-context.ts";
 import {
   classifyCategoryByRules,
   normaliseCategory,
   DEFAULT_CATEGORY,
 } from "../_shared/category-rules.ts";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 
 
@@ -901,6 +902,7 @@ When you have brand context, reference it naturally in your advice — suggest u
           (model) => ({
             body: JSON.stringify({
               model,
+              max_tokens: MAX_TOKENS.chat,
               messages: [
                 { role: "system", content: chatSystemPrompt },
                 ...compressedMessages,
@@ -1189,6 +1191,7 @@ CONVERSION RULES:
                   (model) => ({
                     body: JSON.stringify({
                       model,
+                      max_tokens: MAX_TOKENS.shortJson,
                       messages: [
                         {
                           role: "system",
@@ -1954,6 +1957,7 @@ ${brand.special_instructions}
               (model) => ({
                 body: JSON.stringify({
                   model,
+                  max_tokens: MAX_TOKENS.brief,
                   messages: briefMessages,
                   tools: briefTools,
                   tool_choice: { type: "function", function: { name: "set_brief" } },
@@ -2677,6 +2681,7 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
             (model) => ({
               body: JSON.stringify({
                 model,
+                max_tokens: MAX_TOKENS.brief,
                 messages: [
                   { role: "system", content: copywriterPrompt },
                   { role: "user", content: `Write the exact copy for this design. Return structured JSON only.` },
@@ -2726,7 +2731,7 @@ ${brand?.special_instructions ? `\nSPECIAL BRAND INSTRUCTIONS (HIGHEST PRIORITY 
             ? `\n\nFINAL COPY RENDERED ON THE DESIGN (mirror this language — do NOT contradict or restate differently):\n- Headline: "${upstreamCopy.headline}"${upstreamCopy.subheadline ? `\n- Subheadline: "${upstreamCopy.subheadline}"` : ""}${upstreamCopy.cta ? `\n- CTA: "${upstreamCopy.cta}"` : ""}`
             : "";
 
-          const captionSystemPrompt = `${OGILVY_COPY_DOCTRINE}
+          const captionSystemPrompt = `${OGILVY_COPY_DOCTRINE_SHORT}
 
 You are Brandie's social media caption writer. You write scroll-stopping, brand-aligned captions for social media posts. Silently pick ONE objective and ONE caption framework (PAS / AIDA / BAB / Story-Lesson-CTA / Myth-Truth-Evidence / Question-Insight-Invitation / Mistake-Solution-Example) before writing. Earn attention in the first sentence. End with a single, specific CTA.
 
@@ -2779,6 +2784,7 @@ User request: "${userPrompt}"`;
             (model) => ({
               body: JSON.stringify({
                 model,
+                max_tokens: MAX_TOKENS.caption,
                 messages: [
                   { role: "system", content: captionSystemPrompt },
                   { role: "user", content: captionUserPrompt },
@@ -3128,6 +3134,7 @@ ${audienceProfile ? `Audience: ${(audienceProfile.persona_summary || "").slice(0
           (model) => ({
             body: JSON.stringify({
               model,
+              max_tokens: MAX_TOKENS.brief,
               messages: [
                 { role: "system", content: cdSystem },
                 { role: "user", content: cdUser },
@@ -3677,6 +3684,7 @@ Return EXACTLY ${numSlides} slides via the set_carousel_plan tool. Do not return
             (model) => ({
               body: JSON.stringify({
                 model,
+                max_tokens: MAX_TOKENS.planner,
                 messages: [
                   { role: "system", content: arcSystem + (extraSystem ? `\n\n${extraSystem}` : "") },
                   { role: "user", content: "Generate the carousel plan now." },
@@ -4230,8 +4238,9 @@ BRAND LOCK: Brand colours: ${brandColourSig}. Fonts: ${fontSig}. Tone: ${brand?.
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
+            max_tokens: MAX_TOKENS.caption,
             messages: [
-              { role: "system", content: `${OGILVY_COPY_DOCTRINE}\n\nYou are a social media caption writer. Write a caption for an Instagram carousel post. Pick ONE caption framework and open with a hook that earns attention — never with "We…". Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}. The carousel's through-line: "${carouselPlan.narrative_thread}". The final CTA is: "${carouselPlan.slides[lastIdx].cta}".` },
+              { role: "system", content: `${OGILVY_COPY_DOCTRINE_SHORT}\n\nYou are a social media caption writer. Write a caption for an Instagram carousel post. Pick ONE caption framework and open with a hook that earns attention — never with "We…". Brand: ${brand?.name}. Tone: ${brand?.tone_of_voice || "Professional"}. The carousel's through-line: "${carouselPlan.narrative_thread}". The final CTA is: "${carouselPlan.slides[lastIdx].cta}".` },
               { role: "user", content: `Write a caption for a ${numSlides}-slide carousel about: "${userPrompt}". Echo the through-line. End with the CTA. Include 5-8 hashtags.` },
             ],
           }),

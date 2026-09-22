@@ -3,6 +3,7 @@
 // Idempotent: skips domains already tracked. Respects tier caps via the insert trigger.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { compactJson, MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
     const prompt = `You are a market research analyst. Given this brand, propose 5 realistic, currently-operating COMPETITORS — brands that sell to the same audience with a similar core offer.
 
 BRAND:
-${JSON.stringify(brandContext, null, 2)}
+${compactJson(brandContext, 4000)}
 
 Rules:
 - Only real companies you're confident exist. If you can't name 5, return fewer.
@@ -101,6 +102,7 @@ Each competitor: { "name": string, "domain": string (bare host, no protocol), "i
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.planner,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "You return strict JSON only. No prose." },

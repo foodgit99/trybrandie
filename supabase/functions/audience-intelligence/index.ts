@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,6 +81,7 @@ EMOTIONAL DRIVERS: ${(raw_inputs.emotional_drivers || []).join(", ") || "Not pro
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.research,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },

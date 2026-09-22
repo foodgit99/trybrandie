@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -153,6 +154,7 @@ EVENT DATE: ${event_date || "(empty)"}`;
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
+        max_tokens: MAX_TOKENS.shortJson,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },

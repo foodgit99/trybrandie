@@ -5,6 +5,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { convertToCoreMessages, streamText, type UIMessage } from "npm:ai@4.3.16";
 import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@0.2.14";
 import { buildTools, AgentSession, ToolMode } from "../_shared/agent-tools.ts";
+import { trimHistory } from "../_shared/chat-history.ts";
+import { MAX_TOKENS } from "../_shared/token-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,9 +116,10 @@ Deno.serve(async (req) => {
     const result = streamText({
       model: provider("google/gemini-3.6-flash"),
       system: systemPrompt,
-      messages: convertToCoreMessages(messages as any),
+      messages: convertToCoreMessages(trimHistory(messages as any) as any),
       tools: tools as any,
       maxSteps: 50,
+      maxTokens: MAX_TOKENS.chat,
     });
 
     return result.toDataStreamResponse({
