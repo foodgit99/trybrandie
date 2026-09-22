@@ -87,6 +87,7 @@ ${productsBlock ? `Products/Services:\n${productsBlock}` : "Products/Services: (
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.planner,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },

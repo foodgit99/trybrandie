@@ -184,6 +184,7 @@ Target Audiences: ${audiences.map((a: any) => a.label).join(", ") || "N/A"}
       headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.research,
         messages: [
           {
             role: "system",

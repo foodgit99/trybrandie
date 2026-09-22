@@ -75,6 +75,7 @@ Write the copy. Every headline must earn the next line. The hero headline is und
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
+      max_tokens: MAX_TOKENS.planner,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

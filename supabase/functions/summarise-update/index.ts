@@ -153,6 +153,7 @@ EVENT DATE: ${event_date || "(empty)"}`;
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
+        max_tokens: MAX_TOKENS.shortJson,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },

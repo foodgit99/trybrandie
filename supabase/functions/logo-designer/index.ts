@@ -51,6 +51,7 @@ async function verifySketchFidelity(
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        max_tokens: MAX_TOKENS.brief,
         messages: [
           {
             role: "system",

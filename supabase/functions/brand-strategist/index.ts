@@ -213,6 +213,7 @@ Rules for actions:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.chat,
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,

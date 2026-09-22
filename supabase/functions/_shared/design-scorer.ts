@@ -111,6 +111,7 @@ export async function scoreDesignImage(opts: ScoreOpts): Promise<QualityResult |
       headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
+        max_tokens: MAX_TOKENS.shortJson,
         messages: [
           { role: "system", content: sys },
           {

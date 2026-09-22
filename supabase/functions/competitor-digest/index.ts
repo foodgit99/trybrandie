@@ -137,6 +137,7 @@ Rules:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.research,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "Return strict JSON only." },

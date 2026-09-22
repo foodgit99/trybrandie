@@ -80,6 +80,7 @@ EMOTIONAL DRIVERS: ${(raw_inputs.emotional_drivers || []).join(", ") || "Not pro
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.research,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },

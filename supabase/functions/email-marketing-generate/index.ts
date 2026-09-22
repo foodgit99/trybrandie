@@ -71,6 +71,7 @@ Return strict JSON: {"subject":"","preheader":"","body_md":"","cta_label":"","ct
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        max_tokens: MAX_TOKENS.planner,
         messages: [{ role: "system", content: sys }, { role: "user", content: userMsg }],
         response_format: { type: "json_object" },
       }),

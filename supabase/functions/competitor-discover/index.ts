@@ -102,6 +102,7 @@ Each competitor: { "name": string, "domain": string (bare host, no protocol), "i
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: MAX_TOKENS.planner,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "You return strict JSON only. No prose." },

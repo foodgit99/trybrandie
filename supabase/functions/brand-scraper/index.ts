@@ -190,6 +190,7 @@ Return a JSON object with this exact schema:
         },
         body: JSON.stringify({
           model: "google/gemini-3.1-pro-preview",
+          max_tokens: MAX_TOKENS.brief,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
