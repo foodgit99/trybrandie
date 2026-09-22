@@ -1804,58 +1804,74 @@ ${brand.special_instructions}
           ]
         : userPrompt;
 
-      // --- PARALLEL: Brief Agent + Inspiration Style Analysis ---
-      // Launch inspiration analysis in parallel with brief if inspiration images exist
-      let inspirationStyleTagsPromise: Promise<string[]> | null = null;
-      if (inspirationUrls.length > 0) {
-        inspirationStyleTagsPromise = (async () => {
-          try {
-            const inspContent: any[] = [
-              { type: "text", text: "Analyze these brand inspiration images and extract 3-5 visual style tags that describe the aesthetic. Return ONLY a JSON array of strings, e.g. [\"luxurious\", \"minimal\", \"editorial\", \"warm tones\", \"high contrast\"]. Tags should be from this vocabulary when possible: luxurious, minimal, editorial, warm, cool, bold, playful, corporate, futuristic, organic, rebellious, calm, energetic, streetwear, retro, natural, dramatic, clean." },
-            ];
-            for (const url of inspirationUrls.slice(0, 2)) {
-              inspContent.push({ type: "image_url", image_url: { url } });
-            }
-            const inspResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash-lite",
-                messages: [{ role: "user", content: inspContent }],
-              }),
-            });
-            if (inspResponse.ok) {
-              const inspData = await inspResponse.json();
-              const rawContent = inspData.choices?.[0]?.message?.content || "";
-              const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
-              if (jsonMatch) {
-                const tags = JSON.parse(jsonMatch[0]);
-                console.log("Inspiration style tags:", tags);
-                return tags as string[];
-              }
-            }
-          } catch (e) {
-            console.log("Inspiration analysis failed, proceeding without:", e);
-          }
-          return [];
-        })();
-      }
+      // --- Gallery style tags (deterministic) ---
+      // Previously a per-render vision call on the gallery images. The same tags
+      // are derivable from the brand's own settings + gallery labels, so no
+      // model call happens here any more.
+      const galleryStyleTags: string[] = (() => {
+        if (inspirationUrls.length === 0) return [];
+        const VOCAB = [
+          "luxurious", "minimal", "editorial", "warm", "cool", "bold", "playful",
+          "corporate", "futuristic", "organic", "rebellious", "calm", "energetic",
+          "streetwear", "retro", "natural", "dramatic", "clean",
+        ];
+        const VIBE_TAGS: Record<string, string[]> = {
+          cinematic: ["dramatic", "editorial"],
+          minimal: ["minimal", "clean"],
+          bold: ["bold", "energetic"],
+          playful: ["playful", "warm"],
+          luxury: ["luxurious", "editorial"],
+          corporate: ["corporate", "clean"],
+          street: ["streetwear", "rebellious"],
+          natural: ["natural", "organic"],
+        };
+        const TONE_TAGS: Record<string, string[]> = {
+          professional: ["corporate", "clean"],
+          formal: ["corporate", "editorial"],
+          casual: ["warm", "playful"],
+          humourous: ["playful", "energetic"],
+          humorous: ["playful", "energetic"],
+          inspirational: ["editorial", "warm"],
+        };
+        const tags = new Set<string>();
+        const vibe = String((brand as any)?.vibe || "").toLowerCase();
+        for (const [key, vals] of Object.entries(VIBE_TAGS)) {
+          if (vibe.includes(key)) vals.forEach((v) => tags.add(v));
+        }
+        const tone = String((brand as any)?.tone_of_voice || "").toLowerCase();
+        for (const [key, vals] of Object.entries(TONE_TAGS)) {
+          if (tone.includes(key)) vals.forEach((v) => tags.add(v));
+        }
+        const traitBlob = [
+          ...((brand as any)?.personality_traits || []),
+          ...(galleryItems || []).map((g: any) => g?.label || ""),
+        ].join(" ").toLowerCase();
+        for (const word of VOCAB) {
+          if (traitBlob.includes(word)) tags.add(word);
+        }
+        if (tags.size === 0) tags.add("clean");
+        const result = Array.from(tags).slice(0, 5);
+        console.log("Gallery style tags (deterministic):", result);
+        return result;
+      })();
+      const inspirationStyleTagsPromise: Promise<string[]> | null =
+        inspirationUrls.length > 0 ? Promise.resolve(galleryStyleTags) : null;
 
-      // --- PARALLEL: Content Category Classification ---
-      // Run in parallel with inspiration analysis — zero added latency
+      // --- Content Category (deterministic) ---
+      // Precedence: explicit category on the request → keyword rules → default.
       const contentCategoryPromise = (async (): Promise<string> => {
+        const requested = normaliseCategory(_parsedReqBody?.content_category);
+        if (requested) {
+          console.log(`Content category (from request): ${requested}`);
+          return requested;
+        }
         const ruleResult = classifyCategoryByRules(userPrompt);
         if (ruleResult) {
           console.log(`Content category (rule-based): ${ruleResult}`);
           return ruleResult;
         }
-        console.log("Content category: no rule match, falling back to LLM");
-        const llmResult = await classifyCategoryWithLLM(userPrompt, LOVABLE_API_KEY);
-        console.log(`Content category (LLM): ${llmResult}`);
-        return llmResult;
+        console.log(`Content category: no rule match, using default "${DEFAULT_CATEGORY}"`);
+        return DEFAULT_CATEGORY;
       })();
 
       // --- PARALLEL: Research Enrichment (only for categories that need fresh info) ---
