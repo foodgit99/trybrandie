@@ -116,9 +116,10 @@ Deno.serve(async (req) => {
     const result = streamText({
       model: provider("google/gemini-3.6-flash"),
       system: systemPrompt,
-      messages: convertToCoreMessages(messages as any),
+      messages: convertToCoreMessages(trimHistory(messages as any) as any),
       tools: tools as any,
       maxSteps: 50,
+      maxTokens: MAX_TOKENS.chat,
     });
 
     return result.toDataStreamResponse({
