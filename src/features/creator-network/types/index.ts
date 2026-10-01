@@ -51,4 +51,4 @@ export type ValidationType = (typeof VALIDATION_TYPES)[number];
 export const humanize = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 /** Loose row type — Creator Network tables share id/is_test/record_source. */
-export type Row = Record<string, any> & { id: string };
+export type Row = { id: string; [key: string]: any };
