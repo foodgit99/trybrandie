@@ -16,7 +16,7 @@ export function fromBrandProduct(p: Record<string, any>): NormalizedProduct {
     source: "brand_product",
     id: p.id,
     ownerId: p.brand_id,
-    name: p.name ?? p.title ?? "Untitled product",
+    name: p.label ?? p.name ?? p.title ?? "Untitled product",
     description: p.description ?? null,
     category: p.category ?? null,
     price: typeof p.price === "number" ? p.price : p.price ? Number(p.price) : null,
