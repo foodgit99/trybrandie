@@ -1707,6 +1707,9 @@ export type Database = {
           objective: string
           output: Json | null
           record_source: string
+          review_decision: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           started_at: string | null
           status: string
           task_id: string | null
@@ -1728,6 +1731,9 @@ export type Database = {
           objective: string
           output?: Json | null
           record_source?: string
+          review_decision?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           started_at?: string | null
           status?: string
           task_id?: string | null
@@ -1749,6 +1755,9 @@ export type Database = {
           objective?: string
           output?: Json | null
           record_source?: string
+          review_decision?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           started_at?: string | null
           status?: string
           task_id?: string | null
@@ -6303,6 +6312,10 @@ export type Database = {
       creator_network_has_commercial_licence: {
         Args: { _creator: string }
         Returns: boolean
+      }
+      creator_network_review_ai_run: {
+        Args: { _decision: string; _run_id: string }
+        Returns: undefined
       }
       creator_network_submit_interview: {
         Args: {
