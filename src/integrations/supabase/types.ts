@@ -2884,6 +2884,7 @@ export type Database = {
           is_test: boolean
           notes: string | null
           opportunity_id: string
+          output_url: string | null
           preview_path: string | null
           product_id: string | null
           product_source: string | null
@@ -2912,6 +2913,7 @@ export type Database = {
           is_test?: boolean
           notes?: string | null
           opportunity_id: string
+          output_url?: string | null
           preview_path?: string | null
           product_id?: string | null
           product_source?: string | null
@@ -2940,6 +2942,7 @@ export type Database = {
           is_test?: boolean
           notes?: string | null
           opportunity_id?: string
+          output_url?: string | null
           preview_path?: string | null
           product_id?: string | null
           product_source?: string | null
@@ -3194,6 +3197,8 @@ export type Database = {
           notes: string | null
           offer_price: number | null
           opportunity_id: string
+          outreach_approved_at: string | null
+          outreach_approved_by: string | null
           outreach_message: string | null
           paid_amount: number | null
           payment_status: string
@@ -3224,6 +3229,8 @@ export type Database = {
           notes?: string | null
           offer_price?: number | null
           opportunity_id: string
+          outreach_approved_at?: string | null
+          outreach_approved_by?: string | null
           outreach_message?: string | null
           paid_amount?: number | null
           payment_status?: string
@@ -3254,6 +3261,8 @@ export type Database = {
           notes?: string | null
           offer_price?: number | null
           opportunity_id?: string
+          outreach_approved_at?: string | null
+          outreach_approved_by?: string | null
           outreach_message?: string | null
           paid_amount?: number | null
           payment_status?: string
@@ -6280,7 +6289,12 @@ export type Database = {
         Args: { _campaign_id: string }
         Returns: undefined
       }
+      creator_network_approve_outreach: {
+        Args: { _sale_id: string }
+        Returns: undefined
+      }
       creator_network_can: { Args: { _role?: string }; Returns: boolean }
+      creator_network_can_any: { Args: { _roles: string[] }; Returns: boolean }
       creator_network_enabled: { Args: never; Returns: boolean }
       creator_network_has_access: {
         Args: { _role?: string; _user_id: string }
@@ -6311,6 +6325,10 @@ export type Database = {
           _source_url: string
         }
         Returns: string
+      }
+      creator_network_transition_opportunity: {
+        Args: { _opportunity_id: string; _reason?: string; _to: string }
+        Returns: Json
       }
       expire_campaign_pages: { Args: never; Returns: number }
       finalize_stalled_design_jobs: { Args: never; Returns: number }

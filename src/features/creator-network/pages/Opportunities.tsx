@@ -2,7 +2,7 @@ import { useState } from "react";
 import CNLayout from "../components/CNLayout";
 import { ConfirmDialog, RecordDialog, Section, StatusPill, TestBadge, type Field } from "../components/ui";
 import EntityTable from "../components/EntityTable";
-import { useCnList, useCnMutation } from "../api/db";
+import { useCnList, useCnMutation, useOpportunityTransition } from "../api/db";
 import { useNameMaps } from "../api/lookups";
 import { checkClaims, type Claim } from "../services/claimGating";
 import { OPPORTUNITY_STAGES, CREATOR_ROLES, CLAIM_TYPES, type Row } from "../types";
@@ -17,7 +17,7 @@ const IRREVERSIBLE = new Set(["Won", "Lost", "Fulfilled"]);
 
 const CONCEPT_FIELDS: Field[] = [
   { name: "concept_name", label: "Concept name", required: true },
-  { name: "format", label: "Format", type: "select", options: ["Static", "Carousel", "Short video", "Long video"] },
+  { name: "format", label: "Format", type: "select", options: ["Static"], help: "V1 produces static image ads only." },
   { name: "hook", label: "Hook" }, { name: "strategic_idea", label: "Strategic idea", type: "textarea" },
   { name: "story_structure", label: "Story structure", type: "textarea" },
   { name: "creator_role", label: "Creator role", type: "select", options: CREATOR_ROLES, required: true },
@@ -80,11 +80,13 @@ function ConceptsPanel({ opp }: { opp: Row }) {
 export default function Opportunities() {
   const opps = useCnList("opportunities", { order: "updated_at" });
   const names = useNameMaps();
+  const matches = useCnList("matches").data ?? [];
   const m = useCnMutation("opportunities");
   const [open, setOpen] = useState(false);
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [move, setMove] = useState<{ row: Row; stage: string } | null>(null);
   const [detail, setDetail] = useState<Row | null>(null);
+  const transition = useOpportunityTransition();
 
   const requestMove = (row: Row, stage: string) => {
     if (stage === row.stage) return;
@@ -92,7 +94,7 @@ export default function Opportunities() {
   };
   const doMove = (extra: Record<string, any> = {}) => {
     if (!move) return;
-    return m.update.mutateAsync({ id: move.row.id, values: { stage: move.stage, ...extra } }).finally(() => setMove(null));
+    return transition.mutateAsync({ id: move.row.id, to: move.stage, reason: extra.lost_reason }).finally(() => setMove(null));
   };
 
   const fields: Field[] = [
@@ -101,7 +103,8 @@ export default function Opportunities() {
     { name: "campaign_objective", label: "Campaign objective" }, { name: "recommended_format", label: "Recommended format" },
     { name: "creative_angle", label: "Creative angle", type: "textarea" }, { name: "priority", label: "Priority", type: "select", options: ["High", "Normal", "Low"] },
     { name: "estimated_production_cost", label: "Est. production cost (NGN)", type: "number" }, { name: "proposed_selling_price", label: "Proposed price (NGN)", type: "number" },
-    { name: "creator_royalty_estimate", label: "Creator royalty estimate (NGN)", type: "number" }, { name: "next_action", label: "Next action" },
+    { name: "creator_royalty_estimate", label: "Creator royalty estimate (NGN)", type: "number" }, { name: "match_id", label: "Match (required to validate)", type: "select", options: matches.map((x) => ({ value: x.id, label: `${x.code} · ${x.confidence ?? "?"}` })) },
+    { name: "next_action", label: "Next action" },
     { name: "is_test", label: "Test record", type: "boolean" },
   ];
 
@@ -122,7 +125,7 @@ export default function Opportunities() {
   );
 
   return (
-    <CNLayout title="Opportunity Pipeline" subtitle="All 13 stages. Every move is logged."
+    <CNLayout title="Opportunity Pipeline" subtitle="All 13 stages. Moves go one step at a time and are blocked until the required work is done. Every move is logged."
       actions={<Button className="min-h-11 rounded-xl" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />New opportunity</Button>}>
       {/* Mobile: stage-filtered list */}
       <div className="lg:hidden space-y-3">
@@ -151,16 +154,16 @@ export default function Opportunities() {
       </div>
 
       <RecordDialog open={open} onOpenChange={setOpen} title="New opportunity" fields={fields}
-        onSubmit={(v) => { const { party, ...rest } = v; const [k, id] = String(party).split(":"); return m.insert.mutateAsync({ ...rest, brand_id: k === "b" ? id : null, prospect_id: k === "p" ? id : null, record_source: v.is_test ? "test" : "human" }); }} />
+        onSubmit={(v) => { const { party, ...rest } = v; const [k, id] = String(party).split(":"); const mt = matches.find((x) => x.id === v.match_id); return m.insert.mutateAsync({ ...rest, product_source: mt?.product_source ?? null, product_id: mt?.product_id ?? null, brand_id: k === "b" ? id : null, prospect_id: k === "p" ? id : null, record_source: v.is_test ? "test" : "human" }); }} />
 
       <RecordDialog open={!!move && move.stage === "Lost"} onOpenChange={(o) => !o && setMove(null)} title="Mark opportunity lost"
         description="Lost is a terminal stage. A reason is required for learning." fields={[{ name: "lost_reason", label: "Lost reason", type: "textarea", required: true }]}
-        submitLabel="Mark lost" onSubmit={(v) => doMove({ lost_reason: v.lost_reason, outcome: "Lost" })} />
+        submitLabel="Mark lost" onSubmit={(v) => doMove({ lost_reason: v.lost_reason })} />
       <ConfirmDialog open={!!move && move.stage !== "Lost" && IRREVERSIBLE.has(move.stage)} onOpenChange={(o) => !o && setMove(null)}
         title={`Move to ${move?.stage}?`} description="This is a terminal stage and is recorded in the activity log." confirmLabel={`Move to ${move?.stage}`}
-        onConfirm={() => doMove({ outcome: move?.stage })} />
+        onConfirm={() => doMove()} />
       <ConfirmDialog open={!!move && !IRREVERSIBLE.has(move.stage)} onOpenChange={(o) => !o && setMove(null)}
-        title={`Move ${move?.row.code} to ${move?.stage}?`} description={`From ${move?.row.stage}. You can move it back later.`} confirmLabel="Move" onConfirm={() => doMove()} />
+        title={`Move ${move?.row.code} to ${move?.stage}?`} description={`From ${move?.row.stage}. Required steps are checked before the move is saved.`} confirmLabel="Move" onConfirm={() => doMove()} />
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl rounded-2xl">
