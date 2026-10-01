@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _cn_closure_results: {
+        Row: {
+          detail: string | null
+          name: string | null
+          ok: boolean | null
+          step: number
+        }
+        Insert: {
+          detail?: string | null
+          name?: string | null
+          ok?: boolean | null
+          step?: never
+        }
+        Update: {
+          detail?: string | null
+          name?: string | null
+          ok?: boolean | null
+          step?: never
+        }
+        Relationships: []
+      }
       affiliate_commissions: {
         Row: {
           affiliate_id: string
