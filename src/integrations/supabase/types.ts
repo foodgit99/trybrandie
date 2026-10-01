@@ -1456,6 +1456,7 @@ export type Database = {
           content_category: string | null
           content_format: string
           created_at: string
+          creator_network_source_id: string | null
           day_of_week: number | null
           design_id: string | null
           funnel_rationale: string | null
@@ -1487,6 +1488,7 @@ export type Database = {
           content_category?: string | null
           content_format?: string
           created_at?: string
+          creator_network_source_id?: string | null
           day_of_week?: number | null
           design_id?: string | null
           funnel_rationale?: string | null
@@ -1518,6 +1520,7 @@ export type Database = {
           content_category?: string | null
           content_format?: string
           created_at?: string
+          creator_network_source_id?: string | null
           day_of_week?: number | null
           design_id?: string | null
           funnel_rationale?: string | null
@@ -1635,6 +1638,1894 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          is_test: boolean
+          new_state: string | null
+          previous_state: string | null
+          reason: string | null
+          record_source: string
+          source: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          is_test?: boolean
+          new_state?: string | null
+          previous_state?: string | null
+          reason?: string | null
+          record_source?: string
+          source?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          is_test?: boolean
+          new_state?: string | null
+          previous_state?: string | null
+          reason?: string | null
+          record_source?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
+      creator_network_ai_runs: {
+        Row: {
+          agent: string
+          confidence: string | null
+          created_at: string
+          ended_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          error: string | null
+          evidence: Json | null
+          id: string
+          input: Json
+          is_test: boolean
+          model_used: string | null
+          objective: string
+          output: Json | null
+          record_source: string
+          started_at: string | null
+          status: string
+          task_id: string | null
+          triggered_by: string | null
+        }
+        Insert: {
+          agent: string
+          confidence?: string | null
+          created_at?: string
+          ended_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          error?: string | null
+          evidence?: Json | null
+          id?: string
+          input?: Json
+          is_test?: boolean
+          model_used?: string | null
+          objective: string
+          output?: Json | null
+          record_source?: string
+          started_at?: string | null
+          status?: string
+          task_id?: string | null
+          triggered_by?: string | null
+        }
+        Update: {
+          agent?: string
+          confidence?: string | null
+          created_at?: string
+          ended_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          error?: string | null
+          evidence?: Json | null
+          id?: string
+          input?: Json
+          is_test?: boolean
+          model_used?: string | null
+          objective?: string
+          output?: Json | null
+          record_source?: string
+          started_at?: string | null
+          status?: string
+          task_id?: string | null
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_ai_runs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_audience_profiles: {
+        Row: {
+          affluence_segment: string | null
+          age_range: string | null
+          audience_description: string | null
+          cities_regions: string[]
+          confidence: string | null
+          created_at: string
+          creator_id: string
+          date_observed: string | null
+          evidence_classification: string
+          evidence_type: string | null
+          gender_composition: string | null
+          geography: string | null
+          id: string
+          interests: string[]
+          is_test: boolean
+          lifestyle: string | null
+          purchasing_categories: string[]
+          record_source: string
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          affluence_segment?: string | null
+          age_range?: string | null
+          audience_description?: string | null
+          cities_regions?: string[]
+          confidence?: string | null
+          created_at?: string
+          creator_id: string
+          date_observed?: string | null
+          evidence_classification?: string
+          evidence_type?: string | null
+          gender_composition?: string | null
+          geography?: string | null
+          id?: string
+          interests?: string[]
+          is_test?: boolean
+          lifestyle?: string | null
+          purchasing_categories?: string[]
+          record_source?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          affluence_segment?: string | null
+          age_range?: string | null
+          audience_description?: string | null
+          cities_regions?: string[]
+          confidence?: string | null
+          created_at?: string
+          creator_id?: string
+          date_observed?: string | null
+          evidence_classification?: string
+          evidence_type?: string | null
+          gender_composition?: string | null
+          geography?: string | null
+          id?: string
+          interests?: string[]
+          is_test?: boolean
+          lifestyle?: string | null
+          purchasing_categories?: string[]
+          record_source?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_audience_profiles_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_brand_safety_reviews: {
+        Row: {
+          created_at: string
+          creator_id: string
+          evidence: string | null
+          human_decision: string | null
+          id: string
+          is_test: boolean
+          notes: string | null
+          public_issue: string | null
+          record_source: string
+          reviewed: boolean
+          reviewed_at: string | null
+          reviewer: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          evidence?: string | null
+          human_decision?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          public_issue?: string | null
+          record_source?: string
+          reviewed?: boolean
+          reviewed_at?: string | null
+          reviewer?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          evidence?: string | null
+          human_decision?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          public_issue?: string | null
+          record_source?: string
+          reviewed?: boolean
+          reviewed_at?: string | null
+          reviewer?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_brand_safety_reviews_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_concepts: {
+        Row: {
+          approval_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          brand_id: string | null
+          claims: Json
+          code: string
+          concept_name: string
+          created_at: string
+          creative_score: number | null
+          creator_id: string | null
+          creator_role: string | null
+          cta: string | null
+          duration_seconds: number | null
+          format: string | null
+          hook: string | null
+          id: string
+          is_test: boolean
+          opportunity_id: string
+          platform: string | null
+          product_id: string | null
+          product_placement: string | null
+          product_source: string | null
+          production_complexity: string | null
+          prospect_id: string | null
+          record_source: string
+          required_assets: string | null
+          status: string
+          story_structure: string | null
+          strategic_idea: string | null
+          updated_at: string
+        }
+        Insert: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          brand_id?: string | null
+          claims?: Json
+          code?: string
+          concept_name: string
+          created_at?: string
+          creative_score?: number | null
+          creator_id?: string | null
+          creator_role?: string | null
+          cta?: string | null
+          duration_seconds?: number | null
+          format?: string | null
+          hook?: string | null
+          id?: string
+          is_test?: boolean
+          opportunity_id: string
+          platform?: string | null
+          product_id?: string | null
+          product_placement?: string | null
+          product_source?: string | null
+          production_complexity?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          required_assets?: string | null
+          status?: string
+          story_structure?: string | null
+          strategic_idea?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          brand_id?: string | null
+          claims?: Json
+          code?: string
+          concept_name?: string
+          created_at?: string
+          creative_score?: number | null
+          creator_id?: string | null
+          creator_role?: string | null
+          cta?: string | null
+          duration_seconds?: number | null
+          format?: string | null
+          hook?: string | null
+          id?: string
+          is_test?: boolean
+          opportunity_id?: string
+          platform?: string | null
+          product_id?: string | null
+          product_placement?: string | null
+          product_source?: string | null
+          production_complexity?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          required_assets?: string | null
+          status?: string
+          story_structure?: string | null
+          strategic_idea?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_concepts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_concepts_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_creators: {
+        Row: {
+          ai_likeness_suitability: number | null
+          audience_commercial_relevance: number | null
+          brand_safety_status: string
+          camera_presence: number | null
+          code: string
+          commercial_category_breadth: number | null
+          contact_details: Json
+          contact_status: string
+          content_formats: string[]
+          content_versatility: number | null
+          created_at: string
+          display_name: string
+          engagement_indicators: Json
+          evidence_confidence: string | null
+          fit_score: number | null
+          handle: string | null
+          human_owner: string | null
+          id: string
+          is_test: boolean
+          languages: string[]
+          legal_name: string | null
+          licensing_interest: string
+          location: string | null
+          next_action: string | null
+          notes: string | null
+          persona: string | null
+          primary_niche: string | null
+          priority_tier: string | null
+          profile_image_path: string | null
+          public_urls: Json
+          reach_indicators: Json
+          record_source: string
+          recruitability: number | null
+          secondary_niches: string[]
+          status: string
+          updated_at: string
+          user_id: string | null
+          voice_suitability: number | null
+        }
+        Insert: {
+          ai_likeness_suitability?: number | null
+          audience_commercial_relevance?: number | null
+          brand_safety_status?: string
+          camera_presence?: number | null
+          code?: string
+          commercial_category_breadth?: number | null
+          contact_details?: Json
+          contact_status?: string
+          content_formats?: string[]
+          content_versatility?: number | null
+          created_at?: string
+          display_name: string
+          engagement_indicators?: Json
+          evidence_confidence?: string | null
+          fit_score?: number | null
+          handle?: string | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          languages?: string[]
+          legal_name?: string | null
+          licensing_interest?: string
+          location?: string | null
+          next_action?: string | null
+          notes?: string | null
+          persona?: string | null
+          primary_niche?: string | null
+          priority_tier?: string | null
+          profile_image_path?: string | null
+          public_urls?: Json
+          reach_indicators?: Json
+          record_source?: string
+          recruitability?: number | null
+          secondary_niches?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          voice_suitability?: number | null
+        }
+        Update: {
+          ai_likeness_suitability?: number | null
+          audience_commercial_relevance?: number | null
+          brand_safety_status?: string
+          camera_presence?: number | null
+          code?: string
+          commercial_category_breadth?: number | null
+          contact_details?: Json
+          contact_status?: string
+          content_formats?: string[]
+          content_versatility?: number | null
+          created_at?: string
+          display_name?: string
+          engagement_indicators?: Json
+          evidence_confidence?: string | null
+          fit_score?: number | null
+          handle?: string | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          languages?: string[]
+          legal_name?: string | null
+          licensing_interest?: string
+          location?: string | null
+          next_action?: string | null
+          notes?: string | null
+          persona?: string | null
+          primary_niche?: string | null
+          priority_tier?: string | null
+          profile_image_path?: string | null
+          public_urls?: Json
+          reach_indicators?: Json
+          record_source?: string
+          recruitability?: number | null
+          secondary_niches?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          voice_suitability?: number | null
+        }
+        Relationships: []
+      }
+      creator_network_earnings: {
+        Row: {
+          created_at: string
+          creator_id: string
+          currency: string
+          earning_type: string
+          fixed_fee: number
+          gross_sale_amount: number | null
+          id: string
+          is_test: boolean
+          opportunity_id: string | null
+          paid_at: string | null
+          payable_amount: number
+          payout_id: string | null
+          payout_reference: string | null
+          record_source: string
+          royalty: number
+          sale_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          currency?: string
+          earning_type?: string
+          fixed_fee?: number
+          gross_sale_amount?: number | null
+          id?: string
+          is_test?: boolean
+          opportunity_id?: string | null
+          paid_at?: string | null
+          payable_amount?: number
+          payout_id?: string | null
+          payout_reference?: string | null
+          record_source?: string
+          royalty?: number
+          sale_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          currency?: string
+          earning_type?: string
+          fixed_fee?: number
+          gross_sale_amount?: number | null
+          id?: string
+          is_test?: boolean
+          opportunity_id?: string | null
+          paid_at?: string | null
+          payable_amount?: number
+          payout_id?: string | null
+          payout_reference?: string | null
+          record_source?: string
+          royalty?: number
+          sale_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_earnings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_earnings_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_earnings_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_earnings_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "creator_network_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_experiments: {
+        Row: {
+          conclusion: string | null
+          created_at: string
+          ended_at: string | null
+          hypothesis: string
+          id: string
+          is_test: boolean
+          metric_key: string | null
+          notes: string | null
+          owner: string | null
+          record_source: string
+          started_at: string | null
+          status: string
+          success_criteria: string | null
+          updated_at: string
+        }
+        Insert: {
+          conclusion?: string | null
+          created_at?: string
+          ended_at?: string | null
+          hypothesis: string
+          id?: string
+          is_test?: boolean
+          metric_key?: string | null
+          notes?: string | null
+          owner?: string | null
+          record_source?: string
+          started_at?: string | null
+          status?: string
+          success_criteria?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conclusion?: string | null
+          created_at?: string
+          ended_at?: string | null
+          hypothesis?: string
+          id?: string
+          is_test?: boolean
+          metric_key?: string | null
+          notes?: string | null
+          owner?: string | null
+          record_source?: string
+          started_at?: string | null
+          status?: string
+          success_criteria?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      creator_network_findings: {
+        Row: {
+          brand_id: string | null
+          confidence: string | null
+          created_at: string
+          created_by: string | null
+          creator_id: string | null
+          data_type: string | null
+          evidence_classification: string
+          finding: string
+          id: string
+          is_current: boolean
+          is_test: boolean
+          last_verified_at: string | null
+          match_id: string | null
+          notes: string | null
+          opportunity_id: string | null
+          product_id: string | null
+          prospect_id: string | null
+          record_source: string
+          related_entity_type: string
+          research_agent: string | null
+          retrieved_at: string | null
+          source_name: string | null
+          source_url: string | null
+          supersedes_finding_id: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          creator_id?: string | null
+          data_type?: string | null
+          evidence_classification?: string
+          finding: string
+          id?: string
+          is_current?: boolean
+          is_test?: boolean
+          last_verified_at?: string | null
+          match_id?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          product_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          related_entity_type: string
+          research_agent?: string | null
+          retrieved_at?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          supersedes_finding_id?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          creator_id?: string | null
+          data_type?: string | null
+          evidence_classification?: string
+          finding?: string
+          id?: string
+          is_current?: boolean
+          is_test?: boolean
+          last_verified_at?: string | null
+          match_id?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          product_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          related_entity_type?: string
+          research_agent?: string | null
+          retrieved_at?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          supersedes_finding_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_findings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_findings_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_findings_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_findings_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_prospects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_findings_supersedes_finding_id_fkey"
+            columns: ["supersedes_finding_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_findings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_interviews: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          interviewer: string | null
+          is_test: boolean
+          record_source: string
+          responses: Json
+          scheduled_at: string | null
+          status: string
+          submitted_at: string | null
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          interviewer?: string | null
+          is_test?: boolean
+          record_source?: string
+          responses?: Json
+          scheduled_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          interviewer?: string | null
+          is_test?: boolean
+          record_source?: string
+          responses?: Json
+          scheduled_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_interviews_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_licences: {
+        Row: {
+          agreement_path: string | null
+          approval_requirements: string | null
+          brand_id: string | null
+          compensation_model: string | null
+          created_at: string
+          creator_approval_required: boolean
+          creator_id: string
+          creator_posted_permission: boolean
+          currency: string
+          digital_twin_permission: boolean
+          duration_months: number | null
+          expires_at: string | null
+          fixed_fee: number | null
+          id: string
+          is_test: boolean
+          licence_scope: string
+          likeness_permission: boolean
+          notes: string | null
+          opportunity_id: string | null
+          organic_social_permission: boolean
+          paid_advertising_permission: boolean
+          payment_status: string
+          platforms: string[]
+          production_job_id: string | null
+          prospect_id: string | null
+          record_source: string
+          restricted_brands: string[]
+          restricted_categories: string[]
+          revocation_reason: string | null
+          revoked: boolean
+          revoked_at: string | null
+          royalty_rate: number | null
+          starts_at: string | null
+          status: string
+          territories: string[]
+          updated_at: string
+          voice_permission: boolean
+        }
+        Insert: {
+          agreement_path?: string | null
+          approval_requirements?: string | null
+          brand_id?: string | null
+          compensation_model?: string | null
+          created_at?: string
+          creator_approval_required?: boolean
+          creator_id: string
+          creator_posted_permission?: boolean
+          currency?: string
+          digital_twin_permission?: boolean
+          duration_months?: number | null
+          expires_at?: string | null
+          fixed_fee?: number | null
+          id?: string
+          is_test?: boolean
+          licence_scope?: string
+          likeness_permission?: boolean
+          notes?: string | null
+          opportunity_id?: string | null
+          organic_social_permission?: boolean
+          paid_advertising_permission?: boolean
+          payment_status?: string
+          platforms?: string[]
+          production_job_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          restricted_brands?: string[]
+          restricted_categories?: string[]
+          revocation_reason?: string | null
+          revoked?: boolean
+          revoked_at?: string | null
+          royalty_rate?: number | null
+          starts_at?: string | null
+          status?: string
+          territories?: string[]
+          updated_at?: string
+          voice_permission?: boolean
+        }
+        Update: {
+          agreement_path?: string | null
+          approval_requirements?: string | null
+          brand_id?: string | null
+          compensation_model?: string | null
+          created_at?: string
+          creator_approval_required?: boolean
+          creator_id?: string
+          creator_posted_permission?: boolean
+          currency?: string
+          digital_twin_permission?: boolean
+          duration_months?: number | null
+          expires_at?: string | null
+          fixed_fee?: number | null
+          id?: string
+          is_test?: boolean
+          licence_scope?: string
+          likeness_permission?: boolean
+          notes?: string | null
+          opportunity_id?: string | null
+          organic_social_permission?: boolean
+          paid_advertising_permission?: boolean
+          payment_status?: string
+          platforms?: string[]
+          production_job_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          restricted_brands?: string[]
+          restricted_categories?: string[]
+          revocation_reason?: string | null
+          revoked?: boolean
+          revoked_at?: string | null
+          royalty_rate?: number | null
+          starts_at?: string | null
+          status?: string
+          territories?: string[]
+          updated_at?: string
+          voice_permission?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_licences_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_licences_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_matches: {
+        Row: {
+          brand_id: string | null
+          code: string
+          confidence: string | null
+          created_at: string
+          creator_id: string
+          evaluated_at: string | null
+          id: string
+          is_test: boolean
+          priority: string | null
+          product_id: string | null
+          product_source: string | null
+          prospect_id: string | null
+          reasoning: string | null
+          record_source: string
+          risks: string | null
+          score_version: string
+          scores: Json
+          status: string
+          total_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          code?: string
+          confidence?: string | null
+          created_at?: string
+          creator_id: string
+          evaluated_at?: string | null
+          id?: string
+          is_test?: boolean
+          priority?: string | null
+          product_id?: string | null
+          product_source?: string | null
+          prospect_id?: string | null
+          reasoning?: string | null
+          record_source?: string
+          risks?: string | null
+          score_version?: string
+          scores?: Json
+          status?: string
+          total_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          code?: string
+          confidence?: string | null
+          created_at?: string
+          creator_id?: string
+          evaluated_at?: string | null
+          id?: string
+          is_test?: boolean
+          priority?: string | null
+          product_id?: string | null
+          product_source?: string | null
+          prospect_id?: string | null
+          reasoning?: string | null
+          record_source?: string
+          risks?: string | null
+          score_version?: string
+          scores?: Json
+          status?: string
+          total_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_matches_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_matches_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_members: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      creator_network_opportunities: {
+        Row: {
+          blocker: string | null
+          brand_id: string | null
+          campaign_objective: string | null
+          code: string
+          created_at: string
+          creative_angle: string | null
+          creator_id: string
+          creator_royalty_estimate: number | null
+          currency: string
+          estimated_production_cost: number | null
+          expected_complexity: string | null
+          expected_gross_margin: number | null
+          human_owner: string | null
+          id: string
+          is_test: boolean
+          lost_reason: string | null
+          match_id: string | null
+          next_action: string | null
+          notes: string | null
+          opportunity_score: number | null
+          outcome: string | null
+          priority: string | null
+          product_id: string | null
+          product_source: string | null
+          proposed_selling_price: number | null
+          prospect_id: string | null
+          recommended_format: string | null
+          record_source: string
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          blocker?: string | null
+          brand_id?: string | null
+          campaign_objective?: string | null
+          code?: string
+          created_at?: string
+          creative_angle?: string | null
+          creator_id: string
+          creator_royalty_estimate?: number | null
+          currency?: string
+          estimated_production_cost?: number | null
+          expected_complexity?: string | null
+          expected_gross_margin?: number | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          lost_reason?: string | null
+          match_id?: string | null
+          next_action?: string | null
+          notes?: string | null
+          opportunity_score?: number | null
+          outcome?: string | null
+          priority?: string | null
+          product_id?: string | null
+          product_source?: string | null
+          proposed_selling_price?: number | null
+          prospect_id?: string | null
+          recommended_format?: string | null
+          record_source?: string
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          blocker?: string | null
+          brand_id?: string | null
+          campaign_objective?: string | null
+          code?: string
+          created_at?: string
+          creative_angle?: string | null
+          creator_id?: string
+          creator_royalty_estimate?: number | null
+          currency?: string
+          estimated_production_cost?: number | null
+          expected_complexity?: string | null
+          expected_gross_margin?: number | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          lost_reason?: string | null
+          match_id?: string | null
+          next_action?: string | null
+          notes?: string | null
+          opportunity_score?: number | null
+          outcome?: string | null
+          priority?: string | null
+          product_id?: string | null
+          product_source?: string | null
+          proposed_selling_price?: number | null
+          prospect_id?: string | null
+          recommended_format?: string | null
+          record_source?: string
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_opportunities_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_opportunities_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_opportunities_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          creator_id: string
+          currency: string
+          id: string
+          is_test: boolean
+          method: string | null
+          notes: string | null
+          paid_at: string | null
+          record_source: string
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          creator_id: string
+          currency?: string
+          id?: string
+          is_test?: boolean
+          method?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          record_source?: string
+          reference?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          creator_id?: string
+          currency?: string
+          id?: string
+          is_test?: boolean
+          method?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          record_source?: string
+          reference?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_payouts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_production_jobs: {
+        Row: {
+          blocked: boolean
+          blocker: string | null
+          brand_id: string | null
+          clean_master_path: string | null
+          code: string
+          concept_id: string
+          created_at: string
+          creator_id: string
+          design_job_id: string | null
+          human_intervention_count: number
+          human_owner: string | null
+          id: string
+          is_test: boolean
+          notes: string | null
+          opportunity_id: string
+          preview_path: string | null
+          product_id: string | null
+          product_source: string | null
+          production_cost: number
+          prospect_id: string | null
+          record_source: string
+          regeneration_count: number
+          rights_mode: string
+          stage: string
+          updated_at: string
+          video_project_id: string | null
+        }
+        Insert: {
+          blocked?: boolean
+          blocker?: string | null
+          brand_id?: string | null
+          clean_master_path?: string | null
+          code?: string
+          concept_id: string
+          created_at?: string
+          creator_id: string
+          design_job_id?: string | null
+          human_intervention_count?: number
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          opportunity_id: string
+          preview_path?: string | null
+          product_id?: string | null
+          product_source?: string | null
+          production_cost?: number
+          prospect_id?: string | null
+          record_source?: string
+          regeneration_count?: number
+          rights_mode?: string
+          stage?: string
+          updated_at?: string
+          video_project_id?: string | null
+        }
+        Update: {
+          blocked?: boolean
+          blocker?: string | null
+          brand_id?: string | null
+          clean_master_path?: string | null
+          code?: string
+          concept_id?: string
+          created_at?: string
+          creator_id?: string
+          design_job_id?: string | null
+          human_intervention_count?: number
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          opportunity_id?: string
+          preview_path?: string | null
+          product_id?: string | null
+          product_source?: string | null
+          production_cost?: number
+          prospect_id?: string | null
+          record_source?: string
+          regeneration_count?: number
+          rights_mode?: string
+          stage?: string
+          updated_at?: string
+          video_project_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_production_jobs_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_production_jobs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_production_jobs_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_production_reviews: {
+        Row: {
+          ai_output: string | null
+          created_at: string
+          decision: string
+          human_edit: string | null
+          id: string
+          is_test: boolean
+          job_id: string
+          output_url: string | null
+          reason: string | null
+          record_source: string
+          reviewed_at: string
+          reviewer: string | null
+          stage: string
+        }
+        Insert: {
+          ai_output?: string | null
+          created_at?: string
+          decision: string
+          human_edit?: string | null
+          id?: string
+          is_test?: boolean
+          job_id: string
+          output_url?: string | null
+          reason?: string | null
+          record_source?: string
+          reviewed_at?: string
+          reviewer?: string | null
+          stage: string
+        }
+        Update: {
+          ai_output?: string | null
+          created_at?: string
+          decision?: string
+          human_edit?: string | null
+          id?: string
+          is_test?: boolean
+          job_id?: string
+          output_url?: string | null
+          reason?: string | null
+          record_source?: string
+          reviewed_at?: string
+          reviewer?: string | null
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_production_reviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_production_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_prospect_products: {
+        Row: {
+          category: string | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_test: boolean
+          name: string
+          price: number | null
+          product_url: string | null
+          prospect_id: string
+          record_source: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_test?: boolean
+          name: string
+          price?: number | null
+          product_url?: string | null
+          prospect_id: string
+          record_source?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_test?: boolean
+          name?: string
+          price?: number | null
+          product_url?: string | null
+          prospect_id?: string
+          record_source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_prospect_products_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_prospects: {
+        Row: {
+          brand_positioning: string | null
+          business_name: string
+          category: string | null
+          code: string
+          commercial_activity: string | null
+          content_formats: string[]
+          converted_brand_id: string | null
+          created_at: string
+          evidence_confidence: string | null
+          human_owner: string | null
+          id: string
+          is_test: boolean
+          location: string | null
+          next_action: string | null
+          notes: string | null
+          observed_content_gap: string | null
+          products_summary: string | null
+          public_contact: string | null
+          purchase_ability_estimate: string | null
+          reachability: string | null
+          record_source: string
+          spec_ad_potential: string | null
+          subcategory: string | null
+          target_customer: string | null
+          updated_at: string
+          urls: Json
+          visual_style: string | null
+        }
+        Insert: {
+          brand_positioning?: string | null
+          business_name: string
+          category?: string | null
+          code?: string
+          commercial_activity?: string | null
+          content_formats?: string[]
+          converted_brand_id?: string | null
+          created_at?: string
+          evidence_confidence?: string | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          location?: string | null
+          next_action?: string | null
+          notes?: string | null
+          observed_content_gap?: string | null
+          products_summary?: string | null
+          public_contact?: string | null
+          purchase_ability_estimate?: string | null
+          reachability?: string | null
+          record_source?: string
+          spec_ad_potential?: string | null
+          subcategory?: string | null
+          target_customer?: string | null
+          updated_at?: string
+          urls?: Json
+          visual_style?: string | null
+        }
+        Update: {
+          brand_positioning?: string | null
+          business_name?: string
+          category?: string | null
+          code?: string
+          commercial_activity?: string | null
+          content_formats?: string[]
+          converted_brand_id?: string | null
+          created_at?: string
+          evidence_confidence?: string | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          location?: string | null
+          next_action?: string | null
+          notes?: string | null
+          observed_content_gap?: string | null
+          products_summary?: string | null
+          public_contact?: string | null
+          purchase_ability_estimate?: string | null
+          reachability?: string | null
+          record_source?: string
+          spec_ad_potential?: string | null
+          subcategory?: string | null
+          target_customer?: string | null
+          updated_at?: string
+          urls?: Json
+          visual_style?: string | null
+        }
+        Relationships: []
+      }
+      creator_network_sales: {
+        Row: {
+          brand_id: string | null
+          channel: string | null
+          code: string
+          contact: string | null
+          created_at: string
+          creator_id: string | null
+          creator_royalty: number | null
+          currency: string
+          follow_up_at: string | null
+          id: string
+          is_test: boolean
+          notes: string | null
+          offer_price: number | null
+          opportunity_id: string
+          outreach_message: string | null
+          paid_amount: number | null
+          payment_status: string
+          product_id: string | null
+          product_source: string | null
+          production_job_id: string | null
+          prospect_id: string | null
+          record_source: string
+          response: string | null
+          response_classification: string | null
+          salesperson: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          channel?: string | null
+          code?: string
+          contact?: string | null
+          created_at?: string
+          creator_id?: string | null
+          creator_royalty?: number | null
+          currency?: string
+          follow_up_at?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          offer_price?: number | null
+          opportunity_id: string
+          outreach_message?: string | null
+          paid_amount?: number | null
+          payment_status?: string
+          product_id?: string | null
+          product_source?: string | null
+          production_job_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          response?: string | null
+          response_classification?: string | null
+          salesperson?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          channel?: string | null
+          code?: string
+          contact?: string | null
+          created_at?: string
+          creator_id?: string | null
+          creator_royalty?: number | null
+          currency?: string
+          follow_up_at?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          offer_price?: number | null
+          opportunity_id?: string
+          outreach_message?: string | null
+          paid_amount?: number | null
+          payment_status?: string
+          product_id?: string | null
+          product_source?: string | null
+          production_job_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          response?: string | null
+          response_classification?: string | null
+          salesperson?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_sales_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_sales_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_sales_production_job_id_fkey"
+            columns: ["production_job_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_production_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_settings: {
+        Row: {
+          enabled: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      creator_network_tasks: {
+        Row: {
+          ai_agent: string | null
+          blocker: string | null
+          brand_id: string | null
+          code: string
+          completed_at: string | null
+          context: string | null
+          created_at: string
+          creator_id: string | null
+          depends_on_task_id: string | null
+          due_at: string | null
+          expected_output: string | null
+          human_assignee: string | null
+          id: string
+          is_test: boolean
+          match_id: string | null
+          next_step: string | null
+          opportunity_id: string | null
+          output: string | null
+          owner_type: string
+          priority: string
+          production_job_id: string | null
+          prospect_id: string | null
+          record_source: string
+          required_input: string | null
+          review_required: boolean
+          reviewer: string | null
+          status: string
+          title: string
+          updated_at: string
+          why: string | null
+        }
+        Insert: {
+          ai_agent?: string | null
+          blocker?: string | null
+          brand_id?: string | null
+          code?: string
+          completed_at?: string | null
+          context?: string | null
+          created_at?: string
+          creator_id?: string | null
+          depends_on_task_id?: string | null
+          due_at?: string | null
+          expected_output?: string | null
+          human_assignee?: string | null
+          id?: string
+          is_test?: boolean
+          match_id?: string | null
+          next_step?: string | null
+          opportunity_id?: string | null
+          output?: string | null
+          owner_type?: string
+          priority?: string
+          production_job_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          required_input?: string | null
+          review_required?: boolean
+          reviewer?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          why?: string | null
+        }
+        Update: {
+          ai_agent?: string | null
+          blocker?: string | null
+          brand_id?: string | null
+          code?: string
+          completed_at?: string | null
+          context?: string | null
+          created_at?: string
+          creator_id?: string | null
+          depends_on_task_id?: string | null
+          due_at?: string | null
+          expected_output?: string | null
+          human_assignee?: string | null
+          id?: string
+          is_test?: boolean
+          match_id?: string | null
+          next_step?: string | null
+          opportunity_id?: string | null
+          output?: string | null
+          owner_type?: string
+          priority?: string
+          production_job_id?: string | null
+          prospect_id?: string | null
+          record_source?: string
+          required_input?: string | null
+          review_required?: boolean
+          reviewer?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_tasks_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_tasks_depends_on_task_id_fkey"
+            columns: ["depends_on_task_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_tasks_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_tasks_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_tasks_production_job_id_fkey"
+            columns: ["production_job_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_production_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_network_tasks_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_network_validations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          evidence: string | null
+          evidence_classification: string
+          follow_up: string | null
+          human_owner: string | null
+          id: string
+          is_test: boolean
+          notes: string | null
+          owner_type: string
+          question: string | null
+          record_source: string
+          requested_at: string | null
+          response: string | null
+          score: number | null
+          status: string
+          updated_at: string
+          validation_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          evidence?: string | null
+          evidence_classification?: string
+          follow_up?: string | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          owner_type?: string
+          question?: string | null
+          record_source?: string
+          requested_at?: string | null
+          response?: string | null
+          score?: number | null
+          status?: string
+          updated_at?: string
+          validation_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          evidence?: string | null
+          evidence_classification?: string
+          follow_up?: string | null
+          human_owner?: string | null
+          id?: string
+          is_test?: boolean
+          notes?: string | null
+          owner_type?: string
+          question?: string | null
+          record_source?: string
+          requested_at?: string | null
+          response?: string | null
+          score?: number | null
+          status?: string
+          updated_at?: string
+          validation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_network_validations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_network_creators"
             referencedColumns: ["id"]
           },
         ]
@@ -4388,6 +6279,38 @@ export type Database = {
       activate_campaign_page: {
         Args: { _campaign_id: string }
         Returns: undefined
+      }
+      creator_network_can: { Args: { _role?: string }; Returns: boolean }
+      creator_network_enabled: { Args: never; Returns: boolean }
+      creator_network_has_access: {
+        Args: { _role?: string; _user_id: string }
+        Returns: boolean
+      }
+      creator_network_has_commercial_licence: {
+        Args: { _creator: string }
+        Returns: boolean
+      }
+      creator_network_submit_interview: {
+        Args: {
+          _creator_updates: Json
+          _interview_id: string
+          _next_action: string
+          _responses: Json
+          _summary: string
+        }
+        Returns: undefined
+      }
+      creator_network_supersede_finding: {
+        Args: {
+          _classification: string
+          _confidence: string
+          _finding: string
+          _notes: string
+          _old_id: string
+          _source_name: string
+          _source_url: string
+        }
+        Returns: string
       }
       expire_campaign_pages: { Args: never; Returns: number }
       finalize_stalled_design_jobs: { Args: never; Returns: number }
