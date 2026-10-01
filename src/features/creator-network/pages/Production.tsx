@@ -6,6 +6,7 @@ import { useCnList, useCnMutation, signedAssetUrl, friendlyError } from "../api/
 import { useNameMaps } from "../api/lookups";
 import { checkEligibility } from "../services/licenceEligibility";
 import { watermarkImage } from "../utils/watermark";
+import { buildCreatorNetworkProductionContext } from "../services/productionContext";
 import { PRODUCTION_STAGES, REVIEW_DECISIONS, type Row } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,33 +29,43 @@ function JobPanel({ job, onClose }: { job: Row; onClose: () => void }) {
   const idx = PRODUCTION_STAGES.indexOf(job.stage);
 
   const handoff = async () => {
-    if (!job.brand_id) return toast.error("Static handoff needs a Brandie brand. For prospects, upload the preview asset manually.");
     setBusy(true);
     try {
-      const { data: brand } = await (supabase as any).from("brands").select("*").eq("id", job.brand_id).maybeSingle();
-      if (!brand) throw new Error("Brand not accessible to you");
-      const brief = [`Creator Network speculative ad (${job.rights_mode.toLowerCase()}).`, con?.hook && `Hook: ${con.hook}`, con?.strategic_idea && `Idea: ${con.strategic_idea}`,
-        con?.product_placement && `Product: ${con.product_placement}`, con?.cta && `CTA: ${con.cta}`,
-        "Do not imply the creator personally used the product unless stated as verified."].filter(Boolean).join("\n");
+      const ctx = await buildCreatorNetworkProductionContext(job.opportunity_id, job.concept_id);
       const { data, error } = await supabase.functions.invoke("design-enqueue", {
-        body: { action: "generate", canvas_size: "1080x1080", messages: [{ role: "user", content: brief }], brand },
+        body: { action: "generate", canvas_size: "1080x1080", messages: [{ role: "user", content: ctx.brief }], brand: ctx.brand },
       });
       if (error || data?.error || !data?.job_id) throw new Error(error?.message || data?.error || "Could not start generation");
       await jm.update.mutateAsync({ id: job.id, values: { design_job_id: data.job_id, stage: "Scene Generation" } });
-      toast.success("Sent to Brandie Design pipeline");
+      toast.success("Sent to Brandie Design — collect the result when it finishes");
+    } catch (e) { toast.error(friendlyError(e)); } finally { setBusy(false); }
+  };
+
+  const storePreview = async (blob: Blob, extra: Record<string, any> = {}) => {
+    const path = `previews/${job.id}/${Date.now()}.png`;
+    const { error } = await supabase.storage.from("creator-network-assets").upload(path, blob, { contentType: "image/png" });
+    if (error) throw error;
+    await jm.update.mutateAsync({ id: job.id, values: { preview_path: path, stage: "Watermark", ...extra } });
+    trackEvent("creator_network_preview_ready", { job_id: job.id });
+  };
+
+  const collectResult = async () => {
+    setBusy(true);
+    try {
+      const { data: dj } = await (supabase as any).from("design_jobs").select("status,result,error").eq("id", job.design_job_id).maybeSingle();
+      if (!dj) throw new Error("Design job not found");
+      if (dj.status === "failed") throw new Error(dj.error?.message ?? "Generation failed — send it again");
+      const url = dj.result?.image_url;
+      if (!url) return toast.info(`Still generating (${dj.status}). Try again in a moment.`);
+      const blob = await watermarkImage(url);
+      await storePreview(blob, { output_url: url });
     } catch (e) { toast.error(friendlyError(e)); } finally { setBusy(false); }
   };
 
   const uploadPreview = async (file: File) => {
     setBusy(true);
     try {
-      const blob = file.type.startsWith("image/") ? await watermarkImage(file) : null;
-      if (!blob) throw new Error("Video previews must be watermarked in the video pipeline; upload an image here.");
-      const path = `previews/${job.id}/${Date.now()}.png`;
-      const { error } = await supabase.storage.from("creator-network-assets").upload(path, blob, { contentType: "image/png" });
-      if (error) throw error;
-      await jm.update.mutateAsync({ id: job.id, values: { preview_path: path, stage: "Watermark" } });
-      trackEvent("creator_network_preview_ready", { job_id: job.id });
+      await storePreview(await watermarkImage(file));
     } catch (e) { toast.error(friendlyError(e)); } finally { setBusy(false); }
   };
   const uploadMaster = async (file: File) => {
@@ -63,7 +74,8 @@ function JobPanel({ job, onClose }: { job: Row; onClose: () => void }) {
       const path = `masters/${job.id}/${Date.now()}-${file.name}`;
       const { error } = await supabase.storage.from("creator-network-assets").upload(path, file);
       if (error) throw error;
-      await jm.update.mutateAsync({ id: job.id, values: { clean_master_path: path } });
+      // Commercial gate in the database rejects this without an active commercial licence.
+      await jm.update.mutateAsync({ id: job.id, values: { clean_master_path: path, rights_mode: "Commercial" } });
     } catch (e) { toast.error(friendlyError(e)); } finally { setBusy(false); }
   };
 
@@ -81,21 +93,20 @@ function JobPanel({ job, onClose }: { job: Row; onClose: () => void }) {
         </ol>
         <div className="flex flex-wrap gap-2">
           <Button className="min-h-11" disabled={busy || idx >= PRODUCTION_STAGES.length - 1} onClick={() => jm.update.mutate({ id: job.id, values: { stage: PRODUCTION_STAGES[idx + 1] } })}>Advance to {PRODUCTION_STAGES[idx + 1] ?? "—"}</Button>
-          <Button variant="outline" className="min-h-11" disabled={busy || !!job.design_job_id} onClick={handoff}>{job.design_job_id ? "Sent to Design" : "Send to Brandie Design"}</Button>
+          <Button variant="outline" className="min-h-11" disabled={busy || !!job.design_job_id} onClick={handoff}>{job.design_job_id ? "Sent to Design" : "Generate static ad"}</Button>
+          {job.design_job_id && !job.output_url && <Button variant="outline" className="min-h-11" disabled={busy} onClick={collectResult}>Collect result & watermark</Button>}
           <Button variant="outline" className="min-h-11" onClick={() => setReview(true)}>Record review</Button>
           <label className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-md border border-input px-3 text-sm focus-within:ring-2 focus-within:ring-ring">
             <Upload className="h-4 w-4" />Upload preview (auto-watermarked)
             <input type="file" accept="image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && uploadPreview(e.target.files[0])} />
           </label>
-          {job.rights_mode === "Commercial" && (
-            <label className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-md border border-input px-3 text-sm focus-within:ring-2 focus-within:ring-ring">
-              <Upload className="h-4 w-4" />Upload clean master
-              <input type="file" className="sr-only" onChange={(e) => e.target.files?.[0] && uploadMaster(e.target.files[0])} />
-            </label>
-          )}
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-md border border-input px-3 text-sm focus-within:ring-2 focus-within:ring-ring">
+            <Upload className="h-4 w-4" />Upload clean master (needs commercial licence)
+            <input type="file" accept="image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && uploadMaster(e.target.files[0])} />
+          </label>
           {job.preview_path && <Button variant="ghost" className="min-h-11" onClick={async () => setPreviewUrl(await signedAssetUrl(job.preview_path))}>View preview</Button>}
         </div>
-        {job.design_job_id && <p className="text-xs text-muted-foreground">Design job: {job.design_job_id}. The render appears in the brand's Brandie history; review it here once ready.</p>}
+        {job.design_job_id && <p className="text-xs text-muted-foreground">Design job {job.design_job_id}{job.output_url ? " — result collected." : " — generation runs on Brandie's design pipeline."}</p>}
         {previewUrl && <img src={previewUrl} alt="Watermarked preview" className="max-h-80 rounded-xl border border-border" />}
         <Section title="Stage reviews" description="Every human decision becomes learning data.">
           <EntityTable rows={reviews.data} loading={reviews.isLoading} empty={{ title: "No reviews yet" }}
@@ -134,7 +145,7 @@ export default function Production() {
   ];
 
   return (
-    <CNLayout title="Production" subtitle="Orchestration only — rendering runs on Brandie's existing Design and Video pipelines."
+    <CNLayout title="Production" subtitle="Static image speculative ads, rendered by Brandie's existing design pipeline. Works for Brandie brands and external prospects. Video is not part of V1."
       actions={<Button className="min-h-11 rounded-xl" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Send concept to production</Button>}>
       <EntityTable rows={jobs.data} loading={jobs.isLoading} error={jobs.error} onRowClick={setSel}
         empty={{ title: "No production jobs", description: "Approve a concept on an opportunity first. Only approved concepts can enter production." }}

@@ -6,3 +6,5 @@
 - Creator Network tables are `creator_network_*`, additive and RLS-protected; the activity log is append-only — audit integrity.
 - Creator Network AI jobs must reach brand data only via `_shared/creator-network-brand-context.ts` — privacy-filtered projection, never raw Brand Centre.
 - Blueprint approval canonical path today is the client-side bulk update in `src/pages/v2/Blueprint.tsx`; `approve-blueprint` edge function is secondary — nothing new should depend on either until unified.
+- Creator Network opportunity stages change only through `creator_network_transition_opportunity()` (a trigger blocks direct edits) — dependencies and roles are enforced server-side.
+- Creator Network prospect renders reuse `design-enqueue` with an id-less brand object built by `services/productionContext.ts` — prospects never become Brandie brands.

@@ -28,9 +28,9 @@ export default function Sales() {
     { name: "contact", label: "Contact (business)" },
     { name: "channel", label: "Channel", type: "select", options: ["Email", "WhatsApp", "Instagram DM", "Phone", "In Person", "Other"] },
     { name: "offer_price", label: "Offer price (NGN)", type: "number" },
-    { name: "outreach_message", label: "Outreach message", type: "textarea", help: "AI may draft — a human always sends." },
+    { name: "outreach_message", label: "Outreach message", type: "textarea", help: "AI may draft. A human approves the package and sends it — Brandie never sends it." },
     { name: "status", label: "Status", type: "select", options: SALE_STATUSES },
-    { name: "sent_at", label: "Sent at", type: "datetime" },
+    { name: "sent_at", label: "Sent at (you sent it yourself)", type: "datetime" },
     { name: "response", label: "Response", type: "textarea" },
     { name: "response_classification", label: "Response classification", type: "select", options: RESPONSE_CLASSES },
     { name: "follow_up_at", label: "Follow-up", type: "datetime" },
@@ -61,6 +61,10 @@ export default function Sales() {
           { key: "response_classification", label: "Response", render: (r) => <StatusPill value={r.response_classification} /> },
           { key: "payment_status", label: "Payment", render: (r) => <StatusPill value={r.payment_status} /> },
           { key: "follow", label: "Follow-up", render: (r) => fmtDate(r.follow_up_at) },
+          { key: "approved", label: "Package", render: (r) => r.outreach_approved_at ? <StatusPill value="Approved" /> : (
+            <Button size="sm" variant="outline" className="min-h-11" onClick={async (e) => { e.stopPropagation();
+              const { error } = await (supabase as any).rpc("creator_network_approve_outreach", { _sale_id: r.id });
+              if (error) toast.error(friendlyError(error)); else { toast.success("Outreach package approved"); sales.refetch(); } }}>Approve package</Button>) },
           { key: "ai", label: "", render: (r) => <Button size="sm" variant="ghost" className="min-h-11" disabled={drafting === r.id} onClick={(e) => { e.stopPropagation(); draft(r); }}><Sparkles className="h-4 w-4 mr-1" />{drafting === r.id ? "Drafting…" : "AI draft"}</Button> }]} />
       <Section title="Creator earnings ledger" description="Separate from Brandie credits and affiliate commissions.">
         <EntityTable rows={earnings.data} loading={earnings.isLoading} empty={{ title: "No earnings yet", description: "Earnings are created when a sale is marked Paid." }}

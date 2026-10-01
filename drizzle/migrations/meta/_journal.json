@@ -22,6 +22,20 @@
       "when": 1790861550893,
       "tag": "0002_creator_network_append_only_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790863078622,
+      "tag": "0003_creator_network_v1_completion",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790863536102,
+      "tag": "0004_creator_network_ai_review",
+      "breakpoints": true
     }
   ]
 }

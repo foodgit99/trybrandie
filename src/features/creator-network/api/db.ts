@@ -46,6 +46,7 @@ export function useCnOne(table: CnTable, id: string | undefined) {
 /** Human-readable error from Postgres/RLS/trigger messages. */
 export function friendlyError(e: any): string {
   const m = String(e?.message ?? e ?? "Something went wrong");
+  if (/CN_TRANSITION:/.test(m)) return m.replace(/^.*CN_TRANSITION:\s*/, "");
   if (/row-level security/i.test(m)) return "You don't have permission for this action in Creator Network.";
   if (/creator_network_concepts_one_selected/.test(m)) return "Only one concept per opportunity can be Selected or Approved.";
   if (/check constraint/i.test(m)) {
@@ -95,4 +96,18 @@ export function useCnMutation(table: CnTable) {
 export async function signedAssetUrl(path: string, seconds = 600): Promise<string | null> {
   const { data } = await supabase.storage.from("creator-network-assets").createSignedUrl(path, seconds);
   return data?.signedUrl ?? null;
+}
+
+/** The only way to change an opportunity stage. Server validates dependencies and roles. */
+export function useOpportunityTransition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, to, reason }: { id: string; to: string; reason?: string }) => {
+      const { data, error } = await (supabase as any).rpc("creator_network_transition_opportunity", { _opportunity_id: id, _to: to, _reason: reason ?? null });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => { qc.invalidateQueries({ queryKey: ["cn"] }); toast.success(`Moved to ${d?.stage}`); },
+    onError: (e) => toast.error(friendlyError(e)),
+  });
 }
