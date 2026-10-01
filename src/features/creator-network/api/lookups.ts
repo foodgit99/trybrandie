@@ -19,7 +19,7 @@ export function useNameMaps() {
   const prospects = useCnList("prospects", { select: "id, code, business_name", order: "business_name", ascending: true });
   const brands = useBrandOptions();
   const creatorName = (id?: string | null) => creators.data?.find((c) => c.id === id)?.display_name ?? "—";
-  const partyName = (r: { brand_id?: string | null; prospect_id?: string | null }) =>
+  const partyName = (r: any) =>
     r.brand_id ? brands.data?.find((b) => b.id === r.brand_id)?.name ?? "Brand" : r.prospect_id ? prospects.data?.find((p) => p.id === r.prospect_id)?.business_name ?? "Prospect" : "—";
   return {
     creators: creators.data ?? [],

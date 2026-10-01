@@ -14,7 +14,7 @@ export function formatMoney(v: number | null | undefined, currency = "NGN"): str
 }
 
 /** Exclude test records from any KPI aggregation. */
-export function realOnly<T extends { is_test?: boolean | null }>(rows: T[] | null | undefined): T[] {
+export function realOnly<T = any>(rows: T[] | null | undefined): T[] {
   return (rows ?? []).filter((r) => !r.is_test);
 }
 
