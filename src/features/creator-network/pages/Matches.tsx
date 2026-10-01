@@ -99,9 +99,8 @@ export default function Matches() {
       <RecordDialog open={open} onOpenChange={(o) => { setOpen(o); }} title="New match" fields={fields}
         initial={{ creator_id: creatorF !== "all" ? creatorF : undefined }}
         onSubmit={save} />
-      <div className="hidden">{/* product loader: pick party to fetch products */}</div>
-      {open && (
-        <Section title="Load products for match" description="Choose the brand or prospect whose products should appear in the form.">
+      {(
+        <Section title="Product source for new matches" description="Pick a brand or prospect first so its products appear in the New match form.">
           <Select onValueChange={(v) => { const [k, id] = v.split(":"); setOwner(k === "b" ? { brand_id: id } : { prospect_id: id }); }}>
             <SelectTrigger className="min-h-11 max-w-sm" aria-label="Load products for"><SelectValue placeholder="Load products for…" /></SelectTrigger>
             <SelectContent>{partyOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
