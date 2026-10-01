@@ -15,7 +15,7 @@ export function formatMoney(v: number | null | undefined, currency = "NGN"): str
 
 /** Exclude test records from any KPI aggregation. */
 export function realOnly<T = any>(rows: T[] | null | undefined): T[] {
-  return (rows ?? []).filter((r) => !r.is_test);
+  return (rows ?? []).filter((r) => !(r as any)?.is_test);
 }
 
 export function average(values: Array<number | null | undefined>): number | null {
