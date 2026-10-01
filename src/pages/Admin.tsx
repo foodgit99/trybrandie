@@ -84,6 +84,7 @@ import SubscriptionsTab from "@/components/admin/SubscriptionsTab";
 import SupportTab from "@/components/admin/SupportTab";
 import AdminPartnersTab from "@/components/admin/AdminPartnersTab";
 import AdminEmailAliasesTab from "@/components/admin/AdminEmailAliasesTab";
+import CreatorNetworkAdminTab from "@/components/admin/CreatorNetworkAdminTab";
 
 
 
@@ -107,6 +108,7 @@ const TABLES = [
   { key: "rewards", label: "Rewards", icon: Gift },
   { key: "user_roles", label: "Roles", icon: Users },
   { key: "ai_traces", label: "AI Traces", icon: BarChart3 },
+  { key: "creator_network", label: "Creator Network", icon: Users },
 ];
 
 async function adminAction(payload: Record<string, unknown>) {
@@ -3180,7 +3182,7 @@ export default function Admin() {
             <UnifiedCampaigns />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases","campaign_pages"].includes(t.key)).map((t) => (
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases","campaign_pages","creator_network"].includes(t.key)).map((t) => (
 
 
             <TabsContent key={t.key} value={t.key}>
@@ -3205,6 +3207,10 @@ export default function Admin() {
 
           <TabsContent value="ai_traces">
             <AdminTracesTab />
+          </TabsContent>
+
+          <TabsContent value="creator_network">
+            <CreatorNetworkAdminTab />
           </TabsContent>
         </Tabs>
       </main>

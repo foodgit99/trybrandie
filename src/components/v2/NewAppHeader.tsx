@@ -37,7 +37,9 @@ import {
   Moon,
   Handshake,
   FileDown,
+  Network,
 } from "lucide-react";
+import { useCreatorNetwork } from "@/features/creator-network/hooks/useCreatorNetwork";
 
 
 
@@ -46,6 +48,7 @@ const NewAppHeader = () => {
   const { isAdmin, loading: adminLoading } = useAdminRole();
   const { isPartner } = usePartnerRole();
   const { isAffiliate } = useAffiliateRole();
+  const { canAccess: showCreatorNetwork } = useCreatorNetwork();
 
   const navigate = useNavigate();
   const { activeBrandId } = useBrand();
@@ -110,6 +113,13 @@ const NewAppHeader = () => {
               <Wand2 className="h-4 w-4" />
               Studio (Manual)
             </DropdownMenuItem>
+
+            {showCreatorNetwork && (
+              <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/creator-network")}>
+                <Network className="h-4 w-4" />
+                Creator Network
+              </DropdownMenuItem>
+            )}
 
             {isAffiliate && (
               <>

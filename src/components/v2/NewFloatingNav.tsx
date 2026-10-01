@@ -16,6 +16,8 @@ import { brandHref } from "@/hooks/useBrandParamSync";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Network } from "lucide-react";
+import { useCreatorNetwork } from "@/features/creator-network/hooks/useCreatorNetwork";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -70,9 +72,15 @@ const primaryPrefixes = [
   "/admin",
   "/affiliate",
   "/partner",
+  "/creator-network",
 ];
 
-const moreActivePrefixes = moreItems.map((i) => i.to);
+const creatorNetworkItem = {
+  to: "/creator-network",
+  label: "Creator Network",
+  icon: Network,
+  description: "Internal creator licensing ops",
+};
 
 const NewFloatingNav = () => {
   const { user } = useAuth();
@@ -80,6 +88,9 @@ const NewFloatingNav = () => {
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
+  const { canAccess: showCreatorNetwork } = useCreatorNetwork();
+  const items = showCreatorNetwork ? [...moreItems, creatorNetworkItem] : moreItems;
+  const moreActivePrefixes = items.map((i) => i.to);
 
   const onPrimary = primaryPrefixes.some((p) =>
     p.endsWith("/") ? pathname.startsWith(p) : pathname === p || pathname.startsWith(p + "/")
@@ -110,7 +121,7 @@ const NewFloatingNav = () => {
         More
       </p>
       <ul className="space-y-0.5">
-        {moreItems.map(({ to, label, icon: Icon, description }) => {
+        {items.map(({ to, label, icon: Icon, description }) => {
           const active = pathname === to || pathname.startsWith(to + "/");
           return (
             <li key={to}>
