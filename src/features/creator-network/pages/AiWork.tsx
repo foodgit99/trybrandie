@@ -56,6 +56,16 @@ export default function AiWork() {
               <div key={k as string}><h3 className="text-sm font-medium">{k as string}</h3><pre className="mt-1 whitespace-pre-wrap rounded-xl bg-muted p-3 text-xs">{v ? JSON.stringify(v, null, 2) : "—"}</pre></div>
             ))}
             {sel.error && <p role="alert" className="text-sm text-destructive">{sel.error}</p>}
+            {sel.review_decision && <p className="text-sm text-muted-foreground">Human review: {sel.review_decision}</p>}
+            {sel.status === "Needs Review" && (
+              <div className="flex gap-2">
+                {(["Accepted", "Rejected"] as const).map((d) => (
+                  <Button key={d} variant={d === "Accepted" ? "default" : "outline"} className="min-h-11" onClick={async () => {
+                    const { error } = await (supabase as any).rpc("creator_network_review_ai_run", { _run_id: sel.id, _decision: d });
+                    if (error) return toast.error(friendlyError(error));
+                    toast.success(`Marked ${d.toLowerCase()}`); setSel(null); qc.invalidateQueries({ queryKey: ["cn"] });
+                  }}>{d === "Accepted" ? "Accept" : "Reject"}</Button>))}
+              </div>)}
           </>)}
         </DialogContent>
       </Dialog>
