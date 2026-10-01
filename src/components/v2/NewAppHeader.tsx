@@ -36,6 +36,7 @@ import {
   Sun,
   Moon,
   Handshake,
+  FileDown,
 } from "lucide-react";
 
 
@@ -138,6 +139,20 @@ const NewAppHeader = () => {
                 <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/admin")}>
                   <Shield className="h-4 w-4" />
                   Admin Panel
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg cursor-pointer"
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = "/reports/brandie-creator-network-integration-readiness.md";
+                    a.download = "brandie-creator-network-integration-readiness.md";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                  }}
+                >
+                  <FileDown className="h-4 w-4" />
+                  Creator Network Report
                 </DropdownMenuItem>
               </>
             )}
