@@ -96,13 +96,25 @@ serve(async (req) => {
   }).select().single();
   if (runErr) return json({ error: runErr.message }, 500);
 
+  const logRun = (action: string, state: string, reason: string | null = null) =>
+    admin.from("creator_network_activity_log").insert({
+      actor_type: "ai", actor_id: user.id, action, entity_type: "ai_run", entity_id: run.id,
+      previous_state: "Running", new_state: state, reason, source: "creator-network-ai",
+      record_source: isTest ? "test" : "ai", is_test: isTest,
+    });
+  const span = tracer.startSpan(`creator-network:${body.agent}`);
   const fail = async (msg: string, status = 500) => {
-    await admin.from("creator_network_ai_runs").update({ status: "Failed", error: msg, ended_at: new Date().toISOString() }).eq("id", run.id);
+    // Failure promotes nothing: no output is stored, only the error.
+    await admin.from("creator_network_ai_runs").update({ status: "Failed", error: msg, output: null, ended_at: new Date().toISOString() }).eq("id", run.id);
+    await logRun("ai_run_failed", "Failed", msg);
+    span.fail(msg);
+    try { tracer.log(); } catch { /* tracing must never mask the error */ }
     return json({ error: msg, run_id: run.id }, status);
   };
   if (!apiKey) return fail("AI is not configured", 503);
+  // Test-only fault injection: only honoured for is_test records, never for real data.
+  if (body.simulate_failure === true && isTest) return fail("Simulated provider failure (test)", 503);
 
-  const span = tracer.startSpan(`creator-network:${body.agent}`);
   try {
     const { response, modelUsed } = await callWithFallback(
       MODEL_CHAINS[agent.chain] as any,
@@ -120,24 +132,24 @@ serve(async (req) => {
       GATEWAY,
       apiKey,
     );
-    if (response.status === 402) { span.fail("402"); return fail("AI credits exhausted for the workspace.", 402); }
-    if (response.status === 429) { span.fail("429"); return fail("AI is rate limited — try again shortly.", 429); }
-    if (!response.ok) { span.fail(String(response.status)); return fail(`AI gateway error ${response.status}`, 503); }
+    if (response.status === 402) { return fail("AI credits exhausted for the workspace.", 402); }
+    if (response.status === 429) { return fail("AI is rate limited — try again shortly.", 429); }
+    if (!response.ok) { return fail(`AI gateway error ${response.status}`, 503); }
     const data = await response.json();
     const text = data?.choices?.[0]?.message?.content ?? "";
     let output: any;
     try { output = JSON.parse(text); } catch { output = null; }
-    if (!output || typeof output !== "object") { span.fail("invalid_output"); return fail("AI returned an invalid response."); }
+    if (!output || typeof output !== "object") { return fail("AI returned an invalid response."); }
     span.finish({ status: "ok", metadata: { model: modelUsed } });
     const confidence = typeof output.confidence === "string" ? output.confidence : null;
     await admin.from("creator_network_ai_runs").update({
       status: "Needs Review", output, confidence, model_used: modelUsed, ended_at: new Date().toISOString(),
       evidence: entityType === "creator" ? { findings_used: (input as any).findings?.length ?? 0 } : null,
     }).eq("id", run.id);
+    await logRun("ai_run_completed", "Needs Review");
     tracer.log();
     return json({ run_id: run.id, output });
   } catch (e) {
-    span.fail(String(e));
     return fail(e instanceof Error ? e.message : String(e));
   }
 });

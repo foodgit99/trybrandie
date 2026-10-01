@@ -21,10 +21,10 @@ export default function AiWork() {
   const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<Row | null>(null);
 
-  const run = async (agent: string) => {
-    if (!creator) return toast.error("Pick a creator first");
+  const run = async (agent: string, entity: { type: string; id: string } | null = creator ? { type: "creator", id: creator } : null) => {
+    if (!entity) return toast.error("Pick a creator first");
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("creator-network-ai", { body: { agent, entity_type: "creator", entity_id: creator } });
+    const { data, error } = await supabase.functions.invoke("creator-network-ai", { body: { agent, entity_type: entity.type, entity_id: entity.id } });
     setBusy(false);
     qc.invalidateQueries({ queryKey: ["cn"] });
     if (error || data?.error) toast.error(friendlyError(data?.error ?? error));
@@ -56,6 +56,11 @@ export default function AiWork() {
               <div key={k as string}><h3 className="text-sm font-medium">{k as string}</h3><pre className="mt-1 whitespace-pre-wrap rounded-xl bg-muted p-3 text-xs">{v ? JSON.stringify(v, null, 2) : "—"}</pre></div>
             ))}
             {sel.error && <p role="alert" className="text-sm text-destructive">{sel.error}</p>}
+            {sel.status === "Failed" && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Nothing from this run was saved to the record. You can safely run it again.</p>
+                <Button className="min-h-11" disabled={busy} onClick={async () => { const s = sel; setSel(null); await run(s.agent, { type: s.entity_type, id: s.entity_id }); }}>{busy ? "Running…" : "Retry run"}</Button>
+              </div>)}
             {sel.review_decision && <p className="text-sm text-muted-foreground">Human review: {sel.review_decision}</p>}
             {sel.status === "Needs Review" && (
               <div className="flex gap-2">
