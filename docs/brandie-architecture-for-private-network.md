@@ -11,7 +11,7 @@ Status labels: **IMPL** means implemented and verified. **IMPL-UT** means implem
   - Migration history: 138 legacy migrations in `supabase/migrations/`, plus Drizzle migrations `drizzle/migrations/0001–0005`. All of the Drizzle migrations belong to Creator Network.
 - **AI:** calls go through the Lovable AI Gateway, using `_shared/model-fallback.ts`, `token-budget.ts`, `tracer.ts`, `ai-cache.ts`, `circuit-breaker.ts`, `sanitise.ts` and `validate-output.ts`.
 - **Tests:** Vitest, with `src/features/creator-network/__tests__/` holding 31 passing rule tests (re-run 2 Oct 2026). Playwright runs ad hoc and is not in CI.
-- **Build:** the latest entry, at 2026-10-02T20:36Z, is `build OK`. TypeScript is clean.
+- **Build:** the latest entry, at 2026-10-02T20:36Z, is `build OK`. A separate TypeScript check was not run in this audit.
 
 ## 2. Auth, roles and tenant boundaries
 - **Auth state:** a singleton store, `src/lib/authStore.ts`, sits behind `useAuth()` in `src/hooks/useAuth.tsx`. It makes one `getSession` call per page load. Do not create a second auth listener.
