@@ -10,7 +10,7 @@ Status labels: **IMPL** means implemented and verified. **IMPL-UT** means implem
   - There are 64 functions in `supabase/functions/`.
   - Migration history: 138 legacy migrations in `supabase/migrations/`, plus Drizzle migrations `drizzle/migrations/0001–0005`. All of the Drizzle migrations belong to Creator Network.
 - **AI:** calls go through the Lovable AI Gateway, using `_shared/model-fallback.ts`, `token-budget.ts`, `tracer.ts`, `ai-cache.ts`, `circuit-breaker.ts`, `sanitise.ts` and `validate-output.ts`.
-- **Tests:** Vitest, with `src/features/creator-network/__tests__/` holding 62 passing rule tests. Playwright runs ad hoc and is not in CI.
+- **Tests:** Vitest, with `src/features/creator-network/__tests__/` holding 31 passing rule tests (re-run 2 Oct 2026). Playwright runs ad hoc and is not in CI.
 - **Build:** the latest entry, at 2026-10-02T20:36Z, is `build OK`. TypeScript is clean.
 
 ## 2. Auth, roles and tenant boundaries
@@ -195,7 +195,7 @@ These mirror Creator Network's four registration edits.
 9. The two Blueprint approval paths (client-side and edge function) are not unified. Do not depend on either.
 
 ## 13. Test, build and queued work
-- **Build and tests:** build OK, TypeScript clean, 62 Vitest tests passing.
+- **Build and tests:** build OK (latest build log), 31 Vitest tests passing (2 files, re-run this audit).
 - **SQL audit:** `supabase/tests/creator_network_stage_audit.sql`.
 - **Queued and running work:** 0 design jobs queued or running at audit time.
 - **Open item:** the WhatsApp re-test and the V1 tag for Creator Network, both blocked on Twilio.
