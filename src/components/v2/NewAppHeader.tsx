@@ -1,3 +1,5 @@
+import { usePrivateNetwork } from "@/features/private-network/hooks/usePrivateNetwork";
+import { Share2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { usePartnerRole } from "@/hooks/usePartnerRole";
@@ -42,6 +44,7 @@ import {
 
 
 const NewAppHeader = () => {
+  const { canAccess: showPrivateNetwork } = usePrivateNetwork();
   const { signOut } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdminRole();
   const { isPartner } = usePartnerRole();
@@ -110,6 +113,13 @@ const NewAppHeader = () => {
               <Wand2 className="h-4 w-4" />
               Studio (Manual)
             </DropdownMenuItem>
+
+            {showPrivateNetwork && (
+              <DropdownMenuItem className="gap-2 rounded-lg cursor-pointer" onClick={() => navigate("/private-network")}>
+                <Share2 className="h-4 w-4" />
+                Private Network
+              </DropdownMenuItem>
+            )}
 
             {isAffiliate && (
               <>

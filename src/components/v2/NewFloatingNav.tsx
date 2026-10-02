@@ -18,6 +18,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Network } from "lucide-react";
 import { useCreatorNetwork } from "@/features/creator-network/hooks/useCreatorNetwork";
+import { usePrivateNetwork } from "@/features/private-network/hooks/usePrivateNetwork";
+import { Share2 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -82,6 +84,13 @@ const creatorNetworkItem = {
   description: "Internal creator licensing ops",
 };
 
+const privateNetworkItem = {
+  to: "/private-network",
+  label: "Private Network",
+  icon: Share2,
+  description: "Share campaigns, earn per post",
+};
+
 const NewFloatingNav = () => {
   const { user } = useAuth();
   const { activeBrandId } = useBrand();
@@ -89,7 +98,8 @@ const NewFloatingNav = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
   const { canAccess: showCreatorNetwork } = useCreatorNetwork();
-  const items = showCreatorNetwork ? [...moreItems, creatorNetworkItem] : moreItems;
+  const { canAccess: showPrivateNetwork } = usePrivateNetwork();
+  const items = [...moreItems, ...(showCreatorNetwork ? [creatorNetworkItem] : []), ...(showPrivateNetwork ? [privateNetworkItem] : [])];
   const moreActivePrefixes = items.map((i) => i.to);
 
   const onPrimary = primaryPrefixes.some((p) =>

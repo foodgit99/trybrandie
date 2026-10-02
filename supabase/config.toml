@@ -99,3 +99,12 @@ verify_jwt = false
 
 [functions.creator-network-ai]
 verify_jwt = false
+
+[functions.private-network-redirect]
+verify_jwt = false
+
+[functions.private-network-media]
+verify_jwt = false
+
+[functions.private-network-events]
+verify_jwt = false

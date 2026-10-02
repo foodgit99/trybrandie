@@ -85,6 +85,7 @@ import SupportTab from "@/components/admin/SupportTab";
 import AdminPartnersTab from "@/components/admin/AdminPartnersTab";
 import AdminEmailAliasesTab from "@/components/admin/AdminEmailAliasesTab";
 import CreatorNetworkAdminTab from "@/components/admin/CreatorNetworkAdminTab";
+import PrivateNetworkAdminTab from "@/components/admin/PrivateNetworkAdminTab";
 
 
 
@@ -109,6 +110,7 @@ const TABLES = [
   { key: "user_roles", label: "Roles", icon: Users },
   { key: "ai_traces", label: "AI Traces", icon: BarChart3 },
   { key: "creator_network", label: "Creator Network", icon: Users },
+  { key: "private_network", label: "Private Network", icon: Users },
 ];
 
 async function adminAction(payload: Record<string, unknown>) {
@@ -3182,7 +3184,7 @@ export default function Admin() {
             <UnifiedCampaigns />
           </TabsContent>
 
-          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases","campaign_pages","creator_network"].includes(t.key)).map((t) => (
+          {TABLES.filter((t) => !["overview","support","email_crm","designs","ai_traces","affiliates","rewards","subscriptions","partners","email_aliases","campaign_pages","creator_network","private_network"].includes(t.key)).map((t) => (
 
 
             <TabsContent key={t.key} value={t.key}>
@@ -3211,6 +3213,10 @@ export default function Admin() {
 
           <TabsContent value="creator_network">
             <CreatorNetworkAdminTab />
+          </TabsContent>
+
+          <TabsContent value="private_network">
+            <PrivateNetworkAdminTab />
           </TabsContent>
         </Tabs>
       </main>

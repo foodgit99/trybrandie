@@ -68,6 +68,7 @@ import AgentCockpit from "./pages/agent/AgentCockpit";
 import AgentSettings from "./pages/agent/AgentSettings";
 import { lazy, Suspense } from "react";
 const CreatorNetworkRoutes = lazy(() => import("./features/creator-network/CreatorNetworkRoutes"));
+const PrivateNetworkRoutes = lazy(() => import("./features/private-network/PrivateNetworkRoutes"));
 
 const queryClient = new QueryClient();
 
@@ -275,6 +276,7 @@ const App = () => (
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/private-network/*" element={<Suspense fallback={<div className="flex min-h-screen items-center justify-center"><LoadingState label="Loading" /></div>}><PrivateNetworkRoutes /></Suspense>} />
           <Route path="/creator-network/*" element={<ProtectedRoute><Suspense fallback={<div className="flex min-h-screen items-center justify-center"><LoadingState label="Loading" /></div>}><CreatorNetworkRoutes /></Suspense></ProtectedRoute>} />
           <Route path="/admin/google-connect" element={<AdminRoute><AdminGoogleConnect /></AdminRoute>} />
 
