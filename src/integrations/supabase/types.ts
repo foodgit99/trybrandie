@@ -5438,6 +5438,810 @@ export type Database = {
           },
         ]
       }
+      private_network_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          entity_id: string | null
+          entity_type: string
+          id: string
+          is_test: boolean
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          is_test?: boolean
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          is_test?: boolean
+        }
+        Relationships: []
+      }
+      private_network_allowed_domains: {
+        Row: {
+          approved_by: string | null
+          brand_id: string
+          created_at: string
+          host: string
+          id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          brand_id: string
+          created_at?: string
+          host: string
+          id?: string
+        }
+        Update: {
+          approved_by?: string | null
+          brand_id?: string
+          created_at?: string
+          host?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      private_network_campaigns: {
+        Row: {
+          action_bonus_ngn: number
+          base_fee_ngn: number
+          brand_id: string
+          budget_ngn: number
+          budget_reserved_ngn: number
+          budget_spent_ngn: number
+          code: string
+          conversion_commission_pct: number
+          created_at: string
+          description: string | null
+          ends_at: string | null
+          funding_reference: string | null
+          funding_status: string
+          id: string
+          is_test: boolean
+          landing_host: string | null
+          landing_url: string
+          max_placements: number | null
+          min_audience: number | null
+          name: string
+          owner_user_id: string
+          per_publisher_cap: number
+          record_source: string
+          review_note: string | null
+          starts_at: string
+          status: string
+          target_age_brackets: string[]
+          target_geographies: string[]
+          target_interests: string[]
+          target_languages: string[]
+          target_platforms: string[]
+          updated_at: string
+        }
+        Insert: {
+          action_bonus_ngn?: number
+          base_fee_ngn?: number
+          brand_id: string
+          budget_ngn?: number
+          budget_reserved_ngn?: number
+          budget_spent_ngn?: number
+          code?: string
+          conversion_commission_pct?: number
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          funding_reference?: string | null
+          funding_status?: string
+          id?: string
+          is_test?: boolean
+          landing_host?: string | null
+          landing_url: string
+          max_placements?: number | null
+          min_audience?: number | null
+          name: string
+          owner_user_id: string
+          per_publisher_cap?: number
+          record_source?: string
+          review_note?: string | null
+          starts_at?: string
+          status?: string
+          target_age_brackets?: string[]
+          target_geographies?: string[]
+          target_interests?: string[]
+          target_languages?: string[]
+          target_platforms?: string[]
+          updated_at?: string
+        }
+        Update: {
+          action_bonus_ngn?: number
+          base_fee_ngn?: number
+          brand_id?: string
+          budget_ngn?: number
+          budget_reserved_ngn?: number
+          budget_spent_ngn?: number
+          code?: string
+          conversion_commission_pct?: number
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          funding_reference?: string | null
+          funding_status?: string
+          id?: string
+          is_test?: boolean
+          landing_host?: string | null
+          landing_url?: string
+          max_placements?: number | null
+          min_audience?: number | null
+          name?: string
+          owner_user_id?: string
+          per_publisher_cap?: number
+          record_source?: string
+          review_note?: string | null
+          starts_at?: string
+          status?: string
+          target_age_brackets?: string[]
+          target_geographies?: string[]
+          target_interests?: string[]
+          target_languages?: string[]
+          target_platforms?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_campaigns_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_creatives: {
+        Row: {
+          campaign_id: string
+          caption: string | null
+          cn_licence_id: string | null
+          cn_production_job_id: string | null
+          created_at: string
+          created_by: string | null
+          creator_approval_recorded: boolean
+          design_id: string | null
+          id: string
+          is_test: boolean
+          media_source: string
+          media_type: string
+          private_redistribution_confirmed: boolean
+          public_media_url: string | null
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          rights_attestation: string | null
+          rights_attested: boolean
+          rights_attested_at: string | null
+          rights_attested_by: string | null
+          rights_expires_at: string | null
+          rights_platforms: string[]
+          status: string
+          storage_bucket: string | null
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          caption?: string | null
+          cn_licence_id?: string | null
+          cn_production_job_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          creator_approval_recorded?: boolean
+          design_id?: string | null
+          id?: string
+          is_test?: boolean
+          media_source: string
+          media_type: string
+          private_redistribution_confirmed?: boolean
+          public_media_url?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_attestation?: string | null
+          rights_attested?: boolean
+          rights_attested_at?: string | null
+          rights_attested_by?: string | null
+          rights_expires_at?: string | null
+          rights_platforms?: string[]
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          caption?: string | null
+          cn_licence_id?: string | null
+          cn_production_job_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          creator_approval_recorded?: boolean
+          design_id?: string | null
+          id?: string
+          is_test?: boolean
+          media_source?: string
+          media_type?: string
+          private_redistribution_confirmed?: boolean
+          public_media_url?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_attestation?: string | null
+          rights_attested?: boolean
+          rights_attested_at?: string | null
+          rights_attested_by?: string | null
+          rights_expires_at?: string | null
+          rights_platforms?: string[]
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_creatives_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_events: {
+        Row: {
+          actor_user_id: string | null
+          amount: number | null
+          caller_user_id: string | null
+          created_at: string
+          earned_amount: number
+          event_type: string
+          external_event_id: string | null
+          id: string
+          ip_hash: string | null
+          is_test: boolean
+          outcome: string
+          placement_id: string
+          source: string
+          ua_hash: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          amount?: number | null
+          caller_user_id?: string | null
+          created_at?: string
+          earned_amount?: number
+          event_type: string
+          external_event_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          is_test?: boolean
+          outcome?: string
+          placement_id: string
+          source: string
+          ua_hash?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          amount?: number | null
+          caller_user_id?: string | null
+          created_at?: string
+          earned_amount?: number
+          event_type?: string
+          external_event_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          is_test?: boolean
+          outcome?: string
+          placement_id?: string
+          source?: string
+          ua_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_events_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_ledger: {
+        Row: {
+          amount: number
+          bucket: string
+          campaign_id: string | null
+          created_at: string
+          created_by: string | null
+          entry_type: string
+          event_id: string | null
+          id: string
+          idempotency_key: string
+          is_test: boolean
+          note: string | null
+          payout_id: string | null
+          placement_id: string | null
+          publisher_id: string
+        }
+        Insert: {
+          amount: number
+          bucket: string
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_type: string
+          event_id?: string | null
+          id?: string
+          idempotency_key: string
+          is_test?: boolean
+          note?: string | null
+          payout_id?: string | null
+          placement_id?: string | null
+          publisher_id: string
+        }
+        Update: {
+          amount?: number
+          bucket?: string
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_type?: string
+          event_id?: string | null
+          id?: string
+          idempotency_key?: string
+          is_test?: boolean
+          note?: string | null
+          payout_id?: string | null
+          placement_id?: string | null
+          publisher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_ledger_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_ledger_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_ledger_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_ledger_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_ledger_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_publishers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_likes: {
+        Row: {
+          created_at: string
+          creative_id: string
+          publisher_id: string
+        }
+        Insert: {
+          created_at?: string
+          creative_id: string
+          publisher_id: string
+        }
+        Update: {
+          created_at?: string
+          creative_id?: string
+          publisher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_likes_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_likes_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_publishers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_members: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      private_network_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          is_test: boolean
+          paid_at: string | null
+          payout_details: Json
+          publisher_id: string
+          reason: string | null
+          reference: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          paid_at?: string | null
+          payout_details?: Json
+          publisher_id: string
+          reason?: string | null
+          reference?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          paid_at?: string | null
+          payout_details?: Json
+          publisher_id?: string
+          reason?: string | null
+          reference?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_payouts_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_publishers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_placements: {
+        Row: {
+          campaign_id: string
+          cancelled_at: string | null
+          clicks: number
+          conversions: number
+          created_at: string
+          creative_id: string
+          id: string
+          idempotency_key: string | null
+          is_test: boolean
+          leads: number
+          platform: Database["public"]["Enums"]["private_network_platform"]
+          proof_note: string | null
+          proof_path: string | null
+          proof_submitted_at: string | null
+          proof_url: string | null
+          publisher_id: string
+          reject_reason: string | null
+          reserved_amount: number
+          resubmission_count: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          share_initiated_at: string | null
+          share_method: string | null
+          snapshot_action_bonus: number
+          snapshot_base_fee: number
+          snapshot_commission_pct: number
+          status: string
+          token: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          cancelled_at?: string | null
+          clicks?: number
+          conversions?: number
+          created_at?: string
+          creative_id: string
+          id?: string
+          idempotency_key?: string | null
+          is_test?: boolean
+          leads?: number
+          platform: Database["public"]["Enums"]["private_network_platform"]
+          proof_note?: string | null
+          proof_path?: string | null
+          proof_submitted_at?: string | null
+          proof_url?: string | null
+          publisher_id: string
+          reject_reason?: string | null
+          reserved_amount?: number
+          resubmission_count?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          share_initiated_at?: string | null
+          share_method?: string | null
+          snapshot_action_bonus: number
+          snapshot_base_fee: number
+          snapshot_commission_pct: number
+          status?: string
+          token?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          cancelled_at?: string | null
+          clicks?: number
+          conversions?: number
+          created_at?: string
+          creative_id?: string
+          id?: string
+          idempotency_key?: string | null
+          is_test?: boolean
+          leads?: number
+          platform?: Database["public"]["Enums"]["private_network_platform"]
+          proof_note?: string | null
+          proof_path?: string | null
+          proof_submitted_at?: string | null
+          proof_url?: string | null
+          publisher_id?: string
+          reject_reason?: string | null
+          reserved_amount?: number
+          resubmission_count?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          share_initiated_at?: string | null
+          share_method?: string | null
+          snapshot_action_bonus?: number
+          snapshot_base_fee?: number
+          snapshot_commission_pct?: number
+          status?: string
+          token?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_placements_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_placements_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_placements_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_publishers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_publishers: {
+        Row: {
+          affiliations: string[]
+          age_bracket: string | null
+          audience_age_brackets: string[]
+          audience_geographies: string[]
+          audience_size_estimate: number | null
+          audience_views_estimate: number | null
+          communities: string[]
+          created_at: string
+          creator_id: string | null
+          creator_link_code: string | null
+          creator_link_status: string
+          display_name: string | null
+          estimates_are_self_reported: boolean
+          id: string
+          industries: string[]
+          interests: string[]
+          is_test: boolean
+          languages: string[]
+          location_city: string | null
+          location_country: string | null
+          location_state: string | null
+          occupation: string | null
+          payout_details: Json
+          platforms: string[]
+          record_source: string
+          school: string | null
+          status: string
+          status_reason: string | null
+          updated_at: string
+          user_id: string
+          workplace: string | null
+        }
+        Insert: {
+          affiliations?: string[]
+          age_bracket?: string | null
+          audience_age_brackets?: string[]
+          audience_geographies?: string[]
+          audience_size_estimate?: number | null
+          audience_views_estimate?: number | null
+          communities?: string[]
+          created_at?: string
+          creator_id?: string | null
+          creator_link_code?: string | null
+          creator_link_status?: string
+          display_name?: string | null
+          estimates_are_self_reported?: boolean
+          id?: string
+          industries?: string[]
+          interests?: string[]
+          is_test?: boolean
+          languages?: string[]
+          location_city?: string | null
+          location_country?: string | null
+          location_state?: string | null
+          occupation?: string | null
+          payout_details?: Json
+          platforms?: string[]
+          record_source?: string
+          school?: string | null
+          status?: string
+          status_reason?: string | null
+          updated_at?: string
+          user_id: string
+          workplace?: string | null
+        }
+        Update: {
+          affiliations?: string[]
+          age_bracket?: string | null
+          audience_age_brackets?: string[]
+          audience_geographies?: string[]
+          audience_size_estimate?: number | null
+          audience_views_estimate?: number | null
+          communities?: string[]
+          created_at?: string
+          creator_id?: string | null
+          creator_link_code?: string | null
+          creator_link_status?: string
+          display_name?: string | null
+          estimates_are_self_reported?: boolean
+          id?: string
+          industries?: string[]
+          interests?: string[]
+          is_test?: boolean
+          languages?: string[]
+          location_city?: string | null
+          location_country?: string | null
+          location_state?: string | null
+          occupation?: string | null
+          payout_details?: Json
+          platforms?: string[]
+          record_source?: string
+          school?: string | null
+          status?: string
+          status_reason?: string | null
+          updated_at?: string
+          user_id?: string
+          workplace?: string | null
+        }
+        Relationships: []
+      }
+      private_network_saves: {
+        Row: {
+          created_at: string
+          creative_id: string
+          publisher_id: string
+        }
+        Insert: {
+          created_at?: string
+          creative_id: string
+          publisher_id: string
+        }
+        Update: {
+          created_at?: string
+          creative_id?: string
+          publisher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_saves_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_saves_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_publishers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_settings: {
+        Row: {
+          enabled: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       product_events: {
         Row: {
           brand_id: string | null
@@ -6410,6 +7214,231 @@ export type Database = {
           user_id: string
         }[]
       }
+      private_network_add_cn_creative: {
+        Args: {
+          _campaign: string
+          _caption: string
+          _creator_approval?: boolean
+          _job: string
+          _licence: string
+          _rights_expires: string
+          _rights_platforms: string[]
+        }
+        Returns: string
+      }
+      private_network_allow_domain: {
+        Args: { _allow?: boolean; _brand: string; _host: string }
+        Returns: undefined
+      }
+      private_network_balance: { Args: { _publisher: string }; Returns: Json }
+      private_network_campaign_transition: {
+        Args: { _id: string; _note?: string; _to: string }
+        Returns: Json
+      }
+      private_network_cancel_placement: {
+        Args: { _placement: string }
+        Returns: undefined
+      }
+      private_network_creative_eligibility: {
+        Args: { _creative: string; _platform?: string }
+        Returns: string[]
+      }
+      private_network_delete_profile: { Args: never; Returns: undefined }
+      private_network_enabled: { Args: never; Returns: boolean }
+      private_network_feed: {
+        Args: { _limit?: number; _offset?: number; _saved_only?: boolean }
+        Returns: {
+          action_bonus_ngn: number
+          base_fee_ngn: number
+          brand_logo: string
+          brand_name: string
+          campaign_code: string
+          campaign_id: string
+          campaign_name: string
+          caption: string
+          commission_pct: number
+          creative_id: string
+          description: string
+          ends_at: string
+          liked: boolean
+          media_source: string
+          media_type: string
+          my_placement_status: string
+          platforms: string[]
+          public_media_url: string
+          reasons: string[]
+          saved: boolean
+          score: number
+          score_version: string
+        }[]
+      }
+      private_network_has_role: {
+        Args: { _role?: string; _uid: string }
+        Returns: boolean
+      }
+      private_network_ingest_event: {
+        Args: {
+          _actor: string
+          _amount: number
+          _caller: string
+          _external_id: string
+          _token: string
+          _type: string
+        }
+        Returns: Json
+      }
+      private_network_is_operator: { Args: never; Returns: boolean }
+      private_network_list_cn_masters: {
+        Args: never
+        Returns: {
+          creator_id: string
+          creator_name: string
+          expires_at: string
+          has_clean_master: boolean
+          is_test: boolean
+          job_code: string
+          licence_id: string
+          licence_scope: string
+          licence_status: string
+          organic: boolean
+          platforms: string[]
+          production_job_id: string
+          qa_approved: boolean
+          revoked: boolean
+          territories: string[]
+        }[]
+      }
+      private_network_log: {
+        Args: {
+          _action: string
+          _details?: Json
+          _entity: string
+          _id: string
+          _is_test?: boolean
+        }
+        Returns: undefined
+      }
+      private_network_lower: { Args: { _a: string[] }; Returns: string[] }
+      private_network_mark_share: {
+        Args: { _method: string; _placement: string }
+        Returns: undefined
+      }
+      private_network_metrics: {
+        Args: { _include_test?: boolean }
+        Returns: Json
+      }
+      private_network_my_placements: {
+        Args: never
+        Returns: {
+          action_bonus: number
+          base_fee: number
+          brand_name: string
+          campaign_code: string
+          campaign_name: string
+          campaign_status: string
+          caption: string
+          clicks: number
+          commission_pct: number
+          conversions: number
+          created_at: string
+          creative_id: string
+          earned: number
+          id: string
+          leads: number
+          media_type: string
+          platform: string
+          proof_submitted_at: string
+          proof_url: string
+          reject_reason: string
+          resubmission_count: number
+          share_initiated_at: string
+          share_method: string
+          status: string
+          token: string
+          verified_at: string
+        }[]
+      }
+      private_network_my_publisher_id: { Args: never; Returns: string }
+      private_network_publish: {
+        Args: {
+          _creative: string
+          _idempotency_key?: string
+          _platform: string
+        }
+        Returns: Json
+      }
+      private_network_record_funding: {
+        Args: { _id: string; _reference: string; _status: string }
+        Returns: undefined
+      }
+      private_network_release_pending: {
+        Args: { _publisher: string }
+        Returns: number
+      }
+      private_network_release_reservation: {
+        Args: { _amount: number; _campaign: string }
+        Returns: undefined
+      }
+      private_network_request_payout: {
+        Args: { _amount: number }
+        Returns: string
+      }
+      private_network_require_enabled: { Args: never; Returns: undefined }
+      private_network_resolve_redirect: {
+        Args: { _ip_hash: string; _token: string; _ua_hash: string }
+        Returns: Json
+      }
+      private_network_reverse_entry: {
+        Args: { _entry: string; _reason: string }
+        Returns: undefined
+      }
+      private_network_review_creative: {
+        Args: {
+          _confirm_private_rights?: boolean
+          _decision: string
+          _id: string
+          _reason?: string
+        }
+        Returns: Json
+      }
+      private_network_review_payout: {
+        Args: {
+          _decision: string
+          _id: string
+          _reason?: string
+          _reference?: string
+        }
+        Returns: undefined
+      }
+      private_network_review_proof: {
+        Args: { _decision: string; _placement: string; _reason?: string }
+        Returns: Json
+      }
+      private_network_review_publisher: {
+        Args: { _decision: string; _id: string; _reason?: string }
+        Returns: undefined
+      }
+      private_network_save_profile: { Args: { _p: Json }; Returns: string }
+      private_network_set_enabled: {
+        Args: { _enabled: boolean }
+        Returns: undefined
+      }
+      private_network_set_member: {
+        Args: { _add: boolean; _email: string; _role: string }
+        Returns: undefined
+      }
+      private_network_submit_creator_link: {
+        Args: { _code: string }
+        Returns: Json
+      }
+      private_network_submit_proof: {
+        Args: { _note: string; _path: string; _placement: string; _url: string }
+        Returns: undefined
+      }
+      private_network_validate_platforms: {
+        Args: { _a: string[] }
+        Returns: undefined
+      }
       process_referral: { Args: { p_user_id: string }; Returns: Json }
       record_preset_feedback: {
         Args: { p_design_id: string; p_vote: number }
@@ -6418,6 +7447,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      private_network_platform:
+        | "whatsapp_status"
+        | "whatsapp_chat"
+        | "instagram"
+        | "facebook"
+        | "tiktok"
+        | "x"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -6546,6 +7583,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      private_network_platform: [
+        "whatsapp_status",
+        "whatsapp_chat",
+        "instagram",
+        "facebook",
+        "tiktok",
+        "x",
+        "other",
+      ],
     },
   },
 } as const
