@@ -17,7 +17,7 @@ DECLARE
 BEGIN
   -- 0. flag OFF blocks mutations
   PERFORM pg_temp.as_user(ua);
-  BEGIN PERFORM public.private_network_save_profile('{}'); res := res || 'FAIL off-mutation allowed'; EXCEPTION WHEN OTHERS THEN res := res || ('PASS flag OFF blocks save_profile: ' || SQLERRM); END;
+  BEGIN PERFORM public.private_network_save_profile('{}'); res := res || 'FAIL off-mutation allowed'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS flag OFF blocks save_profile: ' || SQLERRM); END;
   UPDATE public.private_network_settings SET enabled = true WHERE id;
 
   prof := '{"display_name":"TEST Pub","occupation":"Trader","location_country":"Nigeria","location_city":"Lagos","age_bracket":"25-34","languages":["English","Yoruba"],"interests":["fashion"],"communities":["market traders"],"industries":["retail"],"platforms":["whatsapp_status","instagram"],"audience_size_estimate":"500","audience_geographies":["Lagos"],"audience_age_brackets":["25-34"],"payout_details":{"bank_name":"TEST","account_number":"0000000000","account_name":"TEST"}}';
@@ -29,8 +29,8 @@ BEGIN
   SELECT count(*) INTO n FROM public.private_network_publishers WHERE id=pa AND languages = ARRAY['English','Yoruba'] AND audience_size_estimate=500 AND status='pending';
   res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' profile save/readback pending');
   PERFORM pg_temp.as_user(ua);
-  BEGIN PERFORM * FROM public.private_network_feed(5,0,false); res := res || 'FAIL feed before approval'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unapproved publisher cannot read feed'; END;
-  BEGIN PERFORM public.private_network_review_publisher(pb,'approve'); res := res || 'FAIL publisher self-approve'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS non-operator cannot approve publishers'; END;
+  BEGIN PERFORM * FROM public.private_network_feed(5,0,false); res := res || 'FAIL feed before approval'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unapproved publisher cannot read feed'::text; END;
+  BEGIN PERFORM public.private_network_review_publisher(pb,'approve'); res := res || 'FAIL publisher self-approve'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS non-operator cannot approve publishers'::text; END;
   PERFORM pg_temp.as_user(admin);
   PERFORM public.private_network_review_publisher(pa,'approve'); PERFORM public.private_network_review_publisher(pb,'approve');
   PERFORM public.private_network_review_publisher(pc,'approve'); PERFORM public.private_network_review_publisher(pd,'approve');
@@ -39,8 +39,8 @@ BEGIN
   PERFORM pg_temp.as_user(owner);
   BEGIN
     INSERT INTO public.private_network_campaigns (brand_id, owner_user_id, name, landing_url) VALUES (brand, owner, 'TEST bad', 'javascript:alert(1)');
-    res := res || 'FAIL unsafe landing accepted';
-  EXCEPTION WHEN OTHERS THEN res := res || 'PASS unsafe landing URL rejected'; END;
+    res := res || 'FAIL unsafe landing accepted'::text;
+  EXCEPTION WHEN OTHERS THEN res := res || 'PASS unsafe landing URL rejected'::text; END;
   INSERT INTO public.private_network_campaigns (brand_id, owner_user_id, name, landing_url, status, funding_status, budget_spent_ngn, target_platforms, target_languages, target_geographies,
     base_fee_ngn, action_bonus_ngn, conversion_commission_pct, budget_ngn, per_publisher_cap, is_test, record_source)
   VALUES (brand, owner, 'TEST PN Campaign', 'https://trybrandie.com/pn-test', 'active', 'funded_manual', 999, ARRAY['whatsapp_status','instagram'], ARRAY['English'], ARRAY['Lagos'],
@@ -52,27 +52,27 @@ BEGIN
   SELECT status INTO t FROM public.private_network_creatives WHERE id=cr_up;
   res := res || (CASE WHEN t='pending' THEN 'PASS' ELSE 'FAIL' END || ' owner cannot self-approve creative');
   BEGIN PERFORM public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'x', '{}', NULL, true);
-    res := res || 'FAIL owner added CN master'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot add Creator Network masters'; END;
-  BEGIN UPDATE public.private_network_campaigns SET status='active' WHERE id=camp; res := res || 'FAIL direct status edit'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS direct status edit blocked'; END;
+    res := res || 'FAIL owner added CN master'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot add Creator Network masters'::text; END;
+  BEGIN UPDATE public.private_network_campaigns SET status='active' WHERE id=camp; res := res || 'FAIL direct status edit'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS direct status edit blocked'::text; END;
   r := public.private_network_campaign_transition(camp, 'pending_review');
-  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL owner self-activated'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot activate'; END;
+  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL owner self-activated'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot activate'::text; END;
 
   -- 2. operator review
   PERFORM pg_temp.as_user(admin);
   cr_cn := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'TEST licensed', ARRAY['whatsapp_status','instagram'], NULL, true);
   cr_prev := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', 'b47e90a3-3e00-4fed-af32-58a7c6fb4fa3', 'TEST preview', '{}', NULL, true);
-  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated unfunded'; EXCEPTION WHEN OTHERS THEN res := res || ('PASS unfunded activation blocked: ' || SQLERRM); END;
-  BEGIN PERFORM public.private_network_record_funding(camp, 'funded_manual', NULL); res := res || 'FAIL funding without ref'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS funding needs reference'; END;
+  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated unfunded'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS unfunded activation blocked: ' || SQLERRM); END;
+  BEGIN PERFORM public.private_network_record_funding(camp, 'funded_manual', NULL); res := res || 'FAIL funding without ref'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS funding needs reference'::text; END;
   PERFORM public.private_network_record_funding(camp, 'test', 'TEST');
-  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without domain'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unapproved domain blocks activation'; END;
+  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without domain'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unapproved domain blocks activation'::text; END;
   PERFORM public.private_network_allow_domain(brand, 'trybrandie.com', true);
-  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without approved creative'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS no approved creative blocks activation'; END;
-  BEGIN PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, false); res := res || 'FAIL CN approved w/o explicit rights'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS CN master needs explicit private-redistribution confirmation'; END;
-  BEGIN PERFORM public.private_network_review_creative(cr_prev, 'approve', NULL, true); res := res || 'FAIL preview licence approved'; EXCEPTION WHEN OTHERS THEN res := res || ('PASS preview-only licence ineligible: ' || left(SQLERRM, 90)); END;
+  BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without approved creative'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS no approved creative blocks activation'::text; END;
+  BEGIN PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, false); res := res || 'FAIL CN approved w/o explicit rights'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS CN master needs explicit private-redistribution confirmation'::text; END;
+  BEGIN PERFORM public.private_network_review_creative(cr_prev, 'approve', NULL, true); res := res || 'FAIL preview licence approved'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS preview-only licence ineligible: ' || left(SQLERRM, 90)); END;
   PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, true);
   PERFORM public.private_network_review_creative(cr_up, 'approve');
   PERFORM public.private_network_campaign_transition(camp, 'active');
-  res := res || 'PASS operator activated funded TEST campaign';
+  res := res || 'PASS operator activated funded TEST campaign'::text;
 
   -- 3. feed + matching + paging
   PERFORM pg_temp.as_user(ua);
@@ -91,13 +91,13 @@ BEGIN
   res := res || (CASE WHEN (r2->>'replayed')::boolean AND r2->>'token'=tok THEN 'PASS' ELSE 'FAIL' END || ' publish idempotent replay ' || plc);
   SELECT count(*) INTO n FROM public.private_network_ledger WHERE publisher_id=pa;
   res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' no earnings at publish');
-  BEGIN PERFORM public.private_network_publish(cr_cn, 'instagram', 'k2'); res := res || 'FAIL cap exceeded'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS per-publisher cap enforced'; END;
+  BEGIN PERFORM public.private_network_publish(cr_cn, 'instagram', 'k2'); res := res || 'FAIL cap exceeded'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS per-publisher cap enforced'::text; END;
   PERFORM pg_temp.as_user(ub);
-  BEGIN PERFORM public.private_network_publish(cr_up, 'tiktok', 'x'); res := res || 'FAIL wrong platform'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS platform outside campaign refused'; END;
+  BEGIN PERFORM public.private_network_publish(cr_up, 'tiktok', 'x'); res := res || 'FAIL wrong platform'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS platform outside campaign refused'::text; END;
   r := public.private_network_publish(cr_up, 'instagram', 'kb'); plb := (r->>'placement_id')::uuid; tokb := r->>'token';
   PERFORM pg_temp.as_user(uc); r := public.private_network_publish(cr_cn, 'whatsapp_status', 'kc');
   PERFORM pg_temp.as_user(ud);
-  BEGIN PERFORM public.private_network_publish(cr_up, 'whatsapp_status', 'kd'); res := res || 'FAIL budget overrun'; EXCEPTION WHEN OTHERS THEN res := res || ('PASS exhausted budget refuses reservation: ' || SQLERRM); END;
+  BEGIN PERFORM public.private_network_publish(cr_up, 'whatsapp_status', 'kd'); res := res || 'FAIL budget overrun'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS exhausted budget refuses reservation: ' || SQLERRM); END;
   SELECT budget_reserved_ngn INTO v FROM public.private_network_campaigns WHERE id=camp;
   res := res || (CASE WHEN v=900 THEN 'PASS' ELSE 'FAIL' END || ' atomic reservation total ' || v);
 
@@ -117,12 +117,12 @@ BEGIN
   res := res || (CASE WHEN r->>'outcome'='withheld_unverified_post' THEN 'PASS' ELSE 'FAIL' END || ' lead before verification earns 0');
 
   -- 7. proof, rejection, resubmit, verify
-  BEGIN PERFORM public.private_network_submit_proof(plc, ub::text || '/x.jpg', NULL, NULL); res := res || 'FAIL foreign proof path'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS proof must be in own folder'; END;
+  BEGIN PERFORM public.private_network_submit_proof(plc, ub::text || '/x.jpg', NULL, NULL); res := res || 'FAIL foreign proof path'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS proof must be in own folder'::text; END;
   PERFORM public.private_network_submit_proof(plc, ua::text || '/' || plc::text || '/1.jpg', NULL, 'TEST');
   PERFORM pg_temp.as_user(ord);
-  BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL ordinary user verified'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS ordinary user cannot verify proof'; END;
+  BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL ordinary user verified'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS ordinary user cannot verify proof'::text; END;
   PERFORM pg_temp.as_user(admin);
-  BEGIN PERFORM public.private_network_review_proof(plc, 'reject', NULL); res := res || 'FAIL reject w/o reason'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS rejection needs a reason'; END;
+  BEGIN PERFORM public.private_network_review_proof(plc, 'reject', NULL); res := res || 'FAIL reject w/o reason'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS rejection needs a reason'::text; END;
   PERFORM public.private_network_review_proof(plc, 'reject', 'TEST screenshot blurry');
   PERFORM pg_temp.as_user(ua);
   PERFORM public.private_network_submit_proof(plc, ua::text || '/' || plc::text || '/2.jpg', 'https://instagram.com/p/test', NULL);
@@ -130,7 +130,7 @@ BEGIN
   res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' resubmission recorded');
   PERFORM pg_temp.as_user(admin);
   PERFORM public.private_network_review_proof(plc, 'verify');
-  BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL double verify'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS double verification refused'; END;
+  BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL double verify'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS double verification refused'::text; END;
   SELECT count(*), sum(amount) INTO n, v FROM public.private_network_ledger WHERE placement_id=plc AND entry_type='base_fee';
   res := res || (CASE WHEN n=1 AND v=300 THEN 'PASS' ELSE 'FAIL' END || ' base fee credited once (pending 300)');
 
@@ -142,7 +142,7 @@ BEGIN
   res := res || (CASE WHEN r->>'outcome'='withheld_budget_exhausted' THEN 'PASS' ELSE 'FAIL' END || ' conversion withheld when budget exhausted');
   r := public.private_network_ingest_event(owner, tok, 'qualified_action', 'TEST-e3', NULL, ua);
   res := res || (CASE WHEN r->>'outcome'='rejected_self_action' THEN 'PASS' ELSE 'FAIL' END || ' self-action rejected');
-  BEGIN PERFORM public.private_network_ingest_event(ua, tok, 'conversion', 'TEST-e4', 100, NULL); res := res || 'FAIL publisher reported own conversion'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher/untrusted caller cannot report events'; END;
+  BEGIN PERFORM public.private_network_ingest_event(ua, tok, 'conversion', 'TEST-e4', 100, NULL); res := res || 'FAIL publisher reported own conversion'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher/untrusted caller cannot report events'::text; END;
   PERFORM pg_temp.as_user(uc); PERFORM public.private_network_cancel_placement((SELECT id FROM public.private_network_placements WHERE publisher_id=pc));
   r := public.private_network_ingest_event(owner, tok, 'conversion', 'TEST-e5', 2000, NULL);
   res := res || (CASE WHEN (r->>'earned')::numeric=200 THEN 'PASS' ELSE 'FAIL' END || ' conversion commission 10% after cancel freed budget');
@@ -150,23 +150,23 @@ BEGIN
   res := res || (CASE WHEN v <= 1000 THEN 'PASS' ELSE 'FAIL' END || ' budget conserved (reserved+spent=' || v || ' <= 1000)');
 
   -- 9. ledger immutability + payouts
-  BEGIN UPDATE public.private_network_ledger SET amount = 99999 WHERE publisher_id=pa; res := res || 'FAIL ledger mutable'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS ledger append-only'; END;
+  BEGIN UPDATE public.private_network_ledger SET amount = 99999 WHERE publisher_id=pa; res := res || 'FAIL ledger mutable'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS ledger append-only'::text; END;
   PERFORM pg_temp.as_user(ua);
-  BEGIN PERFORM public.private_network_request_payout(100); res := res || 'FAIL payout from pending'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout needs available balance'; END;
+  BEGIN PERFORM public.private_network_request_payout(100); res := res || 'FAIL payout from pending'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout needs available balance'::text; END;
   PERFORM pg_temp.as_user(owner);
-  BEGIN PERFORM public.private_network_release_pending(pa); res := res || 'FAIL non-finance release'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS only finance can release'; END;
+  BEGIN PERFORM public.private_network_release_pending(pa); res := res || 'FAIL non-finance release'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS only finance can release'::text; END;
   PERFORM pg_temp.as_user(admin);
   v := public.private_network_release_pending(pa);
   res := res || (CASE WHEN v=600 THEN 'PASS' ELSE 'FAIL' END || ' released ' || v);
   PERFORM pg_temp.as_user(ua);
-  BEGIN PERFORM public.private_network_request_payout(1000); res := res || 'FAIL overdraw'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout above balance refused'; END;
+  BEGIN PERFORM public.private_network_request_payout(1000); res := res || 'FAIL overdraw'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout above balance refused'::text; END;
   plb := public.private_network_request_payout(500);
-  BEGIN PERFORM public.private_network_request_payout(50); res := res || 'FAIL duplicate payout'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS one open payout at a time'; END;
+  BEGIN PERFORM public.private_network_request_payout(50); res := res || 'FAIL duplicate payout'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS one open payout at a time'::text; END;
   PERFORM pg_temp.as_user(admin);
   PERFORM public.private_network_review_payout(plb, 'approve');
-  BEGIN PERFORM public.private_network_review_payout(plb, 'paid', NULL); res := res || 'FAIL paid w/o ref'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS settlement needs reference'; END;
+  BEGIN PERFORM public.private_network_review_payout(plb, 'paid', NULL); res := res || 'FAIL paid w/o ref'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS settlement needs reference'::text; END;
   PERFORM public.private_network_review_payout(plb, 'paid', 'TEST-REF-001');
-  BEGIN PERFORM public.private_network_review_payout(plb, 'paid', 'TEST-REF-002'); res := res || 'FAIL double settle'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout cannot settle twice'; END;
+  BEGIN PERFORM public.private_network_review_payout(plb, 'paid', 'TEST-REF-002'); res := res || 'FAIL double settle'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout cannot settle twice'::text; END;
   r := public.private_network_balance(pa);
   res := res || (CASE WHEN (r->>'available')::numeric=100 AND (r->>'paid')::numeric=500 AND (r->>'pending')::numeric=0 THEN 'PASS' ELSE 'FAIL' END || ' balances ' || r::text);
 
@@ -189,7 +189,7 @@ BEGIN
   PERFORM pg_temp.as_user(owner);
   PERFORM public.private_network_campaign_transition(camp, 'paused');
   PERFORM pg_temp.as_user(ud);
-  BEGIN PERFORM public.private_network_publish(cr_up, 'instagram', 'kd2'); res := res || 'FAIL publish on paused'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS paused campaign refuses new posts'; END;
+  BEGIN PERFORM public.private_network_publish(cr_up, 'instagram', 'kd2'); res := res || 'FAIL publish on paused'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS paused campaign refuses new posts'::text; END;
   PERFORM pg_temp.as_user(owner); PERFORM public.private_network_campaign_transition(camp, 'ended');
   r := public.private_network_resolve_redirect(tok, 'iphash3', 'ua');
   res := res || (CASE WHEN r->>'reason'='ended' THEN 'PASS' ELSE 'FAIL' END || ' ended campaign link unavailable');
@@ -200,8 +200,8 @@ BEGIN
   SELECT count(*) INTO n FROM public.private_network_publishers; res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' publisher B sees only own biodata (' || n || ')');
   SELECT count(*) INTO n FROM public.private_network_ledger WHERE publisher_id = pa; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher B cannot read A ledger');
   SELECT count(*) INTO n FROM public.private_network_campaigns; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher B cannot read campaign budgets');
-  BEGIN INSERT INTO public.private_network_likes (publisher_id, creative_id) VALUES (pa, cr_up); res := res || 'FAIL cross-publisher like'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS cannot write likes as another publisher'; END;
-  BEGIN INSERT INTO public.private_network_ledger (publisher_id, entry_type, bucket, amount, idempotency_key) VALUES (pb,'base_fee','available',1e6,'hack'); res := res || 'FAIL self-credit'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher cannot write ledger'; END;
+  BEGIN INSERT INTO public.private_network_likes (publisher_id, creative_id) VALUES (pa, cr_up); res := res || 'FAIL cross-publisher like'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS cannot write likes as another publisher'::text; END;
+  BEGIN INSERT INTO public.private_network_ledger (publisher_id, entry_type, bucket, amount, idempotency_key) VALUES (pb,'base_fee','available',1e6,'hack'); res := res || 'FAIL self-credit'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher cannot write ledger'::text; END;
   EXECUTE 'RESET ROLE';
   PERFORM pg_temp.as_user(owner);
   EXECUTE 'SET LOCAL ROLE authenticated';
@@ -211,18 +211,18 @@ BEGIN
   PERFORM pg_temp.as_user(ord);
   EXECUTE 'SET LOCAL ROLE authenticated';
   SELECT count(*) INTO n FROM public.private_network_campaigns; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' other tenant cannot read brand A campaigns');
-  BEGIN INSERT INTO public.private_network_campaigns (brand_id, owner_user_id, name, landing_url) VALUES (brand, ord, 'x', 'https://a.com'); res := res || 'FAIL cross-tenant campaign'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS cannot create campaign for another brand'; END;
+  BEGIN INSERT INTO public.private_network_campaigns (brand_id, owner_user_id, name, landing_url) VALUES (brand, ord, 'x', 'https://a.com'); res := res || 'FAIL cross-tenant campaign'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS cannot create campaign for another brand'::text; END;
   SELECT count(*) INTO n FROM public.creator_network_creators; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher/ordinary user cannot open Creator Network data');
   EXECUTE 'RESET ROLE';
   EXECUTE 'SET LOCAL ROLE anon';
-  BEGIN SELECT count(*) INTO n FROM public.private_network_placements; res := res || ('FAIL anon read placements ' || n); EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot read placements'; END;
-  BEGIN PERFORM public.private_network_feed(1,0,false); res := res || 'FAIL anon feed'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot call feed'; END;
+  BEGIN SELECT count(*) INTO n FROM public.private_network_placements; res := res || ('FAIL anon read placements ' || n); EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot read placements'::text; END;
+  BEGIN PERFORM public.private_network_feed(1,0,false); res := res || 'FAIL anon feed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot call feed'::text; END;
   EXECUTE 'RESET ROLE';
 
   -- 13. flag OFF again
   UPDATE public.private_network_settings SET enabled = false WHERE id;
   PERFORM pg_temp.as_user(ua);
-  BEGIN PERFORM * FROM public.private_network_feed(1,0,false); res := res || 'FAIL feed while off'; EXCEPTION WHEN OTHERS THEN res := res || 'PASS flag OFF blocks feed'; END;
+  BEGIN PERFORM * FROM public.private_network_feed(1,0,false); res := res || 'FAIL feed while off'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS flag OFF blocks feed'::text; END;
   r := public.private_network_resolve_redirect(tok, 'x', 'y');
   res := res || (CASE WHEN r->>'reason'='off' THEN 'PASS' ELSE 'FAIL' END || ' flag OFF disables redirect');
 
