@@ -78,6 +78,13 @@
       "when": 1791329501125,
       "tag": "0010_private_network_rpc_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791330210172,
+      "tag": "0011_private_network_revoke_anon",
+      "breakpoints": true
     }
   ]
 }
