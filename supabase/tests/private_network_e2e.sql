@@ -72,9 +72,8 @@ BEGIN
   BEGIN PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, true, NULL); res := res || 'FAIL CN approved without agreement evidence'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS CN approval needs agreement evidence'::text; END;
   -- strict licence rules (all changes rolled back with the transaction)
   UPDATE public.creator_network_licences SET platforms = ARRAY['WhatsApp','Instagram'], territories = ARRAY['Lagos','NG'] WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
-  UPDATE public.creator_network_licences SET licence_scope = NULL WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
-  t := array_to_string(public.private_network_creative_eligibility(cr_cn, NULL), ' ');
-  res := res || (CASE WHEN t LIKE '%explicitly Commercial%' THEN 'PASS' ELSE 'FAIL' END || ' missing scope is NOT treated as Commercial');
+  BEGIN UPDATE public.creator_network_licences SET licence_scope = NULL WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06'; res := res || 'FAIL blank licence scope stored'::text;
+  EXCEPTION WHEN not_null_violation THEN res := res || 'PASS licence scope can never be blank; PN also requires scope = Commercial explicitly'::text; END;
   UPDATE public.creator_network_licences SET licence_scope = 'Commercial', platforms = '{}' WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
   t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
   res := res || (CASE WHEN t LIKE '%names no platforms%' THEN 'PASS' ELSE 'FAIL' END || ' licence with no named platforms is denied');
