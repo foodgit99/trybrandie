@@ -301,7 +301,7 @@ BEGIN
   PERFORM pg_temp.as_user(owner);
   BEGIN UPDATE public.private_network_campaigns SET budget_ngn = 1e9 WHERE id = camp; res := res || 'FAIL owner raised funded budget'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot change funded budget'::text; END;
   BEGIN UPDATE public.private_network_campaigns SET budget_spent_ngn = 0 WHERE id = camp; res := res || 'FAIL owner reset spent'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot edit spent/reserved counters'::text; END;
-  BEGIN UPDATE public.private_network_creatives SET private_redistribution_evidence = 'forged evidence' WHERE id = cr_cn; res := res || 'FAIL owner edited rights evidence'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot edit rights approval/evidence'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET private_redistribution_evidence = 'forged evidence' WHERE id = cr_prev; res := res || 'FAIL owner edited rights evidence'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot edit rights approval/evidence'::text; END;
   -- execute grant matrix
   SELECT count(*) INTO n FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace WHERE ns.nspname='public' AND p.proname LIKE 'private_network%' AND has_function_privilege('anon', p.oid, 'EXECUTE');
   res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' anon can execute no PN function (' || n || ')');
