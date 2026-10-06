@@ -194,6 +194,70 @@ function Finance() {
   );
 }
 
+/** Brand-user-reported events never earn until finance checks them against the advertiser's records. */
+function Reconciliation() {
+  const q = usePnQuery<any[]>(["op-recon"], list("events", (x) => x.eq("outcome", "pending_reconciliation")));
+  const act = usePnAction(({ id, ok, amt, note }: any) => rpc("reconcile_event", { _event: id, _approve: ok, _verified_amount: amt ?? null, _note: note }), "Event reconciled");
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Events awaiting reconciliation</p>
+      <p className="text-xs text-muted-foreground">Reported by a brand user, not a trusted integration. Check against the advertiser's order/lead records before approving.</p>
+      {(q.data ?? []).length === 0 && <p className="text-xs text-muted-foreground">None waiting.</p>}
+      {(q.data ?? []).map((e) => (
+        <div key={e.id} className="rounded-xl border p-3 text-sm space-y-1">
+          <p>{e.event_type} · ref {e.external_event_id}{e.amount != null && ` · reported ${formatNgn(e.amount)}`}{e.is_test && " · TEST"} · {new Date(e.created_at).toLocaleString()}</p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => {
+              const note = ask("Source reference you checked (order id, CRM record)"); if (!note) return;
+              let amt: number | undefined;
+              if (e.event_type === "conversion") { const v = ask(`Verified sale amount in ₦ (reported ${e.amount})`); if (!v) return; amt = Number(v); }
+              act.mutate({ id: e.id, ok: true, amt, note });
+            }}>Approve</Button>
+            <Button size="sm" variant="ghost" onClick={() => { const note = ask("Why is it rejected?"); note && act.mutate({ id: e.id, ok: false, note }); }}>Reject</Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Server-to-server keys let an advertiser's own backend report trusted events. Shown once, stored hashed. */
+function IntegrationKeys() {
+  const pn = usePrivateNetwork();
+  const q = usePnQuery<any[]>(["op-keys"], list("integration_keys"));
+  const [brand, setBrand] = useState("");
+  const [label, setLabel] = useState("");
+  const [shown, setShown] = useState<string | null>(null);
+  const create = usePnAction(() => rpc<{ key: string }>("create_integration_key", { _brand: brand, _label: label }).then((r) => { setShown(r.key); setLabel(""); }), "Key created");
+  const revoke = usePnAction((id: string) => rpc("revoke_integration_key", { _id: id }), "Key revoked");
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Integration keys</p>
+      <div className="flex flex-wrap gap-2">
+        <select aria-label="Brand" className="h-9 rounded-md border bg-background px-2 text-sm" value={brand} onChange={(e) => setBrand(e.target.value)}>
+          <option value="">Choose brand</option>
+          {pn.brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+        <Input aria-label="Key label" className="h-9 w-48" placeholder="Label (e.g. Shop backend)" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <Button size="sm" disabled={!brand || !label.trim() || create.isPending} onClick={() => create.mutate(undefined)}>Create key</Button>
+      </div>
+      {shown && (
+        <div className="rounded-xl border p-3 text-xs space-y-1">
+          <p className="font-semibold">Copy this key now — it will not be shown again.</p>
+          <code className="break-all">{shown}</code>
+          <div><Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(shown); toast.success("Copied"); }}>Copy</Button> <Button size="sm" variant="ghost" onClick={() => setShown(null)}>Done</Button></div>
+        </div>
+      )}
+      {(q.data ?? []).map((k) => (
+        <div key={k.id} className="flex items-center justify-between rounded border p-1.5 text-xs">
+          <span>{k.label} · …{k.key_hint} · {pn.brands.find((b) => b.id === k.brand_id)?.name ?? k.brand_id}{k.revoked_at && " · revoked"}</span>
+          {!k.revoked_at && <Button size="sm" variant="ghost" onClick={() => revoke.mutate(k.id)}>Revoke</Button>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Metrics() {
   const [inc, setInc] = useState(false);
   const q = usePnQuery<any>(["op-metrics", inc], () => rpc("metrics", { _include_test: inc }));
@@ -240,7 +304,7 @@ export default function OperatorConsole() {
       <TabsContent value="campaigns"><CampaignReview /></TabsContent>
       <TabsContent value="creatives"><Creatives /></TabsContent>
       <TabsContent value="proofs"><Proofs /></TabsContent>
-      {pn.hasRole("finance") && <TabsContent value="finance"><Finance /></TabsContent>}
+      {pn.hasRole("finance") && <TabsContent value="finance"><div className="space-y-6"><Finance /><Reconciliation />{pn.hasRole() && <IntegrationKeys />}</div></TabsContent>}
       <TabsContent value="metrics"><Metrics /></TabsContent>
       <TabsContent value="audit"><Audit /></TabsContent>
     </Tabs>
