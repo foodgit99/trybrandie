@@ -81,11 +81,12 @@ function Creatives() {
   const q = usePnQuery<any[]>(["op-creatives"], async () => {
     const rows = await list("creatives", (x) => x.eq("status", "pending"))();
     const media = await signedMedia(rows.map((r: any) => r.id)).catch(() => ({} as any));
-    const eligibility = await Promise.all(rows.map((r: any) => rpc<string[]>("creative_eligibility", { _creative: r.id, _platform: null }).catch(() => [])));
+    const eligibility = await Promise.all(rows.map((r: any) => rpc<string[]>("review_reasons", { _creative: r.id }).catch((e) => [String(e?.message ?? e)])));
     return rows.map((r: any, i: number) => ({ ...r, url: media[r.id]?.url ?? r.public_media_url, reasons: eligibility[i] }));
   });
   const [confirm, setConfirm] = useState<Record<string, boolean>>({});
-  const act = usePnAction(({ id, d, r, c }: any) => rpc("review_creative", { _id: id, _decision: d, _reason: r ?? null, _confirm_private_rights: !!c }), "Creative reviewed");
+  const [evidence, setEvidence] = useState<Record<string, string>>({});
+  const act = usePnAction(({ id, d, r, c, e }: any) => rpc("review_creative", { _id: id, _decision: d, _reason: r ?? null, _confirm_private_rights: !!c, _evidence: e ?? null }), "Creative reviewed");
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {(q.data ?? []).length === 0 && <p className="text-sm text-muted-foreground">No creatives waiting.</p>}
@@ -96,11 +97,15 @@ function Creatives() {
           {c.rights_attestation && <p className="text-xs">Attestation: {c.rights_attestation}</p>}
           {c.reasons.length > 0 && <ul className="list-disc pl-5 text-xs text-destructive">{c.reasons.map((r: string) => <li key={r}>{r}</li>)}</ul>}
           {c.media_source === "creator_network" && (
-            <label className="flex items-start gap-2 text-xs"><Checkbox checked={!!confirm[c.id]} onCheckedChange={(v) => setConfirm((o) => ({ ...o, [c.id]: !!v }))} />
-              I confirm the creator agreement explicitly covers private redistribution by third-party publishers (not inferred from paid-ads permission).</label>
+            <>
+              <label className="flex items-start gap-2 text-xs"><Checkbox checked={!!confirm[c.id]} onCheckedChange={(v) => setConfirm((o) => ({ ...o, [c.id]: !!v }))} />
+                I confirm the creator agreement explicitly covers private redistribution by third-party publishers (not inferred from paid-ads or creator-posted permission).</label>
+              <Input aria-label="Agreement evidence" placeholder="Agreement clause / document reference (required)" value={evidence[c.id] ?? ""}
+                onChange={(e) => setEvidence((o) => ({ ...o, [c.id]: e.target.value }))} />
+            </>
           )}
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => act.mutate({ id: c.id, d: "approve", c: confirm[c.id] })}>Approve</Button>
+            <Button size="sm" onClick={() => act.mutate({ id: c.id, d: "approve", c: confirm[c.id], e: evidence[c.id] })}>Approve</Button>
             <Button size="sm" variant="ghost" onClick={() => { const r = ask("Reason"); r && act.mutate({ id: c.id, d: "reject", r }); }}>Reject</Button>
           </div>
         </div>

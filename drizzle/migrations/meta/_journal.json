@@ -64,6 +64,20 @@
       "when": 1790975369645,
       "tag": "0008_private_network_fix_eligibility_array_append",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791329458469,
+      "tag": "0009_private_network_strict_rights",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791329501125,
+      "tag": "0010_private_network_rpc_hardening",
+      "breakpoints": true
     }
   ]
 }

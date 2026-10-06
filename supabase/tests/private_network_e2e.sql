@@ -42,9 +42,9 @@ BEGIN
     res := res || 'FAIL unsafe landing accepted'::text;
   EXCEPTION WHEN OTHERS THEN res := res || 'PASS unsafe landing URL rejected'::text; END;
   INSERT INTO public.private_network_campaigns (brand_id, owner_user_id, name, landing_url, status, funding_status, budget_spent_ngn, target_platforms, target_languages, target_geographies,
-    base_fee_ngn, action_bonus_ngn, conversion_commission_pct, budget_ngn, per_publisher_cap, is_test, record_source)
+    base_fee_ngn, action_bonus_ngn, conversion_commission_pct, budget_ngn, per_publisher_cap, is_test, record_source, ends_at, content_category)
   VALUES (brand, owner, 'TEST PN Campaign', 'https://trybrandie.com/pn-test', 'active', 'funded_manual', 999, ARRAY['whatsapp_status','instagram'], ARRAY['English'], ARRAY['Lagos'],
-    300, 100, 10, 1000, 1, true, 'test') RETURNING id INTO camp;
+    300, 100, 10, 1000, 1, true, 'test', now() + interval '30 days', 'beauty') RETURNING id INTO camp;
   SELECT count(*) INTO n FROM public.private_network_campaigns WHERE id=camp AND status='draft' AND funding_status='unfunded' AND budget_spent_ngn=0;
   res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' owner insert forced to draft/unfunded (cannot self-fund) ' || camp);
   INSERT INTO public.private_network_creatives (campaign_id, media_type, media_source, storage_path, caption, rights_attested, rights_attestation, status)
@@ -69,7 +69,29 @@ BEGIN
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without approved creative'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS no approved creative blocks activation'::text; END;
   BEGIN PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, false); res := res || 'FAIL CN approved w/o explicit rights'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS CN master needs explicit private-redistribution confirmation'::text; END;
   BEGIN PERFORM public.private_network_review_creative(cr_prev, 'approve', NULL, true); res := res || 'FAIL preview licence approved'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS preview-only licence ineligible: ' || left(SQLERRM, 90)); END;
-  PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, true);
+  BEGIN PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, true, NULL); res := res || 'FAIL CN approved without agreement evidence'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS CN approval needs agreement evidence'::text; END;
+  -- strict licence rules (all changes rolled back with the transaction)
+  UPDATE public.creator_network_licences SET platforms = ARRAY['WhatsApp','Instagram'], territories = ARRAY['Lagos','NG'] WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  UPDATE public.creator_network_licences SET licence_scope = NULL WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, NULL), ' ');
+  res := res || (CASE WHEN t LIKE '%explicitly Commercial%' THEN 'PASS' ELSE 'FAIL' END || ' missing scope is NOT treated as Commercial');
+  UPDATE public.creator_network_licences SET licence_scope = 'Commercial', platforms = '{}' WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+  res := res || (CASE WHEN t LIKE '%names no platforms%' THEN 'PASS' ELSE 'FAIL' END || ' licence with no named platforms is denied');
+  UPDATE public.creator_network_licences SET platforms = ARRAY['Instagram'] WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'whatsapp_status'), ' ');
+  res := res || (CASE WHEN t LIKE '%does not cover whatsapp_status%' THEN 'PASS' ELSE 'FAIL' END || ' uncovered platform denied (creator_posted/paid-ads not used as a substitute)');
+  UPDATE public.creator_network_licences SET platforms = ARRAY['WhatsApp','Instagram'], territories = '{}' WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, NULL), ' ');
+  res := res || (CASE WHEN t LIKE '%names no territories%' THEN 'PASS' ELSE 'FAIL' END || ' licence with no named territories is denied');
+  UPDATE public.creator_network_licences SET territories = ARRAY['Lagos','NG'], starts_at = current_date + 3 WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, NULL), ' ');
+  res := res || (CASE WHEN t LIKE '%not started%' THEN 'PASS' ELSE 'FAIL' END || ' licence before start date denied');
+  UPDATE public.creator_network_licences SET starts_at = current_date - 7, restricted_categories = ARRAY['Beauty'] WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, NULL), ' ');
+  res := res || (CASE WHEN t LIKE '%restricted%' THEN 'PASS' ELSE 'FAIL' END || ' restricted category denied');
+  UPDATE public.creator_network_licences SET restricted_categories = '{}' WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  PERFORM public.private_network_review_creative(cr_cn, 'approve', NULL, true, 'TEST agreement clause 7.2 private redistribution');
   PERFORM public.private_network_review_creative(cr_up, 'approve');
   PERFORM public.private_network_campaign_transition(camp, 'active');
   res := res || 'PASS operator activated funded TEST campaign'::text;
@@ -174,6 +196,10 @@ BEGIN
   UPDATE public.creator_network_licences SET revoked = true WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
   SELECT array_to_string(public.private_network_creative_eligibility(cr_cn, 'whatsapp_status'), ' ') INTO t;
   res := res || (CASE WHEN t LIKE '%revoked%' THEN 'PASS' ELSE 'FAIL' END || ' revoked licence detected live');
+  PERFORM pg_temp.as_user(ud);
+  BEGIN PERFORM public.private_network_publish(cr_cn, 'instagram', 'kd-rev'); res := res || 'FAIL publish on revoked licence'::text;
+  EXCEPTION WHEN OTHERS THEN res := res || (CASE WHEN SQLERRM LIKE '%revoked%' THEN 'PASS' ELSE 'FAIL' END || ' publish refused on revoked licence: ' || left(SQLERRM, 80)); END;
+  BEGIN PERFORM public.private_network_publish(cr_up, NULL, 'kd-null'); res := res || 'FAIL publish without platform'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publish needs a platform'::text; END;
   UPDATE public.creator_network_licences SET revoked = false, expires_at = current_date - 1 WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
   SELECT array_to_string(public.private_network_creative_eligibility(cr_cn, 'whatsapp_status'), ' ') INTO t;
   res := res || (CASE WHEN t LIKE '%expired%' THEN 'PASS' ELSE 'FAIL' END || ' expired licence detected live');
