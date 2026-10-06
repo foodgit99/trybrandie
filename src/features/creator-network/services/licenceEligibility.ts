@@ -2,6 +2,7 @@ export interface LicenceLike {
   status: string;
   licence_scope?: string | null;
   revoked?: boolean | null;
+  starts_at?: string | null;
   expires_at?: string | null;
   likeness_permission?: boolean | null;
   voice_permission?: boolean | null;
@@ -44,8 +45,14 @@ const inList = (list: string[] | null | undefined, v?: string) =>
  */
 export function checkEligibility(licences: LicenceLike[], req: UsageRequest): Eligibility {
   const today = req.today ?? new Date();
+  // Dates are calendar days (UTC): a licence runs from the start of starts_at to the end of expires_at.
+  const dayStart = (d: string) => new Date(`${d.slice(0, 10)}T00:00:00Z`).getTime();
+  const now = today.getTime();
   const live = licences.filter(
-    (l) => !l.revoked && (!l.expires_at || new Date(l.expires_at) >= new Date(today.toDateString())),
+    (l) =>
+      !l.revoked &&
+      (!l.expires_at || now < dayStart(l.expires_at) + 86_400_000) &&
+      (!l.starts_at || now >= dayStart(l.starts_at)),
   );
 
   if (req.mode === "Preview") {
@@ -53,7 +60,7 @@ export function checkEligibility(licences: LicenceLike[], req: UsageRequest): El
     return ok ? { allowed: true, reasons: [] } : { allowed: false, reasons: ["No likeness permission recorded for private previews."] };
   }
 
-  const candidates = live.filter((l) => (l.licence_scope ?? "Commercial") === "Commercial" && ["Signed", "Active"].includes(l.status));
+  const candidates = live.filter((l) => l.licence_scope === "Commercial" && ["Signed", "Active"].includes(l.status));
   if (!candidates.length) return { allowed: false, reasons: ["No signed, active commercial licence."] };
 
   let best: string[] | null = null;
@@ -65,8 +72,15 @@ export function checkEligibility(licences: LicenceLike[], req: UsageRequest): El
     if (req.usage === "creator_posted" && !l.creator_posted_permission) r.push("Creator-posted usage not permitted.");
     if (req.needsVoice && !l.voice_permission) r.push("Voice permission missing.");
     if (req.needsDigitalTwin && !l.digital_twin_permission) r.push("Digital-twin permission missing.");
-    if (req.platform && (l.platforms ?? []).length && !inList(l.platforms, req.platform)) r.push(`Platform ${req.platform} not covered.`);
-    if (req.territory && (l.territories ?? []).length && !inList(l.territories, req.territory)) r.push(`Territory ${req.territory} not covered.`);
+    if ((l.platforms ?? []).length) {
+      if (!req.platform) r.push("Platform must be specified: this licence is limited to named platforms.");
+      else if (!inList(l.platforms, req.platform)) r.push(`Platform ${req.platform} not covered.`);
+    }
+    if ((l.territories ?? []).length) {
+      if (!req.territory) r.push("Territory must be specified: this licence is limited to named territories.");
+      else if (!inList(l.territories, req.territory)) r.push(`Territory ${req.territory} not covered.`);
+    }
+    if ((l.restricted_categories ?? []).length && !req.category) r.push("Category must be specified: this licence restricts categories.");
     if (inList(l.restricted_categories, req.category)) r.push(`Category ${req.category} is restricted.`);
     if (inList(l.restricted_brands, req.brandName)) r.push(`Brand ${req.brandName} is restricted.`);
     if (l.creator_approval_required && !req.creatorApproved) r.push("Creator approval required and not recorded.");

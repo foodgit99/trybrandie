@@ -1,0 +1,47 @@
+# Private Network V1 — Gap Audit & Fix Report
+
+Date: 2026-10-06. Flags at end of audit: **Private Network OFF, Creator Network OFF** (verified by query). No customer data touched, no messages or payouts sent.
+
+## 1. Reviewer findings and resolution
+
+| # | Finding | Resolution | Evidence |
+|---|---|---|---|
+| A1 | Client `licenceEligibility.ts` ignored `starts_at` | Added `starts_at`; dates are UTC calendar days (start of `starts_at` → end of `expires_at`) | unit test "denies before starts_at", "expiry lasts to end of day UTC" |
+| A2 | Missing scope defaulted to Commercial | Scope must equal `Commercial` exactly (client + server `IS DISTINCT FROM`). DB column is also NOT NULL | unit test "denies missing scope"; E2E "licence scope can never be blank" |
+| A3 | Absent requested platform/territory bypassed lists | Client: listed platforms/territories/restricted categories require the request to name them. Server (PN): licence with **no** named platforms or territories is hard-denied; campaign must name territories; every requested/target platform must be covered by exact family match (no prefix LIKE) | E2E "no named platforms denied", "no named territories denied", "uncovered platform denied" |
+| A4 | Midnight-based expiry | Server compares `now()` with `(expires_at + 1 day) UTC`; campaign must end by licence expiry; campaign may not start before licence start | E2E "licence before start date denied", "expired licence detected live" |
+| A5 | Restrictions / approvals | Restricted brands, restricted categories (new `campaigns.content_category`, editor field added; required when licence restricts), creator approval, licence brand, licence↔job match | E2E "restricted category denied" |
+| A6 | Private third-party redistribution must be explicit | Requires operator confirmation **plus agreement evidence text** (new `creatives.private_redistribution_evidence`, input in Operator Console). Never inferred from paid-ads or creator-posted permission. Approver must also hold Creator Network access | E2E "needs explicit confirmation", "needs agreement evidence" |
+| A7 | Fulfilled, human-QA clean master; voice/twin | Requires clean master, Human QA approve, job `rights_mode = Commercial`, opportunity stage `Fulfilled`, voice permission for video, digital-twin permission for twin jobs | code: migration 0009 |
+| A8 | No raw CN private paths/licence/contact data to publishers | Feed returns no storage path/licence fields; media only via 15-min signed URL from `private-network-media` after eligibility; `creative_eligibility` no longer callable by users; operator/brand-only `private_network_review_reasons()` | E2E "internal licence check not directly callable", "publisher cannot read licence review reasons" |
+| A9 | Sharing must not need Twilio/contacts | PN code has no Twilio/whatsapp-send reference (grep). Uses OS share sheet, `wa.me` deep link, download/copy | grep: 0 matches |
+| A10 | `campaigns_public` one-active rule must not leak | PN uses its own `private_network_campaigns`; no trigger/reference to `campaigns_public` (grep 0 matches); multiple PN campaigns allowed per brand | grep |
+
+## 2. Additional defects found and fixed during the audit
+
+- `private_network_publish` accepted a NULL platform (NULL cast passed) → placement insert trigger now rejects. E2E "publish needs a platform".
+- `private_network_balance` leaked another publisher's "requested" payout total → now returns NULL unless owner/operator. E2E "non-owner cannot read another publisher balance".
+- Anonymous role still held table privileges on all `private_network_*` tables (RLS returned 0 rows, so no data leaked, but E2E flagged it) → revoked from `anon`/`PUBLIC` (migration 0011); re-checked: anon has no privileges.
+- Operator Console called the now-internal eligibility function → switched to `review_reasons`.
+
+Migrations: `0009_private_network_strict_rights.sql`, `0010_private_network_rpc_hardening.sql`, `0011_private_network_revoke_anon.sql`.
+
+## 3. Executed evidence
+
+**Server E2E** (`supabase/tests/private_network_e2e.sql`, executed as one transaction that rolls itself back): **100 checks, 99 PASS, 1 FAIL → fixed** (anon table privilege, see §2; fixed by 0011 and verified by catalog query, not by a re-run of the full script). Covered: flag OFF blocks mutations/feed/publish/redirect; profile save/readback and approval gating; owner forced to draft/unfunded; no self-approval; no self-activation; funding needs operator + reference; domain allow-list; preview licence ineligible; strict licence rules (§1); feed relevance score `pn-match-v1` with reasons, paging without duplicates, saved filter; idempotent publish; no earnings at publish; per-publisher cap; platform check; atomic reservation (900 of 1000); exhausted budget refusal; share → `share_initiated` only; redirect to stored destination + click dedupe; hostile token refused; events withheld before verification; proof folder ownership; rejection needs reason; rejected-proof resubmission; single verification; base fee once; bonus + replay idempotency; conversion withheld when budget exhausted; self-action rejected; publisher cannot report events; cancel releases reservation; budget conserved; append-only ledger; payout needs available balance, finance-only release, overdraw refused, one open payout, settlement needs reference, no double settle; revoked licence blocks **publish** and feed, expired rights stop **redirect**; pause/end; RLS for publisher A/B, brand owner, other tenant, CN data hidden; direct calls to internal RPCs (eligibility, reservation release, ingest, audit log, redirect resolver) refused.
+
+Post-run check: 0 PN publishers, 0 PN campaigns, test CN licence unchanged, both flags OFF.
+
+**Live endpoints (flag OFF):** redirect with unknown token → 410 "no longer available" (reason `off`); events and media without login → 401.
+
+**Browser (mobile 390px, signed out, flag OFF):** `/private-network/feed` → redirected to sign-in, no page errors.
+
+**Unit tests:** 43 pass (Creator Network 35 incl. 4 new licence rules, Private Network 8). Build log: `build OK`.
+
+## 4. Not verified / limitations (honest)
+
+- Full signed-in browser walkthrough with the flag ON (desktop/tablet/mobile) was **not re-run** in this audit pass; the flag stays OFF until you decide on enablement.
+- Native OS share sheet and actual WhatsApp Status posting need a **real phone**; automation cannot confirm a post. The app never treats sharing as proof — earnings only follow operator-verified proof.
+- Edge-function happy paths (signed media for an approved publisher, trusted event ingest with a real brand-owner JWT) are verified via the same database functions in E2E, not via live HTTP with the flag ON.
+- Concurrency is enforced by row locks (`FOR UPDATE` on campaign/publisher) and unique idempotency keys; no parallel load test was run.
+- Baseline, separate from this module: Twilio trial expired (blocks WhatsApp *automated* notifications only; PN sharing does not use Twilio).

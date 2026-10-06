@@ -14,7 +14,7 @@ import { usePrivateNetwork } from "../../hooks/usePrivateNetwork";
 
 const empty = {
   name: "", description: "", landing_url: "https://", starts_at: "", ends_at: "", target_platforms: [] as string[], target_languages: "",
-  target_geographies: "", target_interests: "", target_age_brackets: [] as string[], min_audience: "", base_fee_ngn: "", action_bonus_ngn: "0",
+  target_geographies: "", target_interests: "", content_category: "", target_age_brackets: [] as string[], min_audience: "", base_fee_ngn: "", action_bonus_ngn: "0",
   conversion_commission_pct: "0", max_placements: "", per_publisher_cap: "1", budget_ngn: "",
 };
 const toLocal = (s?: string | null) => (s ? new Date(s).toISOString().slice(0, 16) : "");
@@ -25,7 +25,7 @@ export function CampaignForm({ brandId, campaign, isTest, onSaved }: { brandId: 
     if (!campaign) { setF(empty); return; }
     setF({ ...campaign, description: campaign.description ?? "", starts_at: toLocal(campaign.starts_at), ends_at: toLocal(campaign.ends_at),
       target_languages: campaign.target_languages.join(", "), target_geographies: campaign.target_geographies.join(", "),
-      target_interests: campaign.target_interests.join(", "), min_audience: campaign.min_audience?.toString() ?? "",
+      target_interests: campaign.target_interests.join(", "), content_category: campaign.content_category ?? "", min_audience: campaign.min_audience?.toString() ?? "",
       max_placements: campaign.max_placements?.toString() ?? "", base_fee_ngn: String(campaign.base_fee_ngn), action_bonus_ngn: String(campaign.action_bonus_ngn),
       conversion_commission_pct: String(campaign.conversion_commission_pct), per_publisher_cap: String(campaign.per_publisher_cap), budget_ngn: String(campaign.budget_ngn) });
   }, [campaign?.id]);
@@ -39,7 +39,7 @@ export function CampaignForm({ brandId, campaign, isTest, onSaved }: { brandId: 
       brand_id: brandId, name: f.name.trim(), description: f.description.trim() || null, landing_url: f.landing_url.trim(),
       starts_at: f.starts_at ? new Date(f.starts_at).toISOString() : new Date().toISOString(), ends_at: f.ends_at ? new Date(f.ends_at).toISOString() : null,
       target_platforms: f.target_platforms, target_languages: parseList(f.target_languages), target_geographies: parseList(f.target_geographies),
-      target_interests: parseList(f.target_interests), target_age_brackets: f.target_age_brackets, min_audience: num(f.min_audience),
+      target_interests: parseList(f.target_interests), content_category: f.content_category.trim() || null, target_age_brackets: f.target_age_brackets, min_audience: num(f.min_audience),
       base_fee_ngn: num(f.base_fee_ngn) ?? 0, action_bonus_ngn: num(f.action_bonus_ngn) ?? 0, conversion_commission_pct: num(f.conversion_commission_pct) ?? 0,
       max_placements: num(f.max_placements), per_publisher_cap: num(f.per_publisher_cap) ?? 1, budget_ngn: num(f.budget_ngn) ?? 0,
     };
@@ -82,6 +82,7 @@ export function CampaignForm({ brandId, campaign, isTest, onSaved }: { brandId: 
       {field("target_languages", "Target languages", {}, "Comma separated. Empty = any.")}
       {field("target_geographies", "Target locations", {}, "Comma separated. Empty = any.")}
       {field("target_interests", "Target interests / communities", {}, "Comma separated. Empty = any.")}
+      {field("content_category", "Product category", {}, "e.g. fashion, food, finance. Needed when a creator licence restricts categories.")}
       <div>
         <p className="mb-1 text-sm font-medium">Audience ages</p>
         <div className="flex flex-wrap gap-3">

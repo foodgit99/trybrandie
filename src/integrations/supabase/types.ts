@@ -5504,6 +5504,7 @@ export type Database = {
           budget_reserved_ngn: number
           budget_spent_ngn: number
           code: string
+          content_category: string | null
           conversion_commission_pct: number
           created_at: string
           description: string | null
@@ -5538,6 +5539,7 @@ export type Database = {
           budget_reserved_ngn?: number
           budget_spent_ngn?: number
           code?: string
+          content_category?: string | null
           conversion_commission_pct?: number
           created_at?: string
           description?: string | null
@@ -5572,6 +5574,7 @@ export type Database = {
           budget_reserved_ngn?: number
           budget_spent_ngn?: number
           code?: string
+          content_category?: string | null
           conversion_commission_pct?: number
           created_at?: string
           description?: string | null
@@ -5623,6 +5626,7 @@ export type Database = {
           media_source: string
           media_type: string
           private_redistribution_confirmed: boolean
+          private_redistribution_evidence: string | null
           public_media_url: string | null
           review_reason: string | null
           reviewed_at: string | null
@@ -5652,6 +5656,7 @@ export type Database = {
           media_source: string
           media_type: string
           private_redistribution_confirmed?: boolean
+          private_redistribution_evidence?: string | null
           public_media_url?: string | null
           review_reason?: string | null
           reviewed_at?: string | null
@@ -5681,6 +5686,7 @@ export type Database = {
           media_source?: string
           media_type?: string
           private_redistribution_confirmed?: boolean
+          private_redistribution_evidence?: string | null
           public_media_url?: string | null
           review_reason?: string | null
           reviewed_at?: string | null
@@ -7288,6 +7294,10 @@ export type Database = {
         Returns: Json
       }
       private_network_is_operator: { Args: never; Returns: boolean }
+      private_network_licence_covers_platform: {
+        Args: { _lic: string[]; _p: string }
+        Returns: boolean
+      }
       private_network_list_cn_masters: {
         Args: never
         Returns: {
@@ -7359,6 +7369,7 @@ export type Database = {
         }[]
       }
       private_network_my_publisher_id: { Args: never; Returns: string }
+      private_network_platform_family: { Args: { _p: string }; Returns: string }
       private_network_publish: {
         Args: {
           _creative: string
@@ -7396,6 +7407,7 @@ export type Database = {
         Args: {
           _confirm_private_rights?: boolean
           _decision: string
+          _evidence?: string
           _id: string
           _reason?: string
         }
@@ -7417,6 +7429,10 @@ export type Database = {
       private_network_review_publisher: {
         Args: { _decision: string; _id: string; _reason?: string }
         Returns: undefined
+      }
+      private_network_review_reasons: {
+        Args: { _creative: string }
+        Returns: string[]
       }
       private_network_save_profile: { Args: { _p: Json }; Returns: string }
       private_network_set_enabled: {
