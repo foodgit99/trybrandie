@@ -205,10 +205,12 @@ BEGIN
   PERFORM pg_temp.as_user(ua);
   SELECT count(*) INTO n FROM public.private_network_feed(10,0,false) WHERE creative_id = cr_cn;
   res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' expired-licence creative removed from feed');
+  PERFORM set_config('private_network.rpc', 'on', true); -- simulate a rights-expiry change made by the server
   UPDATE public.private_network_creatives SET rights_expires_at = now() - interval '1 day' WHERE id = cr_up;
   r := public.private_network_resolve_redirect(tok, 'iphash2', 'ua');
   res := res || (CASE WHEN r->>'reason'='rights' THEN 'PASS' ELSE 'FAIL' END || ' redirect stops when rights expire');
   UPDATE public.private_network_creatives SET rights_expires_at = NULL WHERE id = cr_up;
+  PERFORM set_config('private_network.rpc', 'off', true);
 
   -- 11. pause / end
   PERFORM pg_temp.as_user(owner);
