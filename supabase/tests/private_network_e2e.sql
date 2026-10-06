@@ -192,14 +192,14 @@ BEGIN
   res := res || (CASE WHEN (r->>'available')::numeric=100 AND (r->>'paid')::numeric=500 AND (r->>'pending')::numeric=0 THEN 'PASS' ELSE 'FAIL' END || ' balances ' || r::text);
 
   -- 10. rights revocation/expiry rechecked live
-  UPDATE public.creator_network_licences SET revoked = true WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
+  UPDATE public.creator_network_licences SET revoked = true, revoked_at = now(), revocation_reason = 'TEST revoke' WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
   SELECT array_to_string(public.private_network_creative_eligibility(cr_cn, 'whatsapp_status'), ' ') INTO t;
   res := res || (CASE WHEN t LIKE '%revoked%' THEN 'PASS' ELSE 'FAIL' END || ' revoked licence detected live');
   PERFORM pg_temp.as_user(ud);
   BEGIN PERFORM public.private_network_publish(cr_cn, 'instagram', 'kd-rev'); res := res || 'FAIL publish on revoked licence'::text;
   EXCEPTION WHEN OTHERS THEN res := res || (CASE WHEN SQLERRM LIKE '%revoked%' THEN 'PASS' ELSE 'FAIL' END || ' publish refused on revoked licence: ' || left(SQLERRM, 80)); END;
   BEGIN PERFORM public.private_network_publish(cr_up, NULL, 'kd-null'); res := res || 'FAIL publish without platform'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publish needs a platform'::text; END;
-  UPDATE public.creator_network_licences SET revoked = false, expires_at = current_date - 1 WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
+  UPDATE public.creator_network_licences SET revoked = false, revoked_at = NULL, revocation_reason = NULL, expires_at = current_date - 1 WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
   SELECT array_to_string(public.private_network_creative_eligibility(cr_cn, 'whatsapp_status'), ' ') INTO t;
   res := res || (CASE WHEN t LIKE '%expired%' THEN 'PASS' ELSE 'FAIL' END || ' expired licence detected live');
   PERFORM pg_temp.as_user(ua);
