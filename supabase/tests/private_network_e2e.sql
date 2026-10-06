@@ -14,7 +14,7 @@ DECLARE
   brand uuid := 'ce9ba1da-ee14-4a01-8256-4b74e7ee8e5f';
   ua uuid := gen_random_uuid(); ub uuid := gen_random_uuid(); uc uuid := gen_random_uuid(); ud uuid := gen_random_uuid(); ord uuid := gen_random_uuid();
   pa uuid; pb uuid; pc uuid; pd uuid; camp uuid; cr_up uuid; cr_cn uuid; cr_prev uuid; r jsonb; r2 jsonb; tok text; tokb text; plc uuid; plb uuid; n int; t text;
-  res text[] := '{}'; ok boolean; v numeric; prof jsonb;
+  res text[] := '{}'; khash text := encode(sha256(convert_to('pnk_TEST_ONLY','UTF8')),'hex'); kid uuid; ev uuid; cr_mix uuid; ok boolean; v numeric; prof jsonb;
 BEGIN
   -- 0. flag OFF blocks mutations
   PERFORM pg_temp.as_user(ua);
@@ -135,8 +135,9 @@ BEGIN
   r := public.private_network_resolve_redirect('https://evil.com', 'x', 'y');
   res := res || (CASE WHEN NOT (r->>'ok')::boolean THEN 'PASS' ELSE 'FAIL' END || ' hostile token refused');
 
-  -- 6. events before verification are withheld
-  r := public.private_network_ingest_event(owner, tok, 'qualified_action', 'TEST-e0', NULL, NULL);
+  -- 6. events before verification are withheld (trusted server key for this TEST brand)
+  INSERT INTO public.private_network_integration_keys (brand_id, label, key_hash, key_hint, created_by, is_test) VALUES (brand, 'TEST key', khash, 'TEST', admin, true) RETURNING id INTO kid;
+  r := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-e0', NULL, NULL);
   res := res || (CASE WHEN r->>'outcome'='withheld_unverified_post' THEN 'PASS' ELSE 'FAIL' END || ' lead before verification earns 0');
 
   -- 7. proof, rejection, resubmit, verify
@@ -158,16 +159,16 @@ BEGIN
   res := res || (CASE WHEN n=1 AND v=300 THEN 'PASS' ELSE 'FAIL' END || ' base fee credited once (pending 300)');
 
   -- 8. trusted events
-  r := public.private_network_ingest_event(owner, tok, 'qualified_action', 'TEST-e1', NULL, NULL);
-  r2 := public.private_network_ingest_event(owner, tok, 'qualified_action', 'TEST-e1', NULL, NULL);
+  r := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-e1', NULL, NULL);
+  r2 := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-e1', NULL, NULL);
   res := res || (CASE WHEN r->>'outcome'='earned' AND (r->>'earned')::numeric=100 AND (r2->>'duplicate')::boolean THEN 'PASS' ELSE 'FAIL' END || ' qualified action bonus + replay idempotent');
-  r := public.private_network_ingest_event(owner, tok, 'conversion', 'TEST-e2', 5000, NULL);
+  r := public.private_network_ingest_event(NULL, khash, tok, 'conversion', 'TEST-e2', 5000, NULL);
   res := res || (CASE WHEN r->>'outcome'='withheld_budget_exhausted' THEN 'PASS' ELSE 'FAIL' END || ' conversion withheld when budget exhausted');
-  r := public.private_network_ingest_event(owner, tok, 'qualified_action', 'TEST-e3', NULL, ua);
+  r := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-e3', NULL, ua);
   res := res || (CASE WHEN r->>'outcome'='rejected_self_action' THEN 'PASS' ELSE 'FAIL' END || ' self-action rejected');
-  BEGIN PERFORM public.private_network_ingest_event(ua, tok, 'conversion', 'TEST-e4', 100, NULL); res := res || 'FAIL publisher reported own conversion'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher/untrusted caller cannot report events'::text; END;
+  BEGIN PERFORM public.private_network_ingest_event(ua, NULL, tok, 'conversion', 'TEST-e4', 100, NULL); res := res || 'FAIL publisher reported own conversion'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher/untrusted caller cannot report events'::text; END;
   PERFORM pg_temp.as_user(uc); PERFORM public.private_network_cancel_placement((SELECT id FROM public.private_network_placements WHERE publisher_id=pc));
-  r := public.private_network_ingest_event(owner, tok, 'conversion', 'TEST-e5', 2000, NULL);
+  r := public.private_network_ingest_event(NULL, khash, tok, 'conversion', 'TEST-e5', 2000, NULL);
   res := res || (CASE WHEN (r->>'earned')::numeric=200 THEN 'PASS' ELSE 'FAIL' END || ' conversion commission 10% after cancel freed budget');
   SELECT budget_reserved_ngn + budget_spent_ngn INTO v FROM public.private_network_campaigns WHERE id=camp;
   res := res || (CASE WHEN v <= 1000 THEN 'PASS' ELSE 'FAIL' END || ' budget conserved (reserved+spent=' || v || ' <= 1000)');
@@ -236,7 +237,7 @@ BEGIN
   BEGIN PERFORM public.private_network_creative_eligibility(cr_cn, NULL); res := res || 'FAIL publisher can call internal eligibility'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS internal licence check not directly callable'::text; END;
   BEGIN PERFORM public.private_network_review_reasons(cr_cn); res := res || 'FAIL publisher read review reasons'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher cannot read licence review reasons'::text; END;
   BEGIN PERFORM public.private_network_release_reservation(camp, 100); res := res || 'FAIL direct reservation release'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS reservation release not directly callable'::text; END;
-  BEGIN PERFORM public.private_network_ingest_event(ub, tok, 'conversion', 'TEST-x', 1, NULL); res := res || 'FAIL direct ingest'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS event ingest not directly callable by users'::text; END;
+  BEGIN PERFORM public.private_network_ingest_event(ub, NULL, tok, 'conversion', 'TEST-x', 1, NULL); res := res || 'FAIL direct ingest'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS event ingest not directly callable by users'::text; END;
   BEGIN PERFORM public.private_network_log('placement', plc, 'forged'); res := res || 'FAIL direct log'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS audit log not directly writable'::text; END;
   EXECUTE 'RESET ROLE';
   PERFORM pg_temp.as_user(owner);
@@ -251,10 +252,65 @@ BEGIN
   SELECT count(*) INTO n FROM public.creator_network_creators; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher/ordinary user cannot open Creator Network data');
   EXECUTE 'RESET ROLE';
   EXECUTE 'SET LOCAL ROLE anon';
-  BEGIN SELECT count(*) INTO n FROM public.private_network_placements; res := res || ('FAIL anon read placements ' || n); EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot read placements'::text; END;
+  BEGIN SELECT count(*) INTO n FROM public.private_network_placements; res := res || ('FAIL anon has table access (rows ' || n || ')'); EXCEPTION WHEN insufficient_privilege THEN res := res || 'PASS anonymous has no table privilege on placements'::text; END;
   BEGIN PERFORM public.private_network_feed(1,0,false); res := res || 'FAIL anon feed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot call feed'::text; END;
   BEGIN PERFORM public.private_network_resolve_redirect(tok, 'a', 'b'); res := res || 'FAIL anon direct redirect RPC'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot call redirect RPC directly (edge function only)'::text; END;
   EXECUTE 'RESET ROLE';
+
+  -- 12b. gap-closure: event trust, bindings, cohorts, guards, grants
+  PERFORM pg_temp.as_user(admin);
+  r := public.private_network_ingest_event(owner, NULL, tok, 'conversion', 'TEST-bu1', 999999, NULL);
+  res := res || (CASE WHEN r->>'outcome'='pending_reconciliation' AND (r->>'earned')::numeric=0 AND r->>'trust'='brand_user' THEN 'PASS' ELSE 'FAIL' END || ' brand-user JWT conversion earns 0 until reconciled (' || (r->>'outcome') || ')');
+  ev := (r->>'event_id')::uuid;
+  PERFORM pg_temp.as_user(owner);
+  BEGIN PERFORM public.private_network_reconcile_event(ev, true, NULL, 'self'); res := res || 'FAIL brand user reconciled own event'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS brand user cannot reconcile'::text; END;
+  PERFORM pg_temp.as_user(admin);
+  BEGIN PERFORM public.private_network_reconcile_event(ev, true, NULL, NULL); res := res || 'FAIL reconcile without note'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS reconciliation needs a source reference'::text; END;
+  r := public.private_network_reconcile_event(ev, false, NULL, 'TEST not in order system');
+  res := res || (CASE WHEN r->>'outcome'='rejected_reconciliation' THEN 'PASS' ELSE 'FAIL' END || ' finance can reject a forged amount');
+  BEGIN PERFORM public.private_network_reconcile_event(ev, true, 10, 'again'); res := res || 'FAIL double reconcile'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS event reconciles once'::text; END;
+  BEGIN PERFORM public.private_network_ingest_event(NULL, encode(sha256(convert_to('pnk_wrong','UTF8')),'hex'), tok, 'conversion', 'TEST-k1', 10, NULL); res := res || 'FAIL unknown key accepted'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unknown integration key refused'::text; END;
+  UPDATE public.private_network_integration_keys SET revoked_at = now() WHERE id = kid;
+  BEGIN PERFORM public.private_network_ingest_event(NULL, khash, tok, 'conversion', 'TEST-k2', 10, NULL); res := res || 'FAIL revoked key accepted'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS revoked integration key refused'::text; END;
+  -- exact licence binding
+  UPDATE public.creator_network_licences SET production_job_id = NULL, opportunity_id = NULL WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+  res := res || (CASE WHEN t LIKE '%not bound to this production job%' THEN 'PASS' ELSE 'FAIL' END || ' unbound licence of same creator denied');
+  BEGIN PERFORM public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'x', ARRAY['instagram'], NULL, true);
+    res := res || 'FAIL adapter accepted unrelated licence'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS adapter refuses licence not bound to the job'::text; END;
+  UPDATE public.creator_network_licences SET production_job_id = '026335f1-a19c-4612-8ff4-31f0a2851826', opportunity_id = 'c9ad87a0-efe7-4836-8e99-1b3bdc267d04' WHERE id = '3d347602-1975-4d36-bba7-dd46fc89de06';
+  -- cohort mixing
+  UPDATE public.creator_network_production_jobs SET is_test = false WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+  res := res || (CASE WHEN t LIKE '%cannot mix (production job%' THEN 'PASS' ELSE 'FAIL' END || ' live CN job in TEST campaign denied');
+  BEGIN PERFORM public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'x', ARRAY['instagram'], NULL, true);
+    res := res || 'FAIL adapter mixed cohorts'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS adapter refuses mixed test/live cohort'::text; END;
+  UPDATE public.creator_network_production_jobs SET is_test = true WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+  UPDATE public.private_network_creatives SET is_test = false WHERE id = cr_up;
+  t := array_to_string(public.private_network_creative_eligibility(cr_up, 'instagram'), ' ');
+  res := res || (CASE WHEN t LIKE '%cannot mix (creative%' THEN 'PASS' ELSE 'FAIL' END || ' live creative in TEST campaign denied');
+  UPDATE public.private_network_creatives SET is_test = true WHERE id = cr_up;
+  -- empty campaign platforms
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_campaigns SET target_platforms = '{}' WHERE id = camp;
+  t := array_to_string(public.private_network_creative_eligibility(cr_up, NULL), ' ');
+  res := res || (CASE WHEN t LIKE '%No platform requested%' THEN 'PASS' ELSE 'FAIL' END || ' campaign without named platforms is ineligible');
+  UPDATE public.private_network_campaigns SET target_platforms = ARRAY['whatsapp_status','instagram'] WHERE id = camp;
+  PERFORM set_config('private_network.rpc','off',true);
+  -- owner write guards
+  PERFORM pg_temp.as_user(owner);
+  BEGIN UPDATE public.private_network_campaigns SET budget_ngn = 1e9 WHERE id = camp; res := res || 'FAIL owner raised funded budget'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot change funded budget'::text; END;
+  BEGIN UPDATE public.private_network_campaigns SET budget_spent_ngn = 0 WHERE id = camp; res := res || 'FAIL owner reset spent'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot edit spent/reserved counters'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET private_redistribution_evidence = 'forged evidence' WHERE id = cr_cn; res := res || 'FAIL owner edited rights evidence'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS owner cannot edit rights approval/evidence'::text; END;
+  -- execute grant matrix
+  SELECT count(*) INTO n FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace WHERE ns.nspname='public' AND p.proname LIKE 'private_network%' AND has_function_privilege('anon', p.oid, 'EXECUTE');
+  res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' anon can execute no PN function (' || n || ')');
+  SELECT count(*) INTO n FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace WHERE ns.nspname='public' AND p.proname IN
+    ('private_network_ingest_event','private_network_resolve_redirect','private_network_release_reservation','private_network_log','private_network_creative_eligibility',
+     'private_network_has_role','private_network_require_enabled','private_network_publish_cohort_ok','private_network_block_mutation','private_network_campaign_guard',
+     'private_network_creative_guard','private_network_publish_guard','private_network_validate_platforms','private_network_lower','private_network_licence_covers_platform','private_network_platform_family')
+    AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
+  res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' internal helpers not executable by signed-in users (' || n || ')');
 
   -- 13. flag OFF again
   UPDATE public.private_network_settings SET enabled = false WHERE id;
