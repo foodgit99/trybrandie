@@ -1,5 +1,6 @@
 -- Private Network V1 end-to-end server test. Runs entirely inside one transaction and
 -- ends with RAISE EXCEPTION so EVERYTHING (including the temporary flag ON) is rolled back.
+-- Run via the database tool as one DO block (pg_temp.as_user may be inlined as set_config('request.jwt.claims', ...)).
 -- Output: the exception message contains PASS/FAIL lines. Fixtures are TEST-only and fake user ids.
 CREATE OR REPLACE FUNCTION pg_temp.as_user(_u uuid) RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', json_build_object('sub', _u, 'role', 'authenticated')::text, true);
@@ -117,6 +118,7 @@ BEGIN
   BEGIN PERFORM public.private_network_publish(cr_up, 'tiktok', 'x'); res := res || 'FAIL wrong platform'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS platform outside campaign refused'::text; END;
   r := public.private_network_publish(cr_up, 'instagram', 'kb'); plb := (r->>'placement_id')::uuid; tokb := r->>'token';
   PERFORM pg_temp.as_user(uc); r := public.private_network_publish(cr_cn, 'whatsapp_status', 'kc');
+  res := res || (CASE WHEN r ? 'token' THEN 'PASS' ELSE 'FAIL' END || ' licensed CN master publishable on covered platform');
   PERFORM pg_temp.as_user(ud);
   BEGIN PERFORM public.private_network_publish(cr_up, 'whatsapp_status', 'kd'); res := res || 'FAIL budget overrun'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS exhausted budget refuses reservation: ' || SQLERRM); END;
   SELECT budget_reserved_ngn INTO v FROM public.private_network_campaigns WHERE id=camp;
@@ -176,6 +178,8 @@ BEGIN
   BEGIN PERFORM public.private_network_request_payout(100); res := res || 'FAIL payout from pending'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout needs available balance'::text; END;
   PERFORM pg_temp.as_user(owner);
   BEGIN PERFORM public.private_network_release_pending(pa); res := res || 'FAIL non-finance release'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS only finance can release'::text; END;
+  r := public.private_network_balance(pa);
+  res := res || (CASE WHEN r IS NULL THEN 'PASS' ELSE 'FAIL' END || ' non-owner cannot read another publisher balance');
   PERFORM pg_temp.as_user(admin);
   v := public.private_network_release_pending(pa);
   res := res || (CASE WHEN v=600 THEN 'PASS' ELSE 'FAIL' END || ' released ' || v);
@@ -229,6 +233,11 @@ BEGIN
   SELECT count(*) INTO n FROM public.private_network_campaigns; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher B cannot read campaign budgets');
   BEGIN INSERT INTO public.private_network_likes (publisher_id, creative_id) VALUES (pa, cr_up); res := res || 'FAIL cross-publisher like'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS cannot write likes as another publisher'::text; END;
   BEGIN INSERT INTO public.private_network_ledger (publisher_id, entry_type, bucket, amount, idempotency_key) VALUES (pb,'base_fee','available',1e6,'hack'); res := res || 'FAIL self-credit'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher cannot write ledger'::text; END;
+  BEGIN PERFORM public.private_network_creative_eligibility(cr_cn, NULL); res := res || 'FAIL publisher can call internal eligibility'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS internal licence check not directly callable'::text; END;
+  BEGIN PERFORM public.private_network_review_reasons(cr_cn); res := res || 'FAIL publisher read review reasons'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher cannot read licence review reasons'::text; END;
+  BEGIN PERFORM public.private_network_release_reservation(camp, 100); res := res || 'FAIL direct reservation release'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS reservation release not directly callable'::text; END;
+  BEGIN PERFORM public.private_network_ingest_event(ub, tok, 'conversion', 'TEST-x', 1, NULL); res := res || 'FAIL direct ingest'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS event ingest not directly callable by users'::text; END;
+  BEGIN PERFORM public.private_network_log('placement', plc, 'forged'); res := res || 'FAIL direct log'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS audit log not directly writable'::text; END;
   EXECUTE 'RESET ROLE';
   PERFORM pg_temp.as_user(owner);
   EXECUTE 'SET LOCAL ROLE authenticated';
@@ -244,12 +253,14 @@ BEGIN
   EXECUTE 'SET LOCAL ROLE anon';
   BEGIN SELECT count(*) INTO n FROM public.private_network_placements; res := res || ('FAIL anon read placements ' || n); EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot read placements'::text; END;
   BEGIN PERFORM public.private_network_feed(1,0,false); res := res || 'FAIL anon feed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot call feed'::text; END;
+  BEGIN PERFORM public.private_network_resolve_redirect(tok, 'a', 'b'); res := res || 'FAIL anon direct redirect RPC'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS anonymous cannot call redirect RPC directly (edge function only)'::text; END;
   EXECUTE 'RESET ROLE';
 
   -- 13. flag OFF again
   UPDATE public.private_network_settings SET enabled = false WHERE id;
   PERFORM pg_temp.as_user(ua);
   BEGIN PERFORM * FROM public.private_network_feed(1,0,false); res := res || 'FAIL feed while off'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS flag OFF blocks feed'::text; END;
+  BEGIN PERFORM public.private_network_publish(cr_up, 'instagram', 'off'); res := res || 'FAIL publish while off'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS flag OFF blocks publish'::text; END;
   r := public.private_network_resolve_redirect(tok, 'x', 'y');
   res := res || (CASE WHEN r->>'reason'='off' THEN 'PASS' ELSE 'FAIL' END || ' flag OFF disables redirect');
 
