@@ -286,6 +286,7 @@ BEGIN
   BEGIN PERFORM public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'x', ARRAY['instagram'], NULL, true);
     res := res || 'FAIL adapter mixed cohorts'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS adapter refuses mixed test/live cohort'::text; END;
   UPDATE public.creator_network_production_jobs SET is_test = true WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+  PERFORM set_config('private_network.rpc','on',true);
   UPDATE public.private_network_creatives SET is_test = false WHERE id = cr_up;
   t := array_to_string(public.private_network_creative_eligibility(cr_up, 'instagram'), ' ');
   res := res || (CASE WHEN t LIKE '%cannot mix (creative%' THEN 'PASS' ELSE 'FAIL' END || ' live creative in TEST campaign denied');
