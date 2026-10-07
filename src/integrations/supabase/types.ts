@@ -5509,6 +5509,7 @@ export type Database = {
           created_at: string
           description: string | null
           ends_at: string | null
+          funded_amount_ngn: number
           funding_reference: string | null
           funding_status: string
           id: string
@@ -5544,6 +5545,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           ends_at?: string | null
+          funded_amount_ngn?: number
           funding_reference?: string | null
           funding_status?: string
           id?: string
@@ -5579,6 +5581,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           ends_at?: string | null
+          funded_amount_ngn?: number
           funding_reference?: string | null
           funding_status?: string
           id?: string
@@ -5637,6 +5640,9 @@ export type Database = {
           rights_attested_by: string | null
           rights_expires_at: string | null
           rights_platforms: string[]
+          source_master_etag: string | null
+          source_master_path: string | null
+          source_opportunity_id: string | null
           status: string
           storage_bucket: string | null
           storage_path: string | null
@@ -5667,6 +5673,9 @@ export type Database = {
           rights_attested_by?: string | null
           rights_expires_at?: string | null
           rights_platforms?: string[]
+          source_master_etag?: string | null
+          source_master_path?: string | null
+          source_opportunity_id?: string | null
           status?: string
           storage_bucket?: string | null
           storage_path?: string | null
@@ -5697,6 +5706,9 @@ export type Database = {
           rights_attested_by?: string | null
           rights_expires_at?: string | null
           rights_platforms?: string[]
+          source_master_etag?: string | null
+          source_master_path?: string | null
+          source_opportunity_id?: string | null
           status?: string
           storage_bucket?: string | null
           storage_path?: string | null
@@ -5708,6 +5720,57 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "private_network_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_earning_allocations: {
+        Row: {
+          amount: number
+          batch: string | null
+          created_at: string
+          created_by: string | null
+          earning_entry_id: string
+          id: string
+          is_test: boolean
+          kind: string
+          ledger_entry_id: string | null
+        }
+        Insert: {
+          amount: number
+          batch?: string | null
+          created_at?: string
+          created_by?: string | null
+          earning_entry_id: string
+          id?: string
+          is_test?: boolean
+          kind: string
+          ledger_entry_id?: string | null
+        }
+        Update: {
+          amount?: number
+          batch?: string | null
+          created_at?: string
+          created_by?: string | null
+          earning_entry_id?: string
+          id?: string
+          is_test?: boolean
+          kind?: string
+          ledger_entry_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_earning_allocations_earning_entry_id_fkey"
+            columns: ["earning_entry_id"]
+            isOneToOne: true
+            referencedRelation: "private_network_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_network_earning_allocations_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_ledger"
             referencedColumns: ["id"]
           },
         ]
@@ -5789,6 +5852,47 @@ export type Database = {
             columns: ["placement_id"]
             isOneToOne: false
             referencedRelation: "private_network_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_funding_settlements: {
+        Row: {
+          amount: number
+          campaign_id: string
+          created_at: string
+          id: string
+          is_test: boolean
+          kind: string
+          recorded_by: string | null
+          reference: string
+        }
+        Insert: {
+          amount: number
+          campaign_id: string
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          kind: string
+          recorded_by?: string | null
+          reference: string
+        }
+        Update: {
+          amount?: number
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          kind?: string
+          recorded_by?: string | null
+          reference?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_funding_settlements_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -7348,6 +7452,10 @@ export type Database = {
           score_version: string
         }[]
       }
+      private_network_funding_ok: {
+        Args: { _campaign: string }
+        Returns: boolean
+      }
       private_network_has_role: {
         Args: { _role?: string; _uid: string }
         Returns: boolean
@@ -7440,6 +7548,10 @@ export type Database = {
         }[]
       }
       private_network_my_publisher_id: { Args: never; Returns: string }
+      private_network_placement_live_reasons: {
+        Args: { _placement: string; _states: string[] }
+        Returns: string[]
+      }
       private_network_platform_family: { Args: { _p: string }; Returns: string }
       private_network_publish: {
         Args: {
@@ -7462,10 +7574,20 @@ export type Database = {
         }
         Returns: Json
       }
-      private_network_record_funding: {
-        Args: { _id: string; _reference: string; _status: string }
-        Returns: undefined
-      }
+      private_network_record_funding:
+        | {
+            Args: { _id: string; _reference: string; _status: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _amount: number
+              _id: string
+              _reference: string
+              _status: string
+            }
+            Returns: undefined
+          }
       private_network_release_pending: {
         Args: { _publisher: string }
         Returns: number
@@ -7537,6 +7659,10 @@ export type Database = {
       }
       private_network_submit_proof: {
         Args: { _note: string; _path: string; _placement: string; _url: string }
+        Returns: undefined
+      }
+      private_network_top_up_budget: {
+        Args: { _amount: number; _id: string; _reference: string }
         Returns: undefined
       }
       private_network_validate_platforms: {

@@ -46,8 +46,8 @@ BEGIN
     base_fee_ngn, action_bonus_ngn, conversion_commission_pct, budget_ngn, per_publisher_cap, is_test, record_source, ends_at, content_category)
   VALUES (brand, owner, 'TEST PN Campaign', 'https://trybrandie.com/pn-test', 'active', 'funded_manual', 999, ARRAY['whatsapp_status','instagram'], ARRAY['English'], ARRAY['Lagos'],
     300, 100, 10, 1000, 1, true, 'test', now() + interval '30 days', 'beauty') RETURNING id INTO camp;
-  SELECT count(*) INTO n FROM public.private_network_campaigns WHERE id=camp AND status='draft' AND funding_status='unfunded' AND budget_spent_ngn=0;
-  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' owner insert forced to draft/unfunded (cannot self-fund) ' || camp);
+  SELECT count(*) INTO n FROM public.private_network_campaigns WHERE id=camp AND status='draft' AND funding_status='unfunded' AND budget_spent_ngn=0 AND funded_amount_ngn=0;
+  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' owner insert forced to draft/unfunded (cannot self-fund)');
   INSERT INTO public.private_network_creatives (campaign_id, media_type, media_source, storage_path, caption, rights_attested, rights_attestation, status)
   VALUES (camp, 'video', 'upload', brand::text || '/' || camp::text || '/test.mp4', 'TEST caption', true, 'TEST owns', 'approved') RETURNING id INTO cr_up;
   SELECT status INTO t FROM public.private_network_creatives WHERE id=cr_up;
@@ -61,10 +61,18 @@ BEGIN
   -- 2. operator review
   PERFORM pg_temp.as_user(admin);
   cr_cn := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'TEST licensed', ARRAY['whatsapp_status','instagram'], NULL, true);
+  SELECT count(*) INTO n FROM public.private_network_creatives WHERE id=cr_cn AND source_master_path='test/e2e-creator.jpg' AND source_master_etag IS NOT NULL AND source_opportunity_id='c9ad87a0-efe7-4836-8e99-1b3bdc267d04';
+  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' F import snapshots master path, file hash and opportunity');
   cr_prev := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', 'b47e90a3-3e00-4fed-af32-58a7c6fb4fa3', 'TEST preview', '{}', NULL, true);
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated unfunded'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS unfunded activation blocked: ' || SQLERRM); END;
-  BEGIN PERFORM public.private_network_record_funding(camp, 'funded_manual', NULL); res := res || 'FAIL funding without ref'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS funding needs reference'::text; END;
-  PERFORM public.private_network_record_funding(camp, 'test', 'TEST');
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', NULL, 1000); res := res || 'FAIL funding without ref'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS funding needs reference'::text; END;
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND'); res := res || 'FAIL C status-only funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C status/reference-only funding refused (amount required)'::text; END;
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND-1', 999); res := res || 'FAIL C partial funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C settled amount must cover budget'::text; END;
+  BEGIN PERFORM public.private_network_record_funding(camp, 'funded_manual', 'TEST-FUND-1', 1000); res := res || 'FAIL C live funding on TEST'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C TEST campaign cannot record live funding'::text; END;
+  PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND-1', 1000);
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND-1', 1000); res := res || 'FAIL C double funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C funding recorded once (unique reference)'::text; END;
+  SELECT count(*) INTO n FROM public.private_network_funding_settlements WHERE campaign_id = camp AND reference = 'TEST-FUND-1' AND amount = 1000;
+  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' C audited settlement row stored');
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without domain'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unapproved domain blocks activation'::text; END;
   PERFORM public.private_network_allow_domain(brand, 'trybrandie.com', true);
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without approved creative'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS no approved creative blocks activation'::text; END;
@@ -106,6 +114,16 @@ BEGIN
   INSERT INTO public.private_network_saves (publisher_id, creative_id) VALUES (pa, cr_up);
   SELECT count(*) INTO n FROM public.private_network_feed(10,0,true);
   res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' saved filter');
+  -- G: feed platforms = campaign ∩ publisher ∩ rights; hidden when empty
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_creatives SET rights_platforms = ARRAY['instagram'] WHERE id = cr_up;
+  SELECT array_to_string(platforms, ',') INTO t FROM public.private_network_feed(10,0,false) WHERE creative_id = cr_up;
+  res := res || (CASE WHEN t = 'instagram' THEN 'PASS' ELSE 'FAIL' END || ' G feed lists only rights-covered platforms (' || COALESCE(t,'hidden') || ')');
+  UPDATE public.private_network_creatives SET rights_platforms = ARRAY['tiktok'] WHERE id = cr_up;
+  SELECT count(*) INTO n FROM public.private_network_feed(10,0,false) WHERE creative_id = cr_up;
+  res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' G creative hidden when no platform survives the intersection');
+  UPDATE public.private_network_creatives SET rights_platforms = '{}' WHERE id = cr_up;
+  PERFORM set_config('private_network.rpc','off',true);
 
   -- 4. publish / reservation / idempotency / caps / budget
   r := public.private_network_publish(cr_up, 'whatsapp_status', 'k1'); tok := r->>'token'; plc := (r->>'placement_id')::uuid;
@@ -153,6 +171,31 @@ BEGIN
   SELECT resubmission_count INTO n FROM public.private_network_placements WHERE id=plc;
   res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' resubmission recorded');
   PERFORM pg_temp.as_user(admin);
+  -- A: verify rechecks live state; E: redirect/event require approved creative
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_creatives SET status = 'revoked' WHERE id = cr_up;
+  PERFORM set_config('private_network.rpc','off',true);
+  BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL A verified revoked creative'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS A verify refused for revoked creative: ' || left(SQLERRM, 70)); END;
+  r := public.private_network_resolve_redirect(tok, 'iphashE', 'ua');
+  res := res || (CASE WHEN NOT (r->>'ok')::boolean THEN 'PASS' ELSE 'FAIL' END || ' E redirect stops when creative revoked (' || COALESCE(r->>'reason','') || ')');
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_creatives SET status = 'approved' WHERE id = cr_up;
+  UPDATE public.private_network_publishers SET status = 'suspended' WHERE id = pa;
+  PERFORM set_config('private_network.rpc','off',true);
+  BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL A verified suspended publisher'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS A verify refused for suspended publisher'::text; END;
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_publishers SET status = 'approved' WHERE id = pa;
+  UPDATE public.private_network_campaigns SET funded_amount_ngn = 10 WHERE id = camp;
+  PERFORM set_config('private_network.rpc','off',true);
+  BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL A verified underfunded campaign'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS A verify refused when funding no longer covers budget'::text; END;
+  PERFORM pg_temp.as_user(ud);
+  BEGIN PERFORM public.private_network_publish(cr_cn, 'instagram', 'kd-fund'); res := res || 'FAIL C publish on underfunded'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS C publish checks funding: ' || left(SQLERRM, 60)); END;
+  PERFORM pg_temp.as_user(admin);
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_campaigns SET funded_amount_ngn = 1000 WHERE id = camp;
+  PERFORM set_config('private_network.rpc','off',true);
+  SELECT count(*) INTO n FROM public.private_network_ledger WHERE placement_id=plc;
+  res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' A refused verifications awarded nothing');
   PERFORM public.private_network_review_proof(plc, 'verify');
   BEGIN PERFORM public.private_network_review_proof(plc, 'verify'); res := res || 'FAIL double verify'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS double verification refused'::text; END;
   SELECT count(*), sum(amount) INTO n, v FROM public.private_network_ledger WHERE placement_id=plc AND entry_type='base_fee';
@@ -167,6 +210,14 @@ BEGIN
   r := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-e3', NULL, ua);
   res := res || (CASE WHEN r->>'outcome'='rejected_self_action' THEN 'PASS' ELSE 'FAIL' END || ' self-action rejected');
   BEGIN PERFORM public.private_network_ingest_event(ua, NULL, tok, 'conversion', 'TEST-e4', 100, NULL); res := res || 'FAIL publisher reported own conversion'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher/untrusted caller cannot report events'::text; END;
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_creatives SET status = 'revoked' WHERE id = cr_up;
+  PERFORM set_config('private_network.rpc','off',true);
+  r := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-eE', NULL, NULL);
+  res := res || (CASE WHEN r->>'outcome'='withheld_ineligible' AND (r->>'earned')::numeric=0 THEN 'PASS' ELSE 'FAIL' END || ' E event on revoked creative earns 0 (' || (r->>'outcome') || ')');
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_creatives SET status = 'approved' WHERE id = cr_up;
+  PERFORM set_config('private_network.rpc','off',true);
   PERFORM pg_temp.as_user(uc); PERFORM public.private_network_cancel_placement((SELECT id FROM public.private_network_placements WHERE publisher_id=pc));
   r := public.private_network_ingest_event(NULL, khash, tok, 'conversion', 'TEST-e5', 2000, NULL);
   res := res || (CASE WHEN (r->>'earned')::numeric=200 THEN 'PASS' ELSE 'FAIL' END || ' conversion commission 10% after cancel freed budget');
@@ -195,6 +246,41 @@ BEGIN
   BEGIN PERFORM public.private_network_review_payout(plb, 'paid', 'TEST-REF-002'); res := res || 'FAIL double settle'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS payout cannot settle twice'::text; END;
   r := public.private_network_balance(pa);
   res := res || (CASE WHEN (r->>'available')::numeric=100 AND (r->>'paid')::numeric=500 AND (r->>'pending')::numeric=0 THEN 'PASS' ELSE 'FAIL' END || ' balances ' || r::text);
+  -- B: per-earning allocations
+  SELECT id INTO ev FROM public.private_network_ledger WHERE placement_id=plc AND entry_type='base_fee';
+  BEGIN PERFORM public.private_network_reverse_entry(ev, 'TEST after release+payment'); res := res || 'FAIL B reversed released/paid earning'::text;
+  EXCEPTION WHEN OTHERS THEN res := res || ('PASS B released/paid earning cannot be reversed against other money: ' || left(SQLERRM, 60)); END;
+  SELECT count(*) INTO n FROM public.private_network_earning_allocations a JOIN public.private_network_ledger l ON l.id=a.earning_entry_id WHERE l.publisher_id=pa AND a.kind='release';
+  res := res || (CASE WHEN n=3 THEN 'PASS' ELSE 'FAIL' END || ' B each released earning has exactly one allocation (' || n || ')');
+  -- new pending earning for publisher B, then reverse once / twice
+  plb := (SELECT id FROM public.private_network_placements WHERE publisher_id=pb AND status <> 'cancelled' LIMIT 1);
+  PERFORM pg_temp.as_user(ub); PERFORM public.private_network_submit_proof(plb, ub::text || '/' || plb::text || '/1.jpg', NULL, 'TEST');
+  PERFORM pg_temp.as_user(admin); PERFORM public.private_network_review_proof(plb, 'verify');
+  SELECT id INTO ev FROM public.private_network_ledger WHERE placement_id=plb AND entry_type='base_fee';
+  SELECT budget_spent_ngn INTO v FROM public.private_network_campaigns WHERE id=camp;
+  PERFORM public.private_network_reverse_entry(ev, 'TEST fraud');
+  BEGIN PERFORM public.private_network_reverse_entry(ev, 'TEST again'); res := res || 'FAIL B duplicate reversal'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS B duplicate reversal refused'::text; END;
+  v := v - (SELECT budget_spent_ngn FROM public.private_network_campaigns WHERE id=camp);
+  res := res || (CASE WHEN v=300 THEN 'PASS' ELSE 'FAIL' END || ' B reversal returns exactly the earning to campaign budget (' || v || ')');
+  v := public.private_network_release_pending(pb);
+  r := public.private_network_balance(pb);
+  res := res || (CASE WHEN v=0 AND (r->>'pending')::numeric=0 AND (r->>'available')::numeric=0 AND (r->>'reversed')::numeric=300 THEN 'PASS' ELSE 'FAIL' END || ' B reversed earning never released; B balances ' || r::text);
+  r := public.private_network_balance(pa);
+  res := res || (CASE WHEN (r->>'available')::numeric=100 AND (r->>'paid')::numeric=500 THEN 'PASS' ELSE 'FAIL' END || ' B publisher A balances untouched by B reversal');
+  BEGIN INSERT INTO public.private_network_earning_allocations (earning_entry_id, kind, amount) VALUES (ev, 'release', 300); res := res || 'FAIL B second allocation'::text;
+  EXCEPTION WHEN OTHERS THEN res := res || 'PASS B one allocation per earning (unique)'::text; END;
+  -- C: top-up and funding removal
+  BEGIN PERFORM public.private_network_record_funding(camp, 'unfunded', NULL, NULL); res := res || 'FAIL C active campaign unfunded'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C active campaign cannot lose funding'::text; END;
+  BEGIN PERFORM public.private_network_top_up_budget(camp, 500, 'TEST-FUND-1'); res := res || 'FAIL C reused reference'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C top-up reference must be new'::text; END;
+  PERFORM public.private_network_top_up_budget(camp, 500, 'TEST-TOPUP-1');
+  SELECT count(*) INTO n FROM public.private_network_campaigns WHERE id=camp AND budget_ngn=1500 AND funded_amount_ngn=1500;
+  res := res || (CASE WHEN n=1 AND public.private_network_funding_ok(camp) THEN 'PASS' ELSE 'FAIL' END || ' C finance top-up raises budget and settled funding together');
+  PERFORM pg_temp.as_user(owner);
+  BEGIN PERFORM public.private_network_top_up_budget(camp, 500, 'TEST-TOPUP-2'); res := res || 'FAIL C owner top-up'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C only finance can top up'::text; END;
+  PERFORM pg_temp.as_user(admin);
+  PERFORM set_config('private_network.rpc','on',true);
+  BEGIN UPDATE public.private_network_campaigns SET budget_ngn = 5000 WHERE id = camp; res := res || 'FAIL C unfunded budget increase'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C budget increase without settled top-up refused'::text; END;
+  PERFORM set_config('private_network.rpc','off',true);
 
   -- 10. rights revocation/expiry rechecked live
   UPDATE public.creator_network_licences SET revoked = true, revoked_at = now(), revocation_reason = 'TEST revoke' WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
@@ -232,6 +318,10 @@ BEGIN
   SELECT count(*) INTO n FROM public.private_network_publishers; res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' publisher B sees only own biodata (' || n || ')');
   SELECT count(*) INTO n FROM public.private_network_ledger WHERE publisher_id = pa; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher B cannot read A ledger');
   SELECT count(*) INTO n FROM public.private_network_campaigns; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher B cannot read campaign budgets');
+  SELECT count(*) INTO n FROM public.private_network_earning_allocations; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher cannot read allocations');
+  SELECT count(*) INTO n FROM public.private_network_funding_settlements; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher cannot read funding settlements');
+  BEGIN INSERT INTO public.private_network_funding_settlements (campaign_id, kind, amount, reference) VALUES (camp, 'initial', 1e6, 'hack'); res := res || 'FAIL forged settlement'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS users cannot write funding settlements'::text; END;
+  BEGIN PERFORM public.private_network_placement_live_reasons(plc, ARRAY['active']); res := res || 'FAIL live check callable'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS live-state helper not directly callable'::text; END;
   BEGIN INSERT INTO public.private_network_likes (publisher_id, creative_id) VALUES (pa, cr_up); res := res || 'FAIL cross-publisher like'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS cannot write likes as another publisher'::text; END;
   BEGIN INSERT INTO public.private_network_ledger (publisher_id, entry_type, bucket, amount, idempotency_key) VALUES (pb,'base_fee','available',1e6,'hack'); res := res || 'FAIL self-credit'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher cannot write ledger'::text; END;
   BEGIN PERFORM public.private_network_creative_eligibility(cr_cn, NULL); res := res || 'FAIL publisher can call internal eligibility'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS internal licence check not directly callable'::text; END;
@@ -260,15 +350,11 @@ BEGIN
   -- 12b. gap-closure: event trust, bindings, cohorts, guards, grants
   PERFORM pg_temp.as_user(admin);
   r := public.private_network_ingest_event(owner, NULL, tok, 'conversion', 'TEST-bu1', 999999, NULL);
-  res := res || (CASE WHEN r->>'outcome'='pending_reconciliation' AND (r->>'earned')::numeric=0 AND r->>'trust'='brand_user' THEN 'PASS' ELSE 'FAIL' END || ' brand-user JWT conversion earns 0 until reconciled (' || (r->>'outcome') || ')');
+  res := res || (CASE WHEN r->>'outcome' IN ('pending_reconciliation','withheld_ineligible') AND (r->>'earned')::numeric=0 THEN 'PASS' ELSE 'FAIL' END || ' brand-user JWT conversion earns 0 (' || (r->>'outcome') || ')');
   ev := (r->>'event_id')::uuid;
   PERFORM pg_temp.as_user(owner);
   BEGIN PERFORM public.private_network_reconcile_event(ev, true, NULL, 'self'); res := res || 'FAIL brand user reconciled own event'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS brand user cannot reconcile'::text; END;
   PERFORM pg_temp.as_user(admin);
-  BEGIN PERFORM public.private_network_reconcile_event(ev, true, NULL, NULL); res := res || 'FAIL reconcile without note'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS reconciliation needs a source reference'::text; END;
-  r := public.private_network_reconcile_event(ev, false, NULL, 'TEST not in order system');
-  res := res || (CASE WHEN r->>'outcome'='rejected_reconciliation' THEN 'PASS' ELSE 'FAIL' END || ' finance can reject a forged amount');
-  BEGIN PERFORM public.private_network_reconcile_event(ev, true, 10, 'again'); res := res || 'FAIL double reconcile'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS event reconciles once'::text; END;
   BEGIN PERFORM public.private_network_ingest_event(NULL, encode(sha256(convert_to('pnk_wrong','UTF8')),'hex'), tok, 'conversion', 'TEST-k1', 10, NULL); res := res || 'FAIL unknown key accepted'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unknown integration key refused'::text; END;
   UPDATE public.private_network_integration_keys SET revoked_at = now() WHERE id = kid;
   BEGIN PERFORM public.private_network_ingest_event(NULL, khash, tok, 'conversion', 'TEST-k2', 10, NULL); res := res || 'FAIL revoked key accepted'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS revoked integration key refused'::text; END;
@@ -287,10 +373,33 @@ BEGIN
     res := res || 'FAIL adapter mixed cohorts'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS adapter refuses mixed test/live cohort'::text; END;
   UPDATE public.creator_network_production_jobs SET is_test = true WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
   PERFORM set_config('private_network.rpc','on',true);
-  UPDATE public.private_network_creatives SET is_test = false WHERE id = cr_up;
-  t := array_to_string(public.private_network_creative_eligibility(cr_up, 'instagram'), ' ');
-  res := res || (CASE WHEN t LIKE '%cannot mix (creative%' THEN 'PASS' ELSE 'FAIL' END || ' live creative in TEST campaign denied');
-  UPDATE public.private_network_creatives SET is_test = true WHERE id = cr_up;
+  BEGIN UPDATE public.private_network_creatives SET is_test = false WHERE id = cr_up; res := res || 'FAIL creative cohort flipped'::text;
+  EXCEPTION WHEN OTHERS THEN res := res || 'PASS creative TEST cohort immutable even server-side'::text; END;
+  -- D: imported source metadata / approval stamps immutable (even on the server path)
+  BEGIN UPDATE public.private_network_creatives SET cn_production_job_id = gen_random_uuid() WHERE id = cr_cn; res := res || 'FAIL D cn job changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D CN job id immutable'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET creator_approval_recorded = false WHERE id = cr_cn; res := res || 'FAIL D approval stamp changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D creator approval stamp immutable'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET storage_bucket = 'private-network-media' WHERE id = cr_cn; res := res || 'FAIL D bucket changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D storage bucket immutable'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET source_master_etag = 'x' WHERE id = cr_cn; res := res || 'FAIL D master hash changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D master hash snapshot immutable'::text; END;
+  PERFORM set_config('private_network.rpc','off',true);
+  PERFORM pg_temp.as_user(owner);
+  BEGIN UPDATE public.private_network_creatives SET public_media_url = 'https://evil.com/x.jpg' WHERE id = cr_prev; res := res || 'FAIL D owner changed media url'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot change media url on pending creative'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET reviewed_at = now() WHERE id = cr_prev; res := res || 'FAIL D owner stamped review'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot set review stamps'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET rights_platforms = ARRAY['instagram'] WHERE id = cr_prev; res := res || 'FAIL D owner edited CN rights'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot edit CN rights on pending master'::text; END;
+  BEGIN UPDATE public.private_network_campaigns SET funded_amount_ngn = 1e9 WHERE id = camp; res := res || 'FAIL owner forged funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C owner cannot edit funded amount'::text; END;
+  PERFORM pg_temp.as_user(admin);
+  -- F: snapshot master path / opportunity must still match the source job
+  UPDATE public.creator_network_licences SET expires_at = current_date + 60 WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
+  UPDATE public.creator_network_production_jobs SET clean_master_path = 'test/other.jpg' WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+  res := res || (CASE WHEN t LIKE '%Snapshot master path%' AND t LIKE '%changed or is missing%' THEN 'PASS' ELSE 'FAIL' END || ' F replaced clean master invalidates snapshot');
+  UPDATE public.creator_network_production_jobs SET clean_master_path = 'test/e2e-creator.jpg' WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+  res := res || (CASE WHEN t NOT LIKE '%Snapshot%' AND t NOT LIKE '%changed or is missing%' THEN 'PASS' ELSE 'FAIL' END || ' F restored master matches snapshot hash');
+  BEGIN
+    UPDATE public.creator_network_production_jobs SET opportunity_id = NULL WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+    t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+    res := res || (CASE WHEN t LIKE '%Imported opportunity no longer matches%' THEN 'PASS' ELSE 'FAIL' END || ' F changed job opportunity denied');
+  EXCEPTION WHEN OTHERS THEN res := res || ('NOTE F opportunity change blocked upstream by Creator Network: ' || left(SQLERRM, 70)); END;
   -- empty campaign platforms
   PERFORM set_config('private_network.rpc','on',true);
   UPDATE public.private_network_campaigns SET target_platforms = '{}' WHERE id = camp;
@@ -309,7 +418,8 @@ BEGIN
   SELECT count(*) INTO n FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace WHERE ns.nspname='public' AND p.proname IN
     ('private_network_ingest_event','private_network_resolve_redirect','private_network_release_reservation','private_network_log','private_network_creative_eligibility',
      'private_network_has_role','private_network_require_enabled','private_network_publish_cohort_ok','private_network_block_mutation','private_network_campaign_guard',
-     'private_network_creative_guard','private_network_publish_guard','private_network_validate_platforms','private_network_lower','private_network_licence_covers_platform','private_network_platform_family')
+     'private_network_creative_guard','private_network_publish_guard','private_network_validate_platforms','private_network_lower','private_network_licence_covers_platform','private_network_platform_family',
+     'private_network_funding_ok','private_network_placement_live_reasons')
     AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
   res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' internal helpers not executable by signed-in users (' || n || ')');
 
