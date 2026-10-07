@@ -52,7 +52,9 @@ function CampaignReview() {
   const q = usePnQuery<any[]>(["op-camps"], list("campaigns", (x) => x.in("status", ["pending_review", "paused", "active"])));
   const domains = usePnQuery<any[]>(["op-domains"], list("allowed_domains"));
   const t = usePnAction(({ id, to, note }: any) => rpc("campaign_transition", { _id: id, _to: to, _note: note ?? null }), "Campaign updated");
-  const fund = usePnAction(({ id, s, ref }: any) => rpc("record_funding", { _id: id, _status: s, _reference: ref }), "Funding recorded");
+  const fund = usePnAction(({ id, s, ref, amt }: any) => rpc("record_funding", { _id: id, _status: s, _reference: ref, _amount: amt }), "Funding recorded");
+  const topUp = usePnAction(({ id, ref, amt }: any) => rpc("top_up_budget", { _id: id, _amount: amt, _reference: ref }), "Budget topped up");
+  const askAmount = (label: string, def?: number) => { const v = Number(ask(label) ?? ""); return Number.isFinite(v) && v > 0 ? v : (def ?? null); };
   const allow = usePnAction(({ b, h }: any) => rpc("allow_domain", { _brand: b, _host: h, _allow: true }), "Domain approved");
   const allowed = (c: any) => (domains.data ?? []).some((d) => d.brand_id === c.brand_id && d.host === c.landing_host);
   return (
@@ -61,11 +63,12 @@ function CampaignReview() {
       {(q.data ?? []).map((c) => (
         <div key={c.id} className="rounded-xl border p-3 text-sm space-y-1">
           <div className="flex items-center justify-between"><strong>{c.code} · {c.name}</strong><span className="flex gap-1"><StatusPill>{c.status}</StatusPill>{c.is_test && <StatusPill>TEST</StatusPill>}</span></div>
-          <p className="text-xs text-muted-foreground">{c.landing_url} · fee {formatNgn(c.base_fee_ngn)} · budget {formatNgn(c.budget_ngn)} · funding {c.funding_status}{c.funding_reference && ` (${c.funding_reference})`}</p>
+          <p className="text-xs text-muted-foreground">{c.landing_url} · fee {formatNgn(c.base_fee_ngn)} · budget {formatNgn(c.budget_ngn)} · settled {formatNgn(c.funded_amount_ngn ?? 0)} · funding {c.funding_status}{c.funding_reference && ` (${c.funding_reference})`}</p>
           <div className="flex flex-wrap gap-2">
             {!allowed(c) && <Button size="sm" variant="outline" onClick={() => allow.mutate({ b: c.brand_id, h: c.landing_host })}>Approve domain {c.landing_host}</Button>}
-            {c.funding_status === "unfunded" && <Button size="sm" variant="outline" onClick={() => { const ref = ask("Payment reference received from advertiser"); ref && fund.mutate({ id: c.id, s: "funded_manual", ref }); }}>Record funding</Button>}
-            {c.funding_status === "unfunded" && c.is_test && <Button size="sm" variant="outline" onClick={() => fund.mutate({ id: c.id, s: "test", ref: "TEST" })}>Mark TEST funded</Button>}
+            {c.funding_status === "unfunded" && !c.is_test && <Button size="sm" variant="outline" onClick={() => { const ref = ask("Settlement reference received from advertiser"); if (!ref) return; const amt = askAmount(`Verified settled amount in NGN (must cover budget ${c.budget_ngn})`); amt && fund.mutate({ id: c.id, s: "funded_manual", ref, amt }); }}>Record funding</Button>}
+            {c.funding_status === "unfunded" && c.is_test && <Button size="sm" variant="outline" onClick={() => fund.mutate({ id: c.id, s: "test", ref: `TEST-${c.code}`, amt: c.budget_ngn })}>Mark TEST funded</Button>}
+            {c.funding_status !== "unfunded" && !c.is_test && <Button size="sm" variant="outline" onClick={() => { const ref = ask("New settlement reference for the top-up"); if (!ref) return; const amt = askAmount("Verified top-up amount in NGN"); amt && topUp.mutate({ id: c.id, ref, amt }); }}>Top up budget</Button>}
             {c.status === "pending_review" && <Button size="sm" onClick={() => t.mutate({ id: c.id, to: "active" })}>Activate</Button>}
             {c.status === "pending_review" && <Button size="sm" variant="ghost" onClick={() => { const n = ask("Reason"); n && t.mutate({ id: c.id, to: "rejected", note: n }); }}>Reject</Button>}
             {c.status === "active" && <Button size="sm" variant="ghost" onClick={() => t.mutate({ id: c.id, to: "paused" })}>Pause</Button>}
