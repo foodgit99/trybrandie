@@ -92,6 +92,13 @@
       "when": 1791330711451,
       "tag": "0012_private_network_bindings_trust_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791331891095,
+      "tag": "0013_private_network_financial_integrity",
+      "breakpoints": true
     }
   ]
 }
