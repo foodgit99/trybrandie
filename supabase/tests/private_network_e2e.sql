@@ -287,10 +287,26 @@ BEGIN
     res := res || 'FAIL adapter mixed cohorts'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS adapter refuses mixed test/live cohort'::text; END;
   UPDATE public.creator_network_production_jobs SET is_test = true WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
   PERFORM set_config('private_network.rpc','on',true);
-  UPDATE public.private_network_creatives SET is_test = false WHERE id = cr_up;
-  t := array_to_string(public.private_network_creative_eligibility(cr_up, 'instagram'), ' ');
-  res := res || (CASE WHEN t LIKE '%cannot mix (creative%' THEN 'PASS' ELSE 'FAIL' END || ' live creative in TEST campaign denied');
-  UPDATE public.private_network_creatives SET is_test = true WHERE id = cr_up;
+  BEGIN UPDATE public.private_network_creatives SET is_test = false WHERE id = cr_up; res := res || 'FAIL creative cohort flipped'::text;
+  EXCEPTION WHEN OTHERS THEN res := res || 'PASS creative TEST cohort immutable even server-side'::text; END;
+  -- D: imported source metadata / approval stamps immutable (even on the server path)
+  BEGIN UPDATE public.private_network_creatives SET cn_production_job_id = gen_random_uuid() WHERE id = cr_cn; res := res || 'FAIL D cn job changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D CN job id immutable'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET creator_approval_recorded = false WHERE id = cr_cn; res := res || 'FAIL D approval stamp changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D creator approval stamp immutable'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET storage_bucket = 'private-network-media' WHERE id = cr_cn; res := res || 'FAIL D bucket changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D storage bucket immutable'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET source_master_etag = 'x' WHERE id = cr_cn; res := res || 'FAIL D master hash changed'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D master hash snapshot immutable'::text; END;
+  PERFORM set_config('private_network.rpc','off',true);
+  PERFORM pg_temp.as_user(owner);
+  BEGIN UPDATE public.private_network_creatives SET public_media_url = 'https://evil.com/x.jpg' WHERE id = cr_prev; res := res || 'FAIL D owner changed media url'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot change media url on pending creative'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET reviewed_at = now() WHERE id = cr_prev; res := res || 'FAIL D owner stamped review'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot set review stamps'::text; END;
+  BEGIN UPDATE public.private_network_creatives SET rights_platforms = ARRAY['instagram'] WHERE id = cr_prev; res := res || 'FAIL D owner edited CN rights'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot edit CN rights on pending master'::text; END;
+  PERFORM pg_temp.as_user(admin);
+  -- F: snapshot master path / opportunity must still match the source job
+  UPDATE public.creator_network_production_jobs SET clean_master_path = 'test/other.jpg' WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+  res := res || (CASE WHEN t LIKE '%Snapshot master path%' AND t LIKE '%changed or is missing%' THEN 'PASS' ELSE 'FAIL' END || ' F replaced clean master invalidates snapshot');
+  UPDATE public.creator_network_production_jobs SET clean_master_path = 'test/e2e-creator.jpg' WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+  t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+  res := res || (CASE WHEN t NOT LIKE '%Snapshot%' AND t NOT LIKE '%changed or is missing%' THEN 'PASS' ELSE 'FAIL' END || ' F restored master matches snapshot hash');
   -- empty campaign platforms
   PERFORM set_config('private_network.rpc','on',true);
   UPDATE public.private_network_campaigns SET target_platforms = '{}' WHERE id = camp;
