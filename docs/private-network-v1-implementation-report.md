@@ -9,7 +9,7 @@ Status: built, server-tested, **flag OFF** (enablement is your decision). See `d
 - Flag: `private_network_settings.enabled`, read by `usePrivateNetwork()` and enforced by every RPC, RLS write path, storage insert policy and edge function.
 
 ## Event ingest contract (R7)
-`POST /functions/v1/private-network-events`, `Authorization: Bearer <JWT of campaign brand owner/team member or PN operator>`
+`POST /functions/v1/private-network-events` with either `X-PN-Integration-Key: pnk_…` (advertiser server, issued by a PN admin; earns immediately), `Authorization: Bearer <PN operator JWT>` (earns immediately) or `Authorization: Bearer <brand owner/team JWT>` (stored as pending_reconciliation; earns only after a finance reviewer approves it against the advertiser's records)
 `{ "pn_ref": "pn<32 hex>", "event_type": "qualified_action" | "conversion", "external_event_id": "<unique>", "amount_ngn"?: number, "actor_user_id"?: uuid }`
 Idempotent per external id; publishers cannot report their own events; events before proof verification earn 0; rate-limited. The redirect appends `pn_ref` to the stored, allow-listed landing URL. Existing affiliate/partner attribution is untouched (separate tables and ledger).
 

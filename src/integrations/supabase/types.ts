@@ -5722,11 +5722,16 @@ export type Database = {
           event_type: string
           external_event_id: string | null
           id: string
+          integration_key_id: string | null
           ip_hash: string | null
           is_test: boolean
           outcome: string
           placement_id: string
+          reconcile_note: string | null
+          reconciled_at: string | null
+          reconciled_by: string | null
           source: string
+          trust_level: string
           ua_hash: string | null
         }
         Insert: {
@@ -5738,11 +5743,16 @@ export type Database = {
           event_type: string
           external_event_id?: string | null
           id?: string
+          integration_key_id?: string | null
           ip_hash?: string | null
           is_test?: boolean
           outcome?: string
           placement_id: string
+          reconcile_note?: string | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
           source: string
+          trust_level?: string
           ua_hash?: string | null
         }
         Update: {
@@ -5754,19 +5764,75 @@ export type Database = {
           event_type?: string
           external_event_id?: string | null
           id?: string
+          integration_key_id?: string | null
           ip_hash?: string | null
           is_test?: boolean
           outcome?: string
           placement_id?: string
+          reconcile_note?: string | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
           source?: string
+          trust_level?: string
           ua_hash?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "private_network_events_integration_key_id_fkey"
+            columns: ["integration_key_id"]
+            isOneToOne: false
+            referencedRelation: "private_network_integration_keys"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "private_network_events_placement_id_fkey"
             columns: ["placement_id"]
             isOneToOne: false
             referencedRelation: "private_network_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_network_integration_keys: {
+        Row: {
+          brand_id: string
+          created_at: string
+          created_by: string
+          id: string
+          is_test: boolean
+          key_hash: string
+          key_hint: string
+          label: string
+          revoked_at: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_test?: boolean
+          key_hash: string
+          key_hint: string
+          label: string
+          revoked_at?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_test?: boolean
+          key_hash?: string
+          key_hint?: string
+          label?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_network_integration_keys_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
             referencedColumns: ["id"]
           },
         ]
@@ -7245,6 +7311,10 @@ export type Database = {
         Args: { _placement: string }
         Returns: undefined
       }
+      private_network_create_integration_key: {
+        Args: { _brand: string; _label: string }
+        Returns: Json
+      }
       private_network_creative_eligibility: {
         Args: { _creative: string; _platform?: string }
         Returns: string[]
@@ -7288,6 +7358,7 @@ export type Database = {
           _amount: number
           _caller: string
           _external_id: string
+          _key_hash: string
           _token: string
           _type: string
         }
@@ -7378,6 +7449,19 @@ export type Database = {
         }
         Returns: Json
       }
+      private_network_publish_cohort_ok: {
+        Args: { _creative: string; _publisher: string }
+        Returns: boolean
+      }
+      private_network_reconcile_event: {
+        Args: {
+          _approve: boolean
+          _event: string
+          _note?: string
+          _verified_amount?: number
+        }
+        Returns: Json
+      }
       private_network_record_funding: {
         Args: { _id: string; _reference: string; _status: string }
         Returns: undefined
@@ -7433,6 +7517,10 @@ export type Database = {
       private_network_review_reasons: {
         Args: { _creative: string }
         Returns: string[]
+      }
+      private_network_revoke_integration_key: {
+        Args: { _id: string }
+        Returns: undefined
       }
       private_network_save_profile: { Args: { _p: Json }; Returns: string }
       private_network_set_enabled: {
