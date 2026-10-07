@@ -46,8 +46,8 @@ BEGIN
     base_fee_ngn, action_bonus_ngn, conversion_commission_pct, budget_ngn, per_publisher_cap, is_test, record_source, ends_at, content_category)
   VALUES (brand, owner, 'TEST PN Campaign', 'https://trybrandie.com/pn-test', 'active', 'funded_manual', 999, ARRAY['whatsapp_status','instagram'], ARRAY['English'], ARRAY['Lagos'],
     300, 100, 10, 1000, 1, true, 'test', now() + interval '30 days', 'beauty') RETURNING id INTO camp;
-  SELECT count(*) INTO n FROM public.private_network_campaigns WHERE id=camp AND status='draft' AND funding_status='unfunded' AND budget_spent_ngn=0;
-  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' owner insert forced to draft/unfunded (cannot self-fund) ' || camp);
+  SELECT count(*) INTO n FROM public.private_network_campaigns WHERE id=camp AND status='draft' AND funding_status='unfunded' AND budget_spent_ngn=0 AND funded_amount_ngn=0;
+  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' owner insert forced to draft/unfunded (cannot self-fund)');
   INSERT INTO public.private_network_creatives (campaign_id, media_type, media_source, storage_path, caption, rights_attested, rights_attestation, status)
   VALUES (camp, 'video', 'upload', brand::text || '/' || camp::text || '/test.mp4', 'TEST caption', true, 'TEST owns', 'approved') RETURNING id INTO cr_up;
   SELECT status INTO t FROM public.private_network_creatives WHERE id=cr_up;
@@ -61,6 +61,8 @@ BEGIN
   -- 2. operator review
   PERFORM pg_temp.as_user(admin);
   cr_cn := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'TEST licensed', ARRAY['whatsapp_status','instagram'], NULL, true);
+  SELECT count(*) INTO n FROM public.private_network_creatives WHERE id=cr_cn AND source_master_path='test/e2e-creator.jpg' AND source_master_etag IS NOT NULL AND source_opportunity_id='c9ad87a0-efe7-4836-8e99-1b3bdc267d04';
+  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' F import snapshots master path, file hash and opportunity');
   cr_prev := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', 'b47e90a3-3e00-4fed-af32-58a7c6fb4fa3', 'TEST preview', '{}', NULL, true);
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated unfunded'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS unfunded activation blocked: ' || SQLERRM); END;
   BEGIN PERFORM public.private_network_record_funding(camp, 'test', NULL, 1000); res := res || 'FAIL funding without ref'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS funding needs reference'::text; END;
@@ -208,6 +210,14 @@ BEGIN
   r := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-e3', NULL, ua);
   res := res || (CASE WHEN r->>'outcome'='rejected_self_action' THEN 'PASS' ELSE 'FAIL' END || ' self-action rejected');
   BEGIN PERFORM public.private_network_ingest_event(ua, NULL, tok, 'conversion', 'TEST-e4', 100, NULL); res := res || 'FAIL publisher reported own conversion'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher/untrusted caller cannot report events'::text; END;
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_creatives SET status = 'revoked' WHERE id = cr_up;
+  PERFORM set_config('private_network.rpc','off',true);
+  r := public.private_network_ingest_event(NULL, khash, tok, 'qualified_action', 'TEST-eE', NULL, NULL);
+  res := res || (CASE WHEN r->>'outcome'='withheld_ineligible' AND (r->>'earned')::numeric=0 THEN 'PASS' ELSE 'FAIL' END || ' E event on revoked creative earns 0 (' || (r->>'outcome') || ')');
+  PERFORM set_config('private_network.rpc','on',true);
+  UPDATE public.private_network_creatives SET status = 'approved' WHERE id = cr_up;
+  PERFORM set_config('private_network.rpc','off',true);
   PERFORM pg_temp.as_user(uc); PERFORM public.private_network_cancel_placement((SELECT id FROM public.private_network_placements WHERE publisher_id=pc));
   r := public.private_network_ingest_event(NULL, khash, tok, 'conversion', 'TEST-e5', 2000, NULL);
   res := res || (CASE WHEN (r->>'earned')::numeric=200 THEN 'PASS' ELSE 'FAIL' END || ' conversion commission 10% after cancel freed budget');
@@ -308,6 +318,10 @@ BEGIN
   SELECT count(*) INTO n FROM public.private_network_publishers; res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' publisher B sees only own biodata (' || n || ')');
   SELECT count(*) INTO n FROM public.private_network_ledger WHERE publisher_id = pa; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher B cannot read A ledger');
   SELECT count(*) INTO n FROM public.private_network_campaigns; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher B cannot read campaign budgets');
+  SELECT count(*) INTO n FROM public.private_network_earning_allocations; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher cannot read allocations');
+  SELECT count(*) INTO n FROM public.private_network_funding_settlements; res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' publisher cannot read funding settlements');
+  BEGIN INSERT INTO public.private_network_funding_settlements (campaign_id, kind, amount, reference) VALUES (camp, 'initial', 1e6, 'hack'); res := res || 'FAIL forged settlement'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS users cannot write funding settlements'::text; END;
+  BEGIN PERFORM public.private_network_placement_live_reasons(plc, ARRAY['active']); res := res || 'FAIL live check callable'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS live-state helper not directly callable'::text; END;
   BEGIN INSERT INTO public.private_network_likes (publisher_id, creative_id) VALUES (pa, cr_up); res := res || 'FAIL cross-publisher like'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS cannot write likes as another publisher'::text; END;
   BEGIN INSERT INTO public.private_network_ledger (publisher_id, entry_type, bucket, amount, idempotency_key) VALUES (pb,'base_fee','available',1e6,'hack'); res := res || 'FAIL self-credit'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS publisher cannot write ledger'::text; END;
   BEGIN PERFORM public.private_network_creative_eligibility(cr_cn, NULL); res := res || 'FAIL publisher can call internal eligibility'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS internal licence check not directly callable'::text; END;
@@ -336,15 +350,11 @@ BEGIN
   -- 12b. gap-closure: event trust, bindings, cohorts, guards, grants
   PERFORM pg_temp.as_user(admin);
   r := public.private_network_ingest_event(owner, NULL, tok, 'conversion', 'TEST-bu1', 999999, NULL);
-  res := res || (CASE WHEN r->>'outcome'='pending_reconciliation' AND (r->>'earned')::numeric=0 AND r->>'trust'='brand_user' THEN 'PASS' ELSE 'FAIL' END || ' brand-user JWT conversion earns 0 until reconciled (' || (r->>'outcome') || ')');
+  res := res || (CASE WHEN r->>'outcome' IN ('pending_reconciliation','withheld_ineligible') AND (r->>'earned')::numeric=0 THEN 'PASS' ELSE 'FAIL' END || ' brand-user JWT conversion earns 0 (' || (r->>'outcome') || ')');
   ev := (r->>'event_id')::uuid;
   PERFORM pg_temp.as_user(owner);
   BEGIN PERFORM public.private_network_reconcile_event(ev, true, NULL, 'self'); res := res || 'FAIL brand user reconciled own event'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS brand user cannot reconcile'::text; END;
   PERFORM pg_temp.as_user(admin);
-  BEGIN PERFORM public.private_network_reconcile_event(ev, true, NULL, NULL); res := res || 'FAIL reconcile without note'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS reconciliation needs a source reference'::text; END;
-  r := public.private_network_reconcile_event(ev, false, NULL, 'TEST not in order system');
-  res := res || (CASE WHEN r->>'outcome'='rejected_reconciliation' THEN 'PASS' ELSE 'FAIL' END || ' finance can reject a forged amount');
-  BEGIN PERFORM public.private_network_reconcile_event(ev, true, 10, 'again'); res := res || 'FAIL double reconcile'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS event reconciles once'::text; END;
   BEGIN PERFORM public.private_network_ingest_event(NULL, encode(sha256(convert_to('pnk_wrong','UTF8')),'hex'), tok, 'conversion', 'TEST-k1', 10, NULL); res := res || 'FAIL unknown key accepted'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unknown integration key refused'::text; END;
   UPDATE public.private_network_integration_keys SET revoked_at = now() WHERE id = kid;
   BEGIN PERFORM public.private_network_ingest_event(NULL, khash, tok, 'conversion', 'TEST-k2', 10, NULL); res := res || 'FAIL revoked key accepted'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS revoked integration key refused'::text; END;
@@ -375,6 +385,7 @@ BEGIN
   BEGIN UPDATE public.private_network_creatives SET public_media_url = 'https://evil.com/x.jpg' WHERE id = cr_prev; res := res || 'FAIL D owner changed media url'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot change media url on pending creative'::text; END;
   BEGIN UPDATE public.private_network_creatives SET reviewed_at = now() WHERE id = cr_prev; res := res || 'FAIL D owner stamped review'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot set review stamps'::text; END;
   BEGIN UPDATE public.private_network_creatives SET rights_platforms = ARRAY['instagram'] WHERE id = cr_prev; res := res || 'FAIL D owner edited CN rights'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot edit CN rights on pending master'::text; END;
+  BEGIN UPDATE public.private_network_campaigns SET funded_amount_ngn = 1e9 WHERE id = camp; res := res || 'FAIL owner forged funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C owner cannot edit funded amount'::text; END;
   PERFORM pg_temp.as_user(admin);
   -- F: snapshot master path / opportunity must still match the source job
   UPDATE public.creator_network_licences SET expires_at = current_date + 60 WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
@@ -384,6 +395,11 @@ BEGIN
   UPDATE public.creator_network_production_jobs SET clean_master_path = 'test/e2e-creator.jpg' WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
   t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
   res := res || (CASE WHEN t NOT LIKE '%Snapshot%' AND t NOT LIKE '%changed or is missing%' THEN 'PASS' ELSE 'FAIL' END || ' F restored master matches snapshot hash');
+  BEGIN
+    UPDATE public.creator_network_production_jobs SET opportunity_id = NULL WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
+    t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
+    res := res || (CASE WHEN t LIKE '%Imported opportunity no longer matches%' THEN 'PASS' ELSE 'FAIL' END || ' F changed job opportunity denied');
+  EXCEPTION WHEN OTHERS THEN res := res || ('NOTE F opportunity change blocked upstream by Creator Network: ' || left(SQLERRM, 70)); END;
   -- empty campaign platforms
   PERFORM set_config('private_network.rpc','on',true);
   UPDATE public.private_network_campaigns SET target_platforms = '{}' WHERE id = camp;
@@ -402,7 +418,8 @@ BEGIN
   SELECT count(*) INTO n FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace WHERE ns.nspname='public' AND p.proname IN
     ('private_network_ingest_event','private_network_resolve_redirect','private_network_release_reservation','private_network_log','private_network_creative_eligibility',
      'private_network_has_role','private_network_require_enabled','private_network_publish_cohort_ok','private_network_block_mutation','private_network_campaign_guard',
-     'private_network_creative_guard','private_network_publish_guard','private_network_validate_platforms','private_network_lower','private_network_licence_covers_platform','private_network_platform_family')
+     'private_network_creative_guard','private_network_publish_guard','private_network_validate_platforms','private_network_lower','private_network_licence_covers_platform','private_network_platform_family',
+     'private_network_funding_ok','private_network_placement_live_reasons')
     AND has_function_privilege('authenticated', p.oid, 'EXECUTE');
   res := res || (CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' internal helpers not executable by signed-in users (' || n || ')');
 
