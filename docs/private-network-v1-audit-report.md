@@ -38,6 +38,30 @@ Post-run check: 0 PN publishers, 0 PN campaigns, test CN licence unchanged, both
 
 **Unit tests:** 43 pass (Creator Network 35 incl. 4 new licence rules, Private Network 8). Build log: `build OK`.
 
+
+## 5. Second review round (live-SQL findings) — verified, fixed, re-tested
+
+Migration `0012_private_network_bindings_trust_grants.sql`; edge function `private-network-events` redeployed; Operator Console gained *Events awaiting reconciliation* and *Integration keys* (Finance tab).
+
+| Finding | Live state found | Fix |
+|---|---|---|
+| Eligibility omits restricted categories / voice / twin / Fulfilled / binding | Categories, voice, twin, Fulfilled were already live (0009). Binding was loose: a licence with no job only needed the same creator; opportunity taken from licence when job had none | Licence must name **this job**, or (no job named) name **the job's own opportunity**; licence and job opportunities must agree; Fulfilled checked on the job's opportunity only |
+| `add_cn_creative` accepts same creator's unrelated licence | Confirmed | Adapter refuses unless the exact job/opportunity binding holds |
+| Territory bypass when campaign geographies empty | Already denied live (0009) | Kept; covered by test |
+| NULL platform at approval/activation/feed bypasses coverage | Confirmed for campaigns with no named platforms (empty list skipped all platform checks) | Empty campaign platform list is now a hard ineligibility reason; a requested platform must also be in the campaign list |
+| Mixed test/live cohorts | Adapter set `creative.is_test` = campaign OR job OR licence; publish compared only campaign vs publisher | Adapter rejects any mismatch; eligibility (used by approval, activation, feed, publish, media, redirect) rejects creative/licence/job ≠ campaign; placement insert trigger rejects creative/campaign/publisher mismatch; event ingest rejects placement/publisher/campaign mismatch. Ledger and payouts inherit the placement's cohort |
+| Brand-user JWT could forge a paid conversion amount | Confirmed: any `has_brand_access` user earned the publisher commission on any amount | Three trust levels: **integration key** (server-to-server, sha256-hashed, admin-issued, revocable, brand-scoped) and **operator** earn immediately; **brand-user JWT** events are stored as `pending_reconciliation`, earn 0, and only a finance reviewer (not the reporter) can approve with a source reference and a verified amount. External ids are unique (index) and idempotent |
+| Owner RLS updates not fully guarded | Campaign guard already covered status/funding/counters; creative guard missed evidence, job id, bucket, media URL, reviewer fields, CN rights fields | Campaign guard also locks review note and budget once funded; creative guard locks all review/rights/cohort/media-pointer fields; CN rights fields operator-only |
+| Service-only helpers executable via RPC | Trigger functions and `require_enabled`/`lower`/`validate_platforms` executable by `anon`; `has_role(any uid)`, platform helpers executable by `authenticated` | Every PN function revoked from PUBLIC/anon/authenticated, then only the 32 user-facing RPCs re-granted to signed-in users (each checks role/ownership inside). Internal helpers: service role only |
+
+### Re-run evidence (rollback-only, 2026-10-07 00:00 UTC)
+Full server E2E `supabase/tests/private_network_e2e.sql`: **108 checks, 108 PASS, 0 FAIL**. New checks include: brand-user conversion earns 0 until reconciled; reporter cannot reconcile; reconciliation needs source reference; finance rejects forged amount; reconciles once; unknown and revoked integration keys refused; unbound licence denied in eligibility and in the adapter; live CN job in TEST campaign denied; adapter refuses mixed cohort; live creative in TEST campaign denied; campaign without named platforms ineligible; owner cannot change funded budget, counters or rights evidence; anon can execute 0 PN functions; signed-in users can execute 0 internal helpers.
+Post-run: 0 publishers, 0 campaigns, 0 keys, fixture licence/job restored, both flags OFF.
+Live endpoint (flag OFF): events with a well-formed key → 403 "switched off"; malformed key → 401.
+Unit tests 43/43, type check clean, build OK.
+
+Limitations of this round: the owner-budget/counter guard tests ran on an ended campaign, so the status rule would also have blocked them; the dedicated funded-budget rule is code-reviewed, not isolated by a test. Reconciliation *approve* path is code-reviewed; only reject/once/permissions were executed.
+
 ## 4. Not verified / limitations (honest)
 
 - Full signed-in browser walkthrough with the flag ON (desktop/tablet/mobile) was **not re-run** in this audit pass; the flag stays OFF until you decide on enablement.
