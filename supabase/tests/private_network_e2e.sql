@@ -377,6 +377,7 @@ BEGIN
   BEGIN UPDATE public.private_network_creatives SET rights_platforms = ARRAY['instagram'] WHERE id = cr_prev; res := res || 'FAIL D owner edited CN rights'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS D owner cannot edit CN rights on pending master'::text; END;
   PERFORM pg_temp.as_user(admin);
   -- F: snapshot master path / opportunity must still match the source job
+  UPDATE public.creator_network_licences SET expires_at = current_date + 60 WHERE id='3d347602-1975-4d36-bba7-dd46fc89de06';
   UPDATE public.creator_network_production_jobs SET clean_master_path = 'test/other.jpg' WHERE id = '026335f1-a19c-4612-8ff4-31f0a2851826';
   t := array_to_string(public.private_network_creative_eligibility(cr_cn, 'instagram'), ' ');
   res := res || (CASE WHEN t LIKE '%Snapshot master path%' AND t LIKE '%changed or is missing%' THEN 'PASS' ELSE 'FAIL' END || ' F replaced clean master invalidates snapshot');
