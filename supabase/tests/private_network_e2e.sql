@@ -63,8 +63,14 @@ BEGIN
   cr_cn := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', '3d347602-1975-4d36-bba7-dd46fc89de06', 'TEST licensed', ARRAY['whatsapp_status','instagram'], NULL, true);
   cr_prev := public.private_network_add_cn_creative(camp, '026335f1-a19c-4612-8ff4-31f0a2851826', 'b47e90a3-3e00-4fed-af32-58a7c6fb4fa3', 'TEST preview', '{}', NULL, true);
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated unfunded'::text; EXCEPTION WHEN OTHERS THEN res := res || ('PASS unfunded activation blocked: ' || SQLERRM); END;
-  BEGIN PERFORM public.private_network_record_funding(camp, 'funded_manual', NULL); res := res || 'FAIL funding without ref'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS funding needs reference'::text; END;
-  PERFORM public.private_network_record_funding(camp, 'test', 'TEST');
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', NULL, 1000); res := res || 'FAIL funding without ref'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS funding needs reference'::text; END;
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND'); res := res || 'FAIL C status-only funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C status/reference-only funding refused (amount required)'::text; END;
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND-1', 999); res := res || 'FAIL C partial funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C settled amount must cover budget'::text; END;
+  BEGIN PERFORM public.private_network_record_funding(camp, 'funded_manual', 'TEST-FUND-1', 1000); res := res || 'FAIL C live funding on TEST'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C TEST campaign cannot record live funding'::text; END;
+  PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND-1', 1000);
+  BEGIN PERFORM public.private_network_record_funding(camp, 'test', 'TEST-FUND-1', 1000); res := res || 'FAIL C double funding'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS C funding recorded once (unique reference)'::text; END;
+  SELECT count(*) INTO n FROM public.private_network_funding_settlements WHERE campaign_id = camp AND reference = 'TEST-FUND-1' AND amount = 1000;
+  res := res || (CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' C audited settlement row stored');
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without domain'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS unapproved domain blocks activation'::text; END;
   PERFORM public.private_network_allow_domain(brand, 'trybrandie.com', true);
   BEGIN PERFORM public.private_network_campaign_transition(camp, 'active'); res := res || 'FAIL activated without approved creative'::text; EXCEPTION WHEN OTHERS THEN res := res || 'PASS no approved creative blocks activation'::text; END;
